@@ -1,7 +1,5 @@
 // Copyright BattleDash. All Rights Reserved.
 
-#pragma once
-
 #include <Base/Log.h>
 #include <API/KyberAPIService.h>
 
