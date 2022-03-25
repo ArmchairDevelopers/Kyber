@@ -1,0 +1,99 @@
+//
+// thread_pool
+// ~~~~~~~~~~~
+// Simple thread pool.
+//
+// Copyright (c) 2014 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
+#ifndef EXECUTORS_EXPERIMENTAL_THREAD_POOL_HEADER
+#define EXECUTORS_EXPERIMENTAL_THREAD_POOL_HEADER
+
+#include <experimental/executor>
+#include <experimental/bits/scheduler.h>
+#include <thread>
+#include <vector>
+
+namespace std {
+namespace experimental {
+inline namespace concurrency_v1 {
+
+// Thread pool.
+
+class thread_pool
+  : public execution_context,
+    private __scheduler
+{
+public:
+  class executor_type;
+
+  // construct / copy / destroy:
+
+  thread_pool();
+  explicit thread_pool(size_t __num_threads);
+  thread_pool(const thread_pool&) = delete;
+  thread_pool& operator=(const thread_pool&) = delete;
+  ~thread_pool();
+
+  // thread pool operations:
+
+  executor_type get_executor() const noexcept;
+
+  void stop();
+  void join();
+
+private:
+  vector<thread> _M_threads;
+};
+
+class thread_pool::executor_type
+{
+public:
+  // construct / copy / destroy:
+
+  executor_type(const executor_type& __e) noexcept = default;
+  executor_type(executor_type&& __e) noexcept = default;
+  executor_type& operator=(const executor_type& __e) noexcept = default;
+  executor_type& operator=(executor_type&& __e) noexcept = default;
+  ~executor_type() = default;
+
+  // executor operations:
+
+  bool running_in_this_thread() const noexcept;
+
+  thread_pool& context() noexcept;
+
+  void on_work_started() noexcept;
+  void on_work_finished() noexcept;
+
+  template <class _Func, class _Alloc>
+    void dispatch(_Func&& __f, const _Alloc& a);
+  template <class _Func, class _Alloc>
+    void post(_Func&& __f, const _Alloc& a);
+  template <class _Func, class _Alloc>
+    void defer(_Func&& __f, const _Alloc& a);
+
+private:
+  friend class thread_pool;
+  friend bool operator==(const executor_type&, const executor_type&) noexcept;
+  explicit executor_type(thread_pool* __p) : _M_pool(__p) {}
+  thread_pool* _M_pool;
+};
+
+bool operator==(const thread_pool::executor_type& __a,
+                const thread_pool::executor_type& __b) noexcept;
+bool operator!=(const thread_pool::executor_type& __a,
+                const thread_pool::executor_type& __b) noexcept;
+
+template <> struct is_executor<thread_pool::executor_type> : true_type {};
+
+} // inline namespace concurrency_v1
+} // namespace experimental
+} // namespace std
+
+#include <experimental/bits/thread_pool.h>
+
+#endif

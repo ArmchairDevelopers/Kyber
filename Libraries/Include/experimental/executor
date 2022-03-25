@@ -1,0 +1,513 @@
+//
+// executor
+// ~~~~~~~~
+// Polymorphic executor wrapper and generic executor utility functions.
+//
+// Copyright (c) 2014 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
+#ifndef EXECUTORS_EXPERIMENTAL_EXECUTOR_HEADER
+#define EXECUTORS_EXPERIMENTAL_EXECUTOR_HEADER
+
+#include <experimental/bits/associated_executor.h>
+#include <experimental/bits/executor_wrapper_base.h>
+#include <experimental/bits/function_traits.h>
+#include <experimental/memory>
+#include <experimental/type_traits>
+#include <memory>
+#include <mutex>
+#include <scoped_allocator>
+#include <typeinfo>
+#include <utility>
+
+namespace std {
+namespace experimental {
+inline namespace concurrency_v1 {
+
+template <class, class> struct __wrap_with_executor;
+template <class, class> struct __wrap_with_execution_context;
+
+template <class, class> struct __get_associated_executor_with_executor;
+template <class, class> struct __get_associated_executor_with_execution_context;
+
+template <class> struct __work_with_executor;
+template <class> struct __work_with_execution_context;
+template <class> struct __work_with_object;
+template <class, class> struct __work_with_object_and_executor;
+template <class, class> struct __work_with_object_and_execution_context;
+
+class __executor_impl_base;
+template <class> class __executor_impl;
+
+template <class...> struct __invoke_with_token;
+template <class, class...> struct __invoke_with_executor;
+template <class, class...> struct __invoke_with_execution_context;
+template <class...> struct __coinvoke_without_executor;
+template <class, class...> struct __coinvoke_with_executor;
+
+class system_executor;
+
+// Execution context.
+
+enum class fork_event
+{
+  prepare,
+  parent,
+  child
+};
+
+class execution_context
+{
+public:
+  class service;
+
+  // construct / copy / destroy:
+
+  execution_context();
+  execution_context(const execution_context&) = delete;
+  execution_context& operator=(const execution_context&) = delete;
+  virtual ~execution_context();
+
+  // execution context operations:
+
+  void notify_fork(fork_event __e);
+
+protected:
+
+  // execution context protected operations:
+
+  void shutdown_context();
+  void destroy_context();
+
+private:
+  template <class _Service> friend _Service& use_service(execution_context& __c);
+  template <class _Service, class... _Args> friend _Service&
+    make_service(execution_context& __c, _Args&&... __args);
+  template <class _Service> bool friend has_service(execution_context& __c) noexcept;
+  mutex _M_mutex;
+  service* _M_first_service;
+};
+
+// Base class for all services within an execution context.
+
+class execution_context::service
+{
+protected:
+  explicit service(execution_context& __c);
+  virtual ~service();
+
+  execution_context& context() noexcept;
+
+private:
+  friend class execution_context;
+
+  virtual void shutdown_service() = 0;
+  virtual void notify_fork(fork_event __e);
+
+  template <class _Service> friend _Service& use_service(execution_context& __c);
+  template <class _Service, class... _Args> friend _Service&
+    make_service(execution_context& __c, _Args&&... __args);
+  template <class _Service> bool friend has_service(execution_context& __c) noexcept;
+  friend struct default_delete<service>;
+  execution_context& _M_context;
+  const type_info* _M_id;
+  service* _M_next;
+  bool _M_shutdown;
+};
+
+// Functions for accessing the services within an execution context.
+
+class service_already_exists;
+
+template <class _Service> _Service& use_service(execution_context& __c);
+template <class _Service, class... _Args> _Service&
+  make_service(execution_context& __c, _Args&&... __args);
+template <class _Service> bool has_service(execution_context& __c) noexcept;
+
+// The is_executor trait detects whether _T meets the Executor type
+// requirements. Meets the UnaryTypeTrait requirements. The implementation
+// shall provide a definition that is derived from false_type. A program may
+// specialize this template to derive from true_type for a user-defined type _T
+// the meets the Executor requirements.
+
+template <class _T> struct is_executor : false_type {};
+
+// The executor_arg_t struct is an empty structure type used as a unique type
+// to disambiguate constructor and function overloading. Specifically, some
+// types have constructors with executor_arg_t as the first argument,
+// immediately followed by an argument of a type that satisfies the Executor
+// requirements.
+
+struct executor_arg_t {};
+
+#if defined(_MSC_VER)
+__declspec(selectany) executor_arg_t executor_arg = executor_arg_t{};
+#else
+constexpr executor_arg_t executor_arg = executor_arg_t{};
+#endif
+
+// The uses_executor trait detects whether _T has an associated executor that
+// is convertible from type _Executor. Meets the BinaryTypeTrait requirements.
+// The implementation shall provide a definition that is derived from
+// false_type. A program may specialize this template to derive from true_type
+// for a user-defined type _T that can be constructed with an executor, where
+// the first argument of a constructor has type executor_arg_t and the second
+// argument is convertible from type _Executor.
+
+template <class _T, class _Executor> struct uses_executor : false_type {};
+
+// Trait used to obtain an object's associated allocator.
+
+template <class _T, class _Executor = system_executor>
+struct associated_executor
+{
+  typedef typename __associated_executor<_T, _Executor>::_Type type;
+
+  static type get(const _T& __t, const _Executor& __a = _Executor()) noexcept
+  {
+    return __associated_executor<_T, _Executor>::_Get(__t, __a);
+  }
+};
+
+template <class _T, class _Executor = system_executor>
+using associated_executor_t = typename associated_executor<_T, _Executor>::type;
+
+// A call wrapper type to associate an object of type _T with an executor of
+// type _Executor.
+
+template <class _T, class _Executor>
+class executor_wrapper
+  : public __executor_wrapper_base_executor<_Executor>,
+    public __executor_wrapper_base_wrapped<_T>,
+    public __executor_wrapper_base_argument_type<_T>,
+    public __executor_wrapper_base_argument_types<_T>
+{
+public:
+  typedef _T wrapped_type;
+  typedef _Executor executor_type;
+  // typedef ... result_type;
+  // typedef ... argument_type;
+  // typedef ... first_argument_type;
+  // typedef ... second_argument_type;
+
+  // construct / copy / destroy:
+
+  executor_wrapper(_T __t, const _Executor& __ex);
+  executor_wrapper(const executor_wrapper& __w) = default;
+  executor_wrapper(executor_wrapper&& __w) = default;
+  template <class _U, class _OtherExecutor>
+    executor_wrapper(const executor_wrapper<_U, _OtherExecutor>& __w);
+  template <class _U, class _OtherExecutor>
+    executor_wrapper(executor_wrapper<_U, _OtherExecutor>&& __w);
+  template <class _U, class _OtherExecutor>
+    executor_wrapper(executor_arg_t, const _Executor& __ex,
+      const executor_wrapper<_U, _OtherExecutor>& __w);
+  template <class _U, class _OtherExecutor>
+    executor_wrapper(executor_arg_t, const _Executor& __ex,
+      executor_wrapper<_U, _OtherExecutor>&& __w);
+
+  ~executor_wrapper();
+
+  // executor wrapper operations:
+
+  _T& unwrap() noexcept;
+  const _T& unwrap() const noexcept;
+  executor_type get_executor() const noexcept;
+
+  template <class... _Args>
+    typename result_of<_T&(_Args&&...)>::type
+      operator()(_Args&&... __args) &;
+  template <class... _Args>
+    typename result_of<const _T&(_Args&&...)>::type
+      operator()(_Args&&... __args) const &;
+  template <class... _Args>
+    typename result_of<_T&&(_Args&&...)>::type
+      operator()(_Args&&... __args) &&;
+  template <class... _Args>
+    typename result_of<const _T&&(_Args&&...)>::type
+      operator()(_Args&&... __args) const &&;
+
+private:
+  template <class _U, class _E> friend class executor_wrapper;
+  template <class _E, class _U> executor_wrapper(int, _E&& __e, _U&& __u);
+  template <class _E, class _U> executor_wrapper(_E&& __e, _U&& __u, true_type);
+  template <class _E, class _U> executor_wrapper(_E&& __e, _U&& __u, false_type);
+};
+
+template <class _T, class _Executor>
+  struct uses_executor<executor_wrapper<_T, _Executor>, _Executor> : true_type {};
+
+template <class _T, class _Executor, class _Signature>
+  struct handler_type<executor_wrapper<_T, _Executor>, _Signature>;
+
+template <class _T, class _Executor>
+  class async_result<executor_wrapper<_T, _Executor>>;
+
+template <class _T, class _Executor, class _Alloc>
+  struct associated_allocator<executor_wrapper<_T, _Executor>, _Alloc>;
+
+template <class _T, class _Executor, class _Executor1>
+  struct associated_executor<executor_wrapper<_T, _Executor>, _Executor1>;
+
+// Helper function to associate an executor with an object.
+
+template <class _Executor, class _T>
+  typename __wrap_with_executor<_Executor, _T>::_Result
+    wrap(const _Executor& __e, _T&& __t);
+
+template <class _ExecutionContext, class _T>
+  typename __wrap_with_execution_context<_ExecutionContext, _T>::_Result
+    wrap(_ExecutionContext& __c, _T&& __t);
+
+// Helper function to obtain an associated executor.
+
+template <class _T>
+  associated_executor_t<_T> get_associated_executor(const _T& __t);
+template <class _T, class _Executor>
+  typename __get_associated_executor_with_executor<_T, _Executor>::_Result
+    get_associated_executor(const _T& __t, const _Executor& __e);
+template <class _T, class _ExecutionContext>
+  typename __get_associated_executor_with_execution_context<_T, _ExecutionContext>::_Result
+    get_associated_executor(const _T& __t, _ExecutionContext& __c);
+
+// An object of class executor_work controls ownership of executor work within
+// a scope.
+
+template <class _Executor>
+class executor_work
+{
+public:
+  typedef _Executor executor_type;
+
+  // construct / copy / destroy:
+
+  explicit executor_work(const executor_type& __e) noexcept;
+  executor_work(const executor_work& __w) noexcept;
+  executor_work(executor_work&& __w) noexcept;
+
+  executor_work operator=(const executor_type&) = delete;
+
+  ~executor_work();
+
+  // executor work observers:
+
+  executor_type get_executor() const noexcept;
+  bool owns_work() const noexcept;
+
+  // executor work modifiers:
+
+  void reset() noexcept;
+
+private:
+  executor_type _M_executor;
+  bool _M_owns;
+};
+
+// Helper function to create work for an executor, execution context or object.
+
+template <class _Executor>
+  typename __work_with_executor<_Executor>::_Result
+    make_work(const _Executor& __e);
+template <class _ExecutionContext>
+  typename __work_with_execution_context<_ExecutionContext>::_Result
+    make_work(_ExecutionContext& __c);
+template <class _T>
+  typename __work_with_object<_T>::_Result
+    make_work(const _T& __t);
+template <class _T, class _Executor>
+  typename __work_with_object_and_executor<_T, _Executor>::_Result
+    make_work(const _T& __t, const _Executor& __e);
+template <class _T, class _ExecutionContext>
+  typename __work_with_object_and_execution_context<_T, _ExecutionContext>::_Result
+    make_work(const _T& __t, _ExecutionContext& __c);
+
+// The system executor represents an execution context where functions are
+// permitted to run on arbitrary threads. The post() function schedules the
+// function to run on an unspecified system thread pool, and dispatch() invokes
+// the function immediately.
+
+class system_executor
+{
+public:
+  // executor operations:
+
+  execution_context& context() noexcept;
+
+  void on_work_started() noexcept;
+  void on_work_finished() noexcept;
+
+  template <class _Func, class _Alloc>
+    void dispatch(_Func&& __f, const _Alloc& a);
+  template <class _Func, class _Alloc>
+    void post(_Func&& __f, const _Alloc& a);
+  template <class _Func, class _Alloc>
+    void defer(_Func&& __f, const _Alloc& a);
+};
+
+bool operator==(const system_executor&, const system_executor&) noexcept;
+bool operator!=(const system_executor&, const system_executor&) noexcept;
+
+template <> struct is_executor<system_executor> : true_type {};
+
+class bad_executor;
+
+// Polymorphic executor wrapper.
+
+class executor
+{
+public:
+  // construct / copy / destroy:
+
+  executor() noexcept;
+  executor(nullptr_t) noexcept;
+  executor(const executor& __e) noexcept;
+  executor(executor&& __e) noexcept;
+  template <class _Executor> executor(_Executor __e);
+  template <class _Executor, class _Alloc>
+    executor(allocator_arg_t, const _Alloc& __a, _Executor __e);
+
+  executor& operator=(const executor& __e) noexcept;
+  executor& operator=(executor&& __e) noexcept;
+  executor& operator=(nullptr_t) noexcept;
+  template <class _Executor> executor& operator=(_Executor __e);
+
+  ~executor();
+
+  // executor operations:
+
+  execution_context& context() noexcept;
+
+  void on_work_started() noexcept;
+  void on_work_finished() noexcept;
+
+  template <class _Func, class _Alloc>
+    void dispatch(_Func&& __f, const _Alloc& a);
+  template <class _Func, class _Alloc>
+    void post(_Func&& __f, const _Alloc& a);
+  template <class _Func, class _Alloc>
+    void defer(_Func&& __f, const _Alloc& a);
+
+  // executor capacity:
+
+  explicit operator bool() const noexcept;
+
+  // executor target access:
+
+  const type_info& target_type() const noexcept;
+  template <class _Executor> _Executor* target() noexcept;
+  template <class _Executor> const _Executor* target() const noexcept;
+
+private:
+  friend bool operator==(const executor&, const executor&) noexcept;
+  explicit executor(__executor_impl_base* __i) : _M_impl(__i) {}
+  __executor_impl_base* _M_impl;
+};
+
+template <> struct is_executor<executor> : true_type {};
+
+bool operator==(const executor& __a, const executor& __b) noexcept;
+bool operator==(const executor& __e, nullptr_t) noexcept;
+bool operator==(nullptr_t, const executor& __e) noexcept;
+bool operator!=(const executor& __a, const executor& __b) noexcept;
+bool operator!=(const executor& __e, nullptr_t) noexcept;
+bool operator!=(nullptr_t, const executor& __e) noexcept;
+
+// Create a continuation function object from a list of completion tokens.
+
+template <class... _CompletionTokens>
+  auto chain(_CompletionTokens&&... __tokens);
+template <class _Signature, class... _CompletionTokens>
+  auto chain(_CompletionTokens&&... __tokens);
+
+// Schedule a function to run now if possible, later otherwise.
+
+template <class... _CompletionTokens>
+  typename __invoke_with_token<_CompletionTokens...>::_Result
+    dispatch(_CompletionTokens&&... __tokens);
+template <class _Executor, class... _CompletionTokens>
+  typename __invoke_with_executor<_Executor, _CompletionTokens...>::_Result
+    dispatch(const _Executor& __e, _CompletionTokens&&... __tokens);
+template <class _ExecutionContext, class... _CompletionTokens>
+  typename __invoke_with_execution_context<_ExecutionContext, _CompletionTokens...>::_Result
+    dispatch(_ExecutionContext& __c, _CompletionTokens&&... __tokens);
+
+// Schedule a function to run later.
+
+template <class... _CompletionTokens>
+  typename __invoke_with_token<_CompletionTokens...>::_Result
+    post(_CompletionTokens&&... __tokens);
+template <class _Executor, class... _CompletionTokens>
+  typename __invoke_with_executor<_Executor, _CompletionTokens...>::_Result
+    post(const _Executor& __e, _CompletionTokens&&... __tokens);
+template <class _ExecutionContext, class... _CompletionTokens>
+  typename __invoke_with_execution_context<_ExecutionContext, _CompletionTokens...>::_Result
+    post(_ExecutionContext& __c, _CompletionTokens&&... __tokens);
+
+// Schedule a function to run later, treating the function as a continuation of the caller.
+
+template <class... _CompletionTokens>
+  typename __invoke_with_token<_CompletionTokens...>::_Result
+    defer(_CompletionTokens&&... __tokens);
+template <class _Executor, class... _CompletionTokens>
+  typename __invoke_with_executor<_Executor, _CompletionTokens...>::_Result
+    defer(const _Executor& __e, _CompletionTokens&&... __tokens);
+template <class _ExecutionContext, class... _CompletionTokens>
+  typename __invoke_with_execution_context<_ExecutionContext, _CompletionTokens...>::_Result
+    defer(_ExecutionContext& __c, _CompletionTokens&&... __tokens);
+
+// Schedule functions to run now if possible, run concurrently later otherwise.
+
+template <class... _CompletionTokens>
+  typename __coinvoke_without_executor<_CompletionTokens...>::_Result
+    codispatch(_CompletionTokens&&... __tokens);
+template <class _Executor, class... _CompletionTokens>
+  typename __coinvoke_with_executor<_Executor, _CompletionTokens...>::_Result
+    codispatch(const _Executor& __e, _CompletionTokens&&... __tokens);
+
+// Schedule functions to run concurrently later.
+
+template <class... _CompletionTokens>
+  typename __coinvoke_without_executor<_CompletionTokens...>::_Result
+    copost(_CompletionTokens&&... __tokens);
+template <class _Executor, class... _CompletionTokens>
+  typename __coinvoke_with_executor<_Executor, _CompletionTokens...>::_Result
+    copost(const _Executor& __e, _CompletionTokens&&... __tokens);
+
+// Schedule functions to run concurrently later.
+
+template <class... _CompletionTokens>
+  typename __coinvoke_without_executor<_CompletionTokens...>::_Result
+    codefer(_CompletionTokens&&... __tokens);
+template <class _Executor, class... _CompletionTokens>
+  typename __coinvoke_with_executor<_Executor, _CompletionTokens...>::_Result
+    codefer(const _Executor& __e, _CompletionTokens&&... __tokens);
+
+} // inline namespace concurrency_v1
+} // namespace experimental
+
+template<class _Alloc>
+  struct uses_allocator<std::experimental::executor, _Alloc>
+    : true_type {};
+
+} // namespace std
+
+#include <experimental/bits/execution_context.h>
+#include <experimental/bits/system_executor.h>
+#include <experimental/bits/executor_wrapper.h>
+#include <experimental/bits/wrap.h>
+#include <experimental/bits/get_associated_executor.h>
+#include <experimental/bits/executor_work.h>
+#include <experimental/bits/make_work.h>
+#include <experimental/bits/executor.h>
+#include <experimental/bits/chain.h>
+#include <experimental/bits/dispatch.h>
+#include <experimental/bits/post.h>
+#include <experimental/bits/defer.h>
+#include <experimental/bits/codispatch.h>
+#include <experimental/bits/copost.h>
+#include <experimental/bits/codefer.h>
+
+#endif

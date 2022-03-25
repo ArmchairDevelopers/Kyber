@@ -1,0 +1,114 @@
+//
+// loop_scheduler
+// ~~~~~~~~~~~~~~
+// Simple thread-safe scheduler.
+//
+// Copyright (c) 2014 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
+#ifndef EXECUTORS_EXPERIMENTAL_LOOP_SCHEDULER_HEADER
+#define EXECUTORS_EXPERIMENTAL_LOOP_SCHEDULER_HEADER
+
+#include <chrono>
+#include <experimental/executor>
+#include <experimental/bits/scheduler.h>
+
+namespace std {
+namespace experimental {
+inline namespace concurrency_v1 {
+
+// Loop scheduler.
+
+class loop_scheduler
+  : public execution_context,
+    private __scheduler
+{
+public:
+  class executor_type;
+
+  // construct / copy / destroy:
+
+  loop_scheduler();
+  explicit loop_scheduler(size_t __concurrency_hint);
+  loop_scheduler(const loop_scheduler&) = delete;
+  loop_scheduler& operator=(const loop_scheduler&) = delete;
+  ~loop_scheduler();
+
+  // loop_scheduler operations:
+
+  executor_type get_executor() const noexcept;
+
+  size_t run();
+  template <class _Rep, class _Period>
+    size_t run_for(const chrono::duration<_Rep, _Period>& __rel_time);
+  template <class _Clock, class _Duration>
+    size_t run_until(const chrono::time_point<_Clock, _Duration>& __abs_time);
+
+  size_t run_one();
+  template <class _Rep, class _Period>
+    size_t run_one_for(const chrono::duration<_Rep, _Period>& __rel_time);
+  template <class _Clock, class _Duration>
+    size_t run_one_until(const chrono::time_point<_Clock, _Duration>& __abs_time);
+
+  size_t poll();
+
+  size_t poll_one();
+
+  void stop();
+
+  bool stopped() const;
+
+  void restart();
+};
+
+class loop_scheduler::executor_type
+{
+public:
+  // construct / copy / destroy:
+
+  executor_type(const executor_type& __e) noexcept = default;
+  executor_type(executor_type&& __e) noexcept = default;
+  executor_type& operator=(const executor_type& __e) noexcept = default;
+  executor_type& operator=(executor_type&& __e) noexcept = default;
+  ~executor_type() = default;
+
+  // executor operations:
+
+  bool running_in_this_thread() const noexcept;
+
+  loop_scheduler& context() noexcept;
+
+  void on_work_started() noexcept;
+  void on_work_finished() noexcept;
+
+  template <class _Func, class _Alloc>
+    void dispatch(_Func&& __f, const _Alloc& a);
+  template <class _Func, class _Alloc>
+    void post(_Func&& __f, const _Alloc& a);
+  template <class _Func, class _Alloc>
+    void defer(_Func&& __f, const _Alloc& a);
+
+private:
+  friend class loop_scheduler;
+  friend bool operator==(const executor_type&, const executor_type&) noexcept;
+  explicit executor_type(loop_scheduler* __s) : _M_scheduler(__s) {}
+  loop_scheduler* _M_scheduler;
+};
+
+bool operator==(const loop_scheduler::executor_type& __a,
+                const loop_scheduler::executor_type& __b) noexcept;
+bool operator!=(const loop_scheduler::executor_type& __a,
+                const loop_scheduler::executor_type& __b) noexcept;
+
+template <> struct is_executor<loop_scheduler::executor_type> : true_type {};
+
+} // inline namespace concurrency_v1
+} // namespace experimental
+} // namespace std
+
+#include <experimental/bits/loop_scheduler.h>
+
+#endif
