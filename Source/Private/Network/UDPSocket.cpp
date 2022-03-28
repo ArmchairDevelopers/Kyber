@@ -3,7 +3,6 @@
 #include <Network/SocketManager.h>
 
 #include <Network/UDPSocket.h>
-#include <Utilities/PlatformUtils.h>
 #include <Base/Log.h>
 
 #define _WINSOCKAPI_
@@ -211,8 +210,7 @@ void UDPSocket::SendProxyHandshake()
     handshake << "PROXY_HANDSHAKE|";
     handshake << (m_direction == ProtocolDirection::Clientbound ? "SERVER" : "CLIENT") << "|";
     handshake << m_info.serverName << "|";
-    handshake << std::getenv("EALaunchEAID") << "|";
-    handshake << PlatformUtils::GetFrostyMods();
+    handshake << std::getenv("EALaunchEAID");
     std::string str = handshake.str();
     KYBER_LOG(LogLevel::Debug, "Sending handshake: " << str);
     Send(const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(str.c_str())), str.length());

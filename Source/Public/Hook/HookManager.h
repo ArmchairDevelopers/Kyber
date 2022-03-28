@@ -20,7 +20,6 @@ public:
     static void DisableHook(Hook::Address target);
     static void EnableHook(Hook::Address target);
     static void RemoveHook(Hook::Address target);
-    static void RemoveHooks();
     static Hook::Address Call(Hook::Address replacement, Hook::Address target);
     template<typename T>
     static inline T Call(T replacement, Hook::Address target = nullptr)

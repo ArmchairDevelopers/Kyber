@@ -27,28 +27,30 @@ bool DrawScoreboardPlayer(std::vector<ServerPlayer*> playerList, int index)
     ServerPlayer* player = playerList[index];
     ImGui::Text("%s", player->m_name);
     ImGui::SameLine();
-    if (ImGui::SmallButton(("Swap Team##" + std::string(player->m_name)).c_str()))
+    if (ImGui::SmallButton(("SWAP TEAM##" + std::string(player->m_name)).c_str()))
     {
         g_program->m_server->SetPlayerTeam(player, player->m_teamId == 1 ? 2 : 1);
     }
     ImGui::SameLine();
-    if (ImGui::SmallButton(("Kick##" + std::string(player->m_name)).c_str()))
+    if (ImGui::SmallButton(("KICK##" + std::string(player->m_name)).c_str()))
     {
         g_program->m_server->KickPlayer(player, "You have been kicked.");
     }
     return true;
 }
 
+
+
 void ServerWindow::Draw()
 {
-    ImGui::Begin("Server Settings", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Begin("SERVER SETTINGS", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);
     GameSettings* gameSettings = Settings<GameSettings>("Game");
-    ImGui::Text("Game Mode:");
-    ImGui::SameLine();
-    ImGui::Text(gameSettings->DefaultLayerInclusion);
-    ImGui::Text("Game Level:");
+    ImGui::Text("LEVEL:");
     ImGui::SameLine();
     ImGui::Text(gameSettings->Level);
+    ImGui::Text("GAME MODE:");
+    ImGui::SameLine();
+    ImGui::Text(gameSettings->DefaultLayerInclusion);
     ImGui::Separator();
     if (!g_program->m_server->m_running)
     {
@@ -75,8 +77,16 @@ void ServerWindow::Draw()
         {
             for (int i = 0; i < currentMode.levels.size(); i++)
             {
-                GameLevel level = GetGameLevel(currentMode, currentMode.levels[i]);
+                GameLevel level = GetGameLevel(currentMode.levels[i]);
                 bool selected = (strcmp(currentLevel.level, level.level) == 0);
+                for (int j = 0; j < currentMode.levelOverrides.size(); j++)
+                {
+                    if (strcmp(currentMode.levelOverrides[j].level, level.level) == 0)
+                    {
+                        level = currentMode.levelOverrides[j];
+                        break;
+                    }
+                }
                 if (ImGui::Selectable(level.name, selected))
                 {
                     currentLevel = level;
@@ -88,44 +98,9 @@ void ServerWindow::Draw()
             }
             ImGui::EndCombo();
         }
-        static int maxPlayers = 40;
-        ImGui::SliderInt("Max Players", &maxPlayers, 2, 64);
-        static bool proxied = true;
-        ImGui::Checkbox("Proxied", &proxied);
-        if (ImGui::IsItemHovered())
+        if (ImGui::Button("START SERVER") && strcmp(currentMode.name, "Mode") != 0 && strcmp(currentLevel.name, "Level") != 0)
         {
-            ImGui::BeginTooltip();
-            ImGui::Text("When you use a Kyber Proxy, your server");
-            ImGui::Text("will be displayed on the server browser,");
-            ImGui::Text("and client/host IPs will be hidden.\n\n");
-            ImGui::Text("When you don't use a Kyber Proxy, you will");
-            ImGui::Text("need to Port Forward port 25200 in your router");
-            ImGui::Text("and have players connect to your IP directly.");
-            ImGui::Text("Mod verification is not supported when not using a proxy.");
-            ImGui::EndTooltip();
-        }
-        static int errorTime = 0;
-        if (ImGui::Button("Start Server"))
-        {
-            if (strcmp(currentMode.name, "Mode") != 0 && strcmp(currentLevel.name, "Level") != 0)
-            {
-                g_program->m_server->Start(
-                    currentLevel.level, currentMode.mode, maxPlayers, SocketSpawnInfo(proxied, "65.108.70.186", "Test Server"));
-            }
-            else
-            {
-                errorTime = 1000;
-            }
-        }
-        if (errorTime > 0)
-        {
-            if (ImGui::IsItemHovered())
-            {
-                ImGui::BeginTooltip();
-                ImGui::Text("Please select a game mode and level.");
-                ImGui::EndTooltip();
-            }
-            errorTime--;
+            g_program->m_server->Start(currentLevel.level, currentMode.mode, SocketSpawnInfo(false, "65.108.70.186", "Test Server"));
         }
     }
     else if (g_program->m_clientState == ClientState_Ingame)
@@ -133,20 +108,21 @@ void ServerWindow::Draw()
         ImGui::Text("Leave this game to start a new one.");
         ImGui::Separator();
         AutoPlayerSettings* aiSettings = Settings<AutoPlayerSettings>("AutoPlayers");
-        if (ImGui::Button("Start Game"))
+        if (ImGui::Button("START GAME"))
         {
             // These bots don't actually exist, it just tricks the server into thinking they do.
             aiSettings->ForceFillGameplayBotsTeam1 = 20;
             aiSettings->ForceFillGameplayBotsTeam2 = 19;
         }
         ImGui::Separator();
-        ImGui::Text("AI Settings:");
-        ImGui::SliderInt("AI Count", &aiSettings->ForcedServerAutoPlayerCount, -1, 64);
-        ImGui::Checkbox("Update AI", &aiSettings->UpdateAI);
-        ImGui::Checkbox("AI ignore players", &aiSettings->ServerPlayersIgnoreClientPlayers);
-        ImGui::Checkbox("Auto Balance Players", &Settings<WSGameSettings>("Whiteshark")->AutoBalanceTeamsOnNeutral);
+        ImGui::Text("AI SETTINGS");
+        ImGui::SliderInt("AI COUNT", &aiSettings->ForcedServerAutoPlayerCount, -1, 64);
+        ImGui::Checkbox("UPDATE AI", &aiSettings->UpdateAI);
+        ImGui::SameLine();
+        ImGui::Checkbox("AI IGNORE PLAYERS", &aiSettings->ServerPlayersIgnoreClientPlayers);
+        ImGui::Checkbox("AUTO BALANCE TEAMS", &Settings<WSGameSettings>("Whiteshark")->AutoBalanceTeamsOnNeutral);
         ImGui::Separator();
-        ImGui::Text("Player List:");
+        ImGui::Text("PLAYER LIST");
         ServerPlayerManager* playerManager = g_program->m_server->m_playerManager;
         if (playerManager)
         {
@@ -155,7 +131,7 @@ void ServerWindow::Draw()
             std::vector<ServerPlayer*> team2Players;
             for (ServerPlayer* player : playerManager->m_players)
             {
-                if (player && !player->m_isAIPlayer && player->m_name != NULL)
+                if (player && !player->m_isAIPlayer)
                 {
                     if (player->m_teamId == 1)
                     {
@@ -167,13 +143,13 @@ void ServerWindow::Draw()
                     }
                 }
             }
-            if (ImGui::BeginTable("Scoreboard", 2, ImGuiTableFlags_SizingFixedFit))
+            if (ImGui::BeginTable("PLAYER LIST", 2, ImGuiTableFlags_SizingFixedFit))
             {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                ImGui::Text("Team 1");
+                ImGui::Text("LIGHT SIDE");
                 ImGui::TableNextColumn();
-                ImGui::Text("Team 2");
+                ImGui::Text("DARK SIDE");
                 for (int i = 0; i < 64; i++)
                 {
                     ImGui::TableNextRow();

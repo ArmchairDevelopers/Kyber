@@ -17,11 +17,16 @@ bool CreditsWindow::IsEnabled()
 
 void CreditsWindow::Draw()
 {
-    ImGui::Begin("Credits", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);
-    for (const char* credit : credits)
+    ImGui::Begin("SUPPORT & CREDITS", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);    
     {
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() / 2 - ImGui::CalcTextSize(credit).x / 2);
-        ImGui::Text(credit);
+        for (const char* credit : credits)
+        {
+            ImGui::SetCursorPosX(ImGui::GetWindowWidth() / 2 - ImGui::CalcTextSize(credit).x / 2);
+            ImGui::Text(credit);
+        }
+    ImGui::Separator();
+    ImGui::Text("DISCORD SUPPORT:");
+    ImGui::Text("https://discord.gg/kyber");
     }
     ImGui::End();
 }

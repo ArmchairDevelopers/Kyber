@@ -13,7 +13,6 @@ void MemoryUtils::Patch(void* dst, void* src, unsigned int size)
     memcpy(dst, src, size);
     VirtualProtect(dst, size, oldprotect, &oldprotect);
 }
-
 void MemoryUtils::Nop(void* dst, unsigned int size)
 {
     DWORD oldprotect;

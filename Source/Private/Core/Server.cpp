@@ -31,13 +31,9 @@
 #define OFFSET_SERVERPEER_CONNECTIONFORPLAYER HOOK_OFFSET(0x140BEFFB0)
 
 #define OFFSET_SERVERCONNECTION_DISCONNECT HOOK_OFFSET(0x140BF01D0)
-#define OFFSET_SERVERCONNECTION_KICKPLAYER HOOK_OFFSET(0x14688DB50)
-
-#define OFFSET_SERVERPLAYERMANAGER_DELETEPLAYER HOOK_OFFSET(0x140BDD950)
 
 #define OFFSET_APPLY_SETTINGS HOOK_OFFSET(0x1401B31B0)
 #define OFFSET_CLIENT_INIT_NETWORK HOOK_OFFSET(0x140A8DE80)
-#define OFFSET_CLIENT_CONNECTTOADDRESS HOOK_OFFSET(0x140CB3990)
 
 #define OFFSET_SERVER_PATCH 0x140A92F71
 
@@ -61,7 +57,7 @@ Server::Server()
 
 Server::~Server()
 {
-    KYBER_LOG(LogLevel::Debug, "Destroying Server");
+    KYBER_LOG(LogLevel::Debug, "Deconstructed Server");
 }
 
 // NAT Punch-Through using https://github.com/BattleDash/Kyber/blob/main/NATServer
@@ -78,10 +74,6 @@ DWORD WINAPI Server::PortForwardingThread()
 
     while (1)
     {
-        if (this == nullptr || m_natClient == nullptr)
-        {
-            break;
-        }
         uint8_t* buffer = new uint8_t[1600];
         int length = m_natClient->ReceiveFrom(buffer, 1600);
         if (length > 0)
@@ -101,20 +93,18 @@ DWORD WINAPI Server::PortForwardingThread()
         delete[] buffer;
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-
-    return 0;
 }
 
-void Server::Start(const char* level, const char* mode, int maxPlayers, SocketSpawnInfo info)
+void Server::Start(const char* level, const char* mode, SocketSpawnInfo info)
 {
     EnableGameHooks();
 
     NetworkSettings* networkSettings = Settings<NetworkSettings>("Network");
-    networkSettings->MaxClientCount = maxPlayers;
+    networkSettings->MaxClientCount = 64;
     networkSettings->ServerPort = 25200;
 
     NetObjectSystemSettings* netObjectSettings = Settings<NetObjectSystemSettings>("NetObjectSystem");
-    netObjectSettings->MaxServerConnectionCount = maxPlayers;
+    netObjectSettings->MaxServerConnectionCount = 64;
 
     ClientSettings* clientSettings = Settings<ClientSettings>("Client");
     clientSettings->FastExit = true;
@@ -179,8 +169,7 @@ bool ClientInitNetworkHk(__int64 inst, bool singleplayer, bool localhost, bool c
     static const auto trampoline = HookManager::Call(ClientInitNetworkHk);
     if (g_program->m_server->m_running || strlen(Settings<ClientSettings>("Client")->ServerIp) > 0)
     {
-        *reinterpret_cast<__int64*>(inst + 0xA8) =
-            reinterpret_cast<__int64>(new SocketManagerCreator(g_program->m_server->m_socketSpawnInfo));
+        *reinterpret_cast<__int64*>(inst + 0xA8) = reinterpret_cast<__int64>(new SocketManagerCreator(g_program->m_server->m_socketSpawnInfo));
     }
     return trampoline(inst, singleplayer, localhost, coop, hosted);
 }
@@ -212,10 +201,10 @@ void ServerPlayerLeaveIngameHk(ServerPlayer* inst)
     trampoline(inst);
 }
 
-void ServerPlayerDisconnectHk(ServerPlayer* inst, __int64 reason, const std::string& reasonText)
+void ServerPlayerDisconnectHk(ServerPlayer* inst, __int64 reason, char* reasonText)
 {
     static const auto trampoline = HookManager::Call(ServerPlayerDisconnectHk);
-    KYBER_LOG(LogLevel::Debug, "ServerPlayerDisconnect called 0x" << reason << " 0x" << reasonText.c_str());
+    KYBER_LOG(LogLevel::Debug, "ServerPlayerDisconnect called 0x" << reason << " 0x" << reasonText);
     trampoline(inst, reason, reasonText);
 }
 
@@ -229,6 +218,10 @@ void ServerPeerDeleteConnectionHk(__int64 inst, __int64 serverConnection, __int6
 __int64 ServerPeerConnectionForPlayerHk(__int64 inst, ServerPlayer* player)
 {
     static const auto trampoline = HookManager::Call(ServerPeerConnectionForPlayerHk);
+    if (player && !player->m_isAIPlayer)
+    {
+        KYBER_LOG(LogLevel::Debug, "ServerPeerConnectionForPlayer called for " << player->m_name);
+    }
     return trampoline(inst, player);
 }
 
@@ -239,42 +232,19 @@ void ServerConnectionDisconnectHk(__int64 inst, __int64 reason, char* reasonText
     trampoline(inst, reason, reasonText);
 }
 
-void ServerConnectionKickPlayerHk(__int64 inst, __int64 reason, const std::string& reasonText)
-{
-    static const auto trampoline = HookManager::Call(ServerConnectionKickPlayerHk);
-    KYBER_LOG(LogLevel::Debug, "ServerConnectionKickPlayer called 0x" << reason << " " << reasonText.c_str());
-    trampoline(inst, reason, reasonText.c_str());
-}
-
-void ServerPlayerManagerDeletePlayerHk(ServerPlayerManager* inst, ServerPlayer* player)
-{
-    static const auto trampoline = HookManager::Call(ServerPlayerManagerDeletePlayerHk);
-    KYBER_LOG(LogLevel::Debug, "ServerPlayerManagerDeletePlayer called");
-    trampoline(inst, player);
-}
-
-HookTemplate server_hook_offsets[] = {
-    { OFFSET_SERVER_CONSTRUCTOR, ServerCtorHk },
-    { OFFSET_SERVER_START, ServerStartHk },
-    { OFFSET_SERVERPLAYER_SETTEAMID, ServerPlayerSetTeamIdHk },
-    { OFFSET_SERVERPLAYER_LEAVEINGAME, ServerPlayerLeaveIngameHk },
-    { OFFSET_SERVERPEER_DELETECONNECTION, ServerPeerDeleteConnectionHk },
-    { OFFSET_SERVERPEER_CONNECTIONFORPLAYER, ServerPeerConnectionForPlayerHk },
-    { OFFSET_SERVERPLAYER_DISCONNECT, ServerPlayerDisconnectHk },
-    { OFFSET_SERVERCONNECTION_DISCONNECT, ServerConnectionDisconnectHk },
-    { OFFSET_SERVERCONNECTION_KICKPLAYER, ServerConnectionKickPlayerHk },
-    { OFFSET_SERVERPLAYERMANAGER_DELETEPLAYER, ServerPlayerManagerDeletePlayerHk },
-    { OFFSET_APPLY_SETTINGS, SettingsManagerApplyHk },
-    { OFFSET_CLIENT_INIT_NETWORK, ClientInitNetworkHk },
-    { OFFSET_CLIENT_CONNECTTOADDRESS, ClientConnectToAddressHk },
-};
-
 void Server::InitializeGameHooks()
 {
-    for (HookTemplate& hook : server_hook_offsets)
-    {
-        HookManager::CreateHook(hook.offset, hook.hook);
-    }
+    HookManager::CreateHook(OFFSET_SERVER_CONSTRUCTOR, ServerCtorHk);
+    HookManager::CreateHook(OFFSET_SERVER_START, ServerStartHk);
+    HookManager::CreateHook(OFFSET_SERVERPLAYER_SETTEAMID, ServerPlayerSetTeamIdHk);
+    HookManager::CreateHook(OFFSET_SERVERPLAYER_LEAVEINGAME, ServerPlayerLeaveIngameHk);
+    HookManager::CreateHook(OFFSET_SERVERPEER_DELETECONNECTION, ServerPeerDeleteConnectionHk);
+    HookManager::CreateHook(OFFSET_SERVERPEER_CONNECTIONFORPLAYER, ServerPeerConnectionForPlayerHk);
+    HookManager::CreateHook(OFFSET_SERVERPLAYER_DISCONNECT, ServerPlayerDisconnectHk);
+    HookManager::CreateHook(OFFSET_SERVERCONNECTION_DISCONNECT, ServerConnectionDisconnectHk);
+    HookManager::CreateHook(OFFSET_APPLY_SETTINGS, SettingsManagerApplyHk);
+    HookManager::CreateHook(OFFSET_CLIENT_INIT_NETWORK, ClientInitNetworkHk);
+    HookManager::CreateHook(HOOK_OFFSET(0x140CB3990), ClientConnectToAddressHk);
     Hook::ApplyQueuedActions();
     KYBER_LOG(LogLevel::Debug, "Initialized Server Hooks");
 }
@@ -299,9 +269,9 @@ void Server::DisableGameHooks()
 
 void Server::InitializeGamePatches()
 {
-    BYTE ptch[] = { 0xB9, 0x01, 0x00, 0x00, 0x00 };
+    BYTE ptch[] = {0xB9, 0x01, 0x00, 0x00, 0x00};
     MemoryUtils::Patch((void*)OFFSET_SERVER_PATCH, (void*)ptch, sizeof(ptch));
-    BYTE ptch2[] = { 0x90, 0x90 };
+    BYTE ptch2[] = {0x90, 0x90};
     MemoryUtils::Patch((void*)(OFFSET_SERVER_PATCH + 0x5), (void*)ptch2, sizeof(ptch2));
 }
 

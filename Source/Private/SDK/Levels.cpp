@@ -6,7 +6,7 @@
 
 namespace Kyber
 {
-GameLevel GetGameLevel(const char* level)
+GameLevel GetGameLevel(char* level)
 {
     for (int i = 0; i < sizeof(s_game_levels) / sizeof(GameLevel); i++)
     {
@@ -15,6 +15,6 @@ GameLevel GetGameLevel(const char* level)
             return s_game_levels[i];
         }
     }
-    return { "Unknown", "Unknown" };
+    return {"Unknown", "Unknown"};
 }
 } // namespace Kyber

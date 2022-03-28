@@ -85,14 +85,6 @@ void HookManager::RemoveHook(Hook::Address target)
         }
     }
 }
-void HookManager::RemoveHooks()
-{
-    for (auto& hook : hooks)
-    {
-        hook.uninstall();
-    }
-    hooks.clear();
-}
 Hook::Address HookManager::Call(LPVOID replacement, Hook::Address target)
 {
     assert(target != nullptr || replacement != nullptr);

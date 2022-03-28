@@ -10,12 +10,12 @@
 
 #define OFFSET_GLOBAL_CLIENT 0x143DCB9D0
 #define OFFSET_GLOBAL_SETTINGS_MANAGER 0x143D11950
-#define OFFSET_GET_CLIENT_INSTANCE 0x14659DE50
 
 namespace Kyber
 {
 __int64 ClientStateChangeHk(__int64 a1, ClientState currentClientState, ClientState lastClientState);
 __int64 GetSettingsObjectHk(__int64 inst, const char* identifier);
+__int64 GetClientInstanceHk();
 
 class Program
 {
@@ -34,12 +34,9 @@ public:
 
     __int64 ChangeClientState(ClientState currentClientState)
     {
-        return ClientStateChangeHk(
-            *reinterpret_cast<__int64*>(*reinterpret_cast<__int64*>(((__int64 (*)(void))OFFSET_GET_CLIENT_INSTANCE)() + 0x20) + 0x28),
-            currentClientState, m_clientState);
+        return ClientStateChangeHk(*reinterpret_cast<__int64*>(*reinterpret_cast<__int64*>(GetClientInstanceHk() + 0x20) + 0x28), currentClientState, m_clientState);
     }
 
-    HMODULE m_module;
     APIService* m_api;
     Server* m_server;
     ClientState m_clientState;
