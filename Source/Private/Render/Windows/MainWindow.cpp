@@ -32,28 +32,38 @@ bool MainWindow::IsEnabled()
 
 void MainWindow::Draw()
 {
-    ImGui::Begin("Kyber", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Checkbox("Show Menu [INSERT]", &m_isEnabled);
-    ImGui::Checkbox("Show Credits", &m_creditsWindow->m_isEnabled);
-    ImGui::Separator();
+    ImGui::Begin("KYBER", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);
+
     if (!g_program->m_server->m_running)
     {
-        if (ImGui::Button("Start a Server"))
+        if (ImGui::Button("SERVER SETUP"))
         {
             m_serverWindow->m_isEnabled = true;
         }
     }
     else
     {
-        if (ImGui::Button("Server Settings"))
+        if (ImGui::Button("SERVER SETUP"))
         {
             m_serverWindow->m_isEnabled = true;
         }
     }
-    if (ImGui::Button("Join a Server"))
+    if (ImGui::Button("SERVER BROWSER"))
     {
         m_clientWindow->m_isEnabled = true;
     }
+    ImGui::Separator();
+
+    // ImGui::Text("Toggle Menu: [INSERT]");
+
+    if (!g_program->m_server->m_running)
+    {
+        if (ImGui::SmallButton("SUPPORT & CREDITS"))
+        {
+            m_creditsWindow->m_isEnabled = true;
+        }
+    }
+
     ImGui::End();
 }
 } // namespace Kyber

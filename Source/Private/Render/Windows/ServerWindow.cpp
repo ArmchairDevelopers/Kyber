@@ -27,12 +27,12 @@ bool DrawScoreboardPlayer(std::vector<ServerPlayer*> playerList, int index)
     ServerPlayer* player = playerList[index];
     ImGui::Text("%s", player->m_name);
     ImGui::SameLine();
-    if (ImGui::SmallButton(("Swap Team##" + std::string(player->m_name)).c_str()))
+    if (ImGui::SmallButton(("SWAP TEAM##" + std::string(player->m_name)).c_str()))
     {
         g_program->m_server->SetPlayerTeam(player, player->m_teamId == 1 ? 2 : 1);
     }
     ImGui::SameLine();
-    if (ImGui::SmallButton(("Kick##" + std::string(player->m_name)).c_str()))
+    if (ImGui::SmallButton(("KICK##" + std::string(player->m_name)).c_str()))
     {
         g_program->m_server->KickPlayer(player, "You have been kicked.");
     }
@@ -41,12 +41,12 @@ bool DrawScoreboardPlayer(std::vector<ServerPlayer*> playerList, int index)
 
 void ServerWindow::Draw()
 {
-    ImGui::Begin("Server Settings", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);
-    GameSettings* gameSettings = Settings<GameSettings>("Game");
-    ImGui::Text("Game Mode:");
+    ImGui::Begin("SERVER SETTINGS", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);
+    GameSettings* gameSettings = Settings<GameSettings>("GAME");
+    ImGui::Text("GAME MODE:");
     ImGui::SameLine();
     ImGui::Text(gameSettings->DefaultLayerInclusion);
-    ImGui::Text("Game Level:");
+    ImGui::Text("LEVEL:");
     ImGui::SameLine();
     ImGui::Text(gameSettings->Level);
     ImGui::Separator();
@@ -133,20 +133,21 @@ void ServerWindow::Draw()
         ImGui::Text("Leave this game to start a new one.");
         ImGui::Separator();
         AutoPlayerSettings* aiSettings = Settings<AutoPlayerSettings>("AutoPlayers");
-        if (ImGui::Button("Start Game"))
+        if (ImGui::Button("START GAME"))
         {
             // These bots don't actually exist, it just tricks the server into thinking they do.
             aiSettings->ForceFillGameplayBotsTeam1 = 20;
             aiSettings->ForceFillGameplayBotsTeam2 = 19;
         }
         ImGui::Separator();
-        ImGui::Text("AI Settings:");
-        ImGui::SliderInt("AI Count", &aiSettings->ForcedServerAutoPlayerCount, -1, 64);
-        ImGui::Checkbox("Update AI", &aiSettings->UpdateAI);
-        ImGui::Checkbox("AI ignore players", &aiSettings->ServerPlayersIgnoreClientPlayers);
-        ImGui::Checkbox("Auto Balance Players", &Settings<WSGameSettings>("Whiteshark")->AutoBalanceTeamsOnNeutral);
+        ImGui::Text("AI SETTINGS");
+        ImGui::SliderInt("AI COUNT", &aiSettings->ForcedServerAutoPlayerCount, -1, 64);
+        ImGui::Checkbox("UPDATE AI", &aiSettings->UpdateAI);
+        ImGui::SameLine();
+        ImGui::Checkbox("AI IGNORE PLAYERS", &aiSettings->ServerPlayersIgnoreClientPlayers);
+        ImGui::Checkbox("AUTO BALANCE TEAMS", &Settings<WSGameSettings>("Whiteshark")->AutoBalanceTeamsOnNeutral);
         ImGui::Separator();
-        ImGui::Text("Player List:");
+        ImGui::Text("PLAYER LIST");
         ServerPlayerManager* playerManager = g_program->m_server->m_playerManager;
         if (playerManager)
         {
@@ -155,7 +156,7 @@ void ServerWindow::Draw()
             std::vector<ServerPlayer*> team2Players;
             for (ServerPlayer* player : playerManager->m_players)
             {
-                if (player && !player->m_isAIPlayer && player->m_name != NULL)
+                if (player && !player->m_isAIPlayer)
                 {
                     if (player->m_teamId == 1)
                     {
@@ -167,13 +168,13 @@ void ServerWindow::Draw()
                     }
                 }
             }
-            if (ImGui::BeginTable("Scoreboard", 2, ImGuiTableFlags_SizingFixedFit))
+            if (ImGui::BeginTable("PLAYER LIST", 2, ImGuiTableFlags_SizingFixedFit))
             {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                ImGui::Text("Team 1");
+                ImGui::Text("LIGHT SIDE");
                 ImGui::TableNextColumn();
-                ImGui::Text("Team 2");
+                ImGui::Text("DARK SIDE");
                 for (int i = 0; i < 64; i++)
                 {
                     ImGui::TableNextRow();
