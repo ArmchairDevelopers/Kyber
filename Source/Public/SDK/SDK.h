@@ -38,6 +38,17 @@ public:
     int32_t m_teamId;                 // 0x0058
     char pad_005C[496];               // 0x005C
 
+    virtual void Function0();
+    virtual void Function1();
+    virtual void Function2();
+    virtual void Function3();
+    virtual void Function4();
+    virtual void Function5();
+    virtual void Function6();
+    virtual void Function7();
+    virtual void Function8();
+    virtual void Function9();
+
 }; // Size: 0x024C
 
 class MemoryArena
@@ -82,5 +93,44 @@ struct SocketSpawnInfo
     const char* serverName;
     const char* serverMode;
     const char* serverLevel;
+};
+
+class TypeInfo
+{
+public:
+    class TypeInfoData
+    {
+    public:
+        const char* m_Name; // 0x0000
+    };
+
+    TypeInfoData* m_InfoData;
+    //..
+};
+
+struct ITypedObject
+{
+    /** Query instance type
+            \todo This should really return const ClassInfo* ?
+      */
+    virtual TypeInfo* getType() const = 0;
+
+    /// Determines if this TypeInfo implements or inherits from the templated type.
+    /// This can be used to determine both InterfaceTypeInfo and subclass information.
+    template<typename T>
+    inline bool isKindOf() const;
+
+protected:
+    __forceinline virtual ~ITypedObject() = default;
+};
+
+typedef int MessageCategory;
+typedef int MessageType;
+
+class Message : public ITypedObject
+{
+public:
+    const MessageCategory category;
+    const MessageType type;
 };
 } // namespace Kyber

@@ -15,13 +15,13 @@ public:
     const char* credits[11] = {
         ("Kyber v" + KYBER_VERSION).c_str(),
         ""
-        "Creator and Developer:",
+        "CREATOR & DEVELOPER",
         "BattleDash",
         "",
-        "Management:",
+        "COMMUNITY MANAGER",
         "Dangercat",
         "",
-        "Contributors:",
+        "CONTRIBUTORS",
         "Cade",
         "Mophead",
         "Dyvinia"

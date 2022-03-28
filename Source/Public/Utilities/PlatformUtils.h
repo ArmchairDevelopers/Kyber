@@ -7,8 +7,6 @@ namespace Kyber
 class PlatformUtils
 {
 public:
-    static std::string GetGameDataPath();
-    static std::string GetFrostyMods();
     static std::wstring utf8ToUtf16(const std::string& utf8Str);
     static std::string utf16ToUtf8(const std::wstring& utf16Str);
     static uintptr_t BaseAddress();

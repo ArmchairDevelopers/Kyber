@@ -8,15 +8,14 @@ namespace Kyber
 {
 void ErrorUtils::ThrowException(LPCSTR message)
 {
-    LPCSTR base = "Something went wrong with Kyber. Please restart your game and report this to Kyber Staff if it "
+    LPCSTR base = "Something went wrong with Kyber. Please restart your game and report this on the KYBER Discord if it "
                   "continues.\n\nException Details:\n";
     std::string combined = std::string(base) + message;
     LPCSTR combinedLPC = combined.c_str();
 
-    MessageBox(0, combinedLPC, "Error", MB_ICONERROR);
+    MessageBox(0, combinedLPC, "ERROR", MB_ICONERROR);
     ExitProcess(EXIT_FAILURE);
 }
-
 void ErrorUtils::CloseGame(LPCSTR message)
 {
     MessageBox(0, message, "Kyber", MB_ICONERROR);

@@ -12,8 +12,33 @@
 #include <queue>
 #include <string>
 
+#pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "dxgi.lib")
+
 namespace Kyber
 {
+enum class IDXGISwapChainVMT
+{
+    QueryInterface,
+    AddRef,
+    Release,
+    SetPrivateData,
+    SetPrivateDataInterface,
+    GetPrivateData,
+    GetParent,
+    GetDevice,
+    Present,
+    GetBuffer,
+    SetFullscreenState,
+    GetFullscreenState,
+    GetDesc,
+    ResizeBuffers,
+    ResizeTarget,
+    GetContainingOutput,
+    GetFrameStatistics,
+    GetLastPresentCount,
+};
+
 class Renderer
 {
   public:

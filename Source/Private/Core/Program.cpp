@@ -20,18 +20,18 @@
 #include <chrono>
 #include <thread>
 
-#define OFFSET_CLIENT_STATE_CHANGE HOOK_OFFSET(0x140A8C7A0)
-#define OFFSET_GET_SETTINGS_OBJECT HOOK_OFFSET(0x1401F7BD0)
+#define OFFSET_CLIENT_STATE_CHANGE 0x140A8C7A0
+#define OFFSET_GET_SETTINGS_OBJECT 0x1401F7BD0
+#define OFFSET_GET_CLIENT_INSTANCE 0x14659DE50
 
 Kyber::Program* g_program;
 
 namespace Kyber
 {
 Program::Program(HMODULE module)
-    : m_module(module)
-    , m_api(nullptr)
+    : m_api(nullptr)
     , m_server(nullptr)
-    , m_clientState(ClientState_None)
+    , m_clientState(ClientState::ClientState_None)
     , m_joining(false)
 {
     if (g_program || MH_Initialize() != MH_OK)
@@ -58,20 +58,35 @@ Program::Program(HMODULE module)
 
 Program::~Program()
 {
-    KYBER_LOG(LogLevel::Info, "Destroying Kyber");
-    HookManager::RemoveHooks();
-    delete m_server;
-    delete m_api;
-    delete g_renderer;
+    KYBER_LOG(LogLevel::Info, "Disposing of Kyber!");
 }
 
 DWORD WINAPI Program::InitializationThread()
 {
     KYBER_LOG(LogLevel::Info, "Initializing...");
-    KYBER_LOG(LogLevel::Info, " _____     _   _   _     ____           _ ");
-    KYBER_LOG(LogLevel::Info, "| __  |___| |_| |_| |___|    \\ ___ ___| |_");
-    KYBER_LOG(LogLevel::Info, "| __ -| .'|  _|  _| | -_|  |  | .'|_ -|   |");
-    KYBER_LOG(LogLevel::Info, "|_____|__,|_| |_| |_|___|____/|__,|___|_|_|");
+    KYBER_LOG(LogLevel::Info, "   _____     _   _   _     ____          _        ");
+    KYBER_LOG(LogLevel::Info, "  | __  |___| |_| |_| |___|    \\___ ___| |_      ");
+    KYBER_LOG(LogLevel::Info, "  | __ -| .'|  _|  _| | -_|  |  | .'|_ -|   |     ");
+    KYBER_LOG(LogLevel::Info, "  |_____|__,|_| |_| |_|___|____/|__,|___|_|_|     ");
+    KYBER_LOG(LogLevel::Info, "                                                  ");
+    KYBER_LOG(LogLevel::Info, "           ^@GPP5555555555555555G&:               ");
+    KYBER_LOG(LogLevel::Info, "          7@!  ~5YYYYYYYYYYYYY5Y 7@~              ");  
+    KYBER_LOG(LogLevel::Info, "         P&.   ~@@@@@@@@@@@@@@@5. :&Y             ");
+    KYBER_LOG(LogLevel::Info, "        #B ~&    @@@@@@@@@@@G^      #B            ");
+    KYBER_LOG(LogLevel::Info, "      :&Y Y@B    !@@@@@@@@B!   :J&@? P&.          ");
+    KYBER_LOG(LogLevel::Info, "     !@! B@@@~    &@@@@&J.   :Y&@@@@@P 7@         ");
+    KYBER_LOG(LogLevel::Info, "    Y&..&@@@@&    !@&5:   :Y&@@@@@@@@@# :@        ");
+    KYBER_LOG(LogLevel::Info, "   G# ^@@@@@@@?   ^   ^P&@@@@@@@@@@@@@@:.&P       ");
+    KYBER_LOG(LogLevel::Info, "  B@ .@@@@@@@@@      ^YGB#&@@@@@@@@@@@@@  @P      ");
+    KYBER_LOG(LogLevel::Info, "   G# ^@@@@@@@@5   .         :^!J5G#&@&:.&P       ");
+    KYBER_LOG(LogLevel::Info, "    Y&..&@@@@@@@.  .@@&#GY7^.          ^@J        ");
+    KYBER_LOG(LogLevel::Info, "     !@! B@@@@@@B   J@@@@@@@@@&#GY7^  ?@~         ");
+    KYBER_LOG(LogLevel::Info, "      :&Y Y@@@@@@~   &@@@@@@@@@@@@@? P&.          ");
+    KYBER_LOG(LogLevel::Info, "        #B ~@@@@@&    K@@@@@@@@@@@@^#B            ");
+    KYBER_LOG(LogLevel::Info, "         P&..&@@@@J   Y@@@@@@@@@&.:&Y             ");
+    KYBER_LOG(LogLevel::Info, "          7@~ JYYY?    JYYYYYYYJ !@~              ");
+    KYBER_LOG(LogLevel::Info, "           ^@G55555PPPP555555555G&                ");   
+    KYBER_LOG(LogLevel::Info, "                                                  ");
 
     InitializeGameHooks();
 
@@ -82,32 +97,107 @@ DWORD WINAPI Program::InitializationThread()
     KYBER_LOG(LogLevel::Info, "Initialized Kyber v" << KYBER_VERSION);
     KYBER_LOG(LogLevel::Warning, "Press [INSERT] on your Keyboard to use Kyber!");
 
-    while (1)
-    {
-        if (GetAsyncKeyState(VK_END) & 1)
-        {
-            KYBER_LOG(LogLevel::Info, "Ejecting Kyber");
-            FreeLibrary(m_module);
-            delete this;
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
     return 0;
 }
 
-HookTemplate program_hook_offsets[] = {
-    { OFFSET_CLIENT_STATE_CHANGE, ClientStateChangeHk },
-    { OFFSET_GET_SETTINGS_OBJECT, GetSettingsObjectHk },
-};
+void DispatchMessageHk(__int64 pMessageManagerImpl, Message* pMessage)
+{
+    static const auto trampoline = HookManager::Call(DispatchMessageHk);
+    __int64 serverGameContext = g_program->m_server->GetServerGameContext();
+    __int64 serverMessageManager = serverGameContext ? *reinterpret_cast<__int64*>(serverGameContext + 0x10) : 0;
+    if (pMessage != nullptr && pMessage != NULL)
+    {
+        TypeInfo* pType = pMessage->getType();
+
+        if (pType == nullptr && pType != NULL)
+        {
+            KYBER_LOG(LogLevel::Debug, "pType was null.");
+        }
+        else if (pType->m_InfoData != nullptr)
+        {
+            if (true && strcmp(pType->m_InfoData->m_Name, "ClientInputUnchangedInputMessage") != 0)
+            {
+                if (serverMessageManager == pMessageManagerImpl)
+                {
+                    KYBER_LOG(LogLevel::Debug, "[SERVER] Dispatched Message " << pType->m_InfoData->m_Name);
+                }
+                else
+                {
+                    if (strcmp(pType->m_InfoData->m_Name, "ClientExitToMenuMessage") == 0)
+                    {
+                        KYBER_LOG(LogLevel::Debug, "[CLIENT] Dispatched exit to menu message " << std::hex << pMessage);
+                    }
+                    KYBER_LOG(LogLevel::Debug, "[CLIENT] Dispatched Message " << pType->m_InfoData->m_Name);
+                }
+            }
+            if (false && strcmp(pType->m_InfoData->m_Name, "StatSessionStartMessage") == 0)
+            {
+                KYBER_LOG(LogLevel::Debug, "Dispatched Message " << pType->m_InfoData->m_Name);
+            }
+            if (strcmp(pType->m_InfoData->m_Name, "ClientPlayerLocalSetMessage") == 0) {}
+
+            // if ( reinterpret_cast<uintptr_t>( pType ) == 0x000 )
+            //	util::PauseProcess( FALSE );
+        }
+        else
+        {
+            KYBER_LOG(LogLevel::Debug, "Dispatched Message: " << reinterpret_cast<uintptr_t>(pMessage));
+        }
+    }
+    else
+    {
+        KYBER_LOG(LogLevel::Debug, "Message was null.");
+    }
+    return trampoline(pMessageManagerImpl, pMessage);
+}
+
+void QueueMessageHk(__int64 pMessageManagerImpl, Message* pMessage, float delayTime)
+{
+    static const auto trampoline = HookManager::Call(QueueMessageHk);
+    __int64 serverGameContext = g_program->m_server->GetServerGameContext();
+    __int64 serverMessageManager = serverGameContext ? *reinterpret_cast<__int64*>(serverGameContext + 0x10) : 0;
+    if (pMessage != nullptr && pMessage != NULL)
+    {
+        TypeInfo* pType = pMessage->getType();
+
+        if (pType == nullptr && pType != NULL)
+        {
+            KYBER_LOG(LogLevel::Debug, "pType was null.");
+        }
+        else if (pType->m_InfoData != nullptr)
+        {
+            if (serverMessageManager == pMessageManagerImpl)
+            {
+                KYBER_LOG(LogLevel::Debug, "[SERVER] Queued Message " << pType->m_InfoData->m_Name);
+            }
+            else
+            {
+                if (strcmp(pType->m_InfoData->m_Name, "ClientExitToMenuMessage") == 0)
+                {
+                    KYBER_LOG(LogLevel::Debug, "[CLIENT] Queued exit to menu message " << std::hex << pMessage);
+                }
+                KYBER_LOG(LogLevel::Debug, "[CLIENT] Queued Message " << pType->m_InfoData->m_Name);
+            }
+        }
+        else
+        {
+            KYBER_LOG(LogLevel::Debug, "Queued Message: " << reinterpret_cast<uintptr_t>(pMessage));
+        }
+    }
+    else
+    {
+        KYBER_LOG(LogLevel::Debug, "Message was null.");
+    }
+    return trampoline(pMessageManagerImpl, pMessage, delayTime);
+}
 
 void Program::InitializeGameHooks()
 {
-    for (HookTemplate& hook : program_hook_offsets)
-    {
-        HookManager::CreateHook(hook.offset, hook.hook);
-    }
+    HookManager::CreateHook(reinterpret_cast<void*>(0x1401F6CA0), DispatchMessageHk);
+    HookManager::CreateHook(reinterpret_cast<void*>(0x1401F8950), QueueMessageHk);
+    HookManager::CreateHook(reinterpret_cast<void*>(OFFSET_CLIENT_STATE_CHANGE), ClientStateChangeHk);
+    HookManager::CreateHook(reinterpret_cast<void*>(OFFSET_GET_SETTINGS_OBJECT), GetSettingsObjectHk);
+    HookManager::CreateHook(reinterpret_cast<void*>(OFFSET_GET_CLIENT_INSTANCE), GetClientInstanceHk);
     Hook::ApplyQueuedActions();
 }
 
@@ -150,5 +240,11 @@ __int64 GetSettingsObjectHk(__int64 inst, const char* identifier)
 {
     static const auto trampoline = HookManager::Call(GetSettingsObjectHk);
     return trampoline(inst, identifier);
+}
+
+__int64 GetClientInstanceHk()
+{
+    static const auto trampoline = HookManager::Call(GetClientInstanceHk);
+    return trampoline();
 }
 } // namespace Kyber

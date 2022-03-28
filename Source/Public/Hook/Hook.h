@@ -7,12 +7,6 @@
 
 namespace Kyber
 {
-struct HookTemplate
-{
-    void* offset;
-    void* hook;
-};
-
 class Hook
 {
 public:

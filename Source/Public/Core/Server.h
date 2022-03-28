@@ -15,12 +15,10 @@ namespace Kyber
 {
 void ServerPlayerSetTeamIdHk(ServerPlayer* inst, int teamId);
 void ServerPlayerLeaveIngameHk(ServerPlayer* inst);
-void ServerPlayerDisconnectHk(ServerPlayer* inst, __int64 reason, const std::string& reasonText);
+void ServerPlayerDisconnectHk(ServerPlayer* inst, __int64 reason, char* reasonText);
 void ServerPeerDeleteConnectionHk(__int64 inst, __int64 serverConnection, __int64 reason, char* reasonText);
 __int64 ServerPeerConnectionForPlayerHk(__int64 inst, ServerPlayer* player);
 void ServerConnectionDisconnectHk(__int64 inst, __int64 reason, char* reasonText);
-void ServerConnectionKickPlayerHk(__int64 inst, __int64 reason, const std::string& reasonText);
-void ServerPlayerManagerDeletePlayerHk(ServerPlayerManager* inst, ServerPlayer* player);
 
 class Server
 {
@@ -35,7 +33,7 @@ public:
     void InitializeGamePatches();
     void InitializeGameSettings();
 
-    void Start(const char* level, const char* mode, int maxPlayers, SocketSpawnInfo info);
+    void Start(const char* level, const char* mode, SocketSpawnInfo info);
     void Stop();
 
     void SetPlayerTeam(ServerPlayer* player, int teamId)
@@ -50,9 +48,13 @@ public:
 
     void KickPlayer(ServerPlayer* player, char* reason)
     {
+        //ServerPlayerLeaveIngameHk(player);
+        //ServerPlayerDisconnectHk(player, 0x102CBECD, reason);
         __int64 serverPeer = *reinterpret_cast<__int64*>(GetServerGameContext() + 0x60);
         __int64 serverConnection = ServerPeerConnectionForPlayerHk(serverPeer, player);
-        ServerConnectionKickPlayerHk(serverConnection, SecureReason_KickedByAdmin, std::string(reason));
+        ServerConnectionDisconnectHk(serverConnection, 0x102CBECD, reason);
+        //ServerPeerDeleteConnectionHk(serverPeer, serverConnection, 0x102CBECD, reason);
+        //delete player;
     }
 
     SocketManager* m_socketManager;
