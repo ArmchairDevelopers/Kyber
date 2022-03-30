@@ -41,20 +41,13 @@ void MainWindow::Draw()
             m_serverWindow->m_isEnabled = true;
         }
     }
-    else
-    {
-        if (ImGui::Button("SERVER SETUP"))
-        {
-            m_serverWindow->m_isEnabled = true;
-        }
-    }
+    
     if (ImGui::Button("SERVER BROWSER"))
     {
         m_clientWindow->m_isEnabled = true;
     }
     ImGui::Separator();
 
-    // ImGui::Text("Toggle Menu: [INSERT]");
 
     if (!g_program->m_server->m_running)
     {

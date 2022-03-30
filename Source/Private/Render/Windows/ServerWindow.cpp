@@ -42,7 +42,7 @@ bool DrawScoreboardPlayer(std::vector<ServerPlayer*> playerList, int index)
 void ServerWindow::Draw()
 {
     ImGui::Begin("SERVER SETTINGS", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);
-    GameSettings* gameSettings = Settings<GameSettings>("GAME");
+    GameSettings* gameSettings = Settings<GameSettings>("Game");
     ImGui::Text("GAME MODE:");
     ImGui::SameLine();
     ImGui::Text(gameSettings->DefaultLayerInclusion);
