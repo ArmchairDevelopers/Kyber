@@ -45,12 +45,11 @@ void MainWindow::Draw()
     }
 
     ImGui::Separator();
-    
+
     if (ImGui::SmallButton("SUPPORT & CREDITS"))
     {
         m_creditsWindow->m_isEnabled = true;
     }
-}
 
     ImGui::End();
 }
