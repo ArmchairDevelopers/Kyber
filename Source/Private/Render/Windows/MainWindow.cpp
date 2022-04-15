@@ -35,23 +35,22 @@ void MainWindow::Draw()
     ImGui::Begin("KYBER", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);
 
     if (ImGui::Button("SERVER SETUP"))
-        {
-            m_serverWindow->m_isEnabled = true;
-        }
+    {
+        m_serverWindow->m_isEnabled = true;
     }
-    
+
     if (ImGui::Button("SERVER BROWSER"))
     {
         m_clientWindow->m_isEnabled = true;
     }
+
     ImGui::Separator();
-
-
+    
     if (ImGui::SmallButton("SUPPORT & CREDITS"))
-        {
-            m_creditsWindow->m_isEnabled = true;
-        }
+    {
+        m_creditsWindow->m_isEnabled = true;
     }
+}
 
     ImGui::End();
 }
