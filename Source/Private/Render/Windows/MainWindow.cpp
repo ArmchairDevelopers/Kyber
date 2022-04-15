@@ -34,9 +34,7 @@ void MainWindow::Draw()
 {
     ImGui::Begin("KYBER", &m_isEnabled, ImGuiWindowFlags_AlwaysAutoResize);
 
-    if (!g_program->m_server->m_running)
-    {
-        if (ImGui::Button("SERVER SETUP"))
+    if (ImGui::Button("SERVER SETUP"))
         {
             m_serverWindow->m_isEnabled = true;
         }
@@ -49,9 +47,7 @@ void MainWindow::Draw()
     ImGui::Separator();
 
 
-    if (!g_program->m_server->m_running)
-    {
-        if (ImGui::SmallButton("SUPPORT & CREDITS"))
+    if (ImGui::SmallButton("SUPPORT & CREDITS"))
         {
             m_creditsWindow->m_isEnabled = true;
         }
