@@ -6,6 +6,8 @@
 #include <Render/Windows/MainWindow.h>
 #include <SDK/Modes.h>
 
+#include <map>
+
 namespace Kyber
 {
 ServerWindow::ServerWindow() {}
@@ -148,20 +150,15 @@ void ServerWindow::Draw()
         ServerPlayerManager* playerManager = g_program->m_server->m_playerManager;
         if (playerManager)
         {
-            std::vector<ServerPlayer*> team1Players;
-            std::vector<ServerPlayer*> team2Players;
+            std::map<int32_t, std::vector<ServerPlayer*>> players;
+            // Bleh
+            players[1] = std::vector<ServerPlayer*>();
+            players[2] = std::vector<ServerPlayer*>();
             for (ServerPlayer* player : playerManager->m_players)
             {
                 if (player && !player->m_isAIPlayer)
                 {
-                    if (player->m_teamId == 1)
-                    {
-                        team1Players.push_back(player);
-                    }
-                    else if (player->m_teamId == 2)
-                    {
-                        team2Players.push_back(player);
-                    }
+                    players[player->m_teamId].push_back(player);
                 }
             }
             if (ImGui::BeginTable("PLAYER LIST", 2, ImGuiTableFlags_SizingFixedFit))
@@ -174,11 +171,16 @@ void ServerWindow::Draw()
                 for (int i = 0; i < 64; i++)
                 {
                     ImGui::TableNextRow();
-                    ImGui::TableNextColumn();
-                    bool drewPlayer1 = DrawScoreboardPlayer(team1Players, i);
-                    ImGui::TableNextColumn();
-                    bool drewPlayer2 = DrawScoreboardPlayer(team2Players, i);
-                    if (!drewPlayer1 && !drewPlayer2)
+                    int drew = 0;
+                    for (int j = 1; j <= players.size(); j++)
+                    {
+                        ImGui::TableNextColumn();
+                        if (DrawScoreboardPlayer(players[j], i))
+                        {
+                            drew++;
+                        }
+                    }
+                    if (!drew)
                     {
                         break;
                     }
