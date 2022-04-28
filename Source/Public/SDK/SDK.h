@@ -29,6 +29,7 @@ public:
 class ServerPlayer
 {
 public:
+    void* vfunc;                      // 0x0000
     class PlayerData* m_data;         // 0x0008
     class MemoryArena* m_memoryArena; // 0x0010
     char* m_name;                     // 0x0018

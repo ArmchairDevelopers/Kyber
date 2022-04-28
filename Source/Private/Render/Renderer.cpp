@@ -34,18 +34,9 @@ LRESULT CALLBACK WndProcHk(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
     static const auto trampoline = HookManager::Call(WndProcHk);
     if (Msg == WM_KEYUP && (wParam == VK_INSERT || (g_mainWindow->IsEnabled() && wParam == VK_ESCAPE)))
     {
-        INPUT inputs[2] = {};
-        memset(inputs, 0, sizeof(inputs));
-        inputs[0].type = INPUT_KEYBOARD;
-        inputs[0].ki.wVk = VK_ESCAPE;
-        inputs[1] = inputs[0];
-        SendInput(2, inputs, sizeof(INPUT));
         g_mainWindow->SetEnabled(!g_mainWindow->IsEnabled());
         ImGui::GetIO().MouseDrawCursor = g_mainWindow->IsEnabled();
         KYBER_LOG(LogLevel::Info, "InputManMouse: 0x" << std::hex << GetWindowLongPtr(hWnd, 0));
-        bool* inputManMouseEnabled = reinterpret_cast<bool*>(GetWindowLongPtr(hWnd, 0) + 0x78);
-        bool* inputManMouseCursorEnabled = reinterpret_cast<bool*>(GetWindowLongPtr(hWnd, 0) + 0x79);
-        bool* inputManMouseHasFocus = reinterpret_cast<bool*>(GetWindowLongPtr(hWnd, 0) + 0x7E);
     }
 
     ImGuiIO& io = ImGui::GetIO();

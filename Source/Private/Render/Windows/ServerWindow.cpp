@@ -4,10 +4,7 @@
 
 #include <Core/Program.h>
 #include <Render/Windows/MainWindow.h>
-#include <Utilities/ErrorUtils.h>
 #include <SDK/Modes.h>
-
-#include <Windows.h>
 
 namespace Kyber
 {
@@ -151,7 +148,6 @@ void ServerWindow::Draw()
         ServerPlayerManager* playerManager = g_program->m_server->m_playerManager;
         if (playerManager)
         {
-            std::vector<ServerPlayer*> players(playerManager->m_players, playerManager->m_players + 64);
             std::vector<ServerPlayer*> team1Players;
             std::vector<ServerPlayer*> team2Players;
             for (ServerPlayer* player : playerManager->m_players)
