@@ -27,6 +27,7 @@ What's done:
 * In-Game server browser
 * Per-player team swapping
 * Player kicking/moderation
+* Optimal proxy detection
 
 What isn't done:
 * Built-in mod verification (currently handled at the proxy level, meaning it's unavailable if you direct-connect)
