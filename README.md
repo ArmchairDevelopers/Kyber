@@ -29,7 +29,6 @@ What's done:
 * Player kicking/moderation
 
 What isn't done:
-* Optimal proxy detection
 * Built-in mod verification (currently handled at the proxy level, meaning it's unavailable if you direct-connect)
 * Kick messages (currently if you are kicked by the server admin you just get sent back to the menu with no indication of why)
 * UX/UI Styling (WIP)
