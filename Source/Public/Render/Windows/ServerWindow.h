@@ -11,6 +11,7 @@ class ServerWindow : public Window
 public:
     ServerWindow();
     ~ServerWindow();
+
     void Draw() override;
     bool IsEnabled() override;
 
