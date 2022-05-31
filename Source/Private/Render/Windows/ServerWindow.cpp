@@ -65,7 +65,7 @@ void ServerWindow::Draw()
         static GameMode currentMode = { "", "Mode", {}, {} };
         static GameLevel currentLevel = { "", "Level" };
         static KyberProxy currentProxy = { "", "Proxy", "", "", 0 };
-        if (currentProxy.ip == "") {
+        if (currentProxy.ip.empty()) {
             currentProxy = m_proxies->at(0);
         }
         if (ImGui::BeginCombo("##modeCombo", currentMode.name))
@@ -107,8 +107,8 @@ void ServerWindow::Draw()
         {
             for (int i = 0; i < m_proxies->size(); i++)
             {
-                KyberProxy proxy = (*m_proxies)[i];
-                bool selected = (strcmp(currentProxy.ip.c_str(), proxy.ip.c_str()) == 0);
+                KyberProxy proxy = m_proxies->at(i);
+                bool selected = currentProxy.ip == proxy.ip;
                 if (ImGui::Selectable(proxy.displayName.c_str(), selected))
                 {
                     currentProxy = proxy;
