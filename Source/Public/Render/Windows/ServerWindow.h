@@ -4,8 +4,6 @@
 
 #include <Render/Windows/Window.h>
 #include <API/APIService.h>
-#include <vector>
-#include <optional>
 
 namespace Kyber
 {
