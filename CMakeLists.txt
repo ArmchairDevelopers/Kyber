@@ -18,6 +18,9 @@ include_directories(SYSTEM INTERFACE
         ${PROJECT_SOURCE_DIR}/Libraries/Include
 )
 
+file(GLOB_RECURSE DLL_HEADERS CONFIGURE_DEPENDS
+        ${PROJECT_SOURCE_DIR}/Source/Public/*.h
+)
 file(GLOB_RECURSE DLL_SOURCES CONFIGURE_DEPENDS
         ${PROJECT_SOURCE_DIR}/Source/Private/*.cpp
 )
@@ -28,7 +31,7 @@ file(GLOB_RECURSE INCLUDE_SOURCES CONFIGURE_DEPENDS
 # Begone
 add_compile_definitions(_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
 
-add_library(Kyber MODULE ${DLL_SOURCES} ${INCLUDE_SOURCES})
+add_library(Kyber MODULE ${DLL_SOURCES} ${INCLUDE_SOURCES} ${DLL_HEADERS})
 
 file(GLOB_RECURSE LIBRARIES CONFIGURE_DEPENDS
         ${PROJECT_SOURCE_DIR}/Libraries/Binaries/*.lib
@@ -38,3 +41,4 @@ set_target_properties(Kyber PROPERTIES LINK_FLAGS "/ignore:4075 /ignore:4098 /LT
 target_link_libraries(Kyber Ws2_32.lib d3d11.lib dxgi.lib ${LIBRARIES})
 
 add_subdirectory(Launcher)
+add_subdirectory(Installer)
