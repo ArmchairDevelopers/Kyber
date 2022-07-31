@@ -36,6 +36,8 @@ httplib::SSLClient apiClient("kyber.gg");
 std::experimental::thread_pool threadPool(4);
 bool dllUpdating = false;
 
+std::filesystem::path kyberDllPath;
+
 void DownloadDLL()
 {
     dllUpdating = true;
@@ -43,8 +45,7 @@ void DownloadDLL()
         auto response = apiClient.Get("/api/downloads/distributions/stable/dll");
         if (response && response->status == 200)
         {
-            auto file = std::filesystem::temp_directory_path() / "Kyber" / "Kyber.dll";
-            std::ofstream out(file, std::ios::binary);
+            std::ofstream out(kyberDllPath, std::ios::binary);
             out.write(response->body.c_str(), response->body.size());
             out.close();
         }
@@ -60,8 +61,7 @@ void DownloadDLL()
 
 void InjectDLL()
 {
-    auto file = std::filesystem::temp_directory_path() / "Kyber" / "Kyber.dll";
-    if (!std::filesystem::exists(file))
+    if (!std::filesystem::exists(kyberDllPath))
     {
         DownloadDLL();
         return;
@@ -273,6 +273,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     //DownloadDLL();
+    kyberDllPath = std::filesystem::temp_directory_path() / "Kyber" / "Kyber.dll";
+    std::string kyberDllPathStr = kyberDllPath.u8string();
 
     while (!glfwWindowShouldClose(window))
     {
@@ -289,8 +291,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
         ImGui::SetNextWindowSize(io.DisplaySize);
         ImGui::SetNextWindowPos(ImVec2(0, 0));
-
+       
         ImGui::Begin("Hello, world!", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text("Kyber DLL Path: %s", kyberDllPathStr.c_str());
 
         ImGui::Text("This is some useful text.");
 
