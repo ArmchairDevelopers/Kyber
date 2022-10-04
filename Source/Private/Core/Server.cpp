@@ -56,7 +56,7 @@ Server::Server()
     DisableGameHooks();
     InitializeGamePatches();
 
-    new std::thread(&Server::PortForwardingThread, this);
+    // new std::thread(&Server::PortForwardingThread, this);
 }
 
 Server::~Server()
