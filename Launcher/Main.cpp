@@ -99,14 +99,14 @@ void InjectDLL()
         return;
     }
 
-    LPVOID remoteDLL = VirtualAllocEx(hProc, NULL, file.string().size(), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    LPVOID remoteDLL = VirtualAllocEx(hProc, NULL, kyberDllPath.string().size(), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if (remoteDLL == NULL)
     {
         MessageBoxA(NULL, "Failed to allocate memory in starwarsbattlefrontii.exe", "Kyber Launcher", MB_OK);
         return;
     }
 
-    if (!WriteProcessMemory(hProc, remoteDLL, file.string().c_str(), file.string().size(), NULL))
+    if (!WriteProcessMemory(hProc, remoteDLL, kyberDllPath.string().c_str(), kyberDllPath.string().size(), NULL))
     {
         MessageBoxA(NULL, "Failed to write memory in starwarsbattlefrontii.exe", "Kyber Launcher", MB_OK);
         return;
