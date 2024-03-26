@@ -1,4 +1,4 @@
-<h1 align="center"><img src="https://kyber.gg/logo.svg" width="30rem"> Kyber</h1>
+<h1 align="center"><img src="https://kyber.gg/logo2.svg" width="30rem"> Kyber</h1>
 
 <h4 align="center">Kyber is an Open-Source Private Server tool for STAR WARS™ Battlefront™ II (2017).</h4>
 <br>
