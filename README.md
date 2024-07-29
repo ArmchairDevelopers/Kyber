@@ -1,5 +1,5 @@
 > [!WARNING]
-> This version of KYBER is not up to date. Be on the lookout for the [KYBER V2](https://uplink.kyber.gg/news/features-overview/) update, which has been under private development with a whole host of new and improved features.
+> This version of KYBER is not up to date. Be on the lookout for the [KYBER V2](https://uplink.kyber.gg/news/features-overview/) update, which has been under private development, with a whole host of new and improved features.
 
 <h1 align="center"><img src="https://kyber.gg/logo2.svg" width="30rem"> Kyber</h1>
 
