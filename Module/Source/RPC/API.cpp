@@ -79,15 +79,20 @@ API::API(std::string token)
 
     m_stateListenerThread = std::thread(ListenToStateChanges, channel);
 
-    m_clientServer = std::make_unique<ClientServerAPI>(channel, token);
+    m_clientServer = std::make_unique<ClientServerAPI>(channel, &m_asyncManager, token);
     m_proxy = std::make_unique<ProxyAPI>(channel, token);
-    m_serverBrowser = std::make_unique<ServerBrowserAPI>(channel, token);
+    m_serverBrowser = std::make_unique<ServerBrowserAPI>(channel, &m_asyncManager, token);
     m_serverManagement = std::make_unique<ServerManagementAPI>(httpUri, token);
-    m_statistics = std::make_unique<StatisticsAPI>(channel, token);
-    m_voip = std::make_unique<VoipAPI>(channel, token);
+    m_statistics = std::make_unique<StatisticsAPI>(channel, &m_asyncManager, token);
+    m_voip = std::make_unique<VoipAPI>(channel, &m_asyncManager, token);
 
     std::string launcherPort = PlatformUtils::GetEnv("KYBER_LAUNCHER_PORT");
     std::shared_ptr<Channel> launcherChannel = grpc::CreateChannel("127.0.0.1:" + launcherPort, grpc::InsecureChannelCredentials());
-    m_launcherInterface = std::make_unique<LauncherInterface>(launcherChannel);
+    m_launcherInterface = std::make_unique<LauncherInterface>(launcherChannel, &m_asyncManager);
+}
+
+void API::Update() const
+{
+    m_asyncManager.Update();
 }
 } // namespace Kyber

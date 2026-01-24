@@ -102,11 +102,11 @@ TypeInfo* TypeBuilderInternalBuildHk(__int64* a1, __int64 context, const ClassIn
 {
     static auto trampoline = HookManager::Call(TypeBuilderInternalBuildHk);
 
-    if (s_program->m_entityManager->IsGuidUsed(*asset.GetInstanceGuid()))
+    if (g_program->m_entityManager->IsGuidUsed(*asset.GetInstanceGuid()))
     {
         KYBER_LOG(Trace, "Building class stub for " << asset.TypeName);
         TypeInfo* type = TypeBuilderInternalBuildClassStubHk(a1, context, asset);
-        s_program->m_entityManager->AddBuiltType(*asset.GetInstanceGuid(), type);
+        g_program->m_entityManager->AddBuiltType(*asset.GetInstanceGuid(), type);
         return type;
     }
 
@@ -146,7 +146,7 @@ void* CreateTypeBuilder()
 
 TypeInfo* RegisterType(void* typeBuilder, ClassInfoAsset* asset)
 {
-    TypeInfo* type = s_program->m_entityManager->GetBuiltType(*asset->GetInstanceGuid());
+    TypeInfo* type = g_program->m_entityManager->GetBuiltType(*asset->GetInstanceGuid());
     if (type != nullptr)
     {
         return type;
@@ -159,23 +159,23 @@ TypeInfo* RegisterType(void* typeBuilder, ClassInfoAsset* asset)
 
 const TypeInfo* TypeBuilderInternalFindTypeHk(void* a1, const Guid& guid)
 {
-    const TypeInfo* type = s_program->m_entityManager->GetNativeTypeByGuid(guid);
+    const TypeInfo* type = g_program->m_entityManager->GetNativeTypeByGuid(guid);
     if (type != nullptr)
     {
         return type;
     }
 
-    type = s_program->m_entityManager->GetCreatedType(guid);
+    type = g_program->m_entityManager->GetCreatedType(guid);
     if (type != nullptr)
     {
         return type;
     }
 
-    if (s_program->m_entityManager->CreatedTypeExists(guid))
+    if (g_program->m_entityManager->CreatedTypeExists(guid))
     {
-        ClassInfoAsset* asset = s_program->m_entityManager->GetClassInfoAsset(guid);
+        ClassInfoAsset* asset = g_program->m_entityManager->GetClassInfoAsset(guid);
         KYBER_LOG(Trace, "Prematurely creating " << asset->TypeName);
-        return RegisterType(s_program->m_entityManager->GetTypeBuilder(), asset);
+        return RegisterType(g_program->m_entityManager->GetTypeBuilder(), asset);
     }
 
     static auto trampoline = HookManager::Call(TypeBuilderInternalFindTypeHk);
@@ -277,7 +277,7 @@ void* NativeTypeRegistryInitHk(void* a1)
     static const auto trampoline = HookManager::Call(NativeTypeRegistryInitHk);
     KYBER_LOG(Debug, "Initializing type registry");
 
-    s_program->m_entityManager->RegisterTypes();
+    g_program->m_entityManager->RegisterTypes();
     void* result = trampoline(a1);
 
     KYBER_LOG(Debug, "Initialized type registry");
@@ -288,46 +288,6 @@ void PropertyReaderBaseSetFromDataBusPeerHk(PropertyReaderBase* inst, const Data
     const TypeInfo* typeInfo, const void* defaultValue)
 {
     static auto trampoline = HookManager::Call(PropertyReaderBaseSetFromDataBusPeerHk);
-
-    if (fieldNameHash == StringUtils::HashQuick("DataInput") && strcmp(data->m_dcType->getName(), "StandardListElementData") == 0)
-    {
-        trampoline(inst, dc, data, fieldNameHash, typeInfo, defaultValue);
-
-        void* result = PropertyReaderBaseGetHk(inst);
-        KYBER_LOG(Trace, "Reading DataInput: " << std::hex << result << " from " << _ReturnAddress());
-        return;
-    }
-
-    if (fieldNameHash == StringUtils::HashQuick("InData"))
-    {
-        trampoline(inst, dc, data, fieldNameHash, typeInfo, defaultValue);
-
-        void* result = PropertyReaderBaseGetHk(inst);
-        KYBER_LOG(Trace, "Reading InData for " << data->m_dcType->getName() << ": " << std::hex << result << " from " << _ReturnAddress());
-
-        if (result != nullptr)
-        {
-            DataContainer* result2 = (DataContainer*)result;
-            KYBER_LOG(Trace, "Read InData: " << result2->m_dcType->getName());
-        }
-        return;
-    }
-
-    if (fieldNameHash == StringUtils::HashQuick("DataInput"))
-    {
-        trampoline(inst, dc, data, fieldNameHash, typeInfo, defaultValue);
-
-        void* result = PropertyReaderBaseGetHk(inst);
-        KYBER_LOG(
-            Trace, "Reading DataInput for " << data->m_dcType->getName() << ": " << std::hex << result << " from " << _ReturnAddress());
-
-        if (result != nullptr)
-        {
-            KYBER_LOG(Trace, "Read DataInput: " << result);
-        }
-        return;
-    }
-
     trampoline(inst, dc, data, fieldNameHash, typeInfo, defaultValue);
 }
 
@@ -439,12 +399,12 @@ void KyberEntityBase::FireEvent(const char* event)
 
 void EntityManagerOnDestroyHk(NativeEntity* entity)
 {
-    if (s_program->m_entityManager == nullptr)
+    if (g_program->m_entityManager == nullptr)
     {
         return;
     }
 
-    KyberEntityBase* kyberEntity = s_program->m_entityManager->GetKyberEntity(entity);
+    KyberEntityBase* kyberEntity = g_program->m_entityManager->GetKyberEntity(entity);
     if (kyberEntity == nullptr)
     {
         return;
@@ -452,18 +412,18 @@ void EntityManagerOnDestroyHk(NativeEntity* entity)
 
     kyberEntity->OnDestroy();
 
-    s_program->m_entityManager->RemoveEntity(entity);
+    g_program->m_entityManager->RemoveEntity(entity);
     delete kyberEntity;
 }
 
 void EntityManagerEventHk(NativeEntity* entity, EntityEvent* entityEvent)
 {
-    if (s_program->m_entityManager == nullptr)
+    if (g_program->m_entityManager == nullptr)
     {
         return;
     }
 
-    KyberEntityBase* kyberEntity = s_program->m_entityManager->GetKyberEntity(entity);
+    KyberEntityBase* kyberEntity = g_program->m_entityManager->GetKyberEntity(entity);
     if (kyberEntity == nullptr)
     {
         return;
@@ -474,12 +434,12 @@ void EntityManagerEventHk(NativeEntity* entity, EntityEvent* entityEvent)
 
 void EntityManagerDeinitHk(NativeEntity* entity, void* info)
 {
-    if (s_program->m_entityManager == nullptr)
+    if (g_program->m_entityManager == nullptr)
     {
         return;
     }
 
-    KyberEntityBase* kyberEntity = s_program->m_entityManager->GetKyberEntity(entity);
+    KyberEntityBase* kyberEntity = g_program->m_entityManager->GetKyberEntity(entity);
     if (kyberEntity == nullptr)
     {
         return;
@@ -490,12 +450,12 @@ void EntityManagerDeinitHk(NativeEntity* entity, void* info)
 
 void EntityManagerPropertyChangedHk(NativeEntity* entity, PropertyModification* modification)
 {
-    if (s_program->m_entityManager == nullptr)
+    if (g_program->m_entityManager == nullptr)
     {
         return;
     }
 
-    KyberEntityBase* kyberEntity = s_program->m_entityManager->GetKyberEntity(entity);
+    KyberEntityBase* kyberEntity = g_program->m_entityManager->GetKyberEntity(entity);
     if (kyberEntity == nullptr)
     {
         return;
@@ -685,9 +645,9 @@ TypeObject* EntityManager::CreateEntity(void* params, DataContainer* data)
     const char* name = typeInfo->getName();
     // KYBER_LOG(Trace, "Creating entity for " << name);
 
-    if (s_program->m_scriptManager != nullptr)
+    if (g_program->m_scriptManager != nullptr)
     {
-        s_program->m_scriptManager->GetEventManager().Fire(std::string("EntityFactory:Create:") + name, data);
+        g_program->m_scriptManager->GetEventManager().Fire(std::string("EntityFactory:Create:") + name, data);
     }
 
     bool isOverrideCreator = EntityManagerStaticData::Get().IsOverrideCreator(typeInfo->getName());

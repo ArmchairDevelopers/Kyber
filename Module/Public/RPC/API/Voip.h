@@ -3,7 +3,7 @@
 #pragma once
 
 #include <Core/Server.h>
-#include <Utilities/ThreadPool.h>
+#include <RPC/AsyncRPCManager.h>
 
 #include <Proto/kyber_api.grpc.pb.h>
 
@@ -21,14 +21,14 @@ using grpc::Channel;
 class VoipAPI
 {
 public:
-    VoipAPI(std::shared_ptr<Channel> channel, std::string token);
+    VoipAPI(std::shared_ptr<Channel> channel, AsyncRPCManager* asyncManager, std::string token);
 
     void Login(std::function<void(std::optional<const VoipLoginResponse*>)> callback) const;
     void JoinChannel(const std::string& serverId, std::function<void(std::optional<const VoipJoinChannelResponse*>)> callback) const;
 
 private:
     std::shared_ptr<Voip::Stub> m_stub;
-    mutable ThreadPool m_threadPool;
+    AsyncRPCManager* m_asyncManager;
 
     std::string m_token;
 };

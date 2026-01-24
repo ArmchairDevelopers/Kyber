@@ -30,8 +30,6 @@ typedef __int64(__fastcall* SpatialEntity_setTransform)(void* inst, const Linear
 TL_DECLARE_FUNC(0x14116F610, bool, Entity_init, NativeEntity* inst, EntityInitInfo* info);
 TL_DECLARE_FUNC(0x1469DAF40, EntityInitInfo*, EntityInitInfo_ctor, EntityInitInfo* inst, Realm realm, void* context);
 
-TL_DECLARE_FUNC(0x140C0CD10, ServerPlayerEvent*, ServerPlayerEvent_ctor, ServerPlayerEvent* inst, const ServerPlayer* player, EventId eventId);
-
 TL_DECLARE_FUNC(0x14114C290, void, FullEntityBus_internalFireEvent, EntityBus* inst, const DataContainer* data, EntityEvent* event);
 TL_DECLARE_FUNC(0x141180770, void, EventAndPropertyModificationQueue_registerEvent, Realm realm, EntityBase* target, EntityEvent* entityEvent);
 
@@ -218,9 +216,16 @@ ServerPlayer* ServerPlayerManager::GetSpectator(uint64_t id)
     return nullptr;
 }
 
-void ServerPlayerEvent::init(ServerPlayerEvent* inst, const ServerPlayer* player, EventId eventId)
+void ServerConnection::SafeDisconnect(const char* reasonText, SecureReason reason)
 {
-    ServerPlayerEvent_ctor(inst, player, eventId);
+    m_disconnectReason = reason;
+    m_shouldDisconnect = true;
+    m_disconnectText = StringUtils::CopyWithArena(reasonText, FB_SERVER_ARENA);
+}
+
+void ServerConnection::SafeDisconnect(const char* reasonText)
+{
+    SafeDisconnect(reasonText, SecureReason_KickedViaFairFight);
 }
 
 bool EntityBase::IsSpatial() const
@@ -417,6 +422,20 @@ EntityBase* EntityBus::GetExposedPeer() const
     else if (DataContainer* exposed = GetExposedObject())
     {
         return EntityBus_convertDataToEntity(this, exposed, false);
+    }
+
+    return nullptr;
+}
+
+DataContainer* EntityBus::GetExposedPeerData() const
+{
+    if (uintptr_t entityBusBridge = GetEntityBusBridge())
+    {
+        return *reinterpret_cast<DataContainer**>(entityBusBridge + 0x10);
+    }
+    else if (DataContainer* exposed = GetExposedObject())
+    {
+        return exposed;
     }
 
     return nullptr;

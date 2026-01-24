@@ -9,6 +9,7 @@
 #include <RPC/API/Statistics.h>
 #include <RPC/API/Voip.h>
 #include <RPC/API/Launcher.h>
+#include <RPC/AsyncRPCManager.h>
 
 #include <memory>
 
@@ -18,6 +19,8 @@ class API
 {
 public:
     API(std::string token);
+
+    void Update() const;
 
     const ClientServerAPI* GetClientServer() const
     {
@@ -64,5 +67,7 @@ private:
     std::unique_ptr<LauncherInterface> m_launcherInterface;
 
     std::thread m_stateListenerThread;
+
+    AsyncRPCManager m_asyncManager;
 };
 } // namespace Kyber

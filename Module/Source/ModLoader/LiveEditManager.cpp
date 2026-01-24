@@ -139,13 +139,13 @@ static EntityBus* FullEntityBusCtorHk(EntityBus* inst, MemoryArena* arena, Entit
         if (!isSubLevel && parentBus != nullptr && parentRep != nullptr)
         // if (strcmp(busData->Name, kPrefabName) == 0)
         {
-            auto* data = s_program->m_entityManager->CreateContainer<KyberLiveEditEntityOwnerLifetimeEntityData>("KyberLiveEditEntityOwnerLifetimeEntityData");
+            auto* data = g_program->m_entityManager->CreateContainer<KyberLiveEditEntityOwnerLifetimeEntityData>("KyberLiveEditEntityOwnerLifetimeEntityData");
 
             data->Arena = reinterpret_cast<uint64_t>(arena);
             data->ParentOwner = reinterpret_cast<uint64_t>(owner);
 
             LinearTransform transform;
-            NativeEntity* lifetimeEntity = s_program->m_entityManager->CreateEntity(parentBus, data, transform, Realm_Server);
+            NativeEntity* lifetimeEntity = g_program->m_entityManager->CreateEntity(parentBus, data, transform, Realm_Server);
             if (lifetimeEntity == nullptr)
             {
                 KYBER_LOG(Error, "Failed to create entity owner lifetime entity!");
@@ -156,7 +156,7 @@ static EntityBus* FullEntityBusCtorHk(EntityBus* inst, MemoryArena* arena, Entit
             EntityInitInfo_ctor(&info, parentBus->GetRealm(), nullptr);
             Entity_init(lifetimeEntity, &info);
 
-            KyberEntityBase* kyberEntity = s_program->m_entityManager->GetKyberEntity(lifetimeEntity);
+            KyberEntityBase* kyberEntity = g_program->m_entityManager->GetKyberEntity(lifetimeEntity);
             kyberLifetimeEntity = reinterpret_cast<KyberLiveEditEntityOwnerLifetimeEntity*>(kyberEntity);
             if (kyberLifetimeEntity == nullptr)
             {
@@ -360,7 +360,7 @@ void ReloadBusCommand(ConsoleContext& cc)
         // ReferenceObjectData* ref = reinterpret_cast<ReferenceObjectData*>(params.parentRep);
         // KYBER_LOG(Info, "Ref: " << ref->getType()->getName());
         
-        // NativeEntity* entity = s_program->m_entityManager->CreateEntity(params.inst, ref);
+        // NativeEntity* entity = g_program->m_entityManager->CreateEntity(params.inst, ref);
         // if (entity == nullptr)
         // {
         //     KYBER_LOG(Error, "Failed to create reference entity");
@@ -373,7 +373,7 @@ void ReloadBusCommand(ConsoleContext& cc)
         for (const auto& data : bp->Objects)
         {
             LinearTransform transform;
-            NativeEntity* entity = s_program->m_entityManager->CreateEntity(params.inst, data, transform, Realm_Server);
+            NativeEntity* entity = g_program->m_entityManager->CreateEntity(params.inst, data, transform, Realm_Server);
             if (entity == nullptr)
             {
                 continue;
@@ -415,6 +415,6 @@ LiveEditManager::LiveEditManager()
     }
     Hook::ApplyQueuedActions();
 
-    s_program->m_consoleRegistrationCallbacks.push_back([&]() { RegisterConsoleCommand(&ReloadBusCommand, "ReloadBus"); });
+    g_program->m_consoleRegistrationCallbacks.push_back([&]() { RegisterConsoleCommand(&ReloadBusCommand, "ReloadBus"); });
 }
 }; // namespace Kyber

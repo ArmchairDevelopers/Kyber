@@ -140,7 +140,7 @@ std::vector<uint8_t> LocalizationHandler::ModifyChunk(
             auto it = std::find(values.begin(), values.end(), b);
             if (it == values.end())
             {
-                KYBER_LOG(Warning, "Character not supported: " << (uint16_t)b << " from string: " << entry.first);
+                KYBER_LOG(Debug, "Character not supported: " << (uint16_t)b << " from string: " << entry.first);
                 continue;
             }
 

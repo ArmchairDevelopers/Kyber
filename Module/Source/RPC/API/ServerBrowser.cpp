@@ -34,9 +34,9 @@ static MetaMap ParseMeta()
     return metaMap;
 }
 
-ServerBrowserAPI::ServerBrowserAPI(std::shared_ptr<Channel> channel, std::string token)
+ServerBrowserAPI::ServerBrowserAPI(std::shared_ptr<Channel> channel, AsyncRPCManager* asyncManager, std::string token)
     : m_stub(ServerBrowser::NewStub(channel))
-    , m_threadPool(2)
+    , m_asyncManager(asyncManager)
     , m_token(token)
 {}
 
@@ -68,7 +68,7 @@ std::optional<std::string> ServerBrowserAPI::RegisterServer(const ServerCreation
     RegisterServerRequest request;
     request.set_name(serverInfo.name);
     request.set_description(serverInfo.description);
-    request.set_dedicated(s_program->m_isDedicatedServer);
+    request.set_dedicated(g_program->m_isDedicatedServer);
     
     if (!serverInfo.password.empty())
     {
@@ -78,7 +78,7 @@ std::optional<std::string> ServerBrowserAPI::RegisterServer(const ServerCreation
     kyber_common::LevelSetup* levelSetup = request.mutable_levelsetup();
     levelSetup->set_map(serverInfo.level);
     levelSetup->set_mode(serverInfo.mode);
-    auto customNames = s_program->GetAPI()->GetLauncherInterface()->GetCustomLevelData(serverInfo.level, serverInfo.mode);
+    auto customNames = g_program->GetAPI()->GetLauncherInterface()->GetCustomLevelData(serverInfo.level, serverInfo.mode);
     if (customNames)
     {
         levelSetup->set_mapname(std::get<0>(*customNames));
@@ -88,12 +88,12 @@ std::optional<std::string> ServerBrowserAPI::RegisterServer(const ServerCreation
     request.set_maxplayercount(serverInfo.maxPlayers);
     request.set_statssource(kyber_api::StatsSource::KYBER);
 
-    for (const auto& mod : s_program->m_modData.serverMods)
+    for (const auto& mod : g_program->m_modData.serverMods)
     {
         request.add_mods()->CopyFrom(mod);
     }
 
-    for (const auto& mod : s_program->m_modData.explodedMods)
+    for (const auto& mod : g_program->m_modData.explodedMods)
     {
         request.add_explodedmods()->CopyFrom(mod);
         KYBER_LOG(Info, "Added exploded mod: " << mod.name());
@@ -110,30 +110,28 @@ std::optional<std::string> ServerBrowserAPI::RegisterServer(const ServerCreation
         return std::nullopt;
     }
 
-    s_program->m_joinToken = response.proxytoken();
+    g_program->m_joinToken = response.proxytoken();
 
     return response.id();
 }
 
 void ServerBrowserAPI::UpdateServerLevelSetup(const std::string& serverId, const std::string& map, const std::string& mode) const
 {
-    m_threadPool.Enqueue([this, serverId, map, mode]() mutable {
-        ClientContext context;
-        context.AddMetadata("authorization", m_token);
+    UpdateServerRequest request;
+    request.set_id(serverId);
 
-        UpdateServerRequest request;
-        request.set_id(serverId);
-        
-        kyber_common::LevelSetup* levelSetup = request.mutable_levelsetup();
-        levelSetup->set_map(map);
-        levelSetup->set_mode(mode);
+    kyber_common::LevelSetup* levelSetup = request.mutable_levelsetup();
+    levelSetup->set_map(map);
+    levelSetup->set_mode(mode);
 
-        kyber_common::Empty response;
-        Status status = m_stub->UpdateServer(&context, request, &response);
-        if (!status.ok())
-        {
-            KYBER_LOG(Error, "[RPC] RPC error while updating server (" << status.error_code() << ": " << status.error_message() << ")");
-        }
-    });
+    m_asyncManager->StartCall<UpdateServerRequest, kyber_common::Empty>(m_stub.get(), &ServerBrowser::Stub::PrepareAsyncUpdateServer,
+        request,
+        [](const kyber_common::Empty* response, grpc::Status status) {
+            if (!status.ok())
+            {
+                KYBER_LOG(Error, "[RPC] RPC error while updating server (" << status.error_code() << ": " << status.error_message() << ")");
+            }
+        },
+        { { "authorization", m_token } });
 }
 } // namespace Kyber

@@ -10,9 +10,9 @@ namespace Kyber
 using grpc::ClientContext;
 using grpc::Status;
 
-StatisticsAPI::StatisticsAPI(std::shared_ptr<Channel> channel, std::string token)
+StatisticsAPI::StatisticsAPI(std::shared_ptr<Channel> channel, AsyncRPCManager* asyncManager, std::string token)
     : m_stub(Statistics::NewStub(channel))
-    , m_threadPool(4)
+    , m_asyncManager(asyncManager)
     , m_token(token)
 {}
 
@@ -29,48 +29,44 @@ std::map<std::string, float> convertProtoToStdMap(const google::protobuf::Map<st
 void StatisticsAPI::GetStats(
     StatsSource source, const std::string& userId, std::function<void(std::optional<PlayerStatsMap>)> callback) const
 {
-    m_threadPool.Enqueue([this, source, userId, callback = std::move(callback)]() mutable {
-        ClientContext context;
+    StatsRequest request;
+    request.set_source(source);
+    request.set_user(userId);
 
-        StatsRequest request;
-        request.set_source(source);
-        request.set_user(userId);
-
-        StatsResponse response;
-        Status status = m_stub->GetStats(&context, request, &response);
-        if (!status.ok())
-        {
-            KYBER_LOG(Error, "[RPC] RPC error while retrieving stats (" << status.error_message() << ")");
-            callback(std::nullopt);
-            return;
-        }
-
-        callback(convertProtoToStdMap(response.stats()));
-    });
+    m_asyncManager->StartCall<StatsRequest, StatsResponse>(m_stub.get(), &Statistics::Stub::PrepareAsyncGetStats, request,
+        [callback = std::move(callback)](const StatsResponse* response, grpc::Status status) {
+            if (response != nullptr)
+            {
+                callback(convertProtoToStdMap(response->stats()));
+            }
+            else
+            {
+                KYBER_LOG(Error, "[RPC] RPC error while retrieving stats (" << status.error_message() << ")");
+                callback(std::nullopt);
+            }
+        },
+        { { "authorization", m_token } });
 }
 
 void StatisticsAPI::UpdateStats(StatsSource source, const std::string& userId, const PlayerStatsMap& stats) const
 {
-    m_threadPool.Enqueue([this, source, userId, stats]() mutable {
-        ClientContext context;
-        context.AddMetadata("authorization", m_token);
+    UpdateStatsRequest request;
+    request.set_source(source);
+    request.set_user(userId);
+    google::protobuf::Map<std::string, float>& protoMap = *request.mutable_stats();
 
-        UpdateStatsRequest request;
-        request.set_source(source);
-        request.set_user(userId);
-        google::protobuf::Map<std::string, float>& protoMap = *request.mutable_stats();
+    for (const auto& pair : stats)
+    {
+        protoMap[pair.first] = pair.second;
+    }
 
-        for (const auto& pair : stats)
-        {
-            protoMap[pair.first] = pair.second;
-        }
-
-        kyber_common::Empty response;
-        Status status = m_stub->UpdateStats(&context, request, &response);
-        if (!status.ok())
-        {
-            KYBER_LOG(Error, "[RPC] RPC error while updating stats (" << status.error_message() << ")");
-        }
-    });
+    m_asyncManager->StartCall<UpdateStatsRequest, kyber_common::Empty>(m_stub.get(), &Statistics::Stub::PrepareAsyncUpdateStats, request,
+        [](const kyber_common::Empty* response, grpc::Status status) {
+            if (!status.ok())
+            {
+                KYBER_LOG(Error, "[RPC] RPC error while updating stats (" << status.error_message() << ")");
+            }
+        },
+        { { "authorization", m_token } });
 }
 } // namespace Kyber

@@ -39,8 +39,6 @@ private:
     void ProcessReceivedEvent(const ServerAPIEvent& event);
     void Receive(const ix::WebSocketMessagePtr &msg);
 
-    mutable ThreadPool m_threadPool;
-
     std::string m_token;
     std::string m_apiUri;
     std::string m_serverId;

@@ -25,14 +25,14 @@ void KyberFakeChatEntity::Event(EntityEvent* event)
 {
     if (event->eventId == StringUtils::HashQuick("Send"))
     {
-        if (!s_program->m_server->IsRunning())
+        if (!g_program->m_server->IsRunning())
         {
             return;
         }
 
         std::string name = GetField("Name");
         std::string message = GetField("Message");
-        s_program->m_server->BroadcastMessage(message, name, GetData()->Channel);
+        g_program->m_server->BroadcastMessage(message, name, GetData()->Channel);
     }
 }
 

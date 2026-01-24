@@ -23,8 +23,8 @@ static const PlayerExtentRegistration* PersistentServerPlayerExtent_extentRegist
 
 void LogPlayerStats(ConsoleContext& cc)
 {
-    KYBER_LOG(Info, "Player Manager: " << std::hex << s_program->m_server->m_playerManager);
-    for (ServerPlayer* player : s_program->m_server->m_playerManager->m_players)
+    KYBER_LOG(Info, "Player Manager: " << std::hex << g_program->m_server->m_playerManager);
+    for (ServerPlayer* player : g_program->m_server->m_playerManager->m_players)
     {
         if (player)
         {
@@ -105,7 +105,7 @@ void ServerPlayerSetUnlock(ServerPlayer* player, const Guid& guid, bool value)
 __int64 InitUnlockArrayHk(__int64 a1, ServerPlayer* player)
 {
     static const auto trampoline = HookManager::Call(InitUnlockArrayHk);
-    if (!s_program->m_server->IsRunning() || player->IsAIPlayer())
+    if (!g_program->m_server->IsRunning() || player->IsAIPlayer())
     {
         return trampoline(a1, player);
     }
@@ -136,13 +136,13 @@ void LoadPlayerPersistenceHk(void* inst, ServerPlayer* player)
     static const auto trampoline = HookManager::Call(LoadPlayerPersistenceHk);
     trampoline(inst, player);
 
-    if (!s_program->m_server->IsRunning() || player->IsAIPlayer() || player->IsSpectator() || !s_program->m_isDedicatedServer)
+    if (!g_program->m_server->IsRunning() || player->IsAIPlayer() || player->IsSpectator() || !g_program->m_isDedicatedServer)
     {
         return;
     }
 
     KYBER_LOG(Info, "[Persistence] Loading persistence for player " << player->m_onlineId.m_nativeData << " " << std::hex << player);
-    s_program->m_server->m_persistenceManager->LoadPlayerStats(inst, player);
+    g_program->m_server->m_persistenceManager->LoadPlayerStats(inst, player);
 }
 
 PlayerStatsMap ExtractPlayerStats(ServerPlayer* player)
@@ -200,7 +200,7 @@ void ApplyPlayerStats(void* inst, ServerPlayer* player, const PlayerStatsMap& st
 void LoadPlayerDataCommand(ConsoleContext& cc)
 {
     static const auto trampoline = HookManager::Call(LoadPlayerPersistenceHk);
-    // trampoline(persistenceInst, s_program->m_server->m_playerManager->m_players[0]);
+    // trampoline(persistenceInst, g_program->m_server->m_playerManager->m_players[0]);
 }
 
 void SavePlayerDataCommand(ConsoleContext& cc)
@@ -211,7 +211,7 @@ void SavePlayerDataCommand(ConsoleContext& cc)
     std::string playerName;
     stream >> playerName;
 
-    ServerPlayer* player = s_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
+    ServerPlayer* player = g_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
     if (player == nullptr)
     {
         KYBER_LOG(Error, "Couldn't find player " << playerName);
@@ -221,7 +221,7 @@ void SavePlayerDataCommand(ConsoleContext& cc)
     PlayerStatsMap stats = ExtractPlayerStats(player);
     KYBER_LOG(Info, "Stats: " << stats.size());
 
-    s_program->m_server->m_persistenceManager->SavePlayerStats(player, stats);
+    g_program->m_server->m_persistenceManager->SavePlayerStats(player, stats);
 }
 
 void SetUnlockCommand(ConsoleContext& cc, bool grant)
@@ -231,7 +231,7 @@ void SetUnlockCommand(ConsoleContext& cc, bool grant)
     std::string assetGuid;
     stream >> playerName >> assetGuid;
 
-    ServerPlayer* player = s_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
+    ServerPlayer* player = g_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
     if (player == nullptr)
     {
         KYBER_LOG(Info, "[Persistence] Couldn't find player '" << playerName.c_str() << "'");
@@ -261,10 +261,8 @@ PersistenceManager::PersistenceManager()
 void PersistenceManager::LoadPlayerStats(void* persistenceInst, ServerPlayer* player)
 {
     m_database->Load(player->m_onlineId, [persistenceInst, player](PlayerStatsMap stats) {
-        s_threadExecutor->Queue(GameThread_Server, [persistenceInst, player, stats]() {
-            KYBER_LOG(Info, "[Persistence] Persistence loaded, applying...");
-            ApplyPlayerStats(persistenceInst, player, stats);
-        });
+        KYBER_LOG(Info, "[Persistence] Persistence loaded, applying...");
+        ApplyPlayerStats(persistenceInst, player, stats);
     });
 }
 
@@ -303,7 +301,7 @@ void PersistenceManager::Initialize()
 
     Hook::ApplyQueuedActions();
 
-    s_program->m_consoleRegistrationCallbacks.push_back([&]() {
+    g_program->m_consoleRegistrationCallbacks.push_back([&]() {
         RegisterConsoleCommand(&LogPlayerStats, "LogPlayerStats");
         RegisterConsoleCommand(&GrantUnlockCommand, "GrantUnlock", "<player> <guid>");
         RegisterConsoleCommand(&RevokeUnlockCommand, "RevokeUnlock", "<player> <guid>");
@@ -312,7 +310,7 @@ void PersistenceManager::Initialize()
     });
 
     // Enable stats system
-    if (s_program->m_isDedicatedServer)
+    if (g_program->m_isDedicatedServer)
     {
         BYTE ptch[] = { 0x74 };
         MemoryUtils::Patch(HOOK_OFFSET(0x1418B6ECC), (void*)ptch, sizeof(ptch));

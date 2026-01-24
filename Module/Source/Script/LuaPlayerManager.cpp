@@ -61,7 +61,7 @@ static int CreatePlayerFunc(lua_State* L)
     const char* playerName = luaL_checkstring(L, 1);
 
     ServerPlayer* player = ServerPlayerManager_createPlayer(
-        s_program->m_server->GetServerGameContext()->serverPlayerManager, 0, playerName, LocalPlayerId_Invalid, 0xFFFFFFFF, false, false);
+        g_program->m_server->GetServerGameContext()->serverPlayerManager, 0, playerName, LocalPlayerId_Invalid, 0xFFFFFFFF, false, false);
 
     player->SetTeam(2);
     return 0;
@@ -75,7 +75,7 @@ static int GetPlayerFunc(lua_State* L)
     }
     const char* playerName = luaL_checkstring(L, 1);
 
-    ServerPlayer* player = s_program->m_server->GetServerGameContext()->serverPlayerManager->GetPlayer(playerName);
+    ServerPlayer* player = g_program->m_server->GetServerGameContext()->serverPlayerManager->GetPlayer(playerName);
     if (player == nullptr)
     {
         return 0;
@@ -89,7 +89,7 @@ static int GetPlayerFunc(lua_State* L)
 
 static int GetPlayersFunc(lua_State* L)
 {
-    auto& playerList = s_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
+    auto& playerList = g_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
     lua_createtable(L, playerList.size(), 0);
 
     int i = 1;
@@ -222,7 +222,7 @@ static int ServerPlayerKick(lua_State* L)
     }
     const char* kickReason = luaL_checkstring(L, 2);
     
-    s_program->m_server->KickPlayer(player, kickReason);
+    g_program->m_server->KickPlayer(player, kickReason);
     return 1;
 }
 

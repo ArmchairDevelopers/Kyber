@@ -18,7 +18,7 @@ KyberVoipPlayerStatusEntity::KyberVoipPlayerStatusEntity(EntityManager* entityMa
 {
     SetWantUpdates(true);
 
-    m_isPlayerTalking = CreateFieldOverride<bool>("IsPlayerTalking", s_program->m_entityManager->GetNativeType("Boolean"));
+    m_isPlayerTalking = CreateFieldOverride<bool>("IsPlayerTalking", g_program->m_entityManager->GetNativeType("Boolean"));
 }
 
 void KyberVoipPlayerStatusEntity::Update(const UpdateParameters& params)
@@ -37,13 +37,13 @@ void KyberVoipPlayerStatusEntity::Update(const UpdateParameters& params)
 
     if (!m_currentPlayer)
     {
-        KYBER_LOG(Trace, "[VOIP] KyberVoipPlayerStatusEntity couldn't find a player!");
+        KYBER_LOG(Trace, "[VoIP] KyberVoipPlayerStatusEntity couldn't find a player!");
         return;
     }
 
-    bool isPlayerSpeaking = s_program->m_voipManager->IsParticipantSpeaking(m_currentPlayer);
+    bool isPlayerSpeaking = g_program->m_voipManager->IsParticipantSpeaking(m_currentPlayer);
     m_isPlayerTalking = &isPlayerSpeaking;
 
-    // KYBER_LOG(Trace, "[VOIP] Speaking Status for " << m_currentPlayer << " is " << isPlayerSpeaking);
+    // KYBER_LOG(Trace, "[VoIP] Speaking Status for " << m_currentPlayer << " is " << isPlayerSpeaking);
 }
 } // namespace Kyber

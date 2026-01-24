@@ -86,13 +86,13 @@ static int ConsoleRegisterFunc(lua_State* L)
         ConsoleRegistry_registerInstanceMethod(delegate, name.c_str(), groupName.c_str());
     };
 
-    if (s_program->m_console != nullptr)
+    if (g_program->m_console != nullptr)
     {
         registerLambda();
     }
     else
     {
-        s_program->m_consoleRegistrationCallbacks.push_back(registerLambda);
+        g_program->m_consoleRegistrationCallbacks.push_back(registerLambda);
     }
 
     return 0;
@@ -106,9 +106,9 @@ static int ConsoleExecuteFunc(lua_State* L)
     }
     const char* command = luaL_checkstring(L, 1);
 
-    if (s_program->m_console != nullptr)
+    if (g_program->m_console != nullptr)
     {
-        s_program->m_console->EnqueueCommand(command);
+        g_program->m_console->EnqueueCommand(command);
     }
 
     return 0;
@@ -121,7 +121,7 @@ static int GetSettingsFunc(lua_State* L)
         return 0;
     }
     std::string name = luaL_checkstring(L, 1);
-    DataContainer* container = SettingsManager_getSettingsObject(s_program->GetSettingsManager(), name.c_str());
+    DataContainer* container = SettingsManager_getSettingsObject(g_program->GetSettingsManager(), name.c_str());
     if (container == nullptr)
     {
         KYBER_LOG(Error, ScriptManager::GetPlugin(L)->LogPrefix() << "Settings object not found: " << name);

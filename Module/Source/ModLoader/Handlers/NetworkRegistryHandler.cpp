@@ -47,7 +47,7 @@ bool NetworkRegistryHandler::Modify(CustomAssetHandlerContext& ctx, DataContaine
         {
             if (asset->Objects.m_data[i] == nullptr)
             {
-                KYBER_LOG(Warning, "[ModLoader] Retrying netreg (" << asset->Name << ", " << i << "/" << asset->Objects.size() << ", " << std::hex
+                KYBER_LOG(Debug, "[ModLoader] Retrying netreg (" << asset->Name << ", " << i << "/" << asset->Objects.size() << ", " << std::hex
                                                        << &asset->Objects.m_data[i] << ")");
                 // foundNull = true;
                 asset->Objects.m_data[i] = asset->Objects.m_data[0];

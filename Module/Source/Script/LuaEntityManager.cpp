@@ -118,7 +118,7 @@ static int CreateEntityFunc(lua_State* L)
     // ClientCameraViewManager_getActiveCameraTransform(player->cameraViewManager, cameraTransform);
     //container->Transform = cameraTransform;
 
-    NativeEntity* entity = s_program->m_entityManager->CreateEntity(subLevel->m_rootEntityBus, container, cameraTransform, (Realm)realm);
+    NativeEntity* entity = g_program->m_entityManager->CreateEntity(subLevel->m_rootEntityBus, container, cameraTransform, (Realm)realm);
     if (entity != nullptr)
     {
         entity->Init();
@@ -187,7 +187,7 @@ static int ServerPlayerEventFunc(lua_State* L)
     }
 
     ServerPlayerEvent* event = (ServerPlayerEvent*) lua_newuserdata(L, sizeof(ServerPlayerEvent));
-    ServerPlayerEvent::init(event, player, StringUtils::HashQuick(eventName.c_str()));
+    event->init(player, StringUtils::HashQuick(eventName.c_str()));
     event->m_sendToPlayerOnly = true;
     event->m_team = Team1;
     return 1;
@@ -273,7 +273,7 @@ static int EntityWrite(lua_State* L)
     PropertyWriterBase writer;
     #define WRITEPROP(data) PropertyWriterBase_init(&writer, &dc, entity->GetData(), fieldHash, type, data, true)
 
-    const TypeInfo* type = s_program->m_entityManager->GetNativeType(typeName);
+    const TypeInfo* type = g_program->m_entityManager->GetNativeType(typeName);
     switch (type->getBasicType())
     {
     case kTypeCode_Void:
@@ -333,7 +333,7 @@ static int EntityRead(lua_State* L)
         return 0;
     }
 
-    const TypeInfo* type = s_program->m_entityManager->GetNativeType(typeName);
+    const TypeInfo* type = g_program->m_entityManager->GetNativeType(typeName);
     switch (type->getBasicType())
     {
     case kTypeCode_Void:

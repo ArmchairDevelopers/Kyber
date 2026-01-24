@@ -24,17 +24,17 @@ ServerUnaryReactor* CommonInterfaceService::GetInfo(
 {
     ServerUnaryReactor* reactor = context->DefaultReactor();
 
-    if (s_program->m_server->IsRunning() && s_program->m_server->m_serverInstance != nullptr)
+    if (g_program->m_server->IsRunning() && g_program->m_server->m_serverInstance != nullptr)
     {
         kyber_interface::ServerState* server = response->mutable_server();
-        server->set_id(s_program->m_server->m_serverId);
+        server->set_id(g_program->m_server->m_serverId);
 
-        server->mutable_levelsetup()->set_map(s_program->m_server->m_currentLevel);
-        server->mutable_levelsetup()->set_mode(s_program->m_server->m_currentMode);
+        server->mutable_levelsetup()->set_map(g_program->m_server->m_currentLevel);
+        server->mutable_levelsetup()->set_mode(g_program->m_server->m_currentMode);
 
         server->set_maprotationindex(0);
 
-        for (ServerPlayer* player : s_program->m_server->m_playerManager->m_players)
+        for (ServerPlayer* player : g_program->m_server->m_playerManager->m_players)
         {
             if (player->IsAIPlayer())
             {
@@ -47,12 +47,12 @@ ServerUnaryReactor* CommonInterfaceService::GetInfo(
             protoPlayer->set_teamid(player->m_teamId);
         }
     }
-    else if (s_program->m_connected)
+    else if (g_program->m_connected)
     {
-        response->mutable_client()->set_serverid(s_program->m_server->m_socketSpawnInfo.serverName);
+        response->mutable_client()->set_serverid(g_program->m_server->m_socketSpawnInfo.serverName);
     }
 
-    bool vivoxInitialized = s_program->m_voipManager != nullptr && !s_program->m_voipManager->GetRenderDevices().empty();
+    bool vivoxInitialized = g_program->m_voipManager != nullptr && !g_program->m_voipManager->GetRenderDevices().empty();
     response->set_vivoxinitialized(vivoxInitialized);
 
     reactor->Finish(Status::OK);

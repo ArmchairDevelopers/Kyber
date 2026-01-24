@@ -72,7 +72,7 @@ static int ListenFunc(lua_State* L)
         }
     };
 
-    s_program->m_scriptManager->GetEventManager().Listen(eventName, luaCallback);
+    g_program->m_scriptManager->GetEventManager().Listen(eventName, luaCallback);
     return 0;
 }
 
@@ -87,12 +87,12 @@ void FireEventCommand(ConsoleContext& cc)
     std::string event;
     stream >> event;
 
-    s_program->m_scriptManager->GetEventManager().Fire(event, "Test", 42, 3.14f);
+    g_program->m_scriptManager->GetEventManager().Fire(event, "Test", 42, 3.14f);
 }
 
 LuaEventManager::LuaEventManager()
 {
-    s_program->m_consoleRegistrationCallbacks.push_back([&]() { RegisterConsoleCommand(&FireEventCommand, "FireLua", "<event>"); });
+    g_program->m_consoleRegistrationCallbacks.push_back([&]() { RegisterConsoleCommand(&FireEventCommand, "FireLua", "<event>"); });
 }
 
 void LuaEventManager::Register(lua_State* L)

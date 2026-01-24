@@ -21,10 +21,10 @@ ServerUnaryReactor* ServerInterfaceService::StartServer(
 {
     ServerUnaryReactor* reactor = context->DefaultReactor();
 
-    s_program->m_server->m_mapRotation.Reset();
+    g_program->m_server->m_mapRotation.Reset();
     for (const auto& entry : request->maprotation())
     {
-        s_program->m_server->m_mapRotation.AddEntry(entry.map(), entry.mode());
+        g_program->m_server->m_mapRotation.AddEntry(entry.map(), entry.mode());
     }
 
     ServerCreationInfo info;
@@ -32,13 +32,13 @@ ServerUnaryReactor* ServerInterfaceService::StartServer(
     info.description = request->description();
     info.password = request->password();
 
-    auto entry = s_program->m_server->m_mapRotation.GetNextEntry();
+    auto entry = g_program->m_server->m_mapRotation.GetNextEntry();
     info.level = entry.level;
     info.mode = entry.mode;
 
     info.maxPlayers = request->maxplayers();
 
-    s_program->m_server->Start(info);
+    g_program->m_server->Start(info);
 
     reactor->Finish(Status::OK);
     return reactor;
@@ -50,7 +50,7 @@ ServerUnaryReactor* ServerInterfaceService::LoadLevel(
     KYBER_LOG(Info, "[Server] Loading remotely requested level");
 
     const auto& setup = request->levelsetup();
-    s_program->m_server->LoadNextLevel(setup.map().c_str(), setup.mode().c_str());
+    g_program->m_server->LoadNextLevel(setup.map().c_str(), setup.mode().c_str());
 
     ServerUnaryReactor* reactor = context->DefaultReactor();
     reactor->Finish(Status::OK);

@@ -18,8 +18,6 @@
 
 namespace Kyber
 {
-void ServerConnectionSafeDisconnect(void* inst, const char* reasonText, SecureReason reason = SecureReason_KickedViaFairFight);
-
 extern void* s_mainLoop;
 
 struct ServerCreationInfo
@@ -134,8 +132,5 @@ public:
     bool m_hooksRemoved;
     bool m_levelLoaded;
     Mutex<LoadLevelRequest> m_latestLoadLevelRequest;
-
-private:
-    void SendProxiedLevelChange(const char* level, const char* mode);
 };
 } // namespace Kyber

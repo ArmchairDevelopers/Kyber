@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include <cstdint>
 #include <mutex>
-#include <vector>
 
 namespace Kyber
 {

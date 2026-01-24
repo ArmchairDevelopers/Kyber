@@ -53,5 +53,5 @@ private:
     Mutex<ThreadData> m_threadData[GameThread_Count];
 };
 
-extern ThreadExecutor* s_threadExecutor;
+extern ThreadExecutor* g_threadExecutor;
 } // namespace Kyber

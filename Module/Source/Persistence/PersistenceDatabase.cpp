@@ -17,7 +17,7 @@ APIPersistenceDatabase::APIPersistenceDatabase(kyber_api::StatsSource source)
 
 void APIPersistenceDatabase::Load(const OnlineId& id, std::function<void(PlayerStatsMap)> callback)
 {
-    s_program->GetAPI()->GetStatistics()->GetStats(
+    g_program->GetAPI()->GetStatistics()->GetStats(
         m_source, std::to_string(id.m_nativeData), [&, callback = std::move(callback)](std::optional<PlayerStatsMap> stats) {
             if (!stats)
             {
@@ -31,6 +31,6 @@ void APIPersistenceDatabase::Load(const OnlineId& id, std::function<void(PlayerS
 
 void APIPersistenceDatabase::Save(const OnlineId& id, const PlayerStatsMap& stats)
 {
-    s_program->GetAPI()->GetStatistics()->UpdateStats(m_source, std::to_string(id.m_nativeData), stats);
+    g_program->GetAPI()->GetStatistics()->UpdateStats(m_source, std::to_string(id.m_nativeData), stats);
 }
 } // namespace Kyber

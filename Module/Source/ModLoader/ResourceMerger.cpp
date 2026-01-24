@@ -465,7 +465,7 @@ public:
 
     void Collect()
     {
-        for (auto& resource : s_modLoader->m_modResources)
+        for (auto& resource : g_modLoader->m_modResources)
         {
             if (resource.type != FrostyResourceType_Res || resource.name != m_resName)
             {

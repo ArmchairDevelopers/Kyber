@@ -33,7 +33,7 @@ ConsoleCommandTriggerEntity::ConsoleCommandTriggerEntity(EntityManager* entityMa
 
 ConsoleCommandTriggerEntity::~ConsoleCommandTriggerEntity()
 {
-    s_program->m_console->UnregisterCommand(m_name.c_str());
+    g_program->m_console->UnregisterCommand(m_name.c_str());
 }
 
 void ConsoleCommandTriggerEntity::Execute(ConsoleContext& cc)

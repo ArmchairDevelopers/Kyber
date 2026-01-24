@@ -10,6 +10,11 @@
 
 namespace Kyber
 {
+
+// NOTE: This display is not regarded as being accurate, as it gives absurdly large
+// numbers (around 200ms for locally hosted servers, when that should be 0)
+// It is not to be put in prod until that is fixed.
+
 class LatencyDisplay : public GenericUpdateListener
 {
 public:

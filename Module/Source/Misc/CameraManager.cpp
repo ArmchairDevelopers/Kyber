@@ -10,7 +10,7 @@
 
 namespace Kyber
 {
-TL_DECLARE_FUNC(0, LinearTransform*, Camera_getTransform, Camera* inst);
+typedef LinearTransform*(__fastcall* SpatialEntity_getTransform_t)(Camera* inst);
 
 class CameraManager : public GenericUpdateListener
 {
@@ -53,7 +53,7 @@ public:
         //LinearTransform cameraTransform;
         //ClientCameraViewManager_getActiveCameraTransform(player->cameraViewManager, cameraTransform);
 
-        auto func = reinterpret_cast<__tlFunc__13::Camera_getTransform_t>(PlatformUtils::GetVTableFunction(camera, 4));
+        auto func = reinterpret_cast<SpatialEntity_getTransform_t>(PlatformUtils::GetVTableFunction(camera, 4));
         LinearTransform* cameraTransform = func(camera);
 
         // Copy

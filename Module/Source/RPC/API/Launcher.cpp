@@ -12,8 +12,9 @@ namespace Kyber
 using grpc::ClientContext;
 using grpc::Status;
 
-LauncherInterface::LauncherInterface(std::shared_ptr<Channel> channel)
+LauncherInterface::LauncherInterface(std::shared_ptr<Channel> channel, AsyncRPCManager* asyncManager)
     : m_stub(LauncherCommon::NewStub(channel))
+    , m_asyncManager(asyncManager)
 {}
 
 void LauncherInterface::Initialize() const
@@ -33,17 +34,17 @@ void LauncherInterface::Initialize() const
     }
 
     KYBER_LOG(Info, "[RPC] Initializing from launcher");
-    s_program->Initialize();
+    g_program->Initialize();
 
     switch (request.startState_case())
     {
     case kyber_interface::InitializeRequest::kStartServer: {
         const auto& server = request.startserver();
 
-        s_program->m_server->m_mapRotation.Reset();
+        g_program->m_server->m_mapRotation.Reset();
         for (const auto& entry : server.maprotation())
         {
-            s_program->m_server->m_mapRotation.AddEntry(entry.map(), entry.mode());
+            g_program->m_server->m_mapRotation.AddEntry(entry.map(), entry.mode());
         }
 
         ServerCreationInfo info;
@@ -51,7 +52,7 @@ void LauncherInterface::Initialize() const
         info.description = server.description();
         info.password = server.password();
 
-        auto entry = s_program->m_server->m_mapRotation.GetNextEntry();
+        auto entry = g_program->m_server->m_mapRotation.GetNextEntry();
         info.level = entry.level;
         info.mode = entry.mode;
 
@@ -65,7 +66,7 @@ void LauncherInterface::Initialize() const
 
         auto* event = new MainLoopInitStartServerEvent();
         event->info = info;
-        s_program->m_server->m_mainLoopInitEventManager->QueueEvent(event);
+        g_program->m_server->m_mainLoopInitEventManager->QueueEvent(event);
         break;
     }
     case kyber_interface::InitializeRequest::kJoinServer: {
@@ -78,8 +79,8 @@ void LauncherInterface::Initialize() const
         event->spectate = joinServer.spectate();
         event->proxied = joinServer.type() == kyber_interface::JoinServerType::PROXIED;
         event->password = "";
-        s_program->m_joinToken = joinServer.jointoken();
-        s_program->m_server->m_mainLoopInitEventManager->QueueEvent(event);
+        g_program->m_joinToken = joinServer.jointoken();
+        g_program->m_server->m_mainLoopInitEventManager->QueueEvent(event);
         break;
     }
     case kyber_interface::InitializeRequest::STARTSTATE_NOT_SET:
@@ -109,12 +110,12 @@ void LauncherInterface::Initialize() const
             modData.explodedMods.push_back(mod);
         }
 
-        s_program->m_modData = modData;
+        g_program->m_modData = modData;
     }
 
-    std::unique_lock<std::mutex> lock(s_program->m_startupMutex);
-    s_program->m_startupInitialized = true;
-    s_program->m_startupCondition.notify_one();
+    std::unique_lock<std::mutex> lock(g_program->m_startupMutex);
+    g_program->m_startupInitialized = true;
+    g_program->m_startupCondition.notify_one();
 }
 
 std::optional<std::tuple<std::string, std::string>> LauncherInterface::GetCustomLevelData(std::string mapId, std::string modeId) const
@@ -150,29 +151,27 @@ void LauncherInterface::OnServerJoined() const
 {
     KYBER_LOG(Info, "[RPC] Sending server join event to launcher");
 
-    ClientContext context;
-
-    kyber_common::Empty empty;
-
-    Status status = m_stub->OnServerJoined(&context, empty, &empty);
-    if (!status.ok())
-    {
-        KYBER_LOG(Error, "[RPC] RPC error while sending server join event to launcher");
-    }
+    kyber_common::Empty request;
+    m_asyncManager->StartCall<kyber_common::Empty, kyber_common::Empty>(m_stub.get(), &LauncherCommon::Stub::PrepareAsyncOnServerJoined,
+        request, [](const kyber_common::Empty* response, grpc::Status status) {
+            if (!status.ok())
+            {
+                KYBER_LOG(Error, "[RPC] RPC error while sending server join event to launcher");
+            }
+        });
 }
 
 void LauncherInterface::OnServerDisconnect() const
 {
     KYBER_LOG(Info, "[RPC] Sending server disconnect event to launcher");
 
-    ClientContext context;
-
-    kyber_common::Empty empty;
-
-    Status status = m_stub->OnServerLeft(&context, empty, &empty);
-    if (!status.ok())
-    {
-        KYBER_LOG(Error, "[RPC] RPC error while sending server disconnect event to launcher");
-    }
+    kyber_common::Empty request;
+    m_asyncManager->StartCall<kyber_common::Empty, kyber_common::Empty>(m_stub.get(), &LauncherCommon::Stub::PrepareAsyncOnServerLeft,
+        request, [](const kyber_common::Empty* response, grpc::Status status) {
+            if (!status.ok())
+            {
+                KYBER_LOG(Error, "[RPC] RPC error while sending server disconnect event to launcher");
+            }
+        });
 }
 } // namespace Kyber

@@ -74,6 +74,19 @@ KB_DECLARE_TYPEINFO(ComponentEntity, 0x144583E80);
 KB_DECLARE_TYPEINFO(Component, 0x144585130);
 KB_DECLARE_TYPEINFO(WSClientSoldierEntity, 0x144664FB0);
 
+#define STRIP_PARENS(...) __VA_ARGS__
+#define KB_DECLARE_GAMEMEMBERFUNC(ptr, returnType, name, args, ...)                                                                        \
+    returnType name(__VA_ARGS__)                                                                                                           \
+    {                                                                                                                                      \
+        return reinterpret_cast<returnType(__fastcall*)(void*, __VA_ARGS__)>(ptr)(this, STRIP_PARENS args);                                \
+    }
+
+#define KB_DECLARE_GAMEMEMBERFUNC_NOARGS(ptr, returnType, name)                                                                            \
+    returnType name()                                                                                                                      \
+    {                                                                                                                                      \
+        return reinterpret_cast<returnType(__thiscall*)(void*)>(ptr)(this);                                                                \
+    }
+
 struct TypeObject
 {
     virtual class TypeInfo* getType() const = 0;
@@ -509,6 +522,11 @@ struct LevelSetupOption
 class LevelSetup
 {
 public:
+    KB_DECLARE_GAMEMEMBERFUNC(0x14C53D220, void, Init, (a2, a3, a4), __int64 a2, __int64 a3, __int64 a4)
+    KB_DECLARE_GAMEMEMBERFUNC(0x141136820, void, SetInclusionOptions, (inclusionOptions), const char* inclusionOptions)
+    KB_DECLARE_GAMEMEMBERFUNC(0x141136690, void, SetInclusionOption, (key, value), const char* key, const char* value)
+    KB_DECLARE_GAMEMEMBERFUNC(0x1470C3010, const char*, GetInclusionOption, (key), const char* key)
+
     void* vtable;            // 0x0000
     char* Name;              // 0x0008
     char pad_0010[16];       // 0x0010
@@ -1066,9 +1084,6 @@ enum ChatChannel
     ChatChannel_Admin
 };
 
-class ServerPlayer;
-TL_DECLARE_FUNC(0x140BE9C10, void, ServerPlayer_setTeamId, ServerPlayer* inst, int teamId);
-
 struct PlayerExtentRegistration
 {
     uint32_t offset;
@@ -1106,10 +1121,7 @@ public:
         return m_isSpectator;
     }
 
-    void SetTeam(int teamId)
-    {
-        ServerPlayer_setTeamId(this, teamId);
-    }
+    KB_DECLARE_GAMEMEMBERFUNC(0x140BE9C10, void, SetTeam, (teamId), int teamId)
 
     TypeObject* GetCharacterEntity() const;
     bool Teleport(const LinearTransform& transform);
@@ -1158,7 +1170,7 @@ public:
 class ServerPlayerEvent : public PlayerEventBase
 {
 public:
-    static void init(ServerPlayerEvent* inst, const ServerPlayer* player, EventId eventId);
+    KB_DECLARE_GAMEMEMBERFUNC(0x140C0CD10, void, init, (player, eventId), const ServerPlayer* player, EventId eventId)
 
     TypeInfo* getType() const override
     {
@@ -1181,42 +1193,100 @@ public:
     char buf[200];
 };
 
+enum SecureReason;
+
+class EngineConnection
+{
+public:
+};
+
+class ServerConnection : EngineConnection
+{
+public:
+    KB_DECLARE_GAMEMEMBERFUNC(0x140BF6460, ServerPlayer*, GetPlayer, (playerId, allowFail), LocalPlayerId playerId, bool allowFail)
+    KB_DECLARE_GAMEMEMBERFUNC(0x140BFA820, void*, ValidateLocalPlayer, (playerId, allowFail), LocalPlayerId playerId, bool allowFail)
+    void SafeDisconnect(const char* reasonText, SecureReason reason);
+    void SafeDisconnect(const char* reasonText);
+
+private:
+    char pad_0000[0x5FAD];              // 0x0000
+    bool m_shouldDisconnect;            // 0x5FAD
+    char pad_5FAD[0x2];                 // 0x5FAE
+    uint32_t m_disconnectReason;        // 0x5FB0
+    char pad_5FB4[0x4];                 // 0x5FB4
+    char* m_disconnectText;             // 0x5FB8
+};
+
+class ClientConnection : EngineConnection
+{
+public:
+};
+
 class Message : public TypeObject
 {
 public:
-    const int category;
-    const int type;
-};
+    const int category;             // 0x08
+    const int type;                 // 0x0C
+    LocalPlayerId localPlayerId;    // 0x10
+    char pad_0014[0x1C];            // 0x14
 
-class ServerPlayerChatMessage : public TypeObject
+    bool Is(const char* messageType) const
+    {
+        return type == StringUtils::HashQuick(messageType);
+    }
+}; // Size: 0x30
+
+class NetworkableMessage : public Message
 {
 public:
-    char pad_0008[48];            // 0x0008
+    ServerConnection* serverConnection; // 0x30
+    void* clientConnection;             // 0x38
+    int32_t unk1;                       // 0x40
+    int32_t initiator;                  // 0x44
+    int32_t messageStream;              // 0x48
+    int32_t unk2;                       // 0x4C
+    bool hasNetworkedResources;         // 0x50
+    char pad_0051[0x7];                 // 0x51
+}; // Size: 0x58
+
+class NetworkPlayerSpawnMessage : public NetworkableMessage
+{};
+
+class EventSyncReachedClientMessage : public NetworkableMessage
+{
+public:
+    uintptr_t ghostPtr;             // 0x58
+    uint32_t data;                  // 0x60
+    uint32_t bus;                   // 0x64
+};
+
+class ServerPlayerChatMessage : public Message
+{
+public:
+    char pad_0030[8];             // 0x0030
     class ServerPlayer* m_sender; // 0x0038
     char pad_0040[8];             // 0x0040
     char* m_message;              // 0x0048
     char pad_0050[304];           // 0x0050
 };                                // Size: 0x0180
 
-class ServerPlayerDisconnectMessage : public TypeObject
+class ServerPlayerDisconnectMessage : public Message
 {
 public:
-    char pad_0000[40];            // 0x0000
     class ServerPlayer* m_player; // 0x0030
     char pad_0038[328];           // 0x0038
 };                                // Size: 0x0180
 
-class ServerPlayerAboutToCreateForConnectionMessage
+class ServerPlayerAboutToCreateForConnectionMessage : public Message
 {
 public:
-    char pad_0000[56];   // 0x0000
+    char pad_0030[8];             // 0x0030
     char* requestedName; // 0x0038
 };
 
-class NetworkCreatePlayerMessage
+class NetworkCreatePlayerMessage : public NetworkableMessage
 {
 public:
-    char pad_0000[88]; // 0x0000
     char* playerName;  // 0x0058
     bool isSpectator;  // 0x0060
 };
@@ -1359,7 +1429,8 @@ public:
     eastl::vector<EntityBus*> GetAllChildBusses() const;
 
     EntityBase* GetExposedPeer() const;
-
+    DataContainer* GetExposedPeerData() const;
+    
     uintptr_t GetEntityBusBridge() const
     {
         return (m_entityBusBridgeOrExposedObject & 1) == 0 ? m_entityBusBridgeOrExposedObject : 0;
@@ -1440,13 +1511,11 @@ public:
     LinearTransform m_transform; // 0x0120
 };                               // Size: 0x0480
 
-struct ServerPlayerKilledMessage
+class ServerPlayerKilledMessage : public Message
 {
-    char gap0[8];
-    uint32_t category;
-    uint32_t message;
-    char gap10[36];
-    unsigned int m_reviveePlayerId;
+public:
+    uint32_t unk1;
+    uint32_t m_reviveePlayerId;
     char gap38[8];
     ServerPlayer* m_victimPlayer;
     void* m_damageGiverInfo;

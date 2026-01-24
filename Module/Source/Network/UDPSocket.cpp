@@ -239,26 +239,26 @@ bool UDPSocket::Listen(const SocketAddr& address, bool blocking)
     if (m_info.isProxied && m_direction == ProtocolDirection::Serverbound)
     {
         m_sockets.push_back(WebSocket("client", 0, m_proxyQueue));
-        m_sockets.back().ConnectAsClient(m_info.proxyAddress, s_program->m_joinToken);
+        m_sockets.back().ConnectAsClient(m_info.proxyAddress, g_program->m_joinToken);
     }
-    else if (m_direction == ProtocolDirection::Clientbound && s_program->m_server->IsRunning() && s_program->m_server->m_onlineMode)
+    else if (m_direction == ProtocolDirection::Clientbound && g_program->m_server->IsRunning() && g_program->m_server->m_onlineMode)
     {
         const char* pinnedProxy = std::getenv("KYBER_PINNED_PROXY");
         if (pinnedProxy != nullptr)
         {
             m_sockets.push_back(WebSocket("pinned", 0, m_proxyQueue));
-            m_sockets.back().ConnectAsServer(pinnedProxy, s_program->m_joinToken);
+            m_sockets.back().ConnectAsServer(pinnedProxy, g_program->m_joinToken);
         }
         else
         {
-            auto proxies = s_program->GetAPI()->GetProxy()->GetList();
+            auto proxies = g_program->GetAPI()->GetProxy()->GetList();
             m_sockets.reserve(proxies.size());
 
             uint32_t id = 0;
             for (const auto& proxy : proxies)
             {
                 m_sockets.push_back(WebSocket(proxy.id(), id++, m_proxyQueue));
-                m_sockets.back().ConnectAsServer(proxy.ip(), s_program->m_joinToken);
+                m_sockets.back().ConnectAsServer(proxy.ip(), g_program->m_joinToken);
             }
         }
     }

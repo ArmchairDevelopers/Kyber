@@ -23,12 +23,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved)
 {
     if (dwReason == DLL_PROCESS_ATTACH)
     {
-        Kyber::s_program = new Kyber::Program(hModule);
+        Kyber::g_program = new Kyber::Program(hModule);
     }
     else if (dwReason == DLL_PROCESS_DETACH)
     {
         KYBER_LOG(Info, "Kyber unloaded");
-        delete Kyber::s_program;
+        delete Kyber::g_program;
     }
 
     return TRUE;

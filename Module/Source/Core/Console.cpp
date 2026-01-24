@@ -62,7 +62,7 @@ void LoadLevelCommand(ConsoleContext& cc)
     std::string mode;
     stream >> level >> mode;
 
-    s_program->m_server->LoadNextLevel(level.c_str(), mode.c_str());
+    g_program->m_server->LoadNextLevel(level.c_str(), mode.c_str());
 }
 
 void LoadSPLevelCommand(ConsoleContext& cc)
@@ -73,12 +73,12 @@ void LoadSPLevelCommand(ConsoleContext& cc)
     std::string initialSubLevel;
     stream >> level >> startPoint >> initialSubLevel;
 
-    s_program->m_server->LoadNextLevel(level.c_str(), "Campaign", startPoint.c_str(), initialSubLevel.c_str());
+    g_program->m_server->LoadNextLevel(level.c_str(), "Campaign", startPoint.c_str(), initialSubLevel.c_str());
 }
 
 void LoadSPLevel2Command(ConsoleContext& cc)
 {
-    s_program->m_server->LoadNextLevel(
+    g_program->m_server->LoadNextLevel(
         "Levels/SP/RootLevel/RootLevel", "Campaign", "S0700_GP_CP02_Escape", "Levels/SP/A2/M2BES/DS02/A2_M2BES_DS02");
 }
 
@@ -89,7 +89,7 @@ void AddLevelCommand(ConsoleContext& cc)
     std::string mode;
     stream >> level >> mode;
 
-    s_program->m_server->m_mapRotation.AddEntry(level.c_str(), mode.c_str());
+    g_program->m_server->m_mapRotation.AddEntry(level.c_str(), mode.c_str());
     KYBER_LOG(Info, "Added " << level << ":" << mode << " to the map rotation");
 }
 
@@ -114,7 +114,7 @@ eastl::string ConsoleRegistryExecuteConsoleCommandHk(const char* cmdString, bool
 void SendStatsCommand(ConsoleContext& cc)
 {
     KYBER_LOG(Info, "Dispatching message");
-    void* messageManager = s_program->m_server->GetServerGameContext()->messageManager;
+    void* messageManager = g_program->m_server->GetServerGameContext()->messageManager;
     __int64 test[7];
     SendStatProgressMessageCtorHk(test, 0x7C89B9B7, 0x933E652C, 0xFF);
     *test = (__int64)0x1431E06F0;
@@ -124,7 +124,7 @@ void SendStatsCommand(ConsoleContext& cc)
 
 void ServerPlayerExtentDebugCommand(ConsoleContext& cc)
 {
-    ServerPlayer* player = s_program->m_server->m_playerManager->m_players[0];
+    ServerPlayer* player = g_program->m_server->m_playerManager->m_players[0];
     KYBER_LOG(Info, "----- Server Player Extents -----");
 
     // Magix forced me to comment what this means:
@@ -142,7 +142,7 @@ void ServerPlayerExtentDebugCommand(ConsoleContext& cc)
 
 void DebugServerPlayerManagerAddressCommand(ConsoleContext& cc)
 {
-    KYBER_LOG(Info, "Player Manager: " << std::hex << s_program->m_server->m_playerManager);
+    KYBER_LOG(Info, "Player Manager: " << std::hex << g_program->m_server->m_playerManager);
 }
 
 void SaveLocationCommand(ConsoleContext& cc)
@@ -178,7 +178,7 @@ void SetTeamCommand(ConsoleContext& cc)
     int team;
     stream >> playerName >> team;
 
-    ServerPlayer* player = s_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
+    ServerPlayer* player = g_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
     if (player == nullptr)
     {
         cc << "Couldn't find player " << playerName;
@@ -196,7 +196,7 @@ void SetTeamByIndexCommand(ConsoleContext& cc)
     int team;
     stream >> index >> team;
 
-    auto& players = s_program->m_server->m_playerManager->m_players;
+    auto& players = g_program->m_server->m_playerManager->m_players;
     if (players.size() <= index)
     {
         cc << "Player index out of bounds";
@@ -221,7 +221,7 @@ void SetTeamByIdCommand(ConsoleContext& cc)
     int team;
     stream >> id >> team;
 
-    ServerPlayer* player = s_program->m_server->m_playerManager->GetPlayer(id);
+    ServerPlayer* player = g_program->m_server->m_playerManager->GetPlayer(id);
     if (player == nullptr)
     {
         cc << "Couldn't find player " << id;
@@ -234,7 +234,7 @@ void SetTeamByIdCommand(ConsoleContext& cc)
 
 void FullTeamSwapCommand(ConsoleContext& cc)
 {
-    auto& playerList = s_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
+    auto& playerList = g_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
     for (ServerPlayer* player : playerList)
     {
         if (player == nullptr || player->IsAIPlayer())
@@ -255,7 +255,7 @@ void ShuffleTeamsCommand(ConsoleContext& cc)
     eastl::vector<ServerPlayer*> players;
     players.reserve(64);
 
-    auto& playerList = s_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
+    auto& playerList = g_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
     for (ServerPlayer* player : playerList)
     {
         if (player == nullptr || player->IsAIPlayer())
@@ -301,13 +301,13 @@ void TeleportCommand(ConsoleContext& cc)
     float x, y, z;
     stream >> playerName >> x >> y >> z;
 
-    if (!s_program->m_server->IsRunning())
+    if (!g_program->m_server->IsRunning())
     {
         cc << "This is a server command, and you aren't running a server!";
         return;
     }
 
-    ServerPlayer* player = s_program->m_server->GetServerGameContext()->serverPlayerManager->GetPlayer(playerName.c_str());
+    ServerPlayer* player = g_program->m_server->GetServerGameContext()->serverPlayerManager->GetPlayer(playerName.c_str());
     if (player == nullptr)
     {
         cc << "Couldn't find player " << playerName;
@@ -327,13 +327,13 @@ void TeleportCommand(ConsoleContext& cc)
 
 void BroadcastCommand(ConsoleContext& cc)
 {
-    if (!s_program->m_server->IsRunning())
+    if (!g_program->m_server->IsRunning())
     {
         cc << "This is a server command, and you aren't running a server!";
         return;
     }
 
-    s_program->m_server->BroadcastMessage(cc.rawArguments, "ADMIN", ChatChannel_Admin);
+    g_program->m_server->BroadcastMessage(cc.rawArguments, "ADMIN", ChatChannel_Admin);
 }
 
 void JoinServerCommand(ConsoleContext& cc)
@@ -344,7 +344,7 @@ void JoinServerCommand(ConsoleContext& cc)
     stream >> ip >> port;
 
     cc << "Connecting to " << ip << ":" << port << "...";
-    s_program->JoinServer("", ip, port, "", false);
+    g_program->JoinServer("", ip, port, "", false);
 }
 
 void FullEntityBusInternalFireEventHk2(void* inst, const DataContainer* data, const EntityEvent* entityEvent)
@@ -369,9 +369,9 @@ void* EntityFactoryInternalCreateEntityHk(void* params, void* dc)
     DataContainer* data = *(DataContainer**)((__int64)params + 0x110);
     const char* name = data->getType()->getName();
 
-    if (s_program->m_entityManager != nullptr)
+    if (g_program->m_entityManager != nullptr)
     {
-        TypeObject* entityManagerEntity = s_program->m_entityManager->CreateEntity(params, data);
+        TypeObject* entityManagerEntity = g_program->m_entityManager->CreateEntity(params, data);
         if (entityManagerEntity != nullptr)
         {
             return entityManagerEntity;
@@ -380,9 +380,9 @@ void* EntityFactoryInternalCreateEntityHk(void* params, void* dc)
 
     void* entity = trampoline(params, dc);
 
-    if (entity != nullptr && s_program->m_entityManager != nullptr)
+    if (entity != nullptr && g_program->m_entityManager != nullptr)
     {
-        s_program->m_entityManager->OnEntityCreated(reinterpret_cast<NativeEntity*>(entity));
+        g_program->m_entityManager->OnEntityCreated(reinterpret_cast<NativeEntity*>(entity));
     }
 
     return entity;
@@ -428,7 +428,7 @@ Console::Console()
     RegisterConsoleCommand(&BroadcastCommand, "Broadcast", "<message>");
     RegisterConsoleCommand(&JoinServerCommand, "JoinServer", "<ip> <port>");
 
-    if (true || !s_program->m_isDedicatedServer)
+    if (true || !g_program->m_isDedicatedServer)
     {
         return;
     }

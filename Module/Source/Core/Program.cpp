@@ -16,6 +16,8 @@
 #include <Utilities/PlatformUtils.h>
 #include <Core/ThreadExecutor.h>
 #include <Entity/KyberSettings.h>
+#include <Misc/EventSyncListener.h>
+#include <Misc/ServerSpawnListener.h>
 
 #include <MinHook.h>
 
@@ -61,7 +63,7 @@ using namespace fastdelegate;
 
 namespace Kyber
 {
-Program* s_program;
+Program* g_program;
 
 Program::Program(HMODULE module)
     : m_module(module)
@@ -84,7 +86,7 @@ Program::Program(HMODULE module)
     , m_isDedicatedServer(false)
     , m_messageDebugEnabled(false)
 {
-    if (s_program || MH_Initialize() != MH_OK)
+    if (g_program || MH_Initialize() != MH_OK)
     {
         ErrorUtils::ThrowException("Initialization failed. Please restart Battlefront and try again.");
     }
@@ -126,8 +128,8 @@ void MainInitHk()
 
     KYBER_LOG(Info, "[Engine] Initializing game, waiting for Kyber...");
 
-    std::unique_lock<std::mutex> lock(s_program->m_startupMutex);
-    s_program->m_startupCondition.wait(lock, [] { return s_program->m_startupInitialized; });
+    std::unique_lock<std::mutex> lock(g_program->m_startupMutex);
+    g_program->m_startupCondition.wait(lock, [] { return g_program->m_startupInitialized; });
 
     KYBER_LOG(Info, "[Engine] Finished initializing");
 
@@ -213,27 +215,6 @@ void Program::InitializationThread()
 
     // Kyber Mod Loader requires vanilla game data
     _putenv_s("GAME_DATA_DIR", "");
-
-    if (std::getenv("KYBER_X64DBG_DEBUGGING") != nullptr)
-    {
-        using namespace std::chrono_literals;
-
-        STARTUPINFO si;     
-        PROCESS_INFORMATION pi;
-        ZeroMemory( &si, sizeof(si) );
-        si.cb = sizeof(si);
-        ZeroMemory( &pi, sizeof(pi) );
-        // todo: actually make the commandline part work (documentation for x64dbg lies ? idk)
-        CreateProcess("E:\\Workspace\\Frostbite\\RE Tools\\x64dbg\\release\\x64\\x64dbg.exe",
-                      const_cast<char*>(("-p " + std::to_string(getpid())).c_str()), nullptr,
-                      nullptr, false, 0, nullptr, nullptr, &si, &pi);
-
-        std::this_thread::sleep_for(10000ms);
-        //WaitForSingleObject(pi.hProcess, INFINITE);
-        
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-    }
 
     const char* apiToken = std::getenv("KYBER_API_TOKEN");
     if (apiToken == nullptr)
@@ -349,7 +330,8 @@ void Program::HandleClientServerJoin(NetworkCreatePlayerMessage* message)
     message->playerName = name;
     message->isSpectator = m_spectator;
 
-    KYBER_LOG(Info, "[Client] Joining game as '" << message->playerName << "'");
+    KYBER_LOG(Info, "[Client] Joining game with authentication");
+    KYBER_LOG(Debug, "[Client] Joining game as '" << message->playerName << "'");
 
     AttemptJoinVoip();
 }
@@ -388,7 +370,7 @@ void Program::JoinServer(const std::string& id, std::string ip, uint16_t port, b
         auto proxy_id_it = meta.find("pinned_proxy_id");
         if (proxy_id_it != meta.end())
         {
-            auto proxies = s_program->GetAPI()->GetProxy()->GetList();
+            auto proxies = g_program->GetAPI()->GetProxy()->GetList();
             for (const auto& proxy : proxies)
             {
                 if (proxy.id() == proxy_id_it->second)
@@ -444,9 +426,14 @@ __int64 ClientCtorHk(__int64 inst, void* a2, __int64 a3)
     static const auto trampoline = HookManager::Call(ClientCtorHk);
     KYBER_LOG(Info, "[Client] Creating client");
 
-    if (s_program->m_scriptManager != nullptr)
+    if (g_program->m_voipManager != nullptr)
     {
-        s_program->m_scriptManager->LoadScripts(PluginRealm_Client);
+        g_program->m_voipManager->Init();
+    }
+
+    if (g_program->m_scriptManager != nullptr)
+    {
+        g_program->m_scriptManager->LoadScripts(PluginRealm_Client);
     }
 
     return trampoline(inst, a2, a3);
@@ -455,9 +442,9 @@ __int64 ClientCtorHk(__int64 inst, void* a2, __int64 a3)
 __int64 ClientStateChangeHk(__int64 inst, ClientState currentClientState, ClientState lastClientState)
 {
     static const auto trampoline = HookManager::Call(ClientStateChangeHk);
-    s_program->m_clientState = currentClientState;
+    g_program->m_clientState = currentClientState;
     KYBER_LOG(Info, "[Client] Client state changed to " << ClientStateToString(currentClientState));
-    Server* server = s_program->m_server;
+    Server* server = g_program->m_server;
     if (!server)
     {
         return trampoline(inst, currentClientState, lastClientState);
@@ -467,28 +454,28 @@ __int64 ClientStateChangeHk(__int64 inst, ClientState currentClientState, Client
     {
         static bool firstStartup = true;
 
-        // s_program->m_console->UnregisterCommands();
-        s_program->m_allowInteraction = false;
+        // g_program->m_console->UnregisterCommands();
+        g_program->m_allowInteraction = false;
 
-        if ((server->m_runningHosted || s_program->m_connected) && s_program->m_clientSocketManager)
+        if ((server->m_runningHosted || g_program->m_connected) && g_program->m_clientSocketManager)
         {
-            // s_program->m_clientSocketManager->CloseSockets();
-            s_program->m_clientSocketManager = nullptr;
+            // g_program->m_clientSocketManager->CloseSockets();
+            g_program->m_clientSocketManager = nullptr;
         }
 
-        if (s_program->m_connected)
+        if (g_program->m_connected)
         {
             KYBER_LOG(Info, "[Client] Leaving server");
 
-            if (s_program->m_voipManager != nullptr)
+            if (g_program->m_voipManager != nullptr)
             {
-                s_program->m_voipManager->RemoveSession();
+                g_program->m_voipManager->RemoveSession();
             }
 
-            s_program->m_spectator = false;
+            g_program->m_spectator = false;
         }
 
-        s_program->m_connected = false;
+        g_program->m_connected = false;
 
         if (server->m_runningHosted)
         {
@@ -497,12 +484,12 @@ __int64 ClientStateChangeHk(__int64 inst, ClientState currentClientState, Client
                 KYBER_LOG(Info, "[Server] Stopping server");
                 server->Stop();
 
-                if (s_program->m_voipManager != nullptr)
+                if (g_program->m_voipManager != nullptr)
                 {
-                    s_program->m_voipManager->RemoveSession();
+                    g_program->m_voipManager->RemoveSession();
                 }
 
-                s_program->m_spectator = false;
+                g_program->m_spectator = false;
 
                 GameSettings* gameSettings = Settings<GameSettings>("Game");
                 gameSettings->Level = const_cast<char*>(StringUtils::CopyWithArena("Levels/FrontEnd/FrontEnd"));
@@ -513,7 +500,7 @@ __int64 ClientStateChangeHk(__int64 inst, ClientState currentClientState, Client
                 server->m_restarting = false;
             }
         }
-        else if (!s_program->m_joining && !firstStartup)
+        else if (!g_program->m_joining && !firstStartup)
         {
             Settings<ClientSettings>("Client")->ServerIp = const_cast<char*>(StringUtils::CopyWithArena(""));
         }
@@ -524,8 +511,8 @@ __int64 ClientStateChangeHk(__int64 inst, ClientState currentClientState, Client
     }
     else if (currentClientState == ClientState_Ingame)
     {
-        s_program->GetAPI()->GetLauncherInterface()->OnServerJoined();
-        s_program->m_allowInteraction = true;
+        g_program->GetAPI()->GetLauncherInterface()->OnServerJoined();
+        g_program->m_allowInteraction = true;
         if (server->m_runningHosted)
         {
             server->InitializeGameSettings();
@@ -548,7 +535,8 @@ __int64 OriginSDKInitializeHk(void* inst, int a2, uint16_t lsxPort, void* a4, vo
     return trampoline(inst, a2, lsxPort, a4, a5);
 }
 
-class EngineConnection
+// TODO: Properly implement the EngineConnection type to not have this garbage
+class EngineConnection2
 {
 public:
     char pad_0000[1544];   // 0x0000
@@ -561,7 +549,7 @@ void ClientConnectionOnDisconnectedHk(__int64 inst)
 {
     static const auto trampoline = HookManager::Call(ClientConnectionOnDisconnectedHk);
 
-    EngineConnection* connBase = (EngineConnection*)(inst - 0x10);
+    EngineConnection2* connBase = (EngineConnection2*)(inst - 0x10); // ClientConnection -> EngineConnection
     SecureReason reason = connBase->m_reason;
     char* reasonText = connBase->m_reasonText;
 
@@ -584,7 +572,7 @@ void ClientConnectionOnDisconnectedHk(__int64 inst)
 
     KYBER_LOG(Info, "[Client] Disconnected from server: " << std::hex << reason << " " << reasonText);
 
-    s_program->GetAPI()->GetLauncherInterface()->OnServerDisconnect();
+    g_program->GetAPI()->GetLauncherInterface()->OnServerDisconnect();
 
     connBase->m_reason = reason;
     connBase->m_reasonText = reasonText;
@@ -594,14 +582,10 @@ void ClientConnectionOnDisconnectedHk(__int64 inst)
 void ClientConnectionSendMessageHk(void* inst, Message* message)
 {
     static const auto trampoline = HookManager::Call(ClientConnectionSendMessageHk);
-    if (message)
+    if (message != nullptr && message->Is("NetworkCreatePlayerMessage"))
     {
-        TypeInfo* type = message->getType();
-        if (type && type->typeInfoData && strcmp(type->getName(), "NetworkCreatePlayerMessage") == 0)
-        {
-            NetworkCreatePlayerMessage* msg = (NetworkCreatePlayerMessage*)message;
-            s_program->HandleClientServerJoin(msg);
-        }
+        NetworkCreatePlayerMessage* msg = static_cast<NetworkCreatePlayerMessage*>(message);
+        g_program->HandleClientServerJoin(msg);
     }
     trampoline(inst, message);
 }
@@ -624,7 +608,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
 
     eastl::string name = type->getName();
 
-    if (s_program->m_messageDebugEnabled)
+    if (g_program->m_messageDebugEnabled)
     {
         if (name == "ClientInputUnchangedInputMessage" || name == "StreamInstallRequestSuspendMessage")
         {
@@ -638,7 +622,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     {
         ServerPlayerAboutToCreateForConnectionMessage* msg = (ServerPlayerAboutToCreateForConnectionMessage*)message;
 
-        if (s_program->m_server->IsRunning())
+        if (g_program->m_server->IsRunning())
         {
             KYBER_LOG(Info, msg->requestedName << " joined the server");
         }
@@ -647,16 +631,16 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     {
         KYBER_LOG(Info, "[Server] Game ended, moving to next level");
 
-        MapRotationEntry rotation = s_program->m_server->m_mapRotation.GetNextEntry();
-        s_program->m_server->LoadNextLevel(rotation.level.c_str(), rotation.mode.c_str());
+        MapRotationEntry rotation = g_program->m_server->m_mapRotation.GetNextEntry();
+        g_program->m_server->LoadNextLevel(rotation.level.c_str(), rotation.mode.c_str());
     }
     else if (name == "ServerLevelLoadedMessage")
     {
         KYBER_LOG(Info, "[Server] Server level loaded");
 
-        if (s_program->m_isDedicatedServer)
+        if (g_program->m_isDedicatedServer)
         {
-            s_program->m_server->OnLevelLoaded();
+            g_program->m_server->OnLevelLoaded();
         }
     }
     else if (name == "ServerLevelSpawnEntitiesBeginMessage")
@@ -667,12 +651,12 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     {
         ServerPlayerDisconnectMessage* msg = (ServerPlayerDisconnectMessage*)message;
 
-        if (s_program->m_server->IsRunning())
+        if (g_program->m_server->IsRunning())
         {
-            s_program->m_server->m_persistenceManager->SavePlayerStats(msg->m_player);
+            g_program->m_server->m_persistenceManager->SavePlayerStats(msg->m_player);
 
-            s_program->GetAPI()->GetServerManagement()->SendPlayerList();
-            s_program->GetAPI()->GetServerManagement()->SendConsoleMessage(
+            g_program->GetAPI()->GetServerManagement()->SendPlayerList();
+            g_program->GetAPI()->GetServerManagement()->SendConsoleMessage(
                 StringUtils::Format("%s (%llu) left the server", msg->m_player->m_name, msg->m_player->m_onlineId.m_nativeData));
         }
     }
@@ -681,7 +665,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
         ServerPlayerChatMessage* msg = (ServerPlayerChatMessage*)message;
 
         std::string log = std::string(msg->m_sender->m_name) + ": " + msg->m_message;
-        s_program->GetAPI()->GetServerManagement()->SendConsoleMessage(log);
+        g_program->GetAPI()->GetServerManagement()->SendConsoleMessage(log);
     }
     else if (name == "ServerPeerInitializedMessage")
     {
@@ -690,17 +674,17 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     else if (name == "ServerPlayerKilledMessage")
     {
         ServerPlayerKilledMessage* msg = (ServerPlayerKilledMessage*)message;
-        if (s_program->m_scriptManager != nullptr)
+        if (g_program->m_scriptManager != nullptr)
         {
-            s_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Killed", msg->m_victimPlayer, msg->m_inflictorPlayer);
+            g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Killed", msg->m_victimPlayer, msg->m_inflictorPlayer);
         }
     }
     else if (name == "NetworkOnPlayerSpawnedMessage")
     {
         KYBER_LOG(Debug, "Player spawned: " << std::hex << message);
-        if (s_program->m_scriptManager != nullptr)
+        if (g_program->m_scriptManager != nullptr)
         {
-            s_program->m_scriptManager->GetEventManager().Fire("ClientPlayer:Spawned");
+            g_program->m_scriptManager->GetEventManager().Fire("ClientPlayer:Spawned");
         }
     }
 
@@ -733,7 +717,7 @@ void FileSuperBundleManagerUpdateConfigHk(FileSuperBundleManager* inst)
 
     if (std::getenv("KYBER_DISABLE_MODLOADER") == nullptr)
     {
-        s_modLoader = new ModLoader(inst, s_program->m_modData);
+        g_modLoader = new ModLoader(inst, g_program->m_modData);
     }
 
     trampoline(inst);
@@ -745,21 +729,26 @@ __int64 ClientUpdatePassPreFrameHk(void* inst, const UpdateParameters& params)
     static const auto trampoline = HookManager::Call(ClientUpdatePassPreFrameHk);
     __int64 result = trampoline(inst, params);
 
-    if (s_program->m_entityManager != nullptr)
+    if (g_program->m_entityManager != nullptr)
     {
-        s_program->m_entityManager->UpdateEntities(Realm_Client, params);
+        g_program->m_entityManager->UpdateEntities(Realm_Client, params);
     }
 
-    for (const auto& listener : s_program->m_clientUpdatePassListeners)
+    for (const auto& listener : g_program->m_clientUpdatePassListeners)
     {
         listener->Call(ClientUpdatePass_PreFrame);
     }
 
-    s_threadExecutor->Process(GameThread_Client);
+    g_threadExecutor->Process(GameThread_Client);
 
-    if (s_program->m_scriptManager != nullptr)
+    if (!g_program->m_server->m_runningHosted && !g_program->m_isDedicatedServer)
     {
-        s_program->m_scriptManager->GetEventManager().Fire("Client:UpdatePre", params.simulationDeltaTime.toSecondsAsFloat());
+        g_program->GetAPI()->Update();
+    }
+
+    if (g_program->m_scriptManager != nullptr)
+    {
+        g_program->m_scriptManager->GetEventManager().Fire("Client:UpdatePre", params.simulationDeltaTime.toSecondsAsFloat());
     }
 
     GenericUpdateManager::Get().Call(UpdateType_Client_PreFrame, params);
@@ -771,14 +760,14 @@ __int64 ClientUpdatePassPostFrameHk(void* inst, const UpdateParameters& params)
     static const auto trampoline = HookManager::Call(ClientUpdatePassPostFrameHk);
     __int64 result = trampoline(inst, params);
 
-    for (const auto& listener : s_program->m_clientUpdatePassListeners)
+    for (const auto& listener : g_program->m_clientUpdatePassListeners)
     {
         listener->Call(ClientUpdatePass_PostFrame);
     }
 
-    if (s_program->m_scriptManager != nullptr)
+    if (g_program->m_scriptManager != nullptr)
     {
-        s_program->m_scriptManager->GetEventManager().Fire("Client:UpdatePost", params.simulationDeltaTime.toSecondsAsFloat());
+        g_program->m_scriptManager->GetEventManager().Fire("Client:UpdatePost", params.simulationDeltaTime.toSecondsAsFloat());
     }
 
     GenericUpdateManager::Get().Call(UpdateType_Client_PostFrame, params);
@@ -793,6 +782,19 @@ __int64 ClientAuthHk(__int64 a1, OnlineId* a2, unsigned int a3)
     return result;
 }
 
+void DummyLuaTable(void** table)
+{
+    void* patchValue = reinterpret_cast<void*>(0x1401840C0); // general null sub
+    for (; table[1]; table += 2)
+    {
+        char* str = reinterpret_cast<char*>(table[0]);
+        if (strstr(str, "time") == nullptr)
+        {
+            MemoryUtils::Patch(&table[1], &patchValue, sizeof(void*));
+        }
+    }
+}
+
 void Program::RegisterClientUpdatePassListener(ClientUpdatePassListener* listener)
 {
     m_clientUpdatePassListeners.push_back(listener);
@@ -800,6 +802,8 @@ void Program::RegisterClientUpdatePassListener(ClientUpdatePassListener* listene
 
 void Program::InitializeGameHooks()
 {
+    static void* LuaDummy = HOOK_OFFSET(0x1401840C0);
+
     // clang-format off
     HookTemplate hookOffsets[] = {
         { OFFSET_CLIENT_STATE_CHANGE, ClientStateChangeHk },
@@ -817,6 +821,16 @@ void Program::InitializeGameHooks()
         { OFFSET_CLIENT_UPDATEPASSPOSTFRAME, ClientUpdatePassPostFrameHk },
         { HOOK_OFFSET(0x1418D92B0), ClientAuthHk },
         { OFFSET_MEMORYARENA_LOG, MemoryArenaLog },
+
+        // Dummy out unsafe built-in lua functions
+        { HOOK_OFFSET(0x1477C4B00), LuaDummy }, // package.loadlib()
+        { HOOK_OFFSET(0x1477B22F0), LuaDummy }, // dofile()
+        { HOOK_OFFSET(0x1477B2140), LuaDummy }, // loadfile()
+        { HOOK_OFFSET(0x1477B14D0), LuaDummy }, // getfenv()
+        { HOOK_OFFSET(0x1477B1610), LuaDummy }, // setfenv()
+        { HOOK_OFFSET(0x1477B1790), LuaDummy }, // rawequal()
+        { HOOK_OFFSET(0x1477B1900), LuaDummy }, // rawget()
+        { HOOK_OFFSET(0x1477B1B60), LuaDummy }, // rawset()
     };
     // clang-format on
 
@@ -838,6 +852,20 @@ void Program::InitializeGamePatches()
 
     MemoryUtils::Nop(HOOK_OFFSET(0x14018B133), 6); // Allow Multiple Game Instances
     MemoryUtils::Nop(HOOK_OFFSET(0x140235C2E), 6); // Enable All Console Commands
+
+    // Null out built-in Lua function tables
+    static intptr_t tables[] = { 
+        0x14308A430, // debug
+        0x143089BB0, // os
+        0x1430898A0, // io
+        0x143089960, // file
+        0 // null term
+    };
+
+    for (void*** i = reinterpret_cast<void***>(tables); *i; i++)
+    {
+        DummyLuaTable(*i);
+    }
 }
 
 void Program::Initialize()
@@ -845,13 +873,11 @@ void Program::Initialize()
     InitializeGameHooks();
     InitializeGamePatches();
 
-    if (m_voipManager != nullptr)
-    {
-        m_voipManager->Init();
-    }
-
     m_server->Initialize();
 
+    //InitializeEventSyncHook();
+    InitializeSpawnListenerHook();
+    
     KYBER_LOG(Info, "[Engine] Kyber post-initialized");
 }
 } // namespace Kyber

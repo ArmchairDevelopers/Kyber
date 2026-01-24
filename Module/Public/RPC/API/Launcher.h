@@ -20,7 +20,7 @@ using grpc::Channel;
 class LauncherInterface
 {
 public:
-    LauncherInterface(std::shared_ptr<Channel> channel);
+    LauncherInterface(std::shared_ptr<Channel> channel, AsyncRPCManager* asyncManager);
 
     void Initialize() const;
     std::optional<std::tuple<std::string, std::string>> GetCustomLevelData(std::string mapId, std::string modeId) const;
@@ -29,5 +29,6 @@ public:
 
 private:
     std::shared_ptr<LauncherCommon::Stub> m_stub;
+    AsyncRPCManager* m_asyncManager;
 };
 } // namespace Kyber

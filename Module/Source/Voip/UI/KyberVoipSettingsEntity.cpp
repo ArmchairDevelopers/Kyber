@@ -27,9 +27,9 @@ void KyberVoipSettingsEntity::PropertyChanged(PropertyModification* modification
         float newVolume = round(*reinterpret_cast<float*>(modification->value) * 100);
         KYBER_LOG(Info, "Voip volume changed: " << newVolume);
 
-        if (s_program->m_voipManager != nullptr)
+        if (g_program->m_voipManager != nullptr)
         {
-            s_program->m_voipManager->SetInputVolume(newVolume);
+            g_program->m_voipManager->SetInputVolume(newVolume);
         }
     }
 }

@@ -10,7 +10,7 @@ namespace Kyber::Script
 {
 static int GetClientCameraTransformFunc(lua_State* L)
 {
-    const TypeInfo* type = s_program->m_entityManager->GetNativeType("LinearTransform");
+    const TypeInfo* type = g_program->m_entityManager->GetNativeType("LinearTransform");
 
     LinearTransform* transform = (LinearTransform*)lua_newuserdata(L, sizeof(LinearTransform));
     memcpy(transform, &GameRenderer::Get()->renderView->transform, sizeof(LinearTransform));

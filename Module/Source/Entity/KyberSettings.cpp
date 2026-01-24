@@ -27,6 +27,6 @@ KB_IMPLEMENT_TYPE(KyberSettings)
 KB_TYPE_REGISTRATION_CALLBACK(KyberSettings)
 {
     KYBER_LOG(Info, "[Entity] Registered Kyber Settings");
-    s_program->m_settingsManager->RegisterSettings("Kyber", typeInfo);
+    g_program->m_settingsManager->RegisterSettings("Kyber", typeInfo);
 }
 } // namespace Kyber

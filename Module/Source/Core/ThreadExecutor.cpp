@@ -6,7 +6,7 @@
 
 namespace Kyber
 {
-ThreadExecutor* s_threadExecutor;
+ThreadExecutor* g_threadExecutor;
 
 void ThreadExecutor::QueueDelayTicks(GameThread thread, uint32_t delayTicks, Func func)
 {
@@ -36,6 +36,6 @@ void ThreadExecutor::Process(GameThread thread)
 void ThreadExecutor::StaticInit()
 {
     static ThreadExecutor staticThreadExecutor;
-    s_threadExecutor = &staticThreadExecutor;
+    g_threadExecutor = &staticThreadExecutor;
 }
 } // namespace Kyber

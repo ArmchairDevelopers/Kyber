@@ -123,7 +123,7 @@ private:
     std::unique_ptr<InterfaceService> m_interface;
 };
 
-extern Program* s_program;
+extern Program* g_program;
 
 template<class T>
 class Settings
@@ -131,7 +131,7 @@ class Settings
 public:
     Settings(const char* identifier)
     {
-        m_settings = s_program->GetSettingsObject<T>(identifier);
+        m_settings = g_program->GetSettingsObject<T>(identifier);
     }
 
     inline T* operator->()

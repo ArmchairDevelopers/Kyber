@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Utilities/ThreadPool.h>
+#include <RPC/AsyncRPCManager.h>
 
 #include <Proto/kyber_api.grpc.pb.h>
 
@@ -21,14 +21,15 @@ using grpc::Channel;
 class ClientServerAPI
 {
 public:
-    ClientServerAPI(std::shared_ptr<Channel> channel, std::string token);
+    ClientServerAPI(std::shared_ptr<Channel> channel, AsyncRPCManager* asyncManager, std::string token);
 
     void ConsumeJoinToken(const std::string& serverId, const std::string& token,
         std::function<void(std::optional<const ConsumeJoinTokenResponse*>)> callback) const;
-
+    std::optional<std::vector<std::string>> GetBlacklist() const;
+    
 private:
     std::shared_ptr<ClientServer::Stub> m_stub;
-    mutable ThreadPool m_threadPool;
+    AsyncRPCManager* m_asyncManager;
 
     std::string m_token;
 };

@@ -10,11 +10,7 @@
 namespace Kyber
 {
 // ClientServer
-TL_DECLARE_FUNC(0x14C53D220, void, LevelSetup_ctor, LevelSetup* inst, __int64 a2, __int64 a3, __int64 a4);
-TL_DECLARE_FUNC(0x141136820, void, LevelSetup_setInclusionOptions, LevelSetup* inst, const char* inclusionOptions);
-TL_DECLARE_FUNC(0x141136690, void, LevelSetup_setInclusionOption, LevelSetup* inst, const char* key, const char* value);
-TL_DECLARE_FUNC(0x1470C3010, const char*, LevelSetup_getInclusionOption, LevelSetup* inst, const char* key);
-TL_DECLARE_FUNC(0x146888E10, void*, ServerPeer_connectionForPlayer, void* inst, const ServerPlayer* player);
+TL_DECLARE_FUNC(0x146888E10, ServerConnection*, ServerPeer_connectionForPlayer, void* inst, const ServerPlayer* player);
 TL_DECLARE_FUNC(0x140BCF350, void, ServerLoadLevelMessage_post, LevelSetup* levelSetup, bool fadeOut, bool forceReloadResources);
 TL_DECLARE_FUNC(0x14131AB20, void*, DirtySockSocketManager_ctor, void* inst, MemoryArena* arena, uint32_t maxPacketSize);
 TL_DECLARE_FUNC(0x14193DA20, bool, Server_sendChatMessage, ChatChannel channel, const char* message, const ServerPlayer* player);

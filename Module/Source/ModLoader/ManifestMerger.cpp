@@ -196,7 +196,7 @@ void LayoutManifest::AddFileToBundle(uint32_t bundleHash, FileInfo fileInfo, Ass
         return;
     }
 
-    bool customBundle = s_modLoader->m_addedBundles.count(bundleHash);
+    bool customBundle = g_modLoader->m_addedBundles.count(bundleHash);
 
     auto& vanillaBundleEntry = g_bundleMerger->GetBundleEntries()[bundleInfo.hash];
     if (!customBundle && vanillaBundleEntry.hash != bundleInfo.hash)
@@ -348,7 +348,7 @@ void ProcessManifestHk(CasFileMap* fileMap, uint8_t* manifestBuf)
 void LoadCatEntriesHk(CasFileMap* fileMap, __int64 a2)
 {
     static auto trampoline = HookManager::Call(LoadCatEntriesHk);
-    for (const auto& file : s_modLoader->GetRequiredFiles())
+    for (const auto& file : g_modLoader->GetRequiredFiles())
     {
         int32_t catalogIndex = (file >> 12) - 1;
         bool isInPatch = (file & 0x100) != 0;
@@ -356,15 +356,15 @@ void LoadCatEntriesHk(CasFileMap* fileMap, __int64 a2)
 
         std::ostringstream filePath;
         filePath << "/native_data/" << (isInPatch ? "Patch/" : "Data/");
-        filePath << s_modLoader->m_bundleMerger.GetCatalog(catalogIndex).c_str() << "/cas_";
+        filePath << g_modLoader->m_bundleMerger.GetCatalog(catalogIndex).c_str() << "/cas_";
         filePath << std::setw(2) << std::setfill('0') << casIndex << ".cas";
 
-        s_modLoader->LoadFile(file, filePath.str().c_str());
+        g_modLoader->LoadFile(file, filePath.str().c_str());
     }
 
-    for (const auto& mod : s_modLoader->m_mods)
+    for (const auto& mod : g_modLoader->m_mods)
     {
-        s_modLoader->LoadFile(mod.fbFile, mod.path.c_str());
+        g_modLoader->LoadFile(mod.fbFile, mod.path.c_str());
     }
 
     trampoline(fileMap, a2);
