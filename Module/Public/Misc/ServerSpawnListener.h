@@ -1,7 +1,8 @@
 // Copyright Armchair Developers. Licensed under GPLv3. 
-#include <Core/Program.h>
 
 #pragma once
+
+#include <Core/Program.h>
 
 namespace Kyber
 {

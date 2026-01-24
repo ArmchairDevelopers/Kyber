@@ -6,7 +6,6 @@ build
 _work
 _work2
 
-build.bat 
 MODULE.bazel.lock
 
 ### Automatically added by Hedron's Bazel Compile Commands Extractor: https://github.com/hedronvision/bazel-compile-commands-extractor
