@@ -1,4 +1,7 @@
+# KYBER Changelog
+
 ## [2.0.0-beta9] - [??/??/????]
+
 - Fixed stats on official servers not updating
 - Added a new filter options to the mods page
     - You can now filter mods by gameplay and cosmetic mods
@@ -16,6 +19,7 @@
     - Added a new warning dialog when trying to start a game with an expired EA session
 
 ## [2.0.0-beta8] - [??/??/????]
+
 - Extracting progress is now shown when installing mods
     - This will only work for .zip and .rar files, .7z files won't show any progress
     - This comes together with a major overhaul of the download manager, if you encounter any issues with downloads, please let us know in our Discord server
@@ -220,7 +224,7 @@ Known issues:
 - Logout button for the whitelist page
 - Fix Proximity Chat settings
 - Added a shortcut to export logs
-    * `Ctrl + Alt + Space` to export logs
+    - `Ctrl + Alt + Space` to export logs
 - Fixed multiple scrollbar issues
 - **Fixed an issue where KYBER would not inject properly**
 - Fixed the max player count on the host page
