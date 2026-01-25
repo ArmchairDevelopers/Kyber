@@ -10,6 +10,7 @@
 ## Dart/Flutter Projects (Launcher, CLI, Packages)
 
 ### Prequisites
+
 - [Flutter](https://flutter.dev) (master channel)
 - [Rust](https://rustup.rs) (nightly toolchain)
 - [Melos](https://melos.invertase.dev): `dart pub global activate melos`
@@ -29,6 +30,7 @@ This installs dependencies, generates proto bindings, and runs code generation.
 ### Generating FFI Bindings
 
 First you need to generate the FFI bindings:
+
 ```bash
 cd Launcher
 dart run tool/ffigen.dart
@@ -37,6 +39,7 @@ dart run tool/ffigen.dart
 ### Run in Debug Mode
 
 From the launcher directory, run:
+
 ```bash
 flutter run
 ```
@@ -44,6 +47,7 @@ flutter run
 ### Build Release Binaries
 
 From the launcher directory, run:
+
 ```bash
 flutter build <platform>
 ```
@@ -72,10 +76,12 @@ To run the CLI, make sure to copy the rust library from `build/cli/<platform>/bu
 **Important:** Make sure to build Maxima first. Then depending on your platform, copy the following files next to the binary from the Maxima build output:
 
 #### Windows
+
 - `maxima-service.exe`
 - `maxima-bootstrap.exe`
 
 #### Linux
+
 - `maxima-bootstrap`
 
 ------
@@ -118,6 +124,7 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 Build:
 
 Linux:
+
 ```bash
 cd API
 ./scripts/gen-proto.sh
@@ -125,6 +132,7 @@ go build -o kyber-api ./cmd/server
 ```
 
 Windows:
+
 ```bash
 cd API
 scripts\gen-proto.bat
