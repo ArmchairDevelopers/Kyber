@@ -21,6 +21,7 @@ public:
     static std::string Base64Encode(const std::string& str);
     static uint32_t HashQuick(const char* str);
     static uint32_t HashQuickLower(const char* str);
+    static uint32_t HashHexCheck(const char* str);
     static std::wstring AsciiToWide(const std::string& str);
     static std::string WideToAscii(const std::wstring& wstr);
     static std::vector<std::string> Split(const std::string& str, const std::string& delimiter);

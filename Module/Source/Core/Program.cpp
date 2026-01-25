@@ -590,6 +590,8 @@ void ClientConnectionSendMessageHk(void* inst, Message* message)
     trampoline(inst, message);
 }
 
+TL_DECLARE_FUNC(0x146C5EF40, __int64, __unkServerGhosts, __int64*);
+// Server Message Manager
 void MessageManagerDispatchMessageHk(void* inst, Message* message)
 {
     static const auto trampoline = HookManager::Call(MessageManagerDispatchMessageHk);
@@ -631,6 +633,11 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     {
         KYBER_LOG(Info, "[Server] Game ended, moving to next level");
 
+        if (g_program->m_scriptManager != nullptr)
+        {
+            g_program->m_scriptManager->GetEventManager().Fire("Level:Complete");
+        }
+
         MapRotationEntry rotation = g_program->m_server->m_mapRotation.GetNextEntry();
         g_program->m_server->LoadNextLevel(rotation.level.c_str(), rotation.mode.c_str());
     }
@@ -658,6 +665,11 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
             g_program->GetAPI()->GetServerManagement()->SendPlayerList();
             g_program->GetAPI()->GetServerManagement()->SendConsoleMessage(
                 StringUtils::Format("%s (%llu) left the server", msg->m_player->m_name, msg->m_player->m_onlineId.m_nativeData));
+
+            if (g_program->m_scriptManager != nullptr)
+            {
+                g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Disconnect", msg->m_player);
+            }
         }
     }
     else if (name == "ServerPlayerChatMessage")
@@ -674,10 +686,19 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     else if (name == "ServerPlayerKilledMessage")
     {
         ServerPlayerKilledMessage* msg = (ServerPlayerKilledMessage*)message;
+        KYBER_LOG(Debug, "ServerPlayerKilledMessage EXECUTED: " << std::hex << msg);
         if (g_program->m_scriptManager != nullptr)
         {
-            g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Killed", msg->m_victimPlayer, msg->m_inflictorPlayer);
+            char* killerWeaponName = msg->m_deathInfo && msg->m_deathInfo->killerWeapon && msg->m_deathInfo->killerWeapon->Name
+                ? msg->m_deathInfo->killerWeapon->Name : nullptr;
+
+            g_program->m_scriptManager->GetEventManager().Fire(
+                "ServerPlayer:Killed", msg->m_victimPlayer, msg->m_inflictorPlayer, killerWeaponName);
         }
+    }
+    else if (name == "PlayerAbilityPickedUpMessage")
+    {
+        KYBER_LOG(Debug, "PlayerAbilityPickedUpMessage: " << std::hex << message);
     }
     else if (name == "NetworkOnPlayerSpawnedMessage")
     {
@@ -687,6 +708,67 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
             g_program->m_scriptManager->GetEventManager().Fire("ClientPlayer:Spawned");
         }
     }
+    else if (name == "ServerPlayerRespawnMessage")
+    {
+        KYBER_LOG(Debug, "Server Player spawned: " << std::hex << message);
+        ServerPlayerRespawnMessage* msg = (ServerPlayerRespawnMessage*)message;
+        if (g_program->m_scriptManager != nullptr)
+        {
+            g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Spawned", msg->player);
+        }
+    }
+    else if (name == "ServerSoldierFiringMessage")
+    {
+        KYBER_LOG(Debug, "Server Player Firing: " << std::hex << message);
+        KYBER_LOG(Debug, "BREAKME");
+    }
+    else if (name == "WSServerBattlepointsChangedMessage")
+    {
+        KYBER_LOG(Debug, "Server Battlepoints Changed: " << std::hex << message);
+        // In case it has future use...
+        //WSServerBattlepointsChangedMessage* msg = (WSServerBattlepointsChangedMessage*)message;
+        //if (!msg->player->IsAIPlayer())
+        //{
+        //    KYBER_LOG(Info, "Player " << msg->player->m_name << " just got " << msg->changeAmount << " battlepoints. Debug: " << std::hex << msg->player << " " << //msg->player->GetBattlepoints());
+        //}
+    }
+
+    trampoline(inst, message);
+}
+
+void UnkServerPlayerExtent_onNetworkMessageHk(void** inst, Message* message)
+{
+    static const auto trampoline = HookManager::Call(UnkServerPlayerExtent_onNetworkMessageHk);
+
+    if (message == nullptr || inst == nullptr)
+    {
+        trampoline(inst, message);
+        return;
+    }
+
+    //ServerPlayerExtent* realExtent = reinterpret_cast<ServerPlayerExtent*>(inst[-1]);
+
+    /*
+    TypeInfo* messageType = message->getType();
+    if (messageType == nullptr || messageType->typeInfoData == nullptr)
+    {
+        trampoline(inst, message);
+        return;
+    }
+
+    TypeInfo* extentType = inst->getType();
+    if (extentType == nullptr || extentType->typeInfoData == nullptr)
+    {
+        trampoline(inst, message);
+        return;
+    }
+
+    eastl::string name = messageType->getName();
+
+    KYBER_LOG(Debug, "Extent " << inst->getType()->getName() << " at "
+        << std::hex << inst << " with message " << message->getType()->getName() << " at " << std::hex << message);
+    */
+    //KYBER_LOG(Debug, "Extent " << std::hex << inst << " Message " << std::hex << message << " " << message->getType()->getName());
 
     trampoline(inst, message);
 }
@@ -782,6 +864,20 @@ __int64 ClientAuthHk(__int64 a1, OnlineId* a2, unsigned int a3)
     return result;
 }
 
+__int64 TeamInfo__isFriendlyHk(int teamA, int teamB)
+{
+    static const auto trampoline = HookManager::Call(TeamInfo__isFriendlyHk);
+    __int64 result = trampoline(teamA, teamB);
+
+    SyncedGameSettings* syncedGame = Settings<SyncedGameSettings>("SyncedGame");
+    if (syncedGame != nullptr && syncedGame->EnableFriendlyFire)
+    {
+        return 2; // override
+    }
+
+    return result;
+}
+
 void DummyLuaTable(void** table)
 {
     void* patchValue = reinterpret_cast<void*>(0x1401840C0); // general null sub
@@ -821,6 +917,8 @@ void Program::InitializeGameHooks()
         { OFFSET_CLIENT_UPDATEPASSPOSTFRAME, ClientUpdatePassPostFrameHk },
         { HOOK_OFFSET(0x1418D92B0), ClientAuthHk },
         { OFFSET_MEMORYARENA_LOG, MemoryArenaLog },
+        { HOOK_OFFSET(0x148E512F0), UnkServerPlayerExtent_onNetworkMessageHk },
+        { HOOK_OFFSET(0x146A4BA30), TeamInfo__isFriendlyHk },
 
         // Dummy out unsafe built-in lua functions
         { HOOK_OFFSET(0x1477C4B00), LuaDummy }, // package.loadlib()

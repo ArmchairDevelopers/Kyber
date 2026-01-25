@@ -84,6 +84,7 @@ void LauncherInterface::Initialize() const
         break;
     }
     case kyber_interface::InitializeRequest::STARTSTATE_NOT_SET:
+        KYBER_LOG(Error, "Initialization launcher request is empty!");
         break;
     }
 

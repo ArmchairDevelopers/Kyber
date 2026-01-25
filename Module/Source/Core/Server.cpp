@@ -89,6 +89,7 @@ void ServerLoadLevelMessagePostHk(LevelSetup* levelSetup, bool fadeOut, bool for
 
     KYBER_LOG(Info, "[Server] Loading level " << levelSetup->Name << " [InitialStartPoint: " << initialStartPoint << ", InitialDSubLevel: "
                                               << initialSubLevel << ", LevelSetup: " << std::hex << levelSetup << "]");
+
     trampoline(levelSetup, fadeOut, forceReloadResources);
 }
 
@@ -302,6 +303,16 @@ bool ServerSendChatMessageHk(ChatChannel channel, const char* message, const Ser
         KYBER_LOG(Warning, "[Server] Player '" << player->m_name << "' (id: " << player->m_onlineId.m_nativeData
                                       << ") attempted to send admin chat message: " << message);
         return false;
+    }
+
+    if (g_program->m_scriptManager != nullptr && channel != ChatChannel_Admin)
+    {
+        g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:SendMessage", const_cast<ServerPlayer*>(player), message);
+        if (g_program->m_scriptManager->GetEventManager().IsEventCancelled())
+        {
+            KYBER_LOG(Debug, "Lua event ServerPlayer:SendMessage cancelled");
+            return false;
+        }
     }
 
     return trampoline(channel, message, player);
@@ -814,7 +825,7 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
 
                 if (g_program->m_scriptManager != nullptr)
                 {
-                    g_program->m_scriptManager->GetEventManager().Fire("Server:PlayerJoined", player);
+                    g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Joined", player);
                 }
 
                 g_program->GetAPI()->GetServerManagement()->SendPlayerList();

@@ -130,6 +130,24 @@ uint32_t StringUtils::HashQuickLower(const char* str)
     return hash;
 }
 
+uint32_t StringUtils::HashHexCheck(const char* str)
+{
+    size_t len = strlen(str);
+    if (len > 2 && (str[0] == '0' && str[1] == 'x'))
+    {
+        return std::stoul(std::string(str), nullptr, 16);
+    }
+    uint32_t hash = 5381;
+
+    const uint8_t* strBytes = reinterpret_cast<const uint8_t*>(str);
+    for (size_t i = 0; i < len; ++i)
+    {
+        hash = hash * 33 ^ uint32_t(strBytes[i]);
+    }
+
+    return hash;
+}
+
 std::wstring StringUtils::AsciiToWide(const std::string& str)
 {
     using convert_typeX = std::codecvt_utf8<wchar_t>;

@@ -14,7 +14,8 @@ static int LookupDataContainer(lua_State* L)
     DataContainer* container = ResourceManagerLookupDataContainer(name);
     if (container == nullptr)
     {
-        luaL_error(L, "Data container '%s' not found", name);
+        KYBER_LOG(Warning, "Failed to get data container '" << name << "'");
+        lua_pushnil(L);
         return 0;
     }
     

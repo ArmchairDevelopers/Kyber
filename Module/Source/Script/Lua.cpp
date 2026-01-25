@@ -28,6 +28,12 @@ void LuaUtils::Push<const char*>(lua_State* L, const char* value)
 }
 
 template<>
+void LuaUtils::Push<char*>(lua_State* L, char* value)
+{
+    Push(L, const_cast<const char*>(value));
+}
+
+template<>
 void LuaUtils::Push<std::string>(lua_State* L, std::string value)
 {
     LuaUtils::Push(L, value.c_str());
