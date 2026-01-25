@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Transform.h"
 #include <Base/Log.h>
 
 #include <SDK/Transform.h>
@@ -22,7 +21,6 @@
 #include <rpcdce.h>
 
 #include <Windows.h>
-#include <winnt.h>
 
 #define OFFSET_GAME_RENDERER 0x143FFBE10
 
