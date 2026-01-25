@@ -1,9 +1,9 @@
-<h1 align="center"><img src="https://s3.kyber.gg/frontend-assets/images/kb-github-readme-header.png" width="500rem">
+<h1 align="center"><img src="https://s3.kyber.gg/frontend-assets/images/kb-github-readme-header.png" width="500rem" alt="KYBER Logo"></h1>
 <h4 align="center">KYBER is an Open-Source Private Server tool for STAR WARS™ Battlefront™ II (2017).</h4>
 <p align="center">
-  <a href="https://x.com/KyberServers"><img src="https://img.shields.io/badge/Twitter-@KyberServers-1da1f2.svg?logo=twitter"></a>
-  <a href="https://discord.gg/kyber"><img src="https://img.shields.io/discord/305338604316655616.svg?label=Discord&logo=discord&color=778cd4"></a>
-  <a href="https://kyber.gg"><img src="https://img.shields.io/badge/Website-kyber.gg-orange"></a>
+  <a href="https://x.com/KyberServers"><img src="https://img.shields.io/badge/Twitter-@KyberServers-1da1f2.svg?logo=twitter" alt="Twitter"></a>
+  <a href="https://discord.gg/kyber"><img src="https://img.shields.io/discord/305338604316655616.svg?label=Discord&logo=discord&color=778cd4" alt="Discord"></a>
+  <a href="https://kyber.gg"><img src="https://img.shields.io/badge/Website-kyber.gg-orange" alt="Website"></a>
 </p>
 
 ------
@@ -12,14 +12,14 @@
 
 KYBER is developed using a monorepo structure and contains multiple projects and shared packages.
 
-| Directory | Description                                   |
-|-----------|-----------------------------------------------|
+| Directory | Description |
+| ----------- | ----------------------------------------------- |
 | `Module` | C++ game module injected into the game client |
-| `Launcher` | Launcher application           |
-| `Proxy` | Server proxy                                  |
-| `API` | API service                                   |
-| `CLI` | Command-line interface tools                  |
-| `Packages` | Shared Dart packages                          |
+| `Launcher` | Launcher application |
+| `Proxy` | Server proxy |
+| `API` | API service |
+| `CLI` | Command-line interface tools |
+| `Packages` | Shared Dart packages |
 
 ## Building
 
@@ -37,8 +37,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - [Magix](https://github.com/MagixGames): Module
 
 ## Contributors
+
 <a href="https://github.com/ArmchairDevelopers/Kyber/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=ArmchairDevelopers/Kyber" />
+  <img src="https://contrib.rocks/image?repo=ArmchairDevelopers/Kyber" alt="Contributors" />
 </a>
 
 ## License
