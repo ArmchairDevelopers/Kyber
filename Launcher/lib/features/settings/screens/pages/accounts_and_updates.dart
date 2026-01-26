@@ -16,6 +16,7 @@ import 'package:kyber_launcher/features/settings/dialogs/change_background_dialo
 import 'package:kyber_launcher/features/settings/dialogs/connect_patreon_dialog.dart';
 import 'package:kyber_launcher/features/settings/dialogs/environment_selector.dart';
 import 'package:kyber_launcher/features/settings/dialogs/release_channel_selector_dialog.dart';
+import 'package:kyber_launcher/features/settings/dialogs/reset_token_dialog.dart';
 import 'package:kyber_launcher/features/settings/dialogs/set_token_dialog.dart';
 import 'package:kyber_launcher/features/settings/dialogs/update_dialog.dart';
 import 'package:kyber_launcher/features/settings/screens/settings.dart';
@@ -59,6 +60,24 @@ class AccountsAndUpdates extends StatelessWidget {
                     value as String;
                     context.read<KyberProxyCubit>().selectProxy(value);
                   },
+                ),
+                KyberTableItem.button(
+                  title: 'Reset Kyber Token',
+                  onClick: () async {
+                    final result = await showKyberDialog<bool?>(
+                      context: context,
+                      builder: (_) => const ResetTokenDialog(),
+                    );
+                    
+                    if (result != true) {
+                      return;
+                    }
+
+                    await sl<KyberGRPCService>().authClient.resetToken(.new());
+
+                    await context.read<MaximaCubit>().requestLogin();
+                  },
+                  text: 'Reset',
                 ),
                 KyberTableItem.button(
                   title: 'NexusMods',
