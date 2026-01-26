@@ -252,9 +252,12 @@ void Sentry::Initialize()
 
     sentry_options_set_on_crash(options, OnCrash, nullptr);
 
-    HookManager::CreateHook(HOOK_OFFSET(0x1401FFC30), WriteMiniDumpHk);
-    Hook::ApplyQueuedActions();
-
-    KYBER_LOG(Info, "Sentry initialized");
+    if (std::getenv("KYBER_DEV_MODE") == nullptr)
+    {
+        HookManager::CreateHook(HOOK_OFFSET(0x1401FFC30), WriteMiniDumpHk);
+        Hook::ApplyQueuedActions();
+    
+        KYBER_LOG(Info, "Sentry initialized");
+    }
 }
 } // namespace Kyber

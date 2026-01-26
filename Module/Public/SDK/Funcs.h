@@ -38,7 +38,7 @@ TL_DECLARE_FUNC(0x140238C60, Win32Buffer*, VirtualFileSystem_createBuffer, void*
 TL_DECLARE_FUNC(0x1401EF680, uint64_t, Buffer_readEx, void* inst, void* destination, int64_t byteCount);
 
 // ECS
-TL_DECLARE_FUNC(0x146A3C130, __int64, GameComponentEntity_externalSetWorldTransform, void* inst, const LinearTransform& transform, bool external);
+TL_DECLARE_FUNC(0x140CEF870, __int64, GameComponentEntity_externalSetWorldTransform, TypeObject* inst, const LinearTransform& transform, bool external);
 
 // Network
 TL_DECLARE_FUNC(0x146375820, void*, OnlineManager_clientConnection, void* inst);

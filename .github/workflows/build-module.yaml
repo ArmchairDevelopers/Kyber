@@ -63,6 +63,7 @@ jobs:
 
       - name: Upload PDB
         if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         working-directory: ${{env.working-directory}}
         run: |
           sentry-cli debug-files upload --project module --include-sources bazel-bin/Kyber.pdb

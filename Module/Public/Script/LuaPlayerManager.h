@@ -15,5 +15,6 @@ public:
     static const ServerPlayer** WrapServerPlayer(lua_State* L, const ServerPlayer* player);
 
     static void Register(lua_State* L);
+    static void InitializeHooks();
 };
 } // namespace Kyber

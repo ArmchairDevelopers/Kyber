@@ -122,6 +122,8 @@ std::optional<std::string> PackagedPlugin::LoadFile(const std::string& path)
 ScriptManager::ScriptManager()
 {
     KYBER_LOG(Info, "[Plugin] Initializing script manager with " << LUA_RELEASE);
+
+    LuaPlayerManager::InitializeHooks();
 }
 
 void ScriptManager::LoadPluginsFromDirectory(PluginRealm realm, const std::filesystem::path& path)
@@ -163,6 +165,7 @@ void ScriptManager::LoadScripts(PluginRealm realm)
         {
             LoadPluginsFromDirectory(realm, pluginsPath);
         }
+        m_blockPostInit[PluginRealm_Server] = true;
     }
 
     if (realm == PluginRealm_Client)
@@ -170,8 +173,10 @@ void ScriptManager::LoadScripts(PluginRealm realm)
         const char* pluginsPath = std::getenv("KYBER_CLIENT_PLUGINS_PATH");
         if (pluginsPath != nullptr)
         {
-            LoadPluginsFromDirectory(realm, pluginsPath);
+            KYBER_LOG(Error, "Kyber Client Plugins are now depreciated! Plugins will not be loaded.");
+            //LoadPluginsFromDirectory(realm, pluginsPath);
         }
+        m_blockPostInit[PluginRealm_Client] = true;
     }
 }
 
@@ -180,7 +185,28 @@ void ScriptManager::LoadPlugin(PluginBase* script)
     KB_LUA_LOCK;
 
     lua_State* L = luaL_newstate();
-    luaL_openlibs(L);
+    // Safe libraries (according to: https://github.com/kikito/lua-sandbox/blob/master/sandbox.lua#L59)
+    luaL_openselectedlibs(L,
+        LUA_GLIBK | LUA_LOADLIBK | LUA_COLIBK | LUA_MATHLIBK |
+            LUA_OSLIBK | /* Some functions are safe, but best to remove the entire thing. */
+            LUA_STRLIBK | LUA_TABLIBK,
+        0);
+
+    // Remove certain OS functions
+    lua_getglobal(L, "os");
+    lua_pushnil(L);
+    lua_setfield(L, -2, "execute");
+    lua_pushnil(L);
+    lua_setfield(L, -2, "exit");
+    lua_pushnil(L);
+    lua_setfield(L, -2, "remove");
+    lua_pushnil(L);
+    lua_setfield(L, -2, "rename");
+    lua_pushnil(L);
+    lua_setfield(L, -2, "setlocale");
+    lua_pushnil(L);
+    lua_setfield(L, -2, "tmpname");
+    lua_pop(L, 1);
 
     StorePlugin(L, script);
 
@@ -234,6 +260,11 @@ void ScriptManager::LoadPackagedPlugin(PluginRealm realm, std::filesystem::path 
 {
     PackagedPlugin* script = new PackagedPlugin(realm, path);
     LoadPlugin(script);
+}
+
+void ScriptManager::Reset()
+{
+    m_eventManager.Reset();
 }
 
 void ScriptManager::StorePlugin(lua_State* L, PluginBase* plugin)

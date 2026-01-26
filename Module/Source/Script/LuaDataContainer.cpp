@@ -39,6 +39,20 @@ void LuaUtils::Push<LuaValueTypeData>(lua_State* L, LuaValueTypeData value)
 }
 
 template<>
+void LuaUtils::Push<LuaFBArrayData>(lua_State* L, LuaFBArrayData value)
+{
+    if (value.value == nullptr)
+    {
+        lua_pushnil(L);
+        return;
+    }
+
+    LuaDataContainer::WrapFBArray(L, value.type, value.value);
+    luaL_getmetatable(L, "FBArray");
+    lua_setmetatable(L, -2);
+}
+
+template<>
 void LuaUtils::Push<TypeInfo*>(lua_State* L, TypeInfo* type)
 {
     LuaDataContainer::WrapTypeInfo(L, type);
@@ -115,9 +129,28 @@ LuaValueTypeData* LuaDataContainer::GetValueType(lua_State* L, int index)
     return userdata;
 }
 
+LuaFBArrayData* LuaDataContainer::GetFBArray(lua_State* L, int index)
+{
+    if (!lua_isuserdata(L, index))
+    {
+        luaL_error(L, "Expected userdata for FBArray, got %s (idx: %d)", lua_typename(L, lua_type(L, index)), index);
+        return NULL;
+    }
+
+    LuaFBArrayData* userdata = (LuaFBArrayData*)lua_touserdata(L, index);
+    if (userdata == NULL)
+    {
+        luaL_error(L, "Expected userdata for FBArray");
+        return NULL;
+    }
+
+    return userdata;
+}
+
 static int TypeInfoIndex(lua_State* L, void* value, FieldInfoData* field)
 {
     void* target = reinterpret_cast<void*>(reinterpret_cast<__int64>(value) + field->fieldOffset);
+
     switch (field->fieldTypePtr->getBasicType())
     {
     case kTypeCode_Void:
@@ -131,9 +164,22 @@ static int TypeInfoIndex(lua_State* L, void* value, FieldInfoData* field)
         lua_setmetatable(L, -2);
         break;
     }
-    case kTypeCode_Class:
-    case kTypeCode_Array:
+    case kTypeCode_Class: {
+        KYBER_LOG(Debug, "Wrapping data container: " << std::hex << target);
+
+        LuaDataContainer::WrapDataContainer(L, *reinterpret_cast<DataContainer**>(target));
+        luaL_getmetatable(L, "DataContainer");
+        lua_setmetatable(L, -2);
         break;
+    }
+    case kTypeCode_Array: {
+        KYBER_LOG(Debug, "Wrapping array: " << std::hex << target);
+
+        LuaDataContainer::WrapFBArray(L, field->fieldTypePtr, reinterpret_cast<FBArray<void*>*>(target));
+        luaL_getmetatable(L, "FBArray");
+        lua_setmetatable(L, -2);
+        break;
+    }
     case kTypeCode_CString: {
         auto value = *reinterpret_cast<const char**>(target);
         if (value == nullptr)
@@ -150,13 +196,21 @@ static int TypeInfoIndex(lua_State* L, void* value, FieldInfoData* field)
     case kTypeCode_Int32:
         lua_pushinteger(L, *reinterpret_cast<int32_t*>(target));
         break;
+    case kTypeCode_Enum:
     case kTypeCode_Uint32:
         lua_pushinteger(L, *reinterpret_cast<uint32_t*>(target));
+        break;
+    case kTypeCode_Int64:
+        lua_pushinteger(L, *reinterpret_cast<int64_t*>(target));
+        break;
+    case kTypeCode_Uint64:
+        lua_pushinteger(L, *reinterpret_cast<uint64_t*>(target));
         break;
     case kTypeCode_Float32:
         lua_pushnumber(L, *reinterpret_cast<float*>(target));
         break;
     case kTypeCode_Float64:
+        lua_pushnumber(L, *reinterpret_cast<double*>(target));
         break;
     default:
         KYBER_LOG(Warning, "Failed to get field: " << field->name << " at " << std::hex << target << " " << value << " "
@@ -168,6 +222,8 @@ static int TypeInfoIndex(lua_State* L, void* value, FieldInfoData* field)
 
 static int TypeInfoNewIndex(lua_State* L, void* value, const FieldInfoData* field)
 {
+    // TODO: Type checking so we dont crash when a mismatch happens :)
+
     void* target = reinterpret_cast<void*>(reinterpret_cast<__int64>(value) + field->fieldOffset);
     switch (field->fieldTypePtr->getBasicType())
     {
@@ -200,6 +256,7 @@ static int TypeInfoNewIndex(lua_State* L, void* value, const FieldInfoData* fiel
         if (current != nullptr)
         {
             // TODO release reference
+            current->release();
         }
 
         DataContainer* container = LuaDataContainer::GetDataContainer(L, 3);
@@ -222,10 +279,17 @@ static int TypeInfoNewIndex(lua_State* L, void* value, const FieldInfoData* fiel
         *reinterpret_cast<const char**>(target) = StringUtils::CopyWithArena(value);
         break;
     }
+    case kTypeCode_Enum:
     case kTypeCode_Int32:
     case kTypeCode_Uint32: {
         uint32_t intValue = luaL_checkinteger(L, 3);
         *reinterpret_cast<uint32_t*>(target) = intValue;
+        break;
+    }
+    case kTypeCode_Int64:
+    case kTypeCode_Uint64: {
+        uint64_t intValue = luaL_checkinteger(L, 3);
+        *reinterpret_cast<uint64_t*>(target) = intValue;
         break;
     }
     case kTypeCode_Float32: {
@@ -256,6 +320,7 @@ static FieldInfoData* FindField(ClassInfoData* infoData, const char* key)
     for (int i = 0; i < infoData->fieldCount; i++)
     {
         FieldInfoData& field = infoData->fields[i];
+        //KYBER_LOG(Info, "Checking against: " << field.name);
         if (strcicmp(field.name, key) != 0)
         {
             continue;
@@ -300,6 +365,17 @@ static int DataContainerIsFunc(lua_State* L)
     return 1;
 }
 
+
+static int RawTypeInfoIsKindOf(lua_State* L)
+{
+    TypeInfo* info = LuaDataContainer::GetTypeInfo(L, 1);
+    std::string otherTypeName = luaL_checkstring(L, 2);
+    const TypeInfo* otherType = g_program->m_entityManager->GetNativeType(otherTypeName);
+
+    lua_pushboolean(L, info->isKindOf(otherType));
+    return 1;
+}
+
 static int RawTypeInfoIndex(lua_State* L)
 {
     TypeInfo* info = LuaDataContainer::GetTypeInfo(L, 1);
@@ -308,6 +384,11 @@ static int RawTypeInfoIndex(lua_State* L)
     if (key == "name")
     {
         lua_pushstring(L, info->typeInfoData->name);
+        return 1;
+    }
+    else if (key == "isKindOf")
+    {
+        lua_pushcfunction(L, RawTypeInfoIsKindOf);
         return 1;
     }
 
@@ -326,6 +407,7 @@ static int DataContainerIndex(lua_State* L)
     }
     else if (strcmp(key, "typeInfo") == 0)
     {
+        // KYBER_LOG(Info, "WOW " << std::hex << container);
         LuaUtils::Push(L, container->m_dcType);
         return 1;
     }
@@ -363,6 +445,16 @@ static int DataContainerNewIndex(lua_State* L)
     return TypeInfoNewIndex(L, container, fieldInfo);
 }
 
+static int DataContainerGc(lua_State* L)
+{
+    DataContainer* data = LuaDataContainer::GetDataContainer(L, 1);
+    if (data != nullptr)
+    {
+        data->release();
+    }
+    return 0;
+}
+
 static int ValueTypeIndex(lua_State* L)
 {
     LuaValueTypeData* data = LuaDataContainer::GetValueType(L, 1);
@@ -376,6 +468,7 @@ static int ValueTypeIndex(lua_State* L)
     for (int i = 0; i < infoData->fieldCount; i++)
     {
         FieldInfoData& field = infoData->fields[i];
+        //KYBER_LOG(Info, "Checking against: " << field.name);
         if (strcicmp(field.name, key) != 0)
         {
             continue;
@@ -433,6 +526,218 @@ static int ValueTypeNewIndex(lua_State* L)
     return TypeInfoNewIndex(L, data->value, fieldInfo);
 }
 
+// TODO 
+static int FBArrayInsertFunc(lua_State* L)
+{
+    LuaFBArrayData* data = LuaDataContainer::GetFBArray(L, 1);
+    int32_t extendAmount = luaL_checkinteger(L, 3);
+    // ok im stupid get value dynamically whatever
+    
+    return 0;
+}
+
+static int FBArrayExtendFunc(lua_State* L)
+{
+    LuaFBArrayData* data = LuaDataContainer::GetFBArray(L, 1);
+    int32_t extendAmount = luaL_checkinteger(L, 3);
+    data->value->extend(extendAmount);
+    
+    return 1;
+}
+
+static void PushFBArrayValue(lua_State* L, LuaFBArrayData* data, int32_t index)
+{
+    FBArray<void*>& array = *data->value;
+    const TypeInfo* elementTypeInfo = data->type;
+
+    switch (elementTypeInfo->getBasicType())
+    {
+    case kTypeCode_Class: {
+        void* target = array[index];
+        KYBER_LOG(Debug, "Wrapping data container: " << std::hex << target);
+        if (target == nullptr)
+        {
+            lua_pushnil(L);
+            break;
+        }
+
+        LuaDataContainer::WrapDataContainer(L, reinterpret_cast<DataContainer*>(target));
+        luaL_getmetatable(L, "DataContainer");
+        lua_setmetatable(L, -2);
+        break;
+    }
+    case kTypeCode_ValueType: {
+        // since we cant get the size of the type and feed it into a fbarray dynamically we have to do some nasty things
+        uintptr_t base = reinterpret_cast<uintptr_t>(*(void**)data->value);
+        uint16_t typeSize = elementTypeInfo->typeInfoData->totalSize;
+
+        LuaDataContainer::WrapValueType(L, elementTypeInfo, reinterpret_cast<void*>(base + (typeSize * index)));
+        luaL_setmetatable(L, elementTypeInfo->typeInfoData->name);
+        lua_setmetatable(L, -2);
+    }
+    case kTypeCode_Array: {
+        void* target = array[index];
+        KYBER_LOG(Debug, "Wrapping array: " << std::hex << target);
+        if (target == nullptr)
+        {
+            lua_pushnil(L);
+            break;
+        }
+
+        LuaDataContainer::WrapFBArray(L, elementTypeInfo, reinterpret_cast<FBArray<void*>*>(target));
+        luaL_getmetatable(L, "FBArray");
+        lua_setmetatable(L, -2);
+        break;
+    }
+    default:
+        KYBER_LOG(Warning, "Unsupported array type: " << elementTypeInfo->typeInfoData->name << " at " << std::hex << data->value << " "
+                                                      << data << " " << elementTypeInfo->getBasicType());
+        lua_pushnil(L);
+    }
+}
+
+static int FBArrayIndex(lua_State* L)
+{
+    LuaFBArrayData* data = LuaDataContainer::GetFBArray(L, 1);
+    if (lua_type(L, 2) == LUA_TSTRING)
+    {
+        std::string str = luaL_checkstring(L, 2);
+
+        if (str == "insert")
+        {
+            lua_pushcfunction(L, FBArrayInsertFunc);
+        }
+        else if (str == "extend")
+        {
+            lua_pushcfunction(L, FBArrayExtendFunc);
+        }
+        else
+        {
+            luaL_error(L, "Invalid index into FBArray");
+            return 0;
+        }
+        return 1;
+    }
+
+    int32_t index = luaL_checkinteger(L, 2) - 1;
+    if (index < 0 || index >= data->value->size())
+    {
+        KYBER_LOG(Debug, "Array check indexed out of bounds. Size: " << data->value->size() << " Attempted index: "  << index);
+        return 0;
+    }
+
+
+    PushFBArrayValue(L, data, index);
+
+    return 1;
+}
+
+static int FBArrayNewIndex(lua_State* L)
+{
+    LuaFBArrayData* data = LuaDataContainer::GetFBArray(L, 1);
+    int32_t index = luaL_checkinteger(L, 2) - 1;
+    luaL_argcheck(L, index >= 0 && index < data->value->size(), 2, "Index out of bounds");
+
+    FBArray<void*>& array = *data->value;
+    const TypeInfo* elementTypeInfo = data->type;
+
+    switch (elementTypeInfo->getBasicType())
+    {
+    case kTypeCode_ValueType:
+        if (elementTypeInfo->typeInfoData->IsBlittable())
+        {
+            // since we cant get the size of the type and feed it into a fbarray dynamically we have to do some nasty things
+            uintptr_t base = reinterpret_cast<uintptr_t>(*(void**)data->value);
+            uint16_t typeSize = elementTypeInfo->typeInfoData->totalSize;
+            void* dest = reinterpret_cast<void*>(base + (typeSize * index));
+
+            auto bind = LuaDataContainer::GetValueType(L, 3);
+            if (bind->type != elementTypeInfo)
+            {
+                KYBER_LOG(Error, "Failed to set value type: " << elementTypeInfo->typeInfoData->name << ", type mismatch");
+                return 0;
+            }
+
+            void* value = bind->value;
+            KYBER_LOG(Debug, "Setting value type in array: " << elementTypeInfo->typeInfoData->name << " at " << std::hex << dest << " "
+                                                             << value << " " << std::dec << index << " "
+                                                             << bind->type->typeInfoData->name);
+            memcpy(dest, value, elementTypeInfo->typeInfoData->totalSize);
+        }
+        else
+        {
+            KYBER_LOG(Error, "Failed to set value type: " << elementTypeInfo->typeInfoData->name << ", not blittable");
+        }
+        break;
+    case kTypeCode_Class: {
+        DataContainer** target = reinterpret_cast<DataContainer**>(&array[index]);
+
+        DataContainer* current = *target;
+        if (current != nullptr)
+        {
+            // TODO release reference
+            current->release();
+        }
+
+        DataContainer* container = LuaDataContainer::GetDataContainer(L, 3);
+        if (container != nullptr)
+        {
+            container->addRef();
+        }
+
+        *target = container;
+        break;
+    }
+    default:
+        KYBER_LOG(Warning, "Failed to set array index: " << index << " at " << std::hex << data->value << " " << std::hex << data << " "
+                                                         << elementTypeInfo->getBasicType());
+        break;
+    }
+
+    return 1;
+}
+
+static int FBArrayLen(lua_State* L)
+{
+    LuaFBArrayData* data = LuaDataContainer::GetFBArray(L, 1);
+
+    lua_pushinteger(L, data->value->size());
+    return 1;
+}
+
+static int FBArrayToString(lua_State* L)
+{
+    LuaFBArrayData* data = LuaDataContainer::GetFBArray(L, 1);
+
+    lua_pushstring(L, StringUtils::Format("FBArray[%d]", data->value->size()).c_str());
+    return 1;
+}
+
+static int FBArrayIterator(lua_State* L)
+{
+    LuaFBArrayData* data = LuaDataContainer::GetFBArray(L, 1);
+    int32_t index = luaL_checkinteger(L, 2);
+
+    if (index >= data->value->size())
+    {
+        return 0;
+    }
+
+    lua_pushinteger(L, index + 1);
+    PushFBArrayValue(L, data, index);
+
+    return 2;
+}
+
+static int FBArrayPairs(lua_State* L)
+{
+    lua_pushcfunction(L, FBArrayIterator); // iterator function
+    lua_pushvalue(L, 1); // userdata
+    lua_pushinteger(L, 0); // initial index
+
+    return 3;
+}
+
 static int LuaUnimplemented(lua_State* L)
 {
     luaL_error(L, "Unimplemented function");
@@ -459,6 +764,7 @@ static const luaL_Reg s_typeInfoMeta[] = {
 static const luaL_Reg s_dataContainerMeta[] = {
     { "__index", DataContainerIndex },
     { "__newindex", DataContainerNewIndex },
+    { "__gc", DataContainerGc },
     { NULL, NULL }
 };
 
@@ -475,6 +781,18 @@ static const luaL_Reg s_valueTypeMeta[] = {
     { "__gc", ValueTypeGc },
     { NULL, NULL }
 };
+
+// note: FBArrays do not get garbage collected at all
+static const luaL_Reg s_fbArrayMeta[] = {
+    { "__index", FBArrayIndex },
+    { "__newindex", FBArrayNewIndex },
+    { "__pairs", FBArrayPairs },
+    { "__ipairs", FBArrayPairs },
+    { "__len", FBArrayLen },
+    { "__tostring", FBArrayToString },
+    { NULL, NULL }
+};
+
 // clang-format on
 
 void LuaDataContainer::Register(lua_State* lua)
@@ -487,6 +805,9 @@ void LuaDataContainer::Register(lua_State* lua)
 
     luaL_newmetatable(lua, "ValueType");
     luaL_setfuncs(lua, s_valueTypeMeta, 0);
+
+    luaL_newmetatable(lua, "FBArray");
+    luaL_setfuncs(lua, s_fbArrayMeta, 0);
 
     LuaDataContainer::RegisterTypeConstructors(lua);
     // lua_pushvalue(L, -1);
@@ -503,6 +824,21 @@ const DataContainer** LuaDataContainer::WrapDataContainer(lua_State* L, const Da
 {
     const DataContainer** userdata = (const DataContainer**)lua_newuserdata(L, sizeof(DataContainer*));
     *userdata = container;
+    return userdata;
+}
+
+template<typename T>
+LuaFBArrayData* LuaDataContainer::WrapFBArray(lua_State* L, const TypeInfo* elementType, FBArray<T>* arr)
+{
+    LuaFBArrayData* userdata = (LuaFBArrayData*)lua_newuserdata(L, sizeof(LuaFBArrayData));
+
+    if (elementType->getBasicType() != kTypeCode_Array)
+    {
+        KYBER_LOG(Error, "Invalid type wrapped as FBArray");
+    }
+
+    userdata->value = arr;
+    userdata->type = reinterpret_cast<ArrayTypeInfoData*>(elementType->typeInfoData)->elementType;
     return userdata;
 }
 
@@ -582,6 +918,19 @@ void LuaDataContainer::RegisterTypeConstructors(lua_State* L)
             luaL_getmetatable(L, "ValueType");
             lua_setmetatable(L, -2);
             lua_pop(L, 1);
+        }
+        else if (info->getBasicType() == kTypeCode_Enum)
+        {
+            TypeInfo* info = (TypeInfo*)lua_touserdata(L, -1);
+            EnumTypeInfoData* data = (EnumTypeInfoData*)info->typeInfoData;
+        
+            lua_newtable(L);
+            for (int i = 0; i < data->fieldCount; i++)
+            {
+                FieldInfoData& field = data->fields[i];
+                lua_pushinteger(L, reinterpret_cast<uint64_t>(field.fieldTypePtr));
+                lua_setfield(L, -2, field.name);
+            }
         }
         else
         {

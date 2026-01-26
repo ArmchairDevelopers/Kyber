@@ -50,7 +50,7 @@
 #define OFFSET_SHADER_HASH_CHECK HOOK_OFFSET(0x147CB7060)
 #define OFFSET_ENTITYBUSPEER_ONCREATEHELPER HOOK_OFFSET(0x1473295D0)
 
-// #define BUNDLE_AUDITS 1
+//#define BUNDLE_AUDITS 1
 
 #ifdef BUNDLE_AUDITS
     #define PUSH_MANIFEST_AUDIT(...) manifest.PushAudit(__VA_ARGS__)
@@ -503,7 +503,6 @@ void RuntimeDatabaseDomainFetchNewlyLoadedPartitionsHk(void* inst, eastl::vector
     for (const auto& partition : partitions)
     {
         vec[partition->GetPartitionGuid()] = partition;
-
         DataContainer* instance = partition->GetPrimaryInstance();
 
         if (g_program->m_scriptManager != nullptr)
@@ -1741,6 +1740,7 @@ int32_t ModLoader::GetNextModFile() const
     int casIndex = 10 + m_mods.size();
     return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((casIndex - 1) & 0xFF);
 }
+// To increase, make map of cas folders and increase the index as can be allocated
 
 bool ModLoader::IsBundleLoaded(const std::string& bundleName) const
 {

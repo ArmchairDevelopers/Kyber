@@ -25,9 +25,10 @@ public:
     template<typename... Args>
     void Fire(const std::string& eventName, Args... args)
     {
+        KB_LUA_LOCK;
+        m_eventCancelled = false;
         for (const auto& callback : m_listeners[eventName])
         {
-            KB_LUA_LOCK;
             callback(
                 [args...](lua_State* L) {
                     (LuaUtils::Push(L, args), ...);
@@ -37,9 +38,22 @@ public:
         }
     }
 
+    void SetEventCancelled(const bool isCancelled)
+    {
+        m_eventCancelled = isCancelled;
+    }
+
+    bool IsEventCancelled()
+    {
+        return m_eventCancelled;
+    }
+
+    void Reset();
+
     static void Register(lua_State* L);
 
 private:
     std::map<std::string, std::vector<LuaEventCallback>> m_listeners;
+    bool m_eventCancelled;
 };
 } // namespace Kyber

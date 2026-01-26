@@ -14,6 +14,7 @@
 #include <EASTL/string.h>
 #include <EASTL/fixed_vector.h>
 
+#include <cstdint>
 #include <glm/glm.hpp>
 
 #include <rpc.h>
@@ -54,11 +55,12 @@ public:
     void* m_physicsSpatialQueryManager; // 0x0048
     void* m_physicsManager;             // 0x0050
     char pad_0058[48];                  // 0x0058
-};                                      // Size: 0x0088
+}; // Size: 0x0088
 
 // Index these by Realm
 extern void** g_entityWorld;
 extern GameWorld** g_gameWorld;
+extern void** g_gameContext;
 
 class TypeInfo;
 
@@ -73,6 +75,8 @@ KB_DECLARE_TYPEINFO(SpatialEntity, 0x14456DB60);
 KB_DECLARE_TYPEINFO(ComponentEntity, 0x144583E80);
 KB_DECLARE_TYPEINFO(Component, 0x144585130);
 KB_DECLARE_TYPEINFO(WSClientSoldierEntity, 0x144664FB0);
+KB_DECLARE_TYPEINFO(WSServerSoldierHealthComponent, 0x144677530);
+KB_DECLARE_TYPEINFO(QueryEntityResult, 0x14446A0A0);
 
 #define STRIP_PARENS(...) __VA_ARGS__
 #define KB_DECLARE_GAMEMEMBERFUNC(ptr, returnType, name, args, ...)                                                                        \
@@ -131,7 +135,7 @@ struct Guid
             data4[4], data4[5], data4[6], data4[7]);
         return std::string(buffer);
     }
-    
+
     __forceinline bool Equals(const Guid& guid) const
     {
         return memcmp(data, guid.data, 16) == 0;
@@ -156,7 +160,7 @@ struct Guid
     {
         return Equals(guid);
     }
-    
+
     __forceinline bool operator!=(const Guid& guid) const
     {
         return !Equals(guid);
@@ -174,7 +178,7 @@ struct Guid
             &guid.data4[0], &guid.data4[1], &guid.data4[2], &guid.data4[3], &guid.data4[4], &guid.data4[5], &guid.data4[6], &guid.data4[7]);
         return guid;
     }
-    
+
     static Guid FromString(const std::string& str)
     {
         return FromString(str.c_str());
@@ -340,6 +344,8 @@ public:
         return InterlockedIncrement((volatile unsigned __int32*)&m_refCount);
     }
 
+    void release();
+
     // Override this when necessary, this is just the base DataContainer TypeInfo
     TypeInfo* getType() const override
     {
@@ -403,8 +409,13 @@ public:
 
     inline void init(uint32_t size)
     {
+        if (size == 0)
+        {
+            reset();
+            return;
+        }
         uint64_t headerSize = sizeof(uint32_t) > __alignof(T) ? sizeof(uint32_t) : __alignof(T);
-        m_data = (T*)(reinterpret_cast<uint8_t*>(malloc(headerSize + size * sizeof(T))) + headerSize);
+        m_data = (T*)(reinterpret_cast<uint8_t*>(FB_GLOBAL_ARENA->alloc(headerSize + size * sizeof(T))) + headerSize);
 
         uint32_t* data = reinterpret_cast<uint32_t*>(reinterpret_cast<char*>(m_data));
         data[-1] = size;
@@ -415,8 +426,11 @@ public:
         uint32_t prevSize = size();
         uint64_t headerSize = sizeof(uint32_t) > __alignof(T) ? sizeof(uint32_t) : __alignof(T);
 
-        T* dest = (T*)(reinterpret_cast<uint8_t*>(malloc(headerSize + ((prevSize + amount) * sizeof(T)))) + headerSize);
+        T* dest = (T*)(reinterpret_cast<uint8_t*>(FB_GLOBAL_ARENA->alloc(headerSize + ((prevSize + amount) * sizeof(T)))) + headerSize);
         memcpy(dest, m_data, prevSize * sizeof(T));
+
+        // @TODO: free previous array (requires proper padding when alloc-ing tho) 
+        // FB_GLOBAL_ARENA->free(reinterpret_cast<uint8_t*>(m_data) - headerSize);
         m_data = dest;
 
         uint32_t* data = reinterpret_cast<uint32_t*>(reinterpret_cast<char*>(m_data));
@@ -431,15 +445,15 @@ public:
             return 0;
         }
 
-        return data[-1];
+        return reinterpret_cast<uint32_t*>(m_data)[-1];
     }
 
-    inline T at(uint32_t index)
+    inline T& at(uint32_t index)
     {
-        return reinterpret_cast<T>(m_data + index);
+        return m_data[index];
     }
 
-    inline T operator[](uint32_t index)
+    inline T& operator[](uint32_t index)
     {
         return m_data[index];
     }
@@ -593,7 +607,7 @@ public:
     char pad_0018[64];                        // 0x0018
     ServerPlayerManager* serverPlayerManager; // 0x0058
     void* serverPeer;                         // 0x0060
-};                                            // Size: 0x0890
+}; // Size: 0x0890
 
 class VehicleEntityData
 {
@@ -652,7 +666,7 @@ public:
     Vec3 Location;      // 0x0020
     Vec3 Velocity;      // 0x0020
     char pad_002C[104]; // 0x002C
-};                      // Size: 0x0094
+}; // Size: 0x0094
 
 class CharacterEntityNetState
 {
@@ -663,11 +677,56 @@ public:
     LinearTransform m_transform; // 0x0020
 };
 
+class HealthComponent : public TypeObject
+{
+public:
+    char pad_0008[24];              // 0x0008
+    float m_health;                 // 0x0020
+    float m_unkLastHealthMaybe;     // 0x0020
+
+    KB_DECLARE_GAMEMEMBERFUNC(0x148E65FF0, void, SetHealth, (health), float health)
+
+    float GetHealth()
+    {
+        return m_health;
+    }
+};
+
+class WSServerSoldierHealthComponent : public HealthComponent
+{
+public:
+    char pad_0028[16];           // 0x0028
+    float health2;               // 0x0038
+    char pad_003C[188];          // 0x003C
+    float m_totalTimer;          // 0x00F8
+    char pad_00FC[540];          // 0x00FC
+    float health4;               // 0x0318
+    char pad_031C[596];          // 0x031C
+    uint32_t N0000010D;          // 0x0570
+    char pad_0574[16];           // 0x0574
+    float m_displayHealth;       // 0x0584
+    float m_displayMaxHealth;    // 0x0588
+    char pad_058C[220];          // 0x058C
+    float m_regenTimer;          // 0x0668
+    float m_regenMaxHealth;      // 0x066C
+    float m_calculatedMaxHealth; // 0x0670
+    float m_regenPerSec;         // 0x0674
+    float m_regenDelay;          // 0x0678
+    char pad_067C[372];          // 0x067C
+
+    void SetStateChanged(int index);
+    void SetMaxHealth(float value);
+    void SetRegenerationPerSecond(float value);
+    void SetRegenerationDelay(float value);
+};
+
+class ClientSoldierHealthComponent : public HealthComponent {};
+
 class ClientSoldierEntity : public TypeObject
 {
 public:
     char pad_0000[704];                                               // 0x0000
-    class ClientSoldierHealthComponent* clientSoldierHealthComponent; // 0x02C8
+    ClientSoldierHealthComponent* clientSoldierHealthComponent;       // 0x02C8
     char pad_02D0[104];                                               // 0x02D0
     class SoldierBlueprint* soldierBlueprint;                         // 0x0338
     char pad_0340[632];                                               // 0x0340
@@ -704,7 +763,7 @@ public:
     float m_yaw;         // 0x00A8
     float m_pitch;       // 0x00AC
     char pad_00B0[2264]; // 0x00B0
-};                       // Size: 0x0988
+}; // Size: 0x0988
 
 class AimingData1
 {
@@ -712,7 +771,7 @@ public:
     char pad_0000[56];    // 0x0000
     AimingData2* m_data2; // 0x0038
     char pad_0040[72];    // 0x0040
-};                        // Size: 0x0088
+}; // Size: 0x0088
 
 class StateStreamAiming
 {
@@ -747,12 +806,12 @@ class OnlineId
 public:
     uint64_t m_nativeData; // 0x0000
     char m_id[16];         // 0x0008
-};                         // Size: 0x0018
+}; // Size: 0x0018
 
 class ClientPlayer
 {
 public:
-    virtual void unk1(){};
+    virtual void unk1() {};
     class PlayerData* m_data;         // 0x0008
     class MemoryArena* m_memoryArena; // 0x0010
     const char* m_name;               // 0x0018
@@ -902,7 +961,7 @@ public:
 
     char pad[0x28];
     // ClassInfo ONLY
-    const TypeInfo* m_super; 
+    const TypeInfo* m_super;
     const TypeObject* m_defaultInstance;
     uint16_t m_classId;
     uint16_t m_lastClassId;
@@ -940,7 +999,7 @@ public:
     uint16_t alignment;            // 0x0020
     uint16_t fieldCount;           // 0x0022
     uint32_t signature;            // 0x0024
-};                                 // Size: 0x0028
+}; // Size: 0x0028
 
 class FieldInfoData : public MemberInfoData
 {
@@ -948,7 +1007,7 @@ public:
     uint16_t fieldOffset;         // 0x000A
     uint32_t N00000636;           // 0x000C
     class TypeInfo* fieldTypePtr; // 0x0010
-};                                // Size: 0x0018
+}; // Size: 0x0018
 
 class ModuleInfo
 {
@@ -956,26 +1015,26 @@ public:
     char* moduleName;             // 0x0000
     class ModuleInfo* nextModule; // 0x0008
     class TestList* testList;     // 0x0010
-};                                // Size: 0x0018
+}; // Size: 0x0018
 
 class TestList
 {
 public:
     char pad_0000[136]; // 0x0000
-};                      // Size: 0x0088
+}; // Size: 0x0088
 
 class ClassInfoData : public TypeInfoData
 {
 public:
     class ClassInfo* superClass; // 0x0028
     class FieldInfoData* fields; // 0x0030
-};                               // Size: 0x0038
+}; // Size: 0x0038
 
 class EnumTypeInfoData : public TypeInfoData
 {
 public:
     class FieldInfoData* fields; // 0x0030
-};                               // Size: 0x0038
+}; // Size: 0x0038
 
 struct ValueTypeCreationInfo
 {
@@ -994,13 +1053,13 @@ public:
     void* N000005AC;                  // 0x0040
     char pad_0048[8];                 // 0x0048
     class FieldInfoData* fields;      // 0x0030
-};                                    // Size: 0x0038
+}; // Size: 0x0038
 
 class ArrayTypeInfoData : public TypeInfoData
 {
 public:
     class TypeInfo* elementType; // 0x0028
-};                               // Size: 0x0038
+}; // Size: 0x0038
 
 class ClassInfo
 {
@@ -1084,6 +1143,9 @@ enum ChatChannel
     ChatChannel_Admin
 };
 
+class ServerCharacterEntity;
+class ServerVehicleEntity;
+
 struct PlayerExtentRegistration
 {
     uint32_t offset;
@@ -1091,10 +1153,100 @@ struct PlayerExtentRegistration
     uint32_t alignment;
 };
 
+// Extent research
+
+// Some server extents are named, most arent.
+// We will make due with just numbering the generic ones
+// and describing what is in each.
+
+class ServerPlayerExtent : public TypeObject
+{};
+
+class ServerGamePlayerExtent : public ServerPlayerExtent
+{
+public:
+    static PlayerExtentRegistration* s_registration;
+
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x14686AC80, TypeObject*, GetCharacter)
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1468843B0, TypeObject*, GetVehicle)
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x146875A70, bool, IsInVehicle)
+    KB_DECLARE_GAMEMEMBERFUNC(0x140BE2C60, void, LeaveVehicle, (forceLeave, useExitPoint), bool forceLeave, bool useExitPoint)
+    KB_DECLARE_GAMEMEMBERFUNC(0x140BDDFE0, bool, EnterVehicle, (vehicle, seatIndex), void* vehicle, unsigned int seatIndex)
+    KB_DECLARE_GAMEMEMBERFUNC(0x146881270, void*, SetSelectedCustomizationAsset, (asset), DataContainer* asset)
+};
+
+class PersistenceServerPlayerExtent : public ServerPlayerExtent
+{
+public:
+    static PlayerExtentRegistration* s_registration;
+
+    KB_DECLARE_GAMEMEMBERFUNC(0x1483F2A60, void, SetScore, (amount), unsigned int amount);
+    KB_DECLARE_GAMEMEMBERFUNC(0x1483F26C0, void, SetKills, (amount), unsigned int amount);
+    KB_DECLARE_GAMEMEMBERFUNC(0x1483F2590, void, SetAssists, (amount), unsigned int amount);
+    KB_DECLARE_GAMEMEMBERFUNC(0x1483F1B10, void, SetDeaths, (amount), unsigned int amount);
+
+    char pad_008[0x40];
+    int32_t unk1;
+    int32_t m_score;
+    int32_t unk2;
+    int32_t m_kills;
+    int32_t m_assists;
+    int32_t m_deaths;
+    int32_t unk3;
+    int32_t unk4;
+    int32_t m_longestKillstreak;
+};
+
+class WSServerPlayerAbilityExtent : public ServerPlayerExtent
+{
+public:
+    static PlayerExtentRegistration* s_registration;
+
+    KB_DECLARE_GAMEMEMBERFUNC(0x14199F370, bool, SetAbility, (abilityId, replacePassive), uint32_t abilityId, bool replacePassive);
+
+    struct ActiveKitAbiityData
+    {
+        void* vtable;
+        Asset* ability;
+        void* back;
+    };
+
+    struct ActiveKitAbilityContainer
+    {
+        void* vtable;
+        ActiveKitAbiityData** abilityList; // null terminated?
+        void* garbage[3];
+    };
+
+    void* vtable2; // idk
+    char pad_010[0x30];
+    ActiveKitAbilityContainer* m_abilityContainer;
+};
+
+class ServerPlayerExtent4 : public ServerPlayerExtent
+{
+public:
+    static PlayerExtentRegistration* s_registration;
+
+    KB_DECLARE_GAMEMEMBERFUNC(0x141BCE620, void, SetBattlepoints, (amount), unsigned int amount);
+    KB_DECLARE_GAMEMEMBERFUNC(0x148E4EF60, void, AddBattlepoints, (amount), int amount);
+    KB_DECLARE_GAMEMEMBERFUNC(0x141BCE400, void, SetActiveKit, (gpId, unk0, vurId, skinInfoId), uint32_t gpId, uint32_t unk0,
+        uint32_t vurId, uint32_t skinInfoId);
+
+    char gap0[0x113C];
+    uint32_t m_battlepoints;
+};
+
+#define KB_DECLARE_SERVERPLAYEREXTENT(name)                                                                                                \
+    name* Get##name() const                                                                                                                \
+    {                                                                                                                                      \
+        return reinterpret_cast<name*>(GetExtent(name::s_registration));                                                                   \
+    }
+
 class ServerPlayer
 {
 public:
-    virtual void unk1(){};
+    virtual void unk1() {};
     class PlayerData* m_data;         // 0x0008
     class MemoryArena* m_memoryArena; // 0x0010
     const char* m_name;               // 0x0018
@@ -1123,8 +1275,15 @@ public:
 
     KB_DECLARE_GAMEMEMBERFUNC(0x140BE9C10, void, SetTeam, (teamId), int teamId)
 
-    TypeObject* GetCharacterEntity() const;
+    ServerCharacterEntity* GetCharacterEntity();
+    ServerVehicleEntity* GetVehicleEntity();
     bool Teleport(const LinearTransform& transform);
+    void ForceSendChatMessage(ChatChannel channel, const char* message);
+
+    ServerPlayerExtent* GetExtent(const PlayerExtentRegistration* registrar) const
+    {
+        return reinterpret_cast<ServerPlayerExtent*>(reinterpret_cast<uintptr_t>(this) + registrar->offset);
+    }
 
     TypeObject* GetExtent(const char* name)
     {
@@ -1143,6 +1302,10 @@ public:
         return nullptr;
     }
 
+    KB_DECLARE_SERVERPLAYEREXTENT(ServerGamePlayerExtent)
+    KB_DECLARE_SERVERPLAYEREXTENT(ServerPlayerExtent4)
+    KB_DECLARE_SERVERPLAYEREXTENT(WSServerPlayerAbilityExtent)
+    KB_DECLARE_SERVERPLAYEREXTENT(PersistenceServerPlayerExtent)
 }; // Size: 0x024C
 
 class ServerPlayerManager
@@ -1268,14 +1431,14 @@ public:
     char pad_0040[8];             // 0x0040
     char* m_message;              // 0x0048
     char pad_0050[304];           // 0x0050
-};                                // Size: 0x0180
+}; // Size: 0x0180
 
 class ServerPlayerDisconnectMessage : public Message
 {
 public:
     class ServerPlayer* m_player; // 0x0030
     char pad_0038[328];           // 0x0038
-};                                // Size: 0x0180
+}; // Size: 0x0180
 
 class ServerPlayerAboutToCreateForConnectionMessage : public Message
 {
@@ -1289,7 +1452,7 @@ class NetworkCreatePlayerMessage : public NetworkableMessage
 public:
     char* playerName;  // 0x0058
     bool isSpectator;  // 0x0060
-};
+}; // Size: 0x68
 
 struct Win32Buffer
 {
@@ -1321,7 +1484,7 @@ public:
     PartitionInitData m_initData; // 0x0028
     uint32_t m_currentState;      // 0x0078
     char pad_00B0[184];           // 0x00B0
-};                                // Size: 0x0168
+}; // Size: 0x0168
 
 struct StringBuilder
 {
@@ -1483,7 +1646,7 @@ public:
     glm::mat4 viewProjectionMatrix; // 0x0430
 
     char pad_0470[7328]; // 0x0470
-};                       // Size: 0x2110
+}; // Size: 0x2110
 
 class GameRenderer
 {
@@ -1509,20 +1672,70 @@ public:
     DataContainer* m_data;       // 0x0068
     char pad_0070[176];          // 0x0070
     LinearTransform m_transform; // 0x0120
-};                               // Size: 0x0480
+}; // Size: 0x0480
+
+class WeaponFiring : public TypeObject
+{
+public:
+    void SetPrimaryAmmoMags(int mags) const;
+};
+
+class ServerSoldierWeapon : public TypeObject
+{
+public:
+    WeaponFiring* GetWeaponFiring() const
+    {
+        return *reinterpret_cast<WeaponFiring**>(reinterpret_cast<intptr_t>(this) + 0xDB8);
+    }
+};
+
+class ServerCharacterEntity : public TypeObject 
+{
+public:
+    HealthComponent* GetHealthComponent() const
+    {
+        return *reinterpret_cast<HealthComponent**>(reinterpret_cast<intptr_t>(this) + 0x2C0);
+    }
+
+    KB_DECLARE_GAMEMEMBERFUNC(0x140C25490, void*, Teleport, (transform, a3), const LinearTransform& transform, bool a3)
+    KB_DECLARE_GAMEMEMBERFUNC(0x147ECBEC0, void, ForceInvisible, (forceInvisible), bool forceInvisible)
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x147ECA8E0, ServerSoldierWeapon*, GetCurrentWeapon)
+
+    void Teleport(const LinearTransform& trans)
+    {
+        Teleport(trans, false);
+    }
+};
+
+class ServerVehicleEntity : public TypeObject
+{
+public:
+    void Teleport(const LinearTransform& trans);
+};
+
+// Messages Below
+
+struct PlayerKilledMessage_Info
+{
+    char gap0[0x28];
+    Asset* killerWeapon;
+    char gap30[0x30];
+    Asset* killerKit;
+};
 
 class ServerPlayerKilledMessage : public Message
 {
 public:
-    uint32_t unk1;
-    uint32_t m_reviveePlayerId;
-    char gap38[8];
-    ServerPlayer* m_victimPlayer;
-    void* m_damageGiverInfo;
-    ServerPlayer* m_inflictorPlayer;
-    char gap58[30];
-    bool m_victimInReviveState;
-};
+    char gap30[0x04]; // 0x30
+    unsigned int m_reviveePlayerId; // 0x34
+    char gap38[0x08]; // 0x38
+    ServerPlayer* m_victimPlayer; // 0x40
+    PlayerKilledMessage_Info* m_deathInfo; // 0x48
+    ServerPlayer* m_inflictorPlayer;       // 0x50
+    char* m_weaponName;                    // 0x58 // not full path, name of asset. Literally just "U_Ability_B1_E5_AI"
+    char gap60[0x18]; // 0x60
+    void* pointlessPtrToNetworkableMessage; // 0x78 // literally a ptr to NetworkableMessage::NetworkableMessage
+}; // Size: 0x80
 
 enum WeaponSlot
 {
@@ -1540,14 +1753,53 @@ enum WeaponSlot
     WeaponSlot_NotDefined // 0x000B
 };
 
-struct SoldierServerPlayerExtent
+
+struct SoldierServerPlayerExtent : ServerPlayerExtent
 {
     struct PlayerWeapon
     {
         Asset* asset;
     };
 
-    char gap0[1936];
+    char gap0[1928];
     eastl::fixed_vector<PlayerWeapon, WeaponSlot_NumSlots> m_weapons;
 };
+
+struct WSServerSoldierSpawnDoneMessage : public Message
+{
+    void* wsServerSoldierEntity; // :(
+};
+
+struct ServerPlayerRespawnMessage : public Message
+{
+    ServerPlayer* player; // 0x0030 // :D
+}; // Size: 0x38
+
+struct WSServerBattlepointsChangedMessage : public Message
+{
+    ServerPlayer* player; // 0x0030
+    int32_t changeAmount; // 0x0038
+    uint32_t pad1;        // 0x003C
+}; // Size: 0x40
+
+struct PlayerAbilityPickedUpMessage : public Message
+{
+    char pad_030[0x28];   // 0x0030
+    uint32_t abilityId;   // 0x0058
+    uint32_t unk1;        // 0x005C
+    uint64_t playerId;    // 0x0060
+    uint32_t playerAbilityCategory; // 0x0068
+    uint32_t alwaysOne; // 0x006C
+}; // Size: 0x38
+
+struct NetworkSettingsMessage : public NetworkableMessage
+{
+    uint32_t N000008D6;                // 0x0058
+    float N000008DC;                   // 0x005C
+    char pad_0060[24];                 // 0x0060
+}; // Size: 0x00C8
+
+// note to all those who attempt to look into it: NetworkChangeGameSettingMessage is a scam. 
+// it does nothing. its for unused profile options.
+
 } // namespace Kyber

@@ -26,10 +26,10 @@
 namespace Kyber
 {
 TL_DECLARE_FUNC(0x1401F7BD0, DataContainer*, SettingsManager_getSettingsObject, void* inst, const char* identifier);
+TL_DECLARE_FUNC(0x1401F83F0, void, MessageManager_queueMessage, void* pMessageManagerImpl, Message* pMessage, float delayTime);
 
 __int64 ClientStateChangeHk(__int64 a1, ClientState currentClientState, ClientState lastClientState);
 const char* GetHostIdHk(__int64 inst);
-void MessageManagerQueueMessageHk(void* pMessageManagerImpl, Message* pMessage, float delayTime);
 void MessageManagerDispatchMessageHk(void* pMessageManagerImpl, Message* pMessage);
 void OnGotDisconnectedHk(void* inst, SecureReason reason, const eastl::string& reasonText);
 __int64 OriginSDKInitializeHk(void* inst, int a2, uint16_t lsxPort, void* a4, void* a5);
