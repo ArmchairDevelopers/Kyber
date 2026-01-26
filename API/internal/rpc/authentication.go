@@ -369,6 +369,20 @@ func (s *AuthenticationServer) Verify(ctx context.Context, _ *pbcommon.Empty) (*
 	}, nil
 }
 
+func (s *AuthenticationServer) ResetToken(ctx context.Context, _ *pbcommon.Empty) (*pbcommon.Empty, error) {
+	user := ctx.Value("user").(*models.UserModel)
+
+	token := util.GenerateToken()
+
+	err := s.store.Users.Update(ctx, user.ID, bson.M{"$set": bson.M{"token": token}})
+	if err != nil {
+		logger.L().Error("Failed to update user token", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to reset token")
+	}
+
+	return &pbcommon.Empty{}, nil
+}
+
 func (s *AuthenticationServer) Login(ctx context.Context, req *pbapi.LoginRequest) (*pbapi.LoginResponse, error) {
 	meta, exist := metadata.FromIncomingContext(ctx)
 	if !exist {

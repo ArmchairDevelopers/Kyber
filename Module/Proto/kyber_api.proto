@@ -8,6 +8,8 @@ service Authentication {
   rpc Login(LoginRequest) returns (LoginResponse);
   rpc Verify(kyber_common.Empty) returns (VerifyResponse);
 
+  rpc ResetToken(kyber_common.Empty) returns (kyber_common.Empty);
+
   rpc PatreonLogin(AuthCodeRequest) returns (UserVerificationResponse);
   rpc LinkPatreonAccount(LinkPatreonAccountRequest) returns (kyber_common.Empty);
   rpc UnlinkPatreonAccount(kyber_common.Empty) returns (kyber_common.Empty);
