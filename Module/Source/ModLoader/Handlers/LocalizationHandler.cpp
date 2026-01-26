@@ -1,12 +1,14 @@
 // Copyright Armchair Developers / Sean Kahler. Licensed under GPLv3.
 
 #include <ModLoader/Handlers/LocalizationHandler.h>
-
 #include <ModLoader/ModLoader.h>
 #include <Core/Program.h>
 #include <Utilities/StringUtils.h>
 
 #include <map>
+#include <set>
+#include <vector>
+#include <algorithm>
 
 namespace Kyber
 {
@@ -17,16 +19,7 @@ LocalizationHandler::LocalizationHandler()
 void LocalizationHandler::Load(const eastl::string& modName, bb::ByteBuffer& buf, LocalizationMergeData* data)
 {
     uint32_t magic = buf.getInt();
-
-    int32_t count = 0;
-    if (magic != 0xABCD0001)
-    {
-        count = (int32_t)magic;
-    }
-    else
-    {
-        count = buf.getInt();
-    }
+    int32_t count = (magic == 0xABCD0001) ? buf.getInt() : (int32_t)magic;
 
     for (int i = 0; i < count; i++)
     {
@@ -40,174 +33,171 @@ bool LocalizationHandler::Modify(CustomAssetHandlerContext& ctx, DataContainer* 
 {
     UITextDatabase* db = static_cast<UITextDatabase*>(container);
 
-    uint8_t* histogramData = new uint8_t[db->HistogramChunkSize];
-    ModLoader::ReadChunkSync(db->HistogramChunk, histogramData, db->HistogramChunkSize);
+    // 1. Process Histogram
+    uint8_t* histogramDataRaw = new uint8_t[db->HistogramChunkSize];
+    ModLoader::ReadChunkSync(db->HistogramChunk, histogramDataRaw, db->HistogramChunkSize);
 
-    std::vector<wchar_t> values = ModifyHistogram(&histogramData);
+    // Detect character table start (skipping header and padding)
+    uint32_t tableOffset = 0x100; 
+    for (uint32_t i = 8; i < 0x200; i += 2) {
+        if (*(uint16_t*)(histogramDataRaw + i) != 0) {
+            tableOffset = i;
+            break;
+        }
+    }
 
+    // Mapping of Char -> Byte Index
+    std::map<wchar_t, uint8_t> charMap;
+    std::vector<uint16_t> patchedTable = ModifyHistogram(&histogramDataRaw, db->HistogramChunkSize, data, tableOffset, charMap);
+
+    uint8_t* persistentHistogram = new uint8_t[db->HistogramChunkSize];
+    memset(persistentHistogram, 0, db->HistogramChunkSize);
+    memcpy(persistentHistogram, histogramDataRaw, db->HistogramChunkSize); 
+
+    // Inject our custom character table
+    memcpy(persistentHistogram + tableOffset, patchedTable.data(), patchedTable.size() * 2);
+
+    ModLoader::ModifyChunk(db->HistogramChunk, (const void*)persistentHistogram, db->HistogramChunkSize);
+    delete[] histogramDataRaw;
+
+    // 2. Process Binary Strings
     uint8_t* chunkData = new uint8_t[db->BinaryChunkSize];
     ModLoader::ReadChunkSync(db->BinaryChunk, chunkData, db->BinaryChunkSize);
 
-    std::vector<uint8_t> chunk = ModifyChunk(chunkData, db->BinaryChunkSize, data, values);
+    std::vector<uint8_t> newBinaryVec = ModifyChunk(chunkData, db->BinaryChunkSize, data, charMap);
 
-    KYBER_LOG(Info, "[ModLoader] Wrote Localization chunk (Sz: " << chunk.size() << ", " << db->BinaryChunkSize << ")");
-    db->BinaryChunkSize = chunk.size();
+    uint8_t* persistentBinary = new uint8_t[newBinaryVec.size()];
+    memcpy(persistentBinary, newBinaryVec.data(), newBinaryVec.size());
 
-    uint8_t* newData = new uint8_t[chunk.size()];
-    memcpy(newData, chunk.data(), chunk.size());
-
-    ModLoader::ModifyChunk(db->BinaryChunk, newData, chunk.size());
+    db->BinaryChunkSize = (uint32_t)newBinaryVec.size();
+    ModLoader::ModifyChunk(db->BinaryChunk, (const void*)persistentBinary, (uint32_t)newBinaryVec.size());
 
     delete[] chunkData;
     return true;
 }
 
-std::vector<wchar_t> LocalizationHandler::ModifyHistogram(uint8_t** histogramData)
+std::vector<uint16_t> LocalizationHandler::ModifyHistogram(uint8_t** histogramDataPtr, uint32_t sizeBytes, LocalizationMergeData* data, uint32_t tableOffset, std::map<wchar_t, uint8_t>& outCharMap)
 {
-    std::vector<wchar_t> values;
-    uint32_t unk = RT_READ_BUF(uint32_t, histogramData);
-    uint32_t size = RT_READ_BUF(uint32_t, histogramData);
-    uint32_t unk2 = RT_READ_BUF(uint32_t, histogramData);
+    uint8_t* raw = *histogramDataPtr;
+    const int numEntries = 2048; 
+    std::vector<uint16_t> histogram(numEntries, 0);
 
-    for (int i = 0; i < (size / 2); i++)
-    {
-        wchar_t data = RT_READ_BUF(wchar_t, histogramData);
-        values.push_back(data);
+    // Copy original character map (latin, icons, numbers)
+    uint32_t bytesToCopy = std::min((uint32_t)(numEntries * 2), sizeBytes - tableOffset);
+    memcpy(histogram.data(), raw + tableOffset, bytesToCopy);
+
+    // Populate existing characters into our map for strings processing
+    for (int i = 0; i < 128; i++) {
+        if (histogram[i] != 0) outCharMap[(wchar_t)histogram[i]] = (uint8_t)i;
     }
 
-    return values;
+    // Find all custom non-ASCII characters across all mod strings
+    std::set<wchar_t> neededChars;
+    for (const auto& entry : data->strings) {
+        for (wchar_t c : entry.second) {
+            if (c >= 0x80) neededChars.insert(c);
+        }
+    }
+
+    // Remove characters that already exist in the original histogram
+    for (int i = 0; i < numEntries; i++) {
+        if (neededChars.count((wchar_t)histogram[i])) {
+            neededChars.erase((wchar_t)histogram[i]);
+        }
+    }
+
+    // In English Frostbite engine, indices 128 and 129 (0x80, 0x81) are often ignored
+    // or treated as internal control codes. To fix text rendering, we start 
+    // custom characters at index 130 and apply a -2 offset during encoding.
+    int slotPtr = 130;
+    for (wchar_t c : neededChars) {
+        while (slotPtr < 255 && histogram[slotPtr] != 0) slotPtr++;
+        
+        if (slotPtr < 255) {
+            histogram[slotPtr] = (uint16_t)c;
+            outCharMap[c] = (uint8_t)(slotPtr - 2); // Save index with -2 correction
+            slotPtr++;
+        }
+    }
+
+    return histogram;
 }
 
 std::vector<uint8_t> LocalizationHandler::ModifyChunk(
-    uint8_t* chunkData, uint32_t chunkSize, LocalizationMergeData* data, const std::vector<wchar_t>& values)
+    uint8_t* chunkData, uint32_t chunkSize, LocalizationMergeData* data, const std::map<wchar_t, uint8_t>& charMap)
 {
     bb::ByteBuffer inBuf(chunkData, chunkSize);
-
     uint32_t magic = inBuf.getInt();
-    if (magic != 0x00039000)
-    {
-        KYBER_LOG(Error, "Failed to merge localization: Invalid Chunk Header");
-        return std::vector<uint8_t>();
-    }
-
     uint32_t size = inBuf.getInt();
     int32_t count = inBuf.getInt();
     uint32_t dataOffset = inBuf.getInt();
     uint32_t stringsOffset = inBuf.getInt();
-
     std::string tag = inBuf.getNullTerminatedString();
-
-    inBuf.setReadPos(dataOffset + 8);
 
     std::map<uint32_t, std::wstring> strings;
     std::vector<uint32_t> ids(count);
-    std::vector<uint32_t> offsets(count);
-
-    for (int i = 0; i < count; i++)
-    {
+    
+    // Read original string database
+    inBuf.setReadPos(dataOffset + 8);
+    for (int i = 0; i < count; i++) {
         ids[i] = inBuf.getInt();
-        offsets[i] = inBuf.getInt();
+        uint32_t offset = inBuf.getInt();
+        size_t savedPos = inBuf.getReadPos();
+        inBuf.setReadPos(stringsOffset + offset + 8);
+        strings[ids[i]] = inBuf.getNullTerminatedWideStringAsAscii();
+        inBuf.setReadPos(savedPos);
     }
 
-    for (int i = 0; i < count; i++)
-    {
-        inBuf.setReadPos(stringsOffset + offsets[i] + 8);
-
-        std::wstring str = inBuf.getNullTerminatedWideStringAsAscii();
-        strings[ids[i]] = str;
+    // Merge mod strings
+    for (const auto& entry : data->strings) {
+        if (std::find(ids.begin(), ids.end(), entry.first) == ids.end()) ids.push_back(entry.first);
+        strings[entry.first] = entry.second;
     }
-
-    std::vector<uint8_t> histogramShifts;
-    for (int i = 0x1FE; i >= 0x80; i--)
-    {
-        if (values[i] < 0x80)
-        {
-            histogramShifts.push_back((uint8_t)i);
-        }
-    }
-
-    for (const auto& entry : data->strings)
-    {
-        std::wstring sb;
-        for (char16_t b : entry.second)
-        {
-            if (b < 0x80)
-            {
-                sb += b;
-                continue;
-            }
-
-            auto it = std::find(values.begin(), values.end(), b);
-            if (it == values.end())
-            {
-                KYBER_LOG(Debug, "Character not supported: " << (uint16_t)b << " from string: " << entry.first);
-                continue;
-            }
-
-            auto index = std::distance(values.begin(), it);
-            if (index <= 0xFF)
-            {
-                sb += (char16_t)((uint8_t)index);
-                continue;
-            }
-
-            for (uint8_t shift : histogramShifts)
-            {
-                if ((index - (values[shift] << 7)) < 0x80)
-                {
-                    sb += (char16_t)shift;
-                    sb += (char16_t)((uint8_t)(index - (values[shift] << 7) + 0x80));
-                    break;
-                }
-            }
-        }
-
-        if (std::find(ids.begin(), ids.end(), entry.first) == ids.end())
-        {
-            ids.push_back(entry.first);
-        }
-
-        strings[entry.first] = sb;
-    }
-
     std::sort(ids.begin(), ids.end());
-    offsets.clear();
 
     bb::ByteBuffer stringBuf;
-    for (int i = 0; i < ids.size(); i++)
-    {
-        offsets.push_back(stringBuf.getWritePos());
+    std::vector<uint32_t> newOffsets;
 
-        std::wstring& str = strings[ids[i]];
-        stringBuf.putNullTerminatedWideString(str.c_str());
+    for (uint32_t id : ids) {
+        newOffsets.push_back((uint32_t)stringBuf.getWritePos());
+        std::wstring& text = strings[id];
+
+        for (wchar_t c : text) {
+            // Native ASCII support
+            if (c < 128) {
+                stringBuf.put((uint8_t)c);
+                continue;
+            }
+
+            // Lookup custom character from our corrected map
+            if (charMap.count(c)) {
+                stringBuf.put(charMap.at(c));
+            } else {
+                stringBuf.put((uint8_t)'?');
+            }
+        }
+        stringBuf.put((uint8_t)0x00);
     }
 
-    bb::ByteBuffer buf;
-    buf.putInt(0x00039000); // magic
-    buf.putInt(0xdeadbeef); // size
-    buf.putInt(ids.size());
-    buf.putInt(0x8C); // dataOffset
+    bb::ByteBuffer outBuf;
+    outBuf.putInt(magic);
+    outBuf.putInt(0); 
+    outBuf.putInt((int32_t)ids.size());
+    outBuf.putInt(0x8C);
+    outBuf.putInt(0x8C + (8 * (uint32_t)ids.size()));
+    outBuf.putNullTerminatedString(tag.c_str());
 
-    buf.putInt(0x8C + (8 * ids.size())); // stringsOffset
-    buf.putNullTerminatedString(tag.c_str());
+    while (outBuf.getWritePos() < 0x8C + 8) outBuf.put((uint8_t)0x00);
 
-    while (buf.getWritePos() < 0x8C + 8)
-    {
-        buf.put((uint8_t)0x00);
+    for (int i = 0; i < (int)ids.size(); i++) {
+        outBuf.putInt(ids[i]);
+        outBuf.putInt(newOffsets[i]);
     }
+    outBuf.put(&stringBuf);
 
-    for (int i = 0; i < ids.size(); i++)
-    {
-        buf.putInt(ids[i]);
-        buf.putInt(offsets[i]);
-    }
+    outBuf.setWritePos(4);
+    outBuf.putInt((uint32_t)outBuf.getWritePos() - 8);
 
-    buf.put(&stringBuf);
-
-    size = buf.getWritePos() - 8;
-    buf.setWritePos(4);
-    buf.putInt(size);
-
-    return buf.getBuf();
+    return outBuf.getBuf();
 }
 } // namespace Kyber
