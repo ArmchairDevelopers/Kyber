@@ -728,7 +728,7 @@ void ServerUpdatePassPreFrameHk(void* inst, const UpdateParameters& params)
     g_program->m_server->Heartbeat(params);
     g_threadExecutor->Process(GameThread_Server);
 
-    if (g_program->m_server->m_runningHosted || g_program->m_isDedicatedServer)
+    if (g_program->m_server->IsRunning())
     {
         g_program->GetAPI()->Update();
     }

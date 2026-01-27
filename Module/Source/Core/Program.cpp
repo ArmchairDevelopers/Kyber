@@ -736,43 +736,6 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     trampoline(inst, message);
 }
 
-void UnkServerPlayerExtent_onNetworkMessageHk(void** inst, Message* message)
-{
-    static const auto trampoline = HookManager::Call(UnkServerPlayerExtent_onNetworkMessageHk);
-
-    if (message == nullptr || inst == nullptr)
-    {
-        trampoline(inst, message);
-        return;
-    }
-
-    //ServerPlayerExtent* realExtent = reinterpret_cast<ServerPlayerExtent*>(inst[-1]);
-
-    /*
-    TypeInfo* messageType = message->getType();
-    if (messageType == nullptr || messageType->typeInfoData == nullptr)
-    {
-        trampoline(inst, message);
-        return;
-    }
-
-    TypeInfo* extentType = inst->getType();
-    if (extentType == nullptr || extentType->typeInfoData == nullptr)
-    {
-        trampoline(inst, message);
-        return;
-    }
-
-    eastl::string name = messageType->getName();
-
-    KYBER_LOG(Debug, "Extent " << inst->getType()->getName() << " at "
-        << std::hex << inst << " with message " << message->getType()->getName() << " at " << std::hex << message);
-    */
-    //KYBER_LOG(Debug, "Extent " << std::hex << inst << " Message " << std::hex << message << " " << message->getType()->getName());
-
-    trampoline(inst, message);
-}
-
 const char* GetHostIdHk(__int64 inst)
 {
     return std::getenv("EALaunchEAID");
@@ -823,7 +786,7 @@ __int64 ClientUpdatePassPreFrameHk(void* inst, const UpdateParameters& params)
 
     g_threadExecutor->Process(GameThread_Client);
 
-    if (!g_program->m_server->m_runningHosted && !g_program->m_isDedicatedServer)
+    if (!g_program->m_server->IsRunning())
     {
         g_program->GetAPI()->Update();
     }
@@ -917,7 +880,6 @@ void Program::InitializeGameHooks()
         { OFFSET_CLIENT_UPDATEPASSPOSTFRAME, ClientUpdatePassPostFrameHk },
         { HOOK_OFFSET(0x1418D92B0), ClientAuthHk },
         { OFFSET_MEMORYARENA_LOG, MemoryArenaLog },
-        { HOOK_OFFSET(0x148E512F0), UnkServerPlayerExtent_onNetworkMessageHk },
         { HOOK_OFFSET(0x146A4BA30), TeamInfo__isFriendlyHk },
 
         // Dummy out unsafe built-in lua functions

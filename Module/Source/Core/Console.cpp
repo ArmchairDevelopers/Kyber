@@ -639,8 +639,7 @@ Console::Console()
     BYTE ptch[] = { 0xEB };
     MemoryUtils::Patch(HOOK_OFFSET(0x1401D0D03), (void*)ptch, sizeof(ptch));
     MemoryUtils::Patch(HOOK_OFFSET(0x1401D0D5B), (void*)ptch, sizeof(ptch));
-    // ServerPlayerExtent4::setActiveKit
-    MemoryUtils::Patch(HOOK_OFFSET(0x141BCE55C), (void*)ptch, sizeof(ptch));
+    MemoryUtils::Patch(HOOK_OFFSET(0x141BCE55C), (void*)ptch, sizeof(ptch)); // ServerPlayerExtent4::setActiveKit
 
     RegisterConsoleCommand(&RestartCommand, "Restart");
     RegisterConsoleCommand(&LoadLevelCommand, "LoadLevel", "<level> <mode>");

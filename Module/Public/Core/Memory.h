@@ -17,11 +17,11 @@ public:
     void free(void* mem);
 };
 
-#define FB_STATIC_ARENA ((MemoryArena*)0x143CF74E0)
-#define FB_GLOBAL_ARENA ((MemoryArena*)0x143CF74C0)
-#define FB_CLIENT_ARENA ((MemoryArena*)0x143CF89E0)
-#define FB_SERVER_ARENA ((MemoryArena*)0x143CFA7C0)
-#define FB_FIXUP_ARENA ((MemoryArena*)0x143D23E80)
+#define FB_STATIC_ARENA (reinterpret_cast<MemoryArena*>(0x143CF74E0))
+#define FB_GLOBAL_ARENA (reinterpret_cast<MemoryArena*>(0x143CF74C0))
+#define FB_CLIENT_ARENA (reinterpret_cast<MemoryArena*>(0x143CF89E0))
+#define FB_SERVER_ARENA (reinterpret_cast<MemoryArena*>(0x143CFA7C0))
+#define FB_FIXUP_ARENA (reinterpret_cast<MemoryArena*>(0x143D23E80))
 
 void InitializeEASTL();
 
