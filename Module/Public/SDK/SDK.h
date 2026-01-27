@@ -88,7 +88,7 @@ KB_DECLARE_TYPEINFO(QueryEntityResult, 0x14446A0A0);
 #define KB_DECLARE_GAMEMEMBERFUNC_NOARGS(ptr, returnType, name)                                                                            \
     returnType name()                                                                                                                      \
     {                                                                                                                                      \
-        return reinterpret_cast<returnType(__thiscall*)(void*)>(ptr)(this);                                                                \
+        return reinterpret_cast<returnType(__fastcall*)(void*)>(ptr)(this);                                                                \
     }
 
 struct TypeObject
@@ -1167,12 +1167,17 @@ class ServerGamePlayerExtent : public ServerPlayerExtent
 public:
     static PlayerExtentRegistration* s_registration;
 
+    // Research:
+    // +0xE60 is unlock bitarray
+
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x14686AC80, TypeObject*, GetCharacter)
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1468843B0, TypeObject*, GetVehicle)
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x146875A70, bool, IsInVehicle)
     KB_DECLARE_GAMEMEMBERFUNC(0x140BE2C60, void, LeaveVehicle, (forceLeave, useExitPoint), bool forceLeave, bool useExitPoint)
     KB_DECLARE_GAMEMEMBERFUNC(0x140BDDFE0, bool, EnterVehicle, (vehicle, seatIndex), void* vehicle, unsigned int seatIndex)
     KB_DECLARE_GAMEMEMBERFUNC(0x146881270, void*, SetSelectedCustomizationAsset, (asset), DataContainer* asset)
+    KB_DECLARE_GAMEMEMBERFUNC(0x146872DF0, void*, InitUnlockArray, (bitCount), uint32_t bitCount)
+    KB_DECLARE_GAMEMEMBERFUNC(0x146881840, void*, SetUnlocks, (bitArray), void* bitArray)
 };
 
 class PersistenceServerPlayerExtent : public ServerPlayerExtent
@@ -1194,7 +1199,9 @@ public:
     int32_t m_deaths;
     int32_t unk3;
     int32_t unk4;
-    int32_t m_longestKillstreak;
+    int32_t m_longestKillstreak; // 0x68
+    char pad_006C[0x12C];
+    void* m_persistentStorage; // 0x198
 };
 
 class WSServerPlayerAbilityExtent : public ServerPlayerExtent
@@ -1403,7 +1410,7 @@ class NetworkableMessage : public Message
 {
 public:
     ServerConnection* serverConnection; // 0x30
-    void* clientConnection;             // 0x38
+    ClientConnection* clientConnection; // 0x38
     int32_t unk1;                       // 0x40
     int32_t initiator;                  // 0x44
     int32_t messageStream;              // 0x48

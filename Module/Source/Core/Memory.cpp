@@ -8,9 +8,6 @@
 
 #include <EASTL/internal/config.h>
 
-#define OFFSET_MEMORYARENA_ALLOC HOOK_OFFSET(0x14541CD00)
-#define OFFSET_MEMORYARENA_FREE HOOK_OFFSET(0x1401C8100)
-
 namespace Kyber
 {
 TL_DECLARE_FUNC(0x14541CD00, void*, MemoryArena_alloc, MemoryArena* arena, size_t size, size_t alignment);

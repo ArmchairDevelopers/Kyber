@@ -31,8 +31,8 @@ TL_DECLARE_FUNC(0x141128770, bool, SimpleEntityOwner_internalDestroyEntity, void
 TL_DECLARE_FUNC(0x1470BC9B0, bool, SimpleEntityOwner_destroyOwnedEntities, void* inst, Realm realm);
 TL_DECLARE_FUNC(0x1470BC620, void, SimpleEntityOwner_deinitOwnedEntities, void* inst, void* info);
 
-typedef __int64(__fastcall* SpatialEntity_getTransform)(const void* inst, LinearTransform& transform);
-typedef __int64(__fastcall* SpatialEntity_setTransform)(void* inst, const LinearTransform& transform);
+typedef __int64(__fastcall* SpatialEntity_getTransform_t)(const void* inst, LinearTransform& transform);
+typedef __int64(__fastcall* SpatialEntity_setTransform_t)(void* inst, const LinearTransform& transform);
 
 TL_DECLARE_FUNC(0x14116F610, bool, Entity_init, NativeEntity* inst, EntityInitInfo* info);
 TL_DECLARE_FUNC(0x1469DAF40, EntityInitInfo*, EntityInitInfo_ctor, EntityInitInfo* inst, Realm realm, void* context);
@@ -368,7 +368,7 @@ void NativeEntity::Init()
 
 void SpatialEntity::GetTransform(LinearTransform& transform) const
 {
-    auto func = reinterpret_cast<SpatialEntity_getTransform>(PlatformUtils::GetVTableFunction(this, 27));
+    auto func = reinterpret_cast<SpatialEntity_getTransform_t>(PlatformUtils::GetVTableFunction(this, 27));
 
     // Same reason as raycast vecs being heap allocated
     LinearTransform* trans = new LinearTransform();
@@ -379,7 +379,7 @@ void SpatialEntity::GetTransform(LinearTransform& transform) const
 
 void SpatialEntity::SetTransform(const LinearTransform& transform)
 {
-    auto func = reinterpret_cast<SpatialEntity_setTransform>(PlatformUtils::GetVTableFunction(this, 28));
+    auto func = reinterpret_cast<SpatialEntity_setTransform_t>(PlatformUtils::GetVTableFunction(this, 28));
 
     // See above
     LinearTransform* trans = new LinearTransform(transform);

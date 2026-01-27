@@ -18,6 +18,14 @@
 
 namespace Kyber
 {
+class PersistentStorageTemplate
+{
+public:
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x140A7B9D0, uint32_t, GetCount)
+    KB_DECLARE_GAMEMEMBERFUNC(0x1467D3220, const char*, GetName, (offset), uint32_t offset)
+    KB_DECLARE_GAMEMEMBERFUNC(0x1467D32D0, uint32_t, GetOffset, (name), const char* name)
+};
+
 class PersistentStorage
 {
 public:
@@ -33,8 +41,23 @@ public:
     Values m_values;
     char m_padding[0x70 - sizeof(Values)];
 
-    __declspec(align(16)) void* m_template;
+    __declspec(align(16)) PersistentStorageTemplate* m_template;
 };
+
+// Called BitArray, prefixed Fb to not clash
+class FbBitArray
+{
+public:
+    void* m_vtable;        // 0x00 // research: only 1 func it points to, i think freer
+    uint32_t* m_bits;      // 0x08
+    __int64 pad_0010;    // 0x10
+    int32_t m_size;      // 0x18
+    __int64 pad_0020[2]; // 0x20
+
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x14545A710, void*, Ctor)
+    KB_DECLARE_GAMEMEMBERFUNC(0x1454600C0, void*, Init, (bitCount, arena), uint32_t bitCount, MemoryArena* arena)
+    KB_DECLARE_GAMEMEMBERFUNC(0x1401E71B0, void*, Destroy, (arena), MemoryArena* arena)
+}; // Size: 0x30
 
 class PersistenceDatabase
 {

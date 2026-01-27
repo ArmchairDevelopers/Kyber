@@ -677,7 +677,7 @@ Asset* GetWSPlayerAbilityFromCustomizationAssetHk(ServerPlayer* player, uint32_t
     Asset* asset = getWsPlayerAbilityAsset(abilityId);
     if (asset != nullptr)
     {
-        KYBER_LOG(Info, "getWsPlayerAbilityAsset: " << asset->Name);
+        KYBER_LOG(Debug, "getWsPlayerAbilityAsset: " << asset->Name);
     }
     return asset;
 }
