@@ -10,6 +10,7 @@ import 'package:kyber_launcher/features/reports/models/report_list_state.dart';
 import 'package:kyber_launcher/features/reports/providers/report_list_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/buttons/custom_icon_button.dart';
@@ -35,6 +36,10 @@ class _ReportsState extends State<Reports> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     const borderRadius = BorderRadius.only(
       topLeft: Radius.circular(kDefaultOuterBorderRadius),
       topRight: Radius.circular(kDefaultOuterBorderRadius),
@@ -108,7 +113,7 @@ class _ReportsState extends State<Reports> {
                                             return SuperListView(
                                               children: [
                                                 KyberFilterSection<ReportFilterStatus>(
-                                                  title: 'STATUS',
+                                                  title: l10n.statusFilter,
                                                   selectedItems: [cubit.filter.state],
                                                   items: toSelectorItems(
                                                     ReportFilterStatus.values,
@@ -192,41 +197,19 @@ class _ReportsState extends State<Reports> {
                                     ),
                                     alignment: Alignment.center,
                                     child: KyberHeader(
-                                      title: 'REPORTS',
+                                      title: l10n.reportsTitle,
                                       headerLength: 150,
                                       sections: [
                                         const ExpandedHeaderSection(
                                           children: [],
                                         ),
-                                        const FixedWidthHeaderSection(
+                                        FixedWidthHeaderSection(
                                           width: 120,
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
                                             Text(
-                                              'TOTAL REPORTS',
-                                              textAlign: TextAlign.left,
-                                            ),
-                                          ],
-                                        ),
-                                        const FixedWidthHeaderSection(
-                                          width: 120,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'LATEST REPORT',
-                                              textAlign: TextAlign.left,
-                                            ),
-                                          ],
-                                        ),
-                                        const FixedWidthHeaderSection(
-                                          width: 180,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'LATEST REASON',
+                                              l10n.totalReportsHeader,
                                               textAlign: TextAlign.left,
                                             ),
                                           ],
@@ -236,7 +219,29 @@ class _ReportsState extends State<Reports> {
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
-                                            Text('STATUS'.toUpperCase()),
+                                            Text(
+                                              l10n.latestReportHeader,
+                                              textAlign: TextAlign.left,
+                                            ),
+                                          ],
+                                        ),
+                                        FixedWidthHeaderSection(
+                                          width: 180,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              l10n.latestReasonHeader,
+                                              textAlign: TextAlign.left,
+                                            ),
+                                          ],
+                                        ),
+                                        FixedWidthHeaderSection(
+                                          width: 120,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(l10n.statusHeader),
                                           ],
                                         ),
                                       ],
@@ -262,7 +267,7 @@ class _ReportsState extends State<Reports> {
                                             );
                                             return Center(
                                               child: Text(
-                                                'Error loading reports: ${state.message}',
+                                                l10n.errorLoadingReports(state.message),
                                               ),
                                             );
                                           }
@@ -300,9 +305,9 @@ class _ReportsState extends State<Reports> {
                                                             ),
                                                         child: Text(
                                                           report.targetUsername,
-                                                          style: const TextStyle(
-                                                            fontFamily: FontFamily
-                                                                .battlefrontUI,
+                                                          style: TextStyle(
+                                                            fontFamily:
+                                                                currentFont,
                                                             fontSize: 17,
                                                             color: Colors.white,
                                                             fontWeight:
@@ -411,25 +416,25 @@ class _ReportsState extends State<Reports> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(
+                SizedBox(
                   height: 61,
                   child: Padding(
-                    padding: EdgeInsets.all(13),
+                    padding: const EdgeInsets.all(13),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'ARMSEC - CASE FILE',
+                          l10n.armsecCaseFile,
                           style: TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
+                            fontFamily: currentFont,
                             fontSize: 21,
                             height: 1,
                           ),
                         ),
                         Text(
-                          'EVIDENCE AND DATA SUMMARY',
+                          l10n.evidenceAndDataSummary,
                           style: TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
+                            fontFamily: currentFont,
                             fontSize: 14,
                             color: kWhiteColor,
                             height: 0.9,
@@ -474,15 +479,15 @@ class _ReportsState extends State<Reports> {
                                       }
 
                                       if (snapshot.hasError) {
-                                        return const Center(
-                                          child: Text('Error loading user'),
+                                        return Center(
+                                          child: Text(l10n.errorLoadingUser),
                                         );
                                       }
 
                                       final user = snapshot.data;
                                       if (user == null) {
-                                        return const Center(
-                                          child: Text('User not found'),
+                                        return Center(
+                                          child: Text(l10n.userNotFound),
                                         );
                                       }
 
@@ -501,16 +506,16 @@ class _ReportsState extends State<Reports> {
                               children: [
                                 Text(
                                   selectedReport!.targetUsername,
-                                  style: const TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
+                                  style: TextStyle(
+                                    fontFamily: currentFont,
                                     fontSize: 19,
                                     height: 1,
                                   ),
                                 ),
                                 Text(
-                                  'KYBER USER',
-                                  style: const TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
+                                  l10n.kyberUser,
+                                  style: TextStyle(
+                                    fontFamily: currentFont,
                                     fontSize: 15,
                                     color: kWhiteColor,
                                   ),
@@ -524,7 +529,7 @@ class _ReportsState extends State<Reports> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             KyberButton(
-                              text: 'OPEN',
+                              text: l10n.open,
                               icon: const Icon(mt.Icons.play_arrow_rounded),
                               onPressed: () => router.push(
                                 '/staff/reports/${selectedReport!.targetUserId}',
@@ -541,11 +546,11 @@ class _ReportsState extends State<Reports> {
                             //    selectedIndex: -1,
                             //  ),
                             //),
-                            const SizedBox(
+                            SizedBox(
                               width: 200,
                               child: KyberDropdownSelector(
                                 items: [],
-                                placeholder: 'OPTIONS',
+                                placeholder: l10n.options,
                               ),
                             ),
                           ],

@@ -19,6 +19,7 @@ import 'package:kyber_launcher/features/mods/widgets/collection_list/collection_
 import 'package:kyber_launcher/features/plugin_manager/services/plugin_manager.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/buttons/custom_icon_button.dart';
@@ -49,6 +50,7 @@ class _CollectionBoxState extends State<CollectionBox> {
   }
 
   void pickIcon() async {
+    final l10n = AppLocalizations.of(context)!;
     final currentCollection = context
         .read<CollectionEditorCubit>()
         .state
@@ -60,7 +62,7 @@ class _CollectionBoxState extends State<CollectionBox> {
 
     final result = await FilePicker.platform.pickFiles(
       allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
-      dialogTitle: 'Select Collection Icon',
+      dialogTitle: l10n.selectCollectionIcon,
       type: FileType.custom,
     );
 
@@ -89,6 +91,10 @@ class _CollectionBoxState extends State<CollectionBox> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     final collection = context
         .watch<CollectionEditorCubit>()
         .state
@@ -108,22 +114,22 @@ class _CollectionBoxState extends State<CollectionBox> {
                       padding: const EdgeInsets.all(13),
                       child: Row(
                         children: [
-                          const Expanded(
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'COLLECTION',
+                                  l10n.collectionLabel,
                                   style: TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
+                                    fontFamily: currentFont,
                                     fontSize: 21,
                                     height: 1,
                                   ),
                                 ),
                                 Text(
-                                  'A COLLECTION IS A READY TO PLAY MOD LIST',
+                                  l10n.collectionDescription,
                                   style: TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
+                                    fontFamily: currentFont,
                                     fontSize: 14,
                                     color: kWhiteColor,
                                     height: 0.9,
@@ -153,7 +159,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                               height: 45,
                               width: 45,
                               child: ClipRRect(
-                                borderRadius: .circular(
+                                borderRadius: BorderRadius.circular(
                                   kDefaultInnerBorderRadius,
                                 ),
                                 child: Stack(
@@ -191,16 +197,16 @@ class _CollectionBoxState extends State<CollectionBox> {
                                 if (!state.editing) ...[
                                   Text(
                                     collection.title,
-                                    style: const TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
+                                    style: TextStyle(
+                                      fontFamily: currentFont,
                                       fontSize: 19,
                                       height: 1,
                                     ),
                                   ),
                                   Text(
-                                    '${collection.mods.length} Mods',
-                                    style: const TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
+                                    l10n.modsCount(collection.mods.length),
+                                    style: TextStyle(
+                                      fontFamily: currentFont,
                                       fontSize: 15,
                                       color: kWhiteColor,
                                     ),
@@ -211,7 +217,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                     width: 250,
                                     child: KyberInput(
                                       initialValue: collection.title,
-                                      placeholder: 'Collection Name',
+                                      placeholder: l10n.collectionNamePlaceholder,
                                       onFieldSubmitted: (_) => context
                                           .read<CollectionEditorCubit>()
                                           .saveCollection(),
@@ -230,7 +236,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                           children: [
                             if (!state.editing)
                               KyberButton(
-                                text: 'PLAY',
+                                text: l10n.playButton,
                                 icon: const Icon(mt.Icons.play_arrow_rounded),
                                 onPressed: () => MaximaHelper.requestGameLaunch(
                                   context,
@@ -239,7 +245,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                               ),
                             if (state.editing)
                               KyberButton(
-                                text: 'SAVE',
+                                text: l10n.saveButton,
                                 icon: const Icon(mt.Icons.save),
                                 onPressed: () => context
                                     .read<CollectionEditorCubit>()
@@ -262,7 +268,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                 items: [
                                   if (sl.get<PluginManager>().bsmPlugin != null)
                                     DropdownOption(
-                                      label: 'BETTER SABERS (PLUGIN)',
+                                      label: l10n.betterSabersPlugin,
                                       icon: Assets.icons.laserSword.svg(
                                         width: 15,
                                         height: 15,
@@ -293,7 +299,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                         }
 
                                         NotificationService.showNotification(
-                                          message: 'Reloading mods',
+                                          message: l10n.reloadingMods,
                                           severity: InfoBarSeverity.info,
                                         );
 
@@ -324,13 +330,13 @@ class _CollectionBoxState extends State<CollectionBox> {
                                             .saveCollection();
 
                                         NotificationService.showNotification(
-                                          message: 'Generated BetterSabers',
+                                          message: l10n.generatedBetterSabers,
                                           severity: InfoBarSeverity.success,
                                         );
                                       },
                                     ),
                                   DropdownOption(
-                                    label: 'EXPORT COLLECTION TAR',
+                                    label: l10n.exportCollectionTar,
                                     icon: const Icon(
                                       mt.Icons.account_balance_wallet,
                                     ),
@@ -345,7 +351,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                     },
                                   ),
                                   DropdownOption(
-                                    label: 'EDIT COLLECTION',
+                                    label: l10n.editCollection,
                                     icon: const Icon(mt.Icons.edit),
                                     onClick: () async {
                                       context
@@ -354,8 +360,8 @@ class _CollectionBoxState extends State<CollectionBox> {
                                     },
                                   ),
                                   DropdownOption(
-                                    label: 'EXPORT COLLECTION',
-                                    icon: Icon(mt.Icons.upload),
+                                    label: l10n.exportCollection,
+                                    icon: const Icon(mt.Icons.upload),
                                     onClick: () async {
                                       await showKyberDialog(
                                         context: context,
@@ -367,8 +373,8 @@ class _CollectionBoxState extends State<CollectionBox> {
                                     },
                                   ),
                                   DropdownOption(
-                                    label: 'CREATE A COPY',
-                                    icon: Icon(FluentIcons.copy),
+                                    label: l10n.createACopy,
+                                    icon: const Icon(FluentIcons.copy),
                                     onClick: () {
                                       final currentCollection = context
                                           .read<CollectionEditorCubit>()
@@ -377,8 +383,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                       final newCollection = currentCollection
                                           .copyWith(
                                             localId: const Uuid().v4(),
-                                            title:
-                                                '${currentCollection.title} (Copy)',
+                                            title: l10n.collectionCopyName(currentCollection.title),
                                           );
 
                                       context.read<CollectionEditorCubit>()
@@ -387,7 +392,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                     },
                                   ),
                                   DropdownOption(
-                                    label: 'DELETE COLLECTION',
+                                    label: l10n.deleteCollection,
                                     icon: Icon(
                                       FluentIcons.delete,
                                       color: Colors.red,
@@ -409,7 +414,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                     },
                                   ),
                                 ],
-                                placeholder: 'OPTIONS',
+                                placeholder: l10n.options,
                               ),
                             ),
                           ],
@@ -517,8 +522,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                                     color: Colors.black
                                                         .withOpacity(.5),
                                                     child: KyberTooltip(
-                                                      message:
-                                                          "Using multiple large or complex mods isn't recommended, as they often conflict with each other.",
+                                                      message: l10n.largeModsWarning,
                                                       child: Icon(
                                                         FluentIcons.warning,
                                                         color: Colors.yellow,
@@ -572,9 +576,8 @@ class _CollectionBoxState extends State<CollectionBox> {
                                                 Text(
                                                   mod?.details.name ??
                                                       collectionMod.name,
-                                                  style: const TextStyle(
-                                                    fontFamily: FontFamily
-                                                        .battlefrontUI,
+                                                  style: TextStyle(
+                                                    fontFamily: currentFont,
                                                     fontSize: 17,
                                                     height: 1,
                                                   ),
@@ -584,9 +587,8 @@ class _CollectionBoxState extends State<CollectionBox> {
                                                 Text(
                                                   mod?.details.version ??
                                                       collectionMod.version,
-                                                  style: const TextStyle(
-                                                    fontFamily: FontFamily
-                                                        .battlefrontUI,
+                                                  style: TextStyle(
+                                                    fontFamily: currentFont,
                                                     fontSize: 14,
                                                     color: kButtonBorder,
                                                     height: 1,

@@ -31,6 +31,8 @@ import 'package:kyber_launcher/features/social/screens/social_home.dart';
 import 'package:kyber_launcher/features/stats/providers/stats_cubit.dart';
 import 'package:kyber_launcher/features/stats/screens/personal/stats_overview.dart';
 import 'package:kyber_launcher/features/stats/screens/stats.dart';
+import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -189,22 +191,33 @@ final router = GoRouter(
   initialLocation: '/home',
   observers: [SentryNavigatorObserver()],
   errorBuilder: (context, state) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return SafeArea(
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text(
-              'Page Not Found',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Text(
+              l10n.pageNotFoundTitle,
+              style: TextStyle(
+                fontFamily: currentFont,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 16),
-            Text(state.error?.toString() ?? 'page not found'),
+            Text(
+              state.error?.toString() ?? l10n.pageNotFoundFallback,
+              style: TextStyle(fontFamily: currentFont),
+            ),
             const SizedBox(height: 16),
             Button(
               onPressed: () => context.go('/'),
-              child: const Text(
-                'Go to home page',
+              child: Text(
+                l10n.goToHomePage,
+                style: TextStyle(fontFamily: currentFont),
               ),
             ),
           ],
@@ -370,7 +383,8 @@ final router = GoRouter(
             //TODO: check for unsaved changes
             return true;
           },
-          pageBuilder: (_, state) {
+          pageBuilder: (context, state) {
+            final l10n = AppLocalizations.of(context)!;
             return buildCustomPage(
               state: state,
               child: MultiBlocProvider(
@@ -393,7 +407,7 @@ final router = GoRouter(
                         if (collectionQuery == 'new') {
                           collection = ModCollectionMetaData(
                             localId: const Uuid().v4(),
-                            title: 'New Collection',
+                            title: l10n.newCollectionTitle,
                             mods: [],
                           );
                         } else {

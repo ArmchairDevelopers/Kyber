@@ -15,6 +15,8 @@ import 'package:kyber_launcher/features/server_moderation/screens/moderation_ser
 import 'package:kyber_launcher/features/server_moderation/screens/server_moderation.dart';
 import 'package:kyber_launcher/features/tutorial/models/tutorials/server_host_tutorial.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
+import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_input.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_tab_bar.dart';
@@ -46,6 +48,10 @@ class _ServerHostState extends State<ServerHost> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return BlocListener<KyberStatusCubit, KyberStatusState>(
       listenWhen: (previous, current) =>
           previous is! KyberStatusHosting && current is KyberStatusHosting ||
@@ -79,7 +85,7 @@ class _ServerHostState extends State<ServerHost> {
                       if (!createServer && !state.selected) ...[
                         KyberButton(
                           icon: const Icon(mt.Icons.add),
-                          text: 'NEW',
+                          text: l10n.newButton,
                           onPressed: () {
                             setState(() => createServer = true);
                           },
@@ -118,9 +124,9 @@ class _ServerHostState extends State<ServerHost> {
                         SizedBox(
                           width: 250,
                           child: KyberTabBar(
-                            tabs: const [
-                              Text('MODERATE'),
-                              Text('MANAGE'),
+                            tabs: [
+                              Text(l10n.moderate),
+                              Text(l10n.manage),
                             ],
                             onChanged: (selectedIndex) {
                               context.read<HostSearchCubit>().clear();
@@ -137,9 +143,9 @@ class _ServerHostState extends State<ServerHost> {
                         SizedBox(
                           width: 250,
                           child: KyberTabBar(
-                            tabs: const [
-                              Text('ROTATION'),
-                              Text('MODS'),
+                            tabs: [
+                              Text(l10n.rotation),
+                              Text(l10n.mods),
                             ],
                             onChanged: (selectedIndex) {
                               context.read<HostSearchCubit>().clear();
@@ -166,7 +172,7 @@ class _ServerHostState extends State<ServerHost> {
                       ],
                       Expanded(
                         child: KyberInput(
-                          placeholder: 'Search ...',
+                          placeholder: l10n.searchPlaceholder,
                           controller: searchController,
                           onChanged: context
                               .read<HostSearchCubit>()

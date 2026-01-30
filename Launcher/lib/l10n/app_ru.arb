@@ -1,0 +1,643 @@
+{
+  "language": "Язык",
+  "accessibility": "ДОСТУПНОСТЬ",
+  "colorblindProfiles": "ПРОФИЛИ ДЛЯ ДАЛЬТОНИКОВ",
+  "defaultColor": "ПО УМОЛЧАНИЮ",
+  "protanomaly": "ПРОТАНОМАЛИЯ",
+  "deuteranomaly": "ДЕЙТЕРАНОМАЛИЯ",
+  "tritanomaly": "ТРИТАНОМАЛИЯ",
+  "resetSettings": "СБРОСИТЬ НАСТРОЙКИ",
+  "reset": "Сброс",
+  "rememberWindowPosition": "Запоминать положение окна",
+  "customization": "ПЕРСОНАЛИЗАЦИЯ",
+  "patreonExclusive": "ЭКСКЛЮЗИВ PATREON",
+  "changeHighlightColor": "ИЗМЕНИТЬ ЦВЕТ ВЫДЕЛЕНИЯ",
+  "change": "Изменить",
+  "changeBackground": "ИЗМЕНИТЬ ФОН",
+  "save": "Сохранить",
+  "cancel": "Отмена",
+  "changeColor": "ИЗМЕНИТЬ ЦВЕТ",
+  "accounts": "АККАУНТЫ",
+  "proxy": "ПРОКСИ",
+  "unavailable": "НЕДОСТУПНО",
+  "resetKyberToken": "Сбросить токен Kyber",
+  "nexusMods": "NexusMods",
+  "logout": "Выйти",
+  "login": "Войти",
+  "eaLogout": "Выйти из EA",
+  "linkedAccounts": "СВЯЗАННЫЕ АККАУНТЫ",
+  "discord": "Discord",
+  "connect": "Подключить",
+  "discordUnlink": "{name}   |   Отключить",
+  "connectPatreon": "Подключить Patreon",
+  "updates": "ОБНОВЛЕНИЯ",
+  "automaticallyUpdate": "Обновлять автоматически",
+  "releaseChannel": "Канал обновлений",
+  "select": "Выбрать",
+  "forceUpdate": "Принудительное обновление",
+  "updateNow": "ОБНОВИТЬ СЕЙЧАС",
+  "other": "ПРОЧЕЕ",
+  "licenses": "Лицензии",
+  "showLicenses": "Показать лицензии",
+  "developerMode": "Режим разработчика",
+  "environment": "Окружение",
+  "apiEnvironment": "Окружение API",
+  "setNexusApiToken": "Установить API-токен Nexus",
+  "setToken": "Установить токен",
+  "setBackgroundImage": "Установить фоновое изображение",
+  "setImage": "Выбрать изображение",
+  "dummyServer": "Фиктивный сервер",
+  "removeBackground": "Удалить фон",
+  "copyKyberToken": "Копировать токен Kyber",
+  "copy": "Копировать",
+  "activity": "АКТИВНОСТЬ",
+  "discordRichPresence": "Discord Rich Presence",
+  "loggingAndSentry": "Логирование и Sentry",
+  "logs": "Логи",
+  "exportLogs": "Экспорт логов",
+  "optInToSentry": "Включить Sentry",
+  "optOutOfSentry": "Выключить Sentry",
+  "optIn": "Включить",
+  "optOut": "Выключить",
+  "launcherDebugMode": "Режим отладки лаунчера",
+  "moduleDebugMode": "Режим отладки модуля",
+  "moduleRpcDebugMode": "Режим отладки Module RPC",
+  "mods": "МОДЫ",
+  "changeModDirectory": "Изменить папку модов",
+  "newDirectory": "Новая папка",
+  "frostyConverter": "Конвертер Frosty",
+  "convertYourPacks": "Конвертировать ваши паки",
+  "kyberPreloadedMods": "Предзагруженные моды Kyber",
+  "ingame": "В ИГРЕ",
+  "ingameHotkey": "Клавиша меню (меню модерации)",
+  "restartGameWarning": "Чтобы применить изменения, перезапустите игру",
+  "enabled": "Включено",
+  "disabled": "Выключено",
+  "proximityChat": "Позиционный голос",
+  "inputMode": "Режим ввода",
+  "openMic": "Открытый микрофон",
+  "pushToTalk": "Рация (PTT)",
+  "pushToTalkKey": "Клавиша рации",
+  "inputVolume": "Громкость входа",
+  "outputVolume": "Громкость выхода",
+  "inputDevice": "Устройство ввода",
+  "outputDevice": "Устройство вывода",
+  "noDevicesFound": "Устройства не найдены",
+  "selectBackground": "ВЫБЕРИТЕ ФОН",
+  "chooseBackgroundDesc": "ВЫБЕРИТЕ ИЗ 8 ФОНОВ ИЛИ УСТАНОВИТЕ СВОЙ",
+  "customBackground": "СВОЙ ФОН",
+  "selectImageDesc": "Выберите фоновое изображение для лаунчера",
+  "minResolutionDesc": "Разрешение изображения должно быть не менее 1920x1080",
+  "selectImage": "Выбрать изображение",
+  "fileTooLarge": "Файл слишком большой. Пожалуйста, выберите файл меньше 10 МБ",
+  "resolutionTooLow": "Слишком низкое разрешение. Пожалуйста, выберите изображение минимум 1920x1080",
+  "copyingImage": "Копирование изображения...",
+  "selectImagePickerTitle": "Выберите фоновое изображение",
+  "langAccTitle": "ЯЗЫК И ДОСТУПНОСТЬ",
+  "langAccDesc": "ИЗМЕНИТЬ ЯЗЫК, ПРОКСИ И НАСТРОЙКИ ДОСТУПНОСТИ",
+  "modConfigTitle": "КОНФИГУРАЦИЯ МОДОВ",
+  "modConfigDesc": "НАСТРОЙКА МОДОВ, ИМПОРТ ИЗ FROSTY И ПРОЧЕЕ",
+  "creditsTitle": "СПИСОК АВТОРОВ",
+  "creditsDesc": "РАЗРАБОТЧИКИ, ПОМОЩНИКИ И ПОДПИСЧИКИ PATREON",
+  "ingameSettingsTitle": "ВНУТРИИГРОВЫЕ НАСТРОЙКИ",
+  "proximityChatDesc": "НАСТРОЙКА ПОЗИЦИОННОГО ГОЛОСОВОГО ЧАТА",
+  "logsActivityTitle": "ЛОГИ И АКТИВНОСТЬ",
+  "logsActivityDesc": "ПРОСМОТР АКТИВНОСТИ И НАСТРОЕК ОТЛАДКИ",
+  "accountsUpdatesTitle": "АККАУНТЫ И ОБНОВЛЕНИЯ",
+  "accountsUpdatesDesc": "ВЫХОД, НАСТРОЙКИ ОБНОВЛЕНИЙ И ПРОЧЕЕ",
+  "versionText": "ВЕРСИЯ: {version}#CL{build}",
+  "downloadManager": "МЕНЕДЖЕР ЗАГРУЗОК",
+  "pausedDownloads": "ПРИОСТАНОВЛЕННЫЕ ЗАГРУЗКИ",
+  "unCapSpeedPrefix": "СНИМИТЕ ОГРАНИЧЕНИЕ СКОРОСТИ С ",
+  "nexusModsPremium": "NEXUS MODS PREMIUM",
+  "downloadProgress": " / {total} ({speed}/с) {percentage}%",
+  "@downloadProgress": {
+    "placeholders": {
+      "total": { "type": "String" },
+      "speed": { "type": "String" },
+      "percentage": { "type": "int" }
+    }
+  },
+  "loadMods": "ЗАГРУЗИТЬ МОДЫ",
+  "export": "ЭКСПОРТ",
+  "selectMods": "Выбрать моды",
+  "ignoringDuplicate": "Игнорирование {filename}. (Дубликат)",
+  "@ignoringDuplicate": {
+    "placeholders": {
+      "filename": { "type": "String" }
+    }
+  },
+  "saveCollection": "Сохранить коллекцию",
+  "icon": "ЗНАЧОК",
+  "name": "Название",
+  "author": "Автор",
+  "version": "Версия",
+  "category": "Категория",
+  "exportCollection": "ЭКСПОРТ КОЛЛЕКЦИИ",
+  "exportingCollection": "Экспорт коллекции...",
+  "selectIcon": "Выбрать значок",
+  "eaLogin": "Вход в EA",
+  "loading": "Загрузка...",
+  "waitingForResponse": "Ожидание ответа...",
+  "maximaStarting": "Запуск Maxima...",
+  "fetchingData": "Получение данных...",
+  "genericError": "Произошла ошибка",
+  "loginFailed": "Ошибка входа",
+  "userDoesNotExist": "Указанный пользователь не существует",
+  "passwordIncorrect": "Неверный пароль",
+  "failedToFindAuthCode": "Не удалось найти код авторизации. Попробуйте другой браузер",
+  "pathCopied": "Путь скопирован в буфер обмена",
+  "noAuthCodeReceived": "Код авторизации не получен",
+  "authorizationSuccessful": "Авторизация успешна",
+  "patreonAuthorizedMessage": "Вы успешно авторизованы как участник Patreon",
+  "authorizationFailed": "Ошибка авторизации",
+  "maximaIntroText": "Для использования лаунчера необходимо войти в Maxima. Это требуется для запуска и взаимодействия с Battlefront 2.\nВы будете перенаправлены на страницу входа EA, а после входа — обратно в лаунчер.",
+  "loginWithEa": "Войти через EA",
+  "eaIdDisplay": "EA-ID: {eaId}",
+  "logout": "Выйти",
+  "authorizePatreon": "Авторизовать Patreon",
+  "whitelistConfirmation": "Вы уверены, что хотите добавить текущий аккаунт в белый список?",
+  "currentAccountDisplay": "Текущий аккаунт: {displayName}",
+  "addToWhitelist": "Добавить в белый список",
+  "gameNotOwnedMessage": "Похоже, у вас нет Battlefront 2. Пожалуйста, купите игру или используйте другой аккаунт.",
+  "maximaBackgroundServiceError": "Maxima не удалось запустить фоновую службу. Обычно это вызвано антивирусом, блокирующим службу. Пожалуйста, добавьте лаунчер в исключения и переустановите его.",
+  "maximaMissingFilesError": "Некоторые файлы, необходимые для работы Maxima, отсутствуют. Обычно это происходит из-за удаления файлов антивирусом. Пожалуйста, добавьте лаунчер в исключения и переустановите его.",
+  "antivirusExclusionInstruction": "Пожалуйста, добавьте следующие папки в исключения защиты вашего антивируса в реальном времени:",
+  "copyPath": "КОПИРОВАТЬ ПУТЬ",
+  "debugLogsToggled": "Отладочные логи: {status}",
+  "signInNexusPrompt": "Пожалуйста, войдите в Nexus Mods для просмотра модов",
+  "noModsFound": "Моды не найдены",
+  "unknownError": "Неизвестная ошибка",
+  "noDataFound": "Данные не найдены",
+  "modInformation": "ИНФОРМАЦИЯ О МОДЕ",
+  "viewModFilesShareEndorse": "ФАЙЛЫ МОДА, ПОДЕЛИТЬСЯ И ПОДДЕРЖАТЬ",
+  "files": "ФАЙЛЫ",
+  "posts": "ПОСТЫ",
+  "endorseMustDownload": "Вы должны скачать мод, прежде чем рекомендовать его",
+  "endorseWaitTime": "После скачивания должно пройти некоторое время, прежде чем вы сможете рекомендовать мод",
+  "endorseLoginRequired": "Вы должны войти в систему, чтобы рекомендовать моды",
+  "linkCopied": "Ссылка скопирована",
+  "updatedAt": "Обновлено: ",
+  "mainFiles": "ОСНОВНЫЕ ФАЙЛЫ",
+  "miscellaneousFiles": "РАЗНОЕ",
+  "optionalFiles": "ДОПОЛНИТЕЛЬНЫЕ ФАЙЛЫ",
+  "archivedFiles": "АРХИВНЫЕ ФАЙЛЫ",
+  "fileListTitle": "{title} ({count})",
+  "@fileListTitle": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "verifiedModAuthor": "Верифицированный автор",
+  "viewingProfile": "ПРОСМОТР ПРОФИЛЯ",
+  "publishedMods": "ОПУБЛИКОВАННЫЕ МОДЫ",
+  "userInformation": "ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ",
+  "viewUserStats": "СТАТИСТИКА ПОЛЬЗОВАТЕЛЯ",
+  "joinedLabel": "Регистрация: ",
+  "modsLabel": "Модов: ",
+  "postsLabel": "Постов: ",
+  "uniqueDlsLabel": "Уник. скачиваний: ",
+  "viewsLabel": "Просмотров: ",
+  "kudosLabel": "Благодарности: ",
+  "contributedLabel": "Вклад: ",
+  "viewOnNexusMods": "СМОТРЕТЬ НА NEXUS MODS",
+  "collectionMods": "Моды в коллекции",
+  "modNameVersion": "{name} ({version})",
+  "@modNameVersion": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "version": { "type": "String" }
+    }
+  },
+  "downloadCollectionMods": "СКАЧАТЬ МОДЫ КОЛЛЕКЦИИ",
+  "loadingMods": "ЗАГРУЗКА МОДОВ...",
+  "collections": "КОЛЛЕКЦИИ",
+  "manageCollectionsSub": "УПРАВЛЕНИЕ КОЛЛЕКЦИЯМИ И КОСМЕТИЧЕСКИМИ МОДАМИ",
+  "browser": "Браузер",
+  "paginationInfo": "{page}/{totalPages}",
+  "@paginationInfo": {
+    "placeholders": {
+      "page": { "type": "int" },
+      "totalPages": { "type": "int" }
+    }
+  },
+  "modScope": "ОБЛАСТЬ МОДА",
+  "serverNotFound": "Сервер, на котором вы играли, не найден.",
+  "nexusModsAuthorization": "Авторизация NexusMods",
+  "nexusAuthDescription": "Вам необходимо авторизовать KyberLauncher на NexusMods для использования браузера модов.",
+  "authorizeKyber": "Авторизовать Kyber",
+  "noReportsAvailable": "Жалоб нет",
+  "reportedBy": "Отправил ",
+  "forLabel": " за ",
+  "onLabel": " на ",
+  "descriptionLabel": "Описание",
+  "evidenceCountLabel": "Доказательства ({count})",
+  "@evidenceCountLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "reportViewTitle": "ПРОСМОТР ЖАЛОБЫ",
+  "viewReportsAndEvidence": "ПРОСМОТР ЖАЛОБ И ДОКАЗАТЕЛЬСТВ",
+  "reportsTab": "ЖАЛОБЫ",
+  "punishmentsTab": "НАКАЗАНИЯ",
+  "reportRejected": "Жалоба отклонена",
+  "takeAction": "ПРИНЯТЬ МЕРЫ",
+  "reportedByPlayer": "От: {name}",
+  "@reportedByPlayer": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "daysDuration": "Дней: {days}",
+  "@daysDuration": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "permanent": "Навсегда",
+  "bannedByModerator": "Забанен: {name}",
+  "@bannedByModerator": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "durationLabel": "Длительность: {duration}",
+  "@durationLabel": {
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "issuedLabel": "Выдано: {date}",
+  "@issuedLabel": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "statusFilter": "СТАТУС",
+  "reportsTitle": "ЖАЛОБЫ",
+  "totalReportsHeader": "ВСЕГО ЖАЛОБ",
+  "latestReportHeader": "ПОСЛЕДНЯЯ ЖАЛОБА",
+  "latestReasonHeader": "ПОСЛЕДНЯЯ ПРИЧИНА",
+  "statusHeader": "СТАТУС",
+  "errorLoadingReports": "Ошибка загрузки жалоб: {message}",
+  "reasonWithCount": "{reasonName} ({count})",
+  "armsecCaseFile": "ARMSEC — ДЕЛО",
+  "evidenceAndDataSummary": "СВОДКА ДАННЫХ И ДОКАЗАТЕЛЬСТВ",
+  "errorLoadingUser": "Ошибка загрузки пользователя",
+  "userNotFound": "Пользователь не найден",
+  "kyberUser": "ПОЛЬЗОВАТЕЛЬ KYBER",
+  "open": "ОТКРЫТЬ",
+  "options": "ОПЦИИ",
+  "@errorLoadingReports": {
+    "placeholders": {
+      "message": { "type": "String" }
+    }
+  },
+  "@reasonWithCount": {
+    "placeholders": {
+      "reasonName": { "type": "String" },
+      "count": { "type": "String" }
+    }
+  },
+  "unknownServer": "Неизвестный сервер",
+  "hostedBy": "Хост: {creator}",
+  "@hostedBy": {
+    "placeholders": {
+      "creator": { "type": "String" }
+    }
+  },
+  "backToServerBrowser": "Назад к списку серверов",
+  "eventLog": "Журнал событий",
+  "lightSide": "Светлая сторона",
+  "darkSide": "Тёмная сторона",
+  "reportPlayer": "Пожаловаться",
+  "region": "РЕГИОН",
+  "serverType": "ТИП СЕРВЕРА",
+  "gameType": "ТИП ИГРЫ",
+  "gameMode": "РЕЖИМ ИГРЫ",
+  "warning": "ПРЕДУПРЕЖДЕНИЕ",
+  "warningMessageFallback": "Сообщение с предупреждением недоступно.",
+  "newButton": "НОВЫЙ",
+  "moderate": "МОДЕРИРОВАТЬ",
+  "manage": "УПРАВЛЯТЬ",
+  "rotation": "РОТАЦИЯ",
+  "searchPlaceholder": "Поиск...",
+  "noServersFound": "Серверы не найдены",
+  "serverBrowser": "Список серверов",
+  "optionsHeader": "ОПЦИИ",
+  "moderatorsHeader": "МОДЕРАТОРЫ",
+  "bannedPlayersHeader": "ЗАБАНЕННЫЕ ИГРОКИ",
+  "playButton": "ИГРАТЬ",
+  "spectateButton": "НАБЛЮДАТЬ",
+  "copyLinkButton": "КОПИРОВАТЬ ССЫЛКУ",
+  "copiedToClipboard": "Скопировано!",
+  "exportBans": "ЭКСПОРТ БАНОВ",
+  "importBans": "ИМПОРТ БАНОВ",
+  "kickAll": "КИКНУТЬ ВСЕХ",
+  "banAll": "ЗАБАНИТЬ ВСЕХ",
+  "eventLogHeader": "Журнал событий",
+  "lightSideHeader": "Светлая сторона",
+  "darkSideHeader": "Тёмная сторона",
+  "userManager": "Менеджер пользователей",
+  "consoleHint": "/КОМАНДА ИЛИ СООБЩЕНИЕ",
+  "untilLabel": "ДО: {date}",
+  "reasonLabel": "ПРИЧИНА: {reason}",
+  "unban": "РАЗБАНИТЬ",
+  "modify": "ИЗМЕНИТЬ",
+  "playerUnbanned": "Игрок разбанен",
+  "timeElapsed": "Время истекло",
+  "daysRemaining": "дней: {count}",
+  "hoursRemaining": "часов: {count}",
+  "minutesRemaining": "минут: {count}",
+  "secondsRemaining": "секунд: {count}",
+  "remaining": "осталось {time}",
+  "promoteUserTooltip": "Повысить пользователя",
+  "errorOccurred": "Произошла ошибка",
+  "swapPlayerTooltip": "Сменить команду",
+  "kickPlayerTooltip": "Кикнуть игрока",
+  "banPlayerTooltip": "Забанить игрока",
+  "off": "ВКЛ",
+  "on": "ВЫКЛ",
+  "home": "ДОМ",
+  "host": "ХОСТ",
+  "stats": "СТАТА",
+  "settings": "НАСТРОЙКИ",
+  "ingamePanel": "МЕНЮ ИГРЫ",
+  "extractingFileWithProgress": "ИЗВЛЕЧЕНИЕ ФАЙЛОВ ({extracted}/{total})",
+  "extractingFile": "ИЗВЛЕЧЕНИЕ ФАЙЛОВ",
+  "downloadingWithProgress": "СКАЧИВАЕТСЯ ({percentage}% {downloaded}/{total})",
+  "downloadManager": "МЕНЕДЖЕР ЗАГРУЗОК",
+  "createNewCollection": "СОЗДАТЬ КОЛЛЕКЦИЮ",
+  "pageNotFoundTitle": "Страница Не Найдена",
+  "pageNotFoundFallback": "страница не найдена",
+  "goToHomePage": "Вернуться на домашнюю",
+  "newCollectionTitle": "Новая Коллекция",
+  "@extractingFileWithProgress": {
+    "placeholders": {
+      "extracted": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "@downloadingWithProgress": {
+    "placeholders": {
+      "percentage": {
+        "type": "String"
+      },
+      "downloaded": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "@untilLabel": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "@reasonLabel": {
+    "placeholders": {
+      "reason": { "type": "String" }
+    }
+  },
+  "@daysRemaining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "@hoursRemaining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "@minutesRemaining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "@secondsRemaining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "@remaining": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "eaAccount": "Аккаунт EA",
+  "finish": "ЗАВЕРШИТЬ",
+  "skip": "ПРОПУСТИТЬ",
+  "searchFailed": "Ошибка поиска игроков: {message}",
+  "unexpectedError": "Произошла непредвиденная ошибка: {error}",
+  "searchKyberUser": "Поиск пользователя Kyber",
+  "noResultsFound": "Ничего не найдено по запросу \"{query}\".",
+  "friendsCount": "ДРУЗЬЯ ({count})",
+  "recentlyViewed": "НЕДАВНО ПРОСМОТРЕННЫЕ",
+  "userSearchHistory": "ИСТОРИЯ ПОИСКА",
+  "online": "В сети",
+  "playingStatus": "Играет в {status}",
+  "@searchFailed": {
+    "placeholders": {
+      "message": { "type": "String" }
+    }
+  },
+  "@unexpectedError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "@noResultsFound": {
+    "placeholders": {
+      "query": { "type": "String" }
+    }
+  },
+  "@friendsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "@playingStatus": {
+    "placeholders": {
+      "status": { "type": "String" }
+    }
+  },
+  "selectCollectionIcon": "Выбрать иконку коллекции",
+  "collectionLabel": "КОЛЛЕКЦИЯ",
+  "collectionDescription": "КОЛЛЕКЦИЯ — ЭТО ГОТОВЫЙ К ИГРЕ НАБОР МОДОВ",
+  "modsCount": "Модов: {count}",
+  "collectionNamePlaceholder": "Название коллекции",
+  "saveButton": "СОХРАНИТЬ",
+  "betterSabersPlugin": "BETTER SABERS (ПЛАГИН)",
+  "reloadingMods": "Перезагрузка модов",
+  "generatedBetterSabers": "BetterSabers сгенерирован",
+  "exportCollectionTar": "ЭКСПОРТ КОЛЛЕКЦИИ (TAR)",
+  "editCollection": "РЕДАКТИРОВАТЬ КОЛЛЕКЦИЮ",
+  "createACopy": "СОЗДАТЬ КОПИЮ",
+  "collectionCopyName": "{title} (Копия)",
+  "deleteCollection": "УДАЛИТЬ КОЛЛЕКЦИЮ",
+  "largeModsWarning": "Использование нескольких больших или сложных модов не рекомендуется, так как они часто конфликтуют друг с другом.",
+  "@modsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@collectionCopyName": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "myMods": "МОИ МОДЫ",
+  "nameHeader": "НАЗВАНИЕ",
+  "categoryHeader": "КАТЕГОРИЯ",
+  "sizeHeader": "РАЗМЕР",
+  "typeHeader": "ТИП",
+  "addHeader": "ДОБАВИТЬ",
+  "selectedCount": "{count}",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "all": "ВСЁ",
+  "searchHint": "ПОИСК...",
+  "noPlayersFound": "Игроки не найдены",
+  "moveModsDirectory": "ПЕРЕМЕСТИТЬ ДИРЕКТОРИЮ МОДОВ",
+  "invalidDirectoryWarning": "Текущая директория модов недействительна, так как путь содержит символы, отличные от ASCII (например, кириллицу). ",
+  "selectNewDirectoryDesc": "Пожалуйста, выберите новую директорию для модов. Сами файлы не будут перемещены — будет изменен только путь в настройках.",
+  "nonAsciiWarning": "Использование символов, отличных от ASCII, в пути запрещено (например, кириллица, греческий и т.д.).",
+  "adminPermissionError": "Вы не можете выбрать директорию, требующую прав администратора. Пожалуйста, выберите другое место.",
+  "selectedDirNonAsciiError": "Выбранная директория содержит символы, отличные от ASCII. Пожалуйста, выберите другую директорию.",
+  "browse": "Обзор",
+  "resetToDefault": "Сбросить по умолчанию",
+  "defaultDirNonAsciiError": "Директория модов по умолчанию содержит символы, отличные от ASCII. Пожалуйста, выберите другую директорию.",
+  "modInformation": "ИНФОРМАЦИЯ О МОДЕ",
+  "viewInformationAboutMod": "ПОСМОТРЕТЬ ИНФОРМАЦИЮ О МОДЕ",
+  "modVersionAuthorDisplay": "{version} - {author}",
+  "@modVersionAuthorDisplay": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "descriptionLabel": "ОПИСАНИЕ",
+  "imagesLabel": "КАРТИНКИ",
+  "affectedFilesLabel": "ЗАТРОНУТЫЕ ФАЙЛЫ",
+  "unknownResourceName": "Неизвестное имя ресурса",
+  "abortingNexusLogin": "Отмена входа в NexusMods",
+  "installWebViewError": "Пожалуйста, установите WebView, чтобы использовать эту функцию.",
+  "continueText": "ПРОДОЛЖИТЬ",
+  "wait": "ПОДОЖДИТЕ",
+  "win7CompatibilityDetected": "Обнаружен режим совместимости с Windows 7",
+  "disableWin7CompMode": "Чтобы войти в NexusMods, пожалуйста, отключите режим совместимости с Windows 7 для Kyber Launcher.",
+  "reEnableWin7CompMode": "После того как вы войдете в систему, вам нужно будет снова включить режим совместимости с Windows 7.",
+  "checkingWebView": "Проверка установки WebView...",
+  "nexusLoginIntro": "Для продолжения вам нужно будет войти в свою учетную запись NexusMods во встроенном браузере.",
+  "nexusLoginDataNotice": "Данные обрабатываются локально и отправляются только в NexusMods.\nВы сможете включить или отключить эту функцию позже в меню настроек.",
+  "playersHeader": "ИГРОКИ",
+  "eventsAndAnnouncements": "СОБЫТИЯ И АНОНСЫ",
+  "viewUpcomingEventsDesc": "ПРОСМОТР ПРЕДСТОЯЩИХ СОБЫТИЙ И АНОНСОВ",
+  "sortByTitle": "СОРТИРОВАТЬ ПО",
+  "timeFilterTitle": "ФИЛЬТР ПО ВРЕМЕНИ",
+  "itemsPerPageTitle": "ОТОБРАЖАТЬ НА СТРАНИЦЕ",
+  "allTime": "Всё время",
+  "oneYear": "1 год",
+  "oneMonth": "1 месяц",
+  "twoWeeks": "2 недели",
+  "oneWeek": "1 неделя",
+  "oneDay": "1 день",
+  "all": "ВСЁ",
+  "@hoursFormat": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@minutesFormat": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@secondsFormat": {
+      "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursFormat": "{count} Ч",
+  "minutesFormat": "{count} МИН",
+  "secondsFormat": "{count} СЕК",
+  "noStatsFound": "Статистика не найдена",
+  "mostPlayed": "БОЛЬШЕ ВСЕГО ИГР",
+  "totalKillsLabel": "ВСЕГО УБИЙСТВ",
+  "totalDeathsLabel": "ВСЕГО СМЕРТЕЙ",
+  "kdRatioLabel": "СООТНОШЕНИЕ У/С",
+  "assistsLabel": "ПОМОЩИ",
+  "damageDoneLabel": "НАНЕСЕННЫЙ УРОН",
+  "suicidesLabel": "САМОУБИЙСТВА",
+  "gamesWonLabel": "ПОБЕДЫ",
+  "gamesLostLabel": "ПОРАЖЕНИЯ",
+  "winRateLabel": "ПРОЦЕНТ ПОБЕД",
+  "unitsSection": "БОЙЦЫ",
+  "vehiclesSection": "ТЕХНИКА",
+  "starfighterSection": "ЗВЕЗДНЫЕ ИСТРЕБИТЕЛИ",
+  "serverSectionTitle": "СЕРВЕР",
+  "maxPlayersLabel": "МАКС ИГОКОВ",
+  "maxSpectatorsLabel": "Макс Спектратор",
+  "privacySectionTitle": "Приватность",
+  "passwordLabel": "Пароль",
+  "passwordPlaceholder": "ПРИМЕР",
+  "modeHeroesVersusVillains": "Герои против злодеев",
+  "modeGalacticAssault": "Галактическая битва",
+  "modeSupremacy": "Превосходство",
+  "modeCoOpAttack": "Совместная игра (Атака)",
+  "modeCoOpDefend": "Совместная игра (Защита)",
+  "modeStrike": "Нападение",
+  "modeExtraction": "Эвакуация",
+  "modeBlast": "Схватка",
+  "modeEwokHunt": "Охота эвоков",
+  "modeJetpackCargo": "Реактивный груз",
+  "modeStarfighterAssault": "Битва звездных истребителей",
+  "modeHeroStarfighters": "Звездные истребители героев",
+  "modeHeroShowdown": "Столкновение героев",
+  "mapTatooineMosEisley": "Татуин — Мос-Эйсли",
+  "mapTatooineJabbasPalace": "Татуин — Дворец Джаббы",
+  "mapRepublicVenator": "Венатор Республики",
+  "mapSeparatistDreadnought": "Дредноут сепаратистов",
+  "mapResurgentStarDestroyer": "Звёздный разрушитель «Возрождающий»",
+  "mapMc85StarCruiser": "Звёздный крейсер MC85",
+  "mapNabooPalaceHangar": "Набу — Ангар дворца",
+  "mapEndorResearchStation9": "Эндор — Исследовательская станция 9",
+  "mapEndorEwokVillage": "Эндор — Деревня эвоков",
+  "mapNabooTheedPalace": "Набу — Дворец Тида",
+  "mapCrait": "Крайт",
+  "activeRotation": "Активная ротация",
+  "importLabel": "Импорт",
+  "importMapRotation": "Импортировать ротацию карт",
+  "invalidFileFormat": "Неверный формат файла",
+  "mapRotationImported": "Ротация карт импортирована",
+  "noMapsActive": "Нет активных карт",
+  "customMapNotFoundTooltip": "Пользовательская карта не найдена. Это может произойти, если карта не входит в текущую коллекцию модов.\nЭта карта будет проигнорирована при запуске сервера.",
+  "notFound": "Не найдено"
+}

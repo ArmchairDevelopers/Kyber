@@ -7,6 +7,7 @@ import 'package:kyber_launcher/features/mod_browser/screens/mod_details.dart';
 import 'package:kyber_launcher/features/mod_browser/widgets/mod_search_dropdown.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/cards/kyber_container.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_dropdown.dart';
 import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
@@ -209,6 +210,10 @@ class _FilterDropdownState extends State<_FilterDropdown> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     final size = widget.renderBox.size;
     final position = widget.renderBox.localToGlobal(Offset.zero);
     return Stack(
@@ -257,7 +262,7 @@ class _FilterDropdownState extends State<_FilterDropdown> with WindowListener {
                             return SuperListView(
                               children: [
                                 KyberSectionDropdown(
-                                  title: 'SORT BY',
+                                  title: l10n.sortByTitle,
                                   initialExpanded: true,
                                   child: Column(
                                     crossAxisAlignment:
@@ -293,7 +298,7 @@ class _FilterDropdownState extends State<_FilterDropdown> with WindowListener {
                                   ),
                                 ),
                                 KyberSectionDropdown(
-                                  title: 'TIME FILTER',
+                                  title: l10n.timeFilterTitle,
                                   initialExpanded: true,
                                   child: Column(
                                     crossAxisAlignment:
@@ -313,17 +318,17 @@ class _FilterDropdownState extends State<_FilterDropdown> with WindowListener {
                                           ],
                                           items: [1, 7, 14, 30, 365, 0].reversed
                                               .map((e) {
-                                                var text = 'All time';
+                                                var text = l10n.allTime;
                                                 if (e == 365) {
-                                                  text = '1 year';
+                                                  text = l10n.oneYear;
                                                 } else if (e == 30) {
-                                                  text = '1 month';
+                                                  text = l10n.oneMonth;
                                                 } else if (e == 14) {
-                                                  text = '2 weeks';
+                                                  text = l10n.twoWeeks;
                                                 } else if (e == 7) {
-                                                  text = '1 week';
+                                                  text = l10n.oneWeek;
                                                 } else if (e == 1) {
-                                                  text = '1 day';
+                                                  text = l10n.oneDay;
                                                 }
 
                                                 return _SelectorItem(
@@ -347,7 +352,7 @@ class _FilterDropdownState extends State<_FilterDropdown> with WindowListener {
                                 ),
                                 // items per page 20, 30, 40
                                 KyberSectionDropdown(
-                                  title: 'ITEMS PER PAGE',
+                                  title: l10n.itemsPerPageTitle,
                                   initialExpanded: true,
                                   child: Column(
                                     crossAxisAlignment:
@@ -427,6 +432,10 @@ class _FilterSelector<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return GridView.builder(
       shrinkWrap: true,
       gridDelegate: mt.SliverGridDelegateWithMaxCrossAxisExtent(
@@ -483,10 +492,10 @@ class _FilterSelector<T> extends StatelessWidget {
                         ? Colors.black
                         : Colors.white,
                     fontSize: 14,
-                    fontFamily: FontFamily.battlefrontUI,
+                    fontFamily: currentFont,
                   ),
                   child: Text(
-                    'ALL',
+                    l10n.all,
                     style: TextStyle(
                       color:
                           hovered ||
@@ -501,7 +510,7 @@ class _FilterSelector<T> extends StatelessWidget {
                           ? Colors.black
                           : Colors.white,
                       fontSize: 14,
-                      fontFamily: FontFamily.battlefrontUI,
+                      fontFamily: currentFont,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -554,7 +563,7 @@ class _FilterSelector<T> extends StatelessWidget {
                         ? Colors.black
                         : Colors.white,
                     fontSize: 14,
-                    fontFamily: FontFamily.battlefrontUI,
+                    fontFamily: currentFont,
                   ),
                   child: Text(
                     mode.title.toUpperCase(),

@@ -10,6 +10,7 @@ import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/frosty/helper/frosty_collection_writer.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/buttons/custom_icon_button.dart';
 import 'package:kyber_launcher/shared/ui/cards/kyber_container.dart';
@@ -38,6 +39,10 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Row(
       spacing: 15,
       children: [
@@ -47,17 +52,17 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
             child: Column(
               children: [
                 Padding(
-                  padding: EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(14),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       KyberButton(
-                        text: 'LOAD MODS',
+                        text: l10n.loadMods,
                         onPressed: () async {
                           final result = await FilePicker.platform.pickFiles(
                             allowedExtensions: ['fbmod'],
                             allowMultiple: true,
-                            dialogTitle: 'Select mods',
+                            dialogTitle: l10n.selectMods,
                             type: FileType.custom,
                           );
 
@@ -73,8 +78,7 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                             if (mods.map((e) => e.filename).contains(path)) {
                               paths.remove(path);
                               NotificationService.error(
-                                message:
-                                    'Ignoring ${p.basename(path)}. (Duplicate)',
+                                message: l10n.ignoringDuplicate(p.basename(path)),
                               );
                             }
                           }
@@ -91,9 +95,9 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                                 .toList();
                             final categoryCount = categories
                                 .fold<Map<String, int>>({}, (prev, element) {
-                                  prev[element] = (prev[element] ?? 0) + 1;
-                                  return prev;
-                                });
+                              prev[element] = (prev[element] ?? 0) + 1;
+                              return prev;
+                            });
                             final sortedCategories =
                                 categoryCount.entries.toList()
                                   ..sort((a, b) => b.value.compareTo(a.value));
@@ -111,7 +115,7 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                         },
                       ),
                       KyberButton(
-                        text: 'EXPORT',
+                        text: l10n.export,
                         onPressed: () async {
                           //final targetFile = await FilePicker.platform.saveFile(
                           //  dialogTitle: 'Save collection',
@@ -122,10 +126,10 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                           final targetFileZip = await FilePicker.platform
                               .saveFile(
                                 dialogTitle: 'Save collection',
-                                allowedExtensions: ['zip'],
-                                fileName: 'collection.zip',
-                                type: FileType.custom,
-                              );
+                            allowedExtensions: ['zip'],
+                            fileName: 'collection.zip',
+                            type: FileType.custom,
+                          );
                           final paths = mods.map((e) => e.filename).toList();
 
                           final data = FrostyCollectionWriter(
@@ -309,7 +313,7 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                       onClick: () async {
                         final result = await FilePicker.platform.pickFiles(
                           allowedExtensions: ['png', 'jpg', 'jpeg'],
-                          dialogTitle: 'Select icon',
+                          dialogTitle: l10n.selectIcon,
                           type: FileType.custom,
                         );
 
@@ -352,8 +356,8 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                                   if (icon == null)
                                     Center(
                                       child: Text(
-                                        'ICON',
-                                        style: TextStyle(
+                                        l10n.icon,
+                                        style: const TextStyle(
                                           color: kButtonBorder,
                                           fontSize: 12,
                                         ),
@@ -385,22 +389,22 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                     ),
                     Expanded(
                       child: KyberInput(
-                        placeholder: 'Name',
+                        placeholder: l10n.name,
                         controller: nameController,
                       ),
                     ),
                   ],
                 ),
                 KyberInput(
-                  placeholder: 'Author',
+                  placeholder: l10n.author,
                   controller: authorController,
                 ),
                 KyberInput(
-                  placeholder: 'Version',
+                  placeholder: l10n.version,
                   controller: versionController,
                 ),
                 KyberInput(
-                  placeholder: 'Category',
+                  placeholder: l10n.category,
                   controller: categoryController,
                 ),
               ],
@@ -481,29 +485,31 @@ class _ExportCollectionDialogState extends State<_ExportCollectionDialog> {
       for (final file in widget.filePaths) {
         print('Adding file: $file');
         await encoder.addFile(File(file));
-        setState(() {
-          progress = (progress.$1 + 1, progress.$2);
-        });
+          setState(() {
+            progress = (progress.$1 + 1, progress.$2);
+          });
       }
 
       await encoder.close();
-      Navigator.of(context).pop();
+        Navigator.of(context).pop();
     });
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return KyberContentDialog(
-      title: Text('EXPORT COLLECTION'),
-      constraints: BoxConstraints(maxWidth: 600, maxHeight: 400),
+      title: Text(l10n.exportCollection),
+      constraints: const BoxConstraints(maxWidth: 600, maxHeight: 400),
       content: Column(
         children: [
-          Text('Exporting collection...'),
+          Text(l10n.exportingCollection),
           ProgressBar(
             value: ((progress.$1) / progress.$2) * 100,
           ),
-          Text(p.basename(widget.filePaths[progress.$1])),
+            Text(p.basename(widget.filePaths[progress.$1])),
         ],
       ),
     );

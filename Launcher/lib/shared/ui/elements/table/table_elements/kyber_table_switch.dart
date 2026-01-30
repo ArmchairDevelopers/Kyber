@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:tinycolor2/tinycolor2.dart';
 
 class KyberTableSwitch extends StatefulWidget {
@@ -44,32 +45,41 @@ class _KyberTableSwitchState extends State<KyberTableSwitch> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return SizedBox(
       height: 34,
       child: Row(
         children: [
           Expanded(
             child: buildItem(
-              widget.disabledText ?? 'OFF',
+              widget.disabledText ?? l10n.off,
               widget.value == false,
+              currentFont,
             ),
           ),
           Expanded(
-            child: buildItem(widget.enabledText ?? 'ON', widget.value == true),
+            child: buildItem(
+              widget.enabledText ?? l10n.on,
+              widget.value == true,
+              currentFont,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget buildItem(String text, bool enabled) {
+  Widget buildItem(String text, bool enabled, String currentFont) {
     return AnimatedContainer(
       duration: Duration(milliseconds: enabled ? 100 : 20),
       decoration: BoxDecoration(
         color: enabled
             ? widget.hover && !disabled
-                  ? kActiveColor
-                  : kWhiteColor.withOpacity(disabled ? .7 : 1)
+                ? kActiveColor
+                : kWhiteColor.withOpacity(disabled ? .7 : 1)
             : null,
         borderRadius: BorderRadius.circular(2),
         boxShadow: enabled && widget.hover && !disabled
@@ -86,24 +96,25 @@ class _KyberTableSwitchState extends State<KyberTableSwitch> {
         child: Text(
           text.toUpperCase(),
           style: FluentTheme.of(context).typography.body!.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            shadows: widget.hover && !disabled && !enabled
-                ? [
-                    Shadow(
-                      color: kActiveColor.withOpacity(.8),
-                      blurRadius: 8,
-                    ),
-                  ]
-                : null,
-            color: enabled
-                ? widget.hover && !disabled
-                      ? Colors.black.mix(kActiveColor, 35)
-                      : Colors.black
-                : widget.hover
-                ? kActiveColor
-                : null,
-          ),
+                fontFamily: currentFont,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                shadows: widget.hover && !disabled && !enabled
+                    ? [
+                        Shadow(
+                          color: kActiveColor.withOpacity(.8),
+                          blurRadius: 8,
+                        ),
+                      ]
+                    : null,
+                color: enabled
+                    ? widget.hover && !disabled
+                        ? Colors.black.mix(kActiveColor, 35)
+                        : Colors.black
+                    : widget.hover
+                        ? kActiveColor
+                        : null,
+              ),
         ),
       ),
     );

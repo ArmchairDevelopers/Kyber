@@ -11,6 +11,7 @@ import 'package:kyber_launcher/features/stats/models/stats_object.dart';
 import 'package:kyber_launcher/features/stats/providers/stats_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/cards/kyber_container.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_tab_bar.dart';
 import 'package:kyber_launcher/shared/ui/primitives/rank_icon.dart';
@@ -22,19 +23,23 @@ class UserStats extends StatefulWidget {
   State<UserStats> createState() => _UserStatsState();
 }
 
-String formatPlaytime(Duration duration) {
+String formatPlaytime(Duration duration, AppLocalizations l10n) {
   if (duration.inHours > 0) {
-    return '${NumberFormat.decimalPattern().format(duration.inHours)} HRS';
+    return l10n.hoursFormat(NumberFormat.decimalPattern().format(duration.inHours));
   } else if (duration.inMinutes > 0) {
-    return '${duration.inMinutes} MIN';
+    return l10n.minutesFormat(duration.inMinutes);
   } else {
-    return '${duration.inSeconds} SEC';
+    return l10n.secondsFormat(duration.inSeconds);
   }
 }
 
 class _UserStatsState extends State<UserStats> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       children: [
         Expanded(
@@ -49,7 +54,7 @@ class _UserStatsState extends State<UserStats> {
               }
 
               if (state.playerStats == null) {
-                return const Center(child: Text('No stats found'));
+                return Center(child: Text(l10n.noStatsFound));
               }
 
               return Padding(
@@ -60,17 +65,17 @@ class _UserStatsState extends State<UserStats> {
                     Expanded(
                       flex: 5,
                       child: KyberCard(
-                        padding: .zero,
+                        padding: EdgeInsets.zero,
                         child: Column(
-                          crossAxisAlignment: .stretch,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             SizedBox(
                               height: 61,
                               child: Padding(
-                                padding: const .all(8),
+                                padding: const EdgeInsets.all(8),
                                 child: Row(
                                   spacing: 5,
-                                  mainAxisAlignment: .spaceBetween,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
                                       child: Row(
@@ -80,12 +85,12 @@ class _UserStatsState extends State<UserStats> {
                                             height: 45,
                                             decoration: BoxDecoration(
                                               border: kDefaultAllBorder,
-                                              borderRadius: .circular(
+                                              borderRadius: BorderRadius.circular(
                                                 kDefaultInnerBorderRadius,
                                               ),
                                             ),
                                             child: ClipRRect(
-                                              borderRadius: .circular(
+                                              borderRadius: BorderRadius.circular(
                                                 kDefaultInnerBorderRadius - 2,
                                               ),
                                               child: CachedNetworkImage(
@@ -96,14 +101,14 @@ class _UserStatsState extends State<UserStats> {
                                                     .avatar!
                                                     .large
                                                     .path,
-                                                fadeInDuration: .zero,
+                                                fadeInDuration: Duration.zero,
                                               ),
                                             ),
                                           ),
                                           Flexible(
                                             child: Column(
-                                              crossAxisAlignment: .start,
-                                              mainAxisAlignment: .center,
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              mainAxisAlignment: MainAxisAlignment.center,
                                               children: [
                                                 Text(
                                                   context
@@ -111,19 +116,17 @@ class _UserStatsState extends State<UserStats> {
                                                       .state
                                                       .servicePlayer!
                                                       .displayName,
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontSize: 18,
-                                                    fontFamily: FontFamily
-                                                        .battlefrontUI,
+                                                    fontFamily: currentFont,
                                                     height: 1.1,
                                                   ),
                                                 ),
                                                 AutoSizeText(
-                                                  '${formatPlaytime(state.playerStats!.totalPlaytime)}',
-                                                  style: const TextStyle(
+                                                  formatPlaytime(state.playerStats!.totalPlaytime, l10n),
+                                                  style: TextStyle(
                                                     height: 1.1,
-                                                    fontFamily: FontFamily
-                                                        .battlefrontUI,
+                                                    fontFamily: currentFont,
                                                     color: kWhiteColor1,
                                                   ),
                                                   maxLines: 1,
@@ -256,11 +259,10 @@ class _UserStatsState extends State<UserStats> {
                                                   height: 50,
                                                   child: Column(
                                                     children: [
-                                                      const Text(
-                                                        'MOST PLAYED',
+                                                      Text(
+                                                        l10n.mostPlayed,
                                                         style: TextStyle(
-                                                          fontFamily: FontFamily
-                                                              .battlefrontUI,
+                                                          fontFamily: currentFont,
                                                           color: kWhiteColor1,
                                                           fontSize: 15,
                                                           height: 1.1,
@@ -268,9 +270,8 @@ class _UserStatsState extends State<UserStats> {
                                                       ),
                                                       Text(
                                                         char.name.toUpperCase(),
-                                                        style: const TextStyle(
-                                                          fontFamily: FontFamily
-                                                              .battlefrontUI,
+                                                        style: TextStyle(
+                                                          fontFamily: currentFont,
                                                           fontSize: 15,
                                                         ),
                                                       ),
@@ -293,34 +294,34 @@ class _UserStatsState extends State<UserStats> {
                                 child: Builder(
                                   builder: (context) {
                                     final stats = {
-                                      'TOTAL KILLS':
+                                      l10n.totalKillsLabel:
                                           NumberFormat.decimalPattern().format(
                                             state.playerStats!.totalKills,
                                           ),
-                                      'TOTAL DEATHS':
+                                      l10n.totalDeathsLabel:
                                           NumberFormat.decimalPattern().format(
                                             state.playerStats!.totalDeaths,
                                           ),
-                                      'K/D RATIO': state.playerStats!
+                                      l10n.kdRatioLabel: state.playerStats!
                                           .getKd()
                                           .toStringAsFixed(2),
-                                      'ASSISTS': NumberFormat.decimalPattern()
+                                      l10n.assistsLabel: NumberFormat.decimalPattern()
                                           .format(
                                             state.playerStats!.eliminations,
                                           ),
-                                      'DAMAGE DONE':
+                                      l10n.damageDoneLabel:
                                           NumberFormat.decimalPattern().format(
                                             state.playerStats!.totalScore,
                                           ),
-                                      'SUICIDES': NumberFormat.decimalPattern()
+                                      l10n.suicidesLabel: NumberFormat.decimalPattern()
                                           .format(state.playerStats!.suicides),
-                                      'GAMES WON': NumberFormat.decimalPattern()
+                                      l10n.gamesWonLabel: NumberFormat.decimalPattern()
                                           .format(state.playerStats!.totalWins),
-                                      'GAMES LOST':
+                                      l10n.gamesLostLabel:
                                           NumberFormat.decimalPattern().format(
                                             state.playerStats!.totalLosses,
                                           ),
-                                      'WIN RATE':
+                                      l10n.winRateLabel:
                                           '${state.playerStats!.getWinRate().toStringAsFixed(1)}%',
                                     };
                                     return StaggeredGrid.count(
@@ -364,17 +365,17 @@ class _UserStatsState extends State<UserStats> {
                                 ),
                                 children: [
                                   _StatSection(
-                                    title: 'UNITS',
+                                    title: l10n.unitsSection,
                                     data: state.playerStats!.unitStats.values
                                         .toList(),
                                   ),
                                   _StatSection(
-                                    title: 'VEHICLES',
+                                    title: l10n.vehiclesSection,
                                     data: state.playerStats!.vehicleStats.values
                                         .toList(),
                                   ),
                                   _StatSection(
-                                    title: 'STARFIGHTER',
+                                    title: l10n.starfighterSection,
                                     data: state
                                         .playerStats!
                                         .starFighterStats
@@ -410,6 +411,10 @@ class _StatSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Container(
       height: 240,
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -431,8 +436,8 @@ class _StatSection extends StatelessWidget {
               ),
               Text(
                 title,
-                style: const TextStyle(
-                  fontFamily: FontFamily.battlefrontUI,
+                style: TextStyle(
+                  fontFamily: currentFont,
                   color: kWhiteColor,
                   fontSize: 18,
                 ),
@@ -455,7 +460,7 @@ class _StatSection extends StatelessWidget {
                       name: data[i].name,
                       portrait: data[i].portrait,
                       rank: data[i].rank,
-                      timePlayed: formatPlaytime(data[i].timePlayed),
+                      timePlayed: formatPlaytime(data[i].timePlayed, l10n),
                     ),
                   ),
               ],
@@ -482,6 +487,9 @@ class _ClassContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     const containerHeight = 287;
     const containerWidth = 220;
     const aspectRatio = containerWidth / containerHeight;
@@ -548,17 +556,17 @@ class _ClassContainer extends StatelessWidget {
                         children: [
                           Text(
                             name.toUpperCase(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
-                              fontFamily: FontFamily.battlefrontUI,
+                              fontFamily: currentFont,
                             ),
                           ),
                           Text(
                             timePlayed,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               color: kGrayColor,
-                              fontFamily: FontFamily.battlefrontUI,
+                              fontFamily: currentFont,
                             ),
                           ),
                         ],
@@ -583,22 +591,25 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontFamily: FontFamily.battlefrontUI,
+          style: TextStyle(
+            fontFamily: currentFont,
             color: kWhiteColor1,
             fontSize: 17,
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontFamily: FontFamily.battlefrontUI,
+          style: TextStyle(
+            fontFamily: currentFont,
             color: kWhiteColor,
             fontSize: 17,
           ),

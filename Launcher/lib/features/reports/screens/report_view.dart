@@ -15,6 +15,7 @@ import 'package:kyber_launcher/features/mod_browser/widgets/mod_details/mod_imag
 import 'package:kyber_launcher/features/reports/dialogs/report_punishment_dialog.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/buttons/custom_icon_button.dart';
@@ -87,6 +88,10 @@ class _ReportViewState extends State<ReportView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     if (playerName == null) {
       return const Center(
         child: ProgressRing(),
@@ -95,8 +100,8 @@ class _ReportViewState extends State<ReportView> {
 
     final report = reports.isNotEmpty ? reports[selectedIndex ?? 0] : null;
     if (report == null) {
-      return const Center(
-        child: Text('No reports available'),
+      return Center(
+        child: Text(l10n.noReportsAvailable),
       );
     }
 
@@ -183,61 +188,56 @@ class _ReportViewState extends State<ReportView> {
                                         children: [
                                           AutoSizeText(
                                             report.reportedPlayerName,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 24,
-                                              fontFamily:
-                                                  FontFamily.battlefrontUI,
+                                              fontFamily: currentFont,
                                               height: 1,
                                             ),
                                             maxLines: 1,
-                                            overflow: .ellipsis,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                           const SizedBox(height: 2),
                                           RichText(
                                             text: TextSpan(
                                               style: TextStyle(
                                                 color: kGrayColor,
-                                                fontFamily:
-                                                    FontFamily.battlefrontUI,
+                                                fontFamily: currentFont,
                                                 fontSize: 15,
                                               ),
                                               children: [
-                                                const TextSpan(
-                                                  text: 'Reported by ',
+                                                TextSpan(
+                                                  text: l10n.reportedBy,
                                                 ),
                                                 TextSpan(
                                                   text: report.reporterName,
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     color: kWhiteColor,
-                                                    fontWeight: .bold,
-                                                    fontFamily: FontFamily
-                                                        .battlefrontUI,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontFamily: currentFont,
                                                     fontSize: 15,
                                                   ),
                                                 ),
-                                                const TextSpan(text: ' for '),
+                                                TextSpan(text: l10n.forLabel),
                                                 TextSpan(
                                                   text: report.reason.name,
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     color: kWhiteColor,
-                                                    fontWeight: .bold,
-                                                    fontFamily: FontFamily
-                                                        .battlefrontUI,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontFamily: currentFont,
                                                     fontSize: 15,
                                                   ),
                                                 ),
-                                                const TextSpan(text: ' on '),
+                                                TextSpan(text: l10n.onLabel),
                                                 TextSpan(
                                                   text: DateFormat.yMd().add_jm().format(
                                                     DateTime.fromMillisecondsSinceEpoch(
                                                       report.createdAt.toInt() * 1000,
                                                     ).toLocal(),
                                                   ),
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     color: kWhiteColor,
-                                                    fontWeight: .bold,
-                                                    fontFamily: FontFamily
-                                                        .battlefrontUI,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontFamily: currentFont,
                                                     fontSize: 15,
                                                   ),
                                                 ),
@@ -388,13 +388,12 @@ class _ReportViewState extends State<ReportView> {
                                         Padding(
                                           padding: const EdgeInsets.all(15),
                                           child: InfoLabel(
-                                            label: 'Description',
+                                            label: l10n.descriptionLabel,
                                             child: Text(
                                               report.description,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 color: kWhiteColor,
-                                                fontFamily:
-                                                    FontFamily.battlefrontUI,
+                                                fontFamily: currentFont,
                                                 fontSize: 16,
                                               ),
                                             ),
@@ -404,8 +403,7 @@ class _ReportViewState extends State<ReportView> {
                                         Padding(
                                           padding: const .all(15),
                                           child: InfoLabel(
-                                            label:
-                                                'Evidence (${report.evidenceLinks.length})',
+                                            label: l10n.evidenceCountLabel(report.evidenceLinks.length),
                                             child: ListView.builder(
                                               shrinkWrap: true,
                                               physics:
@@ -432,8 +430,7 @@ class _ReportViewState extends State<ReportView> {
                                                         evidence,
                                                         style: TextStyle(
                                                           color: kActiveColor,
-                                                          fontFamily: FontFamily
-                                                              .battlefrontUI,
+                                                          fontFamily: currentFont,
                                                           fontSize: 16,
                                                           decoration:
                                                               TextDecoration
@@ -491,23 +488,23 @@ class _ReportViewState extends State<ReportView> {
                         ),
                         child: Row(
                           children: [
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'REPORT VIEW',
+                                    l10n.reportViewTitle,
                                     style: TextStyle(
                                       fontSize: 20,
-                                      fontFamily: FontFamily.battlefrontUI,
+                                      fontFamily: currentFont,
                                       height: 1,
                                     ),
                                   ),
                                   Text(
-                                    'VIEW REPORTS AND EVIDENCE',
+                                    l10n.viewReportsAndEvidence,
                                     style: TextStyle(
                                       color: kWhiteColor,
-                                      fontFamily: FontFamily.battlefrontUI,
+                                      fontFamily: currentFont,
                                       fontSize: 15,
                                     ),
                                   ),
@@ -549,9 +546,9 @@ class _ReportViewState extends State<ReportView> {
                               children: [
                                 Expanded(
                                   child: KyberTabBar(
-                                    tabs: const [
-                                      Text('REPORTS'),
-                                      Text('PUNISHMENTS'),
+                                    tabs: [
+                                      Text(l10n.reportsTab),
+                                      Text(l10n.punishmentsTab),
                                     ],
                                     onChanged: (value) => setState(
                                       () => selectedPage = value,
@@ -588,14 +585,14 @@ class _ReportViewState extends State<ReportView> {
                                                 : null;
                                           });
                                           NotificationService.info(
-                                            message: 'Report rejected',
+                                            message: l10n.reportRejected,
                                           );
                                         });
                                   },
                                 ),
                                 IntrinsicWidth(
                                   child: KyberButton(
-                                    text: 'TAKE ACTION',
+                                    text: l10n.takeAction,
                                     onPressed: () {
                                       showKyberDialog(
                                         context: context,
@@ -646,8 +643,7 @@ class _ReportViewState extends State<ReportView> {
                                               milliseconds: 150,
                                             ),
                                             style: TextStyle(
-                                              fontFamily:
-                                                  FontFamily.battlefrontUI,
+                                              fontFamily: currentFont,
                                               color:
                                                   hovered ||
                                                       index == selectedIndex
@@ -670,7 +666,7 @@ class _ReportViewState extends State<ReportView> {
                                                   const SizedBox(width: 10),
                                                   Expanded(
                                                     child: AutoSizeText(
-                                                      'By ${report.reportedPlayerName}',
+                                                      l10n.reportedByPlayer(report.reportedPlayerName),
                                                       maxLines: 1,
                                                       minFontSize: 16,
                                                     ),
@@ -716,7 +712,7 @@ class _ReportViewState extends State<ReportView> {
                                           milliseconds: 150,
                                         ),
                                         style: TextStyle(
-                                          fontFamily: FontFamily.battlefrontUI,
+                                          fontFamily: currentFont,
                                           color: kWhiteColor,
                                         ),
                                         child: Container(
@@ -739,10 +735,9 @@ class _ReportViewState extends State<ReportView> {
                                                   ).toLocal();
 
                                               if (punishment.expiresAt > 0) {
-                                                expiresText =
-                                                    '${expiresAt.difference(issuedAt).inDays} Days';
+                                                expiresText = l10n.daysDuration(expiresAt.difference(issuedAt).inDays);
                                               } else {
-                                                expiresText = 'Permanent';
+                                                expiresText = l10n.permanent;
                                               }
 
                                               return Column(
@@ -760,7 +755,7 @@ class _ReportViewState extends State<ReportView> {
                                                       const SizedBox(width: 10),
                                                       Expanded(
                                                         child: AutoSizeText(
-                                                          'Banned By ${punishment.moderator.name}',
+                                                          l10n.bannedByModerator(punishment.moderator.name),
                                                           maxLines: 1,
                                                           minFontSize: 16,
                                                         ),
@@ -768,13 +763,13 @@ class _ReportViewState extends State<ReportView> {
                                                     ],
                                                   ),
                                                   Text(
-                                                    'Duration: $expiresText',
+                                                    l10n.durationLabel(expiresText),
                                                     style: const TextStyle(
                                                       fontSize: 14,
                                                     ),
                                                   ),
                                                   Text(
-                                                    'Issued: ${DateFormat.yMd().add_jm().format(issuedAt)}',
+                                                    l10n.issuedLabel(DateFormat.yMd().add_jm().format(issuedAt)),
                                                     style: const TextStyle(
                                                       fontSize: 14,
                                                     ),

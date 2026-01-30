@@ -1,0 +1,643 @@
+{
+  "language": "Language",
+  "accessibility": "ACCESSIBILITY",
+  "colorblindProfiles": "COLORBLIND PROFILES",
+  "defaultColor": "DEFAULT",
+  "protanomaly": "PROTANOMALY",
+  "deuteranomaly": "DEUTERANOMALY",
+  "tritanomaly": "TRITANOMALY",
+  "resetSettings": "RESET SETTINGS",
+  "reset": "Reset",
+  "rememberWindowPosition": "Remember Window Position",
+  "customization": "CUSTOMIZATION",
+  "patreonExclusive": "PATREON EXCLUSIVE",
+  "changeHighlightColor": "CHANGE HIGHLIGHT COLOR",
+  "change": "Change",
+  "changeBackground": "CHANGE BACKGROUND",
+  "save": "Save",
+  "cancel": "Cancel",
+  "changeColor": "CHANGE COLOR",
+  "accounts": "ACCOUNTS",
+  "proxy": "PROXY",
+  "unavailable": "UNAVAILABLE",
+  "resetKyberToken": "Reset Kyber Token",
+  "nexusMods": "NexusMods",
+  "logout": "Logout",
+  "login": "Login",
+  "eaLogout": "EA Logout",
+  "linkedAccounts": "LINKED ACCOUNTS",
+  "discord": "Discord",
+  "connect": "Connect",
+  "discordUnlink": "{name}   |   Unlink",
+  "connectPatreon": "Connect Patreon",
+  "updates": "UPDATES",
+  "automaticallyUpdate": "Automatically Update",
+  "releaseChannel": "Release Channel",
+  "select": "Select",
+  "forceUpdate": "Force update",
+  "updateNow": "UPDATE NOW",
+  "other": "OTHER",
+  "licenses": "Licenses",
+  "showLicenses": "Show Licenses",
+  "developerMode": "Developer Mode",
+  "environment": "Environment",
+  "apiEnvironment": "API Environment",
+  "setNexusApiToken": "Set Nexus API Token",
+  "setToken": "Set token",
+  "setBackgroundImage": "Set Background Image",
+  "setImage": "Set Image",
+  "dummyServer": "Dummy Server",
+  "removeBackground": "Remove Background",
+  "copyKyberToken": "Copy Kyber Token",
+  "copy": "Copy",
+  "activity": "ACTIVITY",
+  "discordRichPresence": "Discord Rich Presence",
+  "loggingAndSentry": "Logging & Sentry",
+  "logs": "Logs",
+  "exportLogs": "Export Logs",
+  "optInToSentry": "Opt In To Sentry",
+  "optOutOfSentry": "Opt Out Of Sentry",
+  "optIn": "Opt In",
+  "optOut": "Opt Out",
+  "launcherDebugMode": "Launcher Debug Mode",
+  "moduleDebugMode": "Module Debug Mode",
+  "moduleRpcDebugMode": "Module RPC Debug Mode",
+  "mods": "MODS",
+  "changeModDirectory": "Change Mod Directory",
+  "newDirectory": "New Directory",
+  "frostyConverter": "Frosty Converter",
+  "convertYourPacks": "Convert your Packs",
+  "kyberPreloadedMods": "Kyber Preloaded Mods",
+  "ingame": "INGAME",
+  "ingameHotkey": "Ingame Hotkey (Moderation Menu)",
+  "restartGameWarning": "To apply changes, restart the game",
+  "enabled": "Enabled",
+  "disabled": "Disabled",
+  "proximityChat": "Proximity Chat",
+  "inputMode": "Input Mode",
+  "openMic": "Open Mic",
+  "pushToTalk": "Push to Talk",
+  "pushToTalkKey": "Push to Talk Key",
+  "inputVolume": "Input Volume",
+  "outputVolume": "Output Volume",
+  "inputDevice": "Input Device",
+  "outputDevice": "Output Device",
+  "noDevicesFound": "No devices found",
+  "selectBackground": "SELECT A BACKGROUND",
+  "chooseBackgroundDesc": "CHOOSE FROM 8 BACKGROUNDS OR SELECT A CUSTOM BACKGROUND",
+  "customBackground": "CUSTOM BACKGROUND",
+  "selectImageDesc": "Select a background image for the launcher",
+  "minResolutionDesc": "The image resolution should be at least 1920x1080",
+  "selectImage": "Select Image",
+  "fileTooLarge": "The file is too large. Please select a file smaller than 10MB",
+  "resolutionTooLow": "The image resolution is too low. Please select an image with a resolution of at least 1920x1080",
+  "copyingImage": "Copying image...",
+  "selectImagePickerTitle": "Select a background image",
+  "langAccTitle": "LANGUAGE & ACCESSIBILITY",
+  "langAccDesc": "CHANGE LANGUAGE, PROXY & ACCESSIBILITY SETTINGS",
+  "modConfigTitle": "MOD CONFIGURATION",
+  "modConfigDesc": "CONFIGURE MODS SETTINGS, IMPORT FROM FROSTY & MORE",
+  "creditsTitle": "CREDITS LIST",
+  "creditsDesc": "VIEW DEVELOPERS, CONTRIBUTORS & PATREON SUPPORTERS",
+  "ingameSettingsTitle": "INGAME SETTINGS",
+  "proximityChatDesc": "CONFIGURE PROXIMITY CHAT SETTINGS",
+  "logsActivityTitle": "LOGS & ACTIVITY",
+  "logsActivityDesc": "VIEW ACTIVITY & DEBUG LOGGING SETTINGS",
+  "accountsUpdatesTitle": "ACCOUNTS & UPDATES",
+  "accountsUpdatesDesc": "LOGOUT, UPDATE SETTINGS & MORE",
+  "versionText": "VERSION: {version}#CL{build}",
+  "downloadManager": "DOWNLOAD MANAGER",
+  "pausedDownloads": "PAUSED DOWNLOADS",
+  "unCapSpeedPrefix": "UN-CAP DOWNLOAD SPEEDS WITH ",
+  "nexusModsPremium": "NEXUS MODS PREMIUM",
+  "downloadProgress": " / {total} ({speed}/s) {percentage}%",
+  "@downloadProgress": {
+    "placeholders": {
+      "total": { "type": "String" },
+      "speed": { "type": "String" },
+      "percentage": { "type": "int" }
+    }
+  },
+  "loadMods": "LOAD MODS",
+  "export": "EXPORT",
+  "selectMods": "Select mods",
+  "ignoringDuplicate": "Ignoring {filename}. (Duplicate)",
+  "@ignoringDuplicate": {
+    "placeholders": {
+      "filename": { "type": "String" }
+    }
+  },
+  "saveCollection": "Save collection",
+  "icon": "ICON",
+  "name": "Name",
+  "author": "Author",
+  "version": "Version",
+  "category": "Category",
+  "exportCollection": "EXPORT COLLECTION",
+  "exportingCollection": "Exporting collection...",
+  "selectIcon": "Select icon",
+  "eaLogin": "EA Login",
+  "loading": "Loading...",
+  "waitingForResponse": "Waiting for response...",
+  "maximaStarting": "Maxima is starting...",
+  "fetchingData": "Fetching data...",
+  "genericError": "An error occurred",
+  "loginFailed": "Login failed",
+  "userDoesNotExist": "The specified user does not exist",
+  "passwordIncorrect": "The specified password is incorrect",
+  "failedToFindAuthCode": "Failed to find auth code. Please try another browser",
+  "pathCopied": "The path has been copied to your clipboard",
+  "noAuthCodeReceived": "No authorization code was received",
+  "authorizationSuccessful": "Authorization successful",
+  "patreonAuthorizedMessage": "You have been successfully authorized as a Patreon member",
+  "authorizationFailed": "Authorization failed",
+  "maximaIntroText": "In order to use this launcher, you need to login to Maxima. This is required to launch and interact with Battlefront 2.\nYou will be redirected to the EA login page and after logging in, you will be redirected back to the launcher.",
+  "loginWithEa": "Login with EA",
+  "eaIdDisplay": "EA-ID: {eaId}",
+  "logout": "Log out",
+  "authorizePatreon": "Authorize Patreon",
+  "whitelistConfirmation": "Are you sure you want to add your current account to the whitelist?",
+  "currentAccountDisplay": "Current account: {displayName}",
+  "addToWhitelist": "Add to whitelist",
+  "gameNotOwnedMessage": "It seems like you do not own Battlefront 2. Please purchase the game or use another account.",
+  "maximaBackgroundServiceError": "Maxima failed to start the background service. This is usually caused by an antivirus program blocking the service. Please add an exception for the launcher and reinstall it.",
+  "maximaMissingFilesError": "Some files required to run Maxima are missing. This is usually caused by an antivirus program deleting the files. Please add an exception for the launcher and reinstall it.",
+  "antivirusExclusionInstruction": "Please exclude the following folders from your antivirus' real-time protection:",
+  "copyPath": "COPY PATH",
+  "debugLogsToggled": "{status} debug logs",
+  "signInNexusPrompt": "Please sign in to Nexus Mods to view mods",
+  "noModsFound": "No mods found",
+  "unknownError": "Unknown error",
+  "noDataFound": "No data found",
+  "modInformation": "MOD INFORMATION",
+  "viewModFilesShareEndorse": "VIEW MOD FILES, SHARE AND ENDORSE",
+  "files": "FILES",
+  "posts": "POSTS",
+  "endorseMustDownload": "You must download the mod before endorsing it",
+  "endorseWaitTime": "You must wait some time after downloading the mod before endorsing it",
+  "endorseLoginRequired": "You must be logged in to endorse mods",
+  "linkCopied": "Link copied to clipboard",
+  "updatedAt": "Updated: ",
+  "mainFiles": "MAIN FILES",
+  "miscellaneousFiles": "MISCELLANEOUS FILES",
+  "optionalFiles": "OPTIONAL FILES",
+  "archivedFiles": "ARCHIVED FILES",
+  "fileListTitle": "{title} ({count})",
+  "@fileListTitle": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "verifiedModAuthor": "Verified Mod Author",
+  "viewingProfile": "VIEWING PROFILE",
+  "publishedMods": "PUBLISHED MODS",
+  "userInformation": "USER INFORMATION",
+  "viewUserStats": "VIEW USER STATS",
+  "joinedLabel": "Joined: ",
+  "modsLabel": "Mods: ",
+  "postsLabel": "Posts: ",
+  "uniqueDlsLabel": "Unique-DLs: ",
+  "viewsLabel": "Views: ",
+  "kudosLabel": "Kudos: ",
+  "contributedLabel": "Contributed: ",
+  "viewOnNexusMods": "VIEW ON NEXUS MODS",
+  "collectionMods": "Collection Mods",
+  "modNameVersion": "{name} ({version})",
+  "@modNameVersion": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "version": { "type": "String" }
+    }
+  },
+  "downloadCollectionMods": "DOWNLOAD COLLECTION MODS",
+  "loadingMods": "LOADING MODS...",
+  "collections": "COLLECTIONS",
+  "manageCollectionsSub": "MANAGE MOD COLLECTIONS & CURATE COSMETIC MODS",
+  "browser": "Browser",
+  "paginationInfo": "{page}/{totalPages}",
+  "@paginationInfo": {
+    "placeholders": {
+      "page": { "type": "int" },
+      "totalPages": { "type": "int" }
+    }
+  },
+  "modScope": "MOD SCOPE",
+  "serverNotFound": "The server you were playing on could not be found.",
+  "nexusModsAuthorization": "NexusMods Authorization",
+  "nexusAuthDescription": "You need to authorize KyberLauncher on NexusMods to use the mod browser.",
+  "authorizeKyber": "Authorize Kyber",
+  "noReportsAvailable": "No reports available",
+  "reportedBy": "Reported by ",
+  "forLabel": " for ",
+  "onLabel": " on ",
+  "descriptionLabel": "Description",
+  "evidenceCountLabel": "Evidence ({count})",
+  "@evidenceCountLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "reportViewTitle": "REPORT VIEW",
+  "viewReportsAndEvidence": "VIEW REPORTS AND EVIDENCE",
+  "reportsTab": "REPORTS",
+  "punishmentsTab": "PUNISHMENTS",
+  "reportRejected": "Report rejected",
+  "takeAction": "TAKE ACTION",
+  "reportedByPlayer": "By {name}",
+  "@reportedByPlayer": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "daysDuration": "{days} Days",
+  "@daysDuration": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "permanent": "Permanent",
+  "bannedByModerator": "Banned By {name}",
+  "@bannedByModerator": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "durationLabel": "Duration: {duration}",
+  "@durationLabel": {
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "issuedLabel": "Issued: {date}",
+  "@issuedLabel": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "statusFilter": "STATUS",
+  "reportsTitle": "REPORTS",
+  "totalReportsHeader": "TOTAL REPORTS",
+  "latestReportHeader": "LATEST REPORT",
+  "latestReasonHeader": "LATEST REASON",
+  "statusHeader": "STATUS",
+  "errorLoadingReports": "Error loading reports: {message}",
+  "reasonWithCount": "{reasonName} ({count})",
+  "armsecCaseFile": "ARMSEC - CASE FILE",
+  "evidenceAndDataSummary": "EVIDENCE AND DATA SUMMARY",
+  "errorLoadingUser": "Error loading user",
+  "userNotFound": "User not found",
+  "kyberUser": "KYBER USER",
+  "open": "OPEN",
+  "options": "OPTIONS",
+  "@errorLoadingReports": {
+    "placeholders": {
+      "message": { "type": "String" }
+    }
+  },
+  "@reasonWithCount": {
+    "placeholders": {
+      "reasonName": { "type": "String" },
+      "count": { "type": "String" }
+    }
+  },
+  "unknownServer": "Unknown Server",
+  "hostedBy": "Hosted by {creator}",
+  "@hostedBy": {
+    "placeholders": {
+      "creator": { "type": "String" }
+    }
+  },
+  "backToServerBrowser": "Back to Server Browser",
+  "eventLog": "Event Log",
+  "lightSide": "Light Side",
+  "darkSide": "Dark Side",
+  "reportPlayer": "Report Player",
+  "region": "REGION",
+  "serverType": "SERVER TYPE",
+  "gameType": "GAME TYPE",
+  "gameMode": "GAME MODE",
+  "warning": "WARNING",
+  "warningMessageFallback": "Warning message not available.",
+  "newButton": "NEW",
+  "moderate": "MODERATE",
+  "manage": "MANAGE",
+  "rotation": "ROTATION",
+  "searchPlaceholder": "Search ...",
+  "noServersFound": "No servers found",
+  "serverBrowser": "Server Browser",
+  "optionsHeader": "OPTIONS",
+  "moderatorsHeader": "MODERATORS",
+  "bannedPlayersHeader": "BANNED PLAYERS",
+  "playButton": "PLAY",
+  "spectateButton": "SPECTATE",
+  "copyLinkButton": "COPY LINK",
+  "copiedToClipboard": "Copied to clipboard!",
+  "exportBans": "EXPORT BANS",
+  "importBans": "IMPORT BANS",
+  "kickAll": "KICK ALL",
+  "banAll": "BAN ALL",
+  "eventLogHeader": "Event Log",
+  "lightSideHeader": "Light Side",
+  "darkSideHeader": "Dark Side",
+  "userManager": "User Manager",
+  "consoleHint": "/COMMAND OR SEND MESSAGE",
+  "untilLabel": "UNTIL: {date}",
+  "reasonLabel": "REASON: {reason}",
+  "unban": "UNBAN",
+  "modify": "MODIFY",
+  "playerUnbanned": "Player unbanned",
+  "timeElapsed": "Time has elapsed",
+  "daysRemaining": "{count} day(s)",
+  "hoursRemaining": "{count} hour(s)",
+  "minutesRemaining": "{count} minute(s)",
+  "secondsRemaining": "{count} second(s)",
+  "remaining": "{time} remaining",
+  "promoteUserTooltip": "Promote User",
+  "errorOccurred": "An error occurred",
+  "swapPlayerTooltip": "Swap Player",
+  "kickPlayerTooltip": "Kick player",
+  "banPlayerTooltip": "Ban player",
+  "off": "OFF",
+  "on": "ON",
+  "home": "HOME",
+  "host": "HOST",
+  "stats": "STATS",
+  "settings": "SETTINGS",
+  "ingamePanel": "INGAME PANEL",
+  "extractingFileWithProgress": "EXTRACTING FILE ({extracted}/{total})",
+  "extractingFile": "EXTRACTING FILE",
+  "downloadingWithProgress": "DOWNLOADING ({percentage}% {downloaded}/{total})",
+  "downloadManager": "DOWNLOAD MANAGER",
+  "createNewCollection": "CREATE NEW COLLECTION",
+  "pageNotFoundTitle": "Page Not Found",
+  "pageNotFoundFallback": "page not found",
+  "goToHomePage": "Go to home page",
+  "newCollectionTitle": "New Collection",
+  "@extractingFileWithProgress": {
+    "placeholders": {
+      "extracted": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "@downloadingWithProgress": {
+    "placeholders": {
+      "percentage": {
+        "type": "String"
+      },
+      "downloaded": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "@untilLabel": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "@reasonLabel": {
+    "placeholders": {
+      "reason": { "type": "String" }
+    }
+  },
+  "@daysRemaining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "@hoursRemaining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "@minutesRemaining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "@secondsRemaining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "@remaining": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "eaAccount": "EA Account",
+  "finish": "FINISH",
+  "skip": "SKIP",
+  "searchFailed": "Failed to search players: {message}",
+  "unexpectedError": "An unexpected error occurred: {error}",
+  "searchKyberUser": "Search for a kyber user",
+  "noResultsFound": "No results found for \"{query}\".",
+  "friendsCount": "FRIENDS ({count})",
+  "recentlyViewed": "RECENTLY VIEWED",
+  "userSearchHistory": "USER SEARCH HISTORY",
+  "online": "Online",
+  "playingStatus": "Playing {status}",
+  "@searchFailed": {
+    "placeholders": {
+      "message": { "type": "String" }
+    }
+  },
+  "@unexpectedError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "@noResultsFound": {
+    "placeholders": {
+      "query": { "type": "String" }
+    }
+  },
+  "@friendsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "@playingStatus": {
+    "placeholders": {
+      "status": { "type": "String" }
+    }
+  },
+  "selectCollectionIcon": "Select Collection Icon",
+  "collectionLabel": "COLLECTION",
+  "collectionDescription": "A COLLECTION IS A READY TO PLAY MOD LIST",
+  "modsCount": "{count} Mods",
+  "collectionNamePlaceholder": "Collection Name",
+  "saveButton": "SAVE",
+  "betterSabersPlugin": "BETTER SABERS (PLUGIN)",
+  "reloadingMods": "Reloading mods",
+  "generatedBetterSabers": "Generated BetterSabers",
+  "exportCollectionTar": "EXPORT COLLECTION TAR",
+  "editCollection": "EDIT COLLECTION",
+  "createACopy": "CREATE A COPY",
+  "collectionCopyName": "{title} (Copy)",
+  "deleteCollection": "DELETE COLLECTION",
+  "largeModsWarning": "Using multiple large or complex mods isn't recommended, as they often conflict with each other.",
+  "@modsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@collectionCopyName": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "myMods": "MY MODS",
+  "nameHeader": "NAME",
+  "categoryHeader": "CATEGORY",
+  "sizeHeader": "SIZE",
+  "typeHeader": "TYPE",
+  "addHeader": "ADD",
+  "selectedCount": "{count}",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "all": "ALL",
+  "searchHint": "SEARCH...",
+  "noPlayersFound": "No players found",
+  "moveModsDirectory": "MOVE MODS DIRECTORY",
+  "invalidDirectoryWarning": "The current mods directory is invalid because it contains non-ASCII characters. ",
+  "selectNewDirectoryDesc": "Please select the new directory where you want to move the mods directory. Mods will not be moved. Only the directory will be changed.",
+  "nonAsciiWarning": "Non-ASCII characters in the path are not allowed (e.g. Korean, Greek, etc.).",
+  "adminPermissionError": "You can't select a directory that requires admin permissions. Please select another directory.",
+  "selectedDirNonAsciiError": "The selected directory contains non-ASCII characters. Please select a different directory.",
+  "browse": "Browse",
+  "resetToDefault": "Reset to default",
+  "defaultDirNonAsciiError": "The default mods directory contains non-ASCII characters. Please select a different directory.",
+  "modInformation": "MOD INFORMATION",
+  "viewInformationAboutMod": "VIEW INFORMATION ABOUT A MOD",
+  "modVersionAuthorDisplay": "{version} - {author}",
+  "@modVersionAuthorDisplay": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "descriptionLabel": "DESCRIPTION",
+  "imagesLabel": "IMAGES",
+  "affectedFilesLabel": "AFFECTED FILES",
+  "unknownResourceName": "Unknown resource name",
+  "abortingNexusLogin": "Aborting NexusMods login",
+  "installWebViewError": "Please install WebView to use this feature.",
+  "continueText": "CONTINUE",
+  "wait": "WAIT",
+  "win7CompatibilityDetected": "Windows 7 Compatibility Mode detected",
+  "disableWin7CompMode": "To login to NexusMods, please disable Windows 7 Compatibility Mode for Kyber Launcher.",
+  "reEnableWin7CompMode": "After you have logged in, you need to re-enable Windows 7 Compatibility Mode.",
+  "checkingWebView": "Checking WebView installation...",
+  "nexusLoginIntro": "To continue, you will need to log in with your NexusMods account in the browser that is about to open.",
+  "nexusLoginDataNotice": "The data is processed locally and will only be sent to Nexusmods.\nYou can also enable/disable this feature later in the settings menu.",
+  "playersHeader": "PLAYERS",
+  "eventsAndAnnouncements": "EVENTS & ANNOUNCEMENTS",
+  "viewUpcomingEventsDesc": "VIEW UPCOMING EVENTS & RECEIVE ANNOUNCEMENTS",
+  "sortByTitle": "SORT BY",
+  "timeFilterTitle": "TIME FILTER",
+  "itemsPerPageTitle": "ITEMS PER PAGE",
+  "allTime": "All time",
+  "oneYear": "1 year",
+  "oneMonth": "1 month",
+  "twoWeeks": "2 weeks",
+  "oneWeek": "1 week",
+  "oneDay": "1 day",
+  "all": "ALL",
+  "@hoursFormat": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@minutesFormat": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@secondsFormat": {
+      "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursFormat": "{count} HRS",
+  "minutesFormat": "{count} MIN",
+  "secondsFormat": "{count} SEC",
+  "noStatsFound": "No stats found",
+  "mostPlayed": "MOST PLAYED",
+  "totalKillsLabel": "TOTAL KILLS",
+  "totalDeathsLabel": "TOTAL DEATHS",
+  "kdRatioLabel": "K/D RATIO",
+  "assistsLabel": "ASSISTS",
+  "damageDoneLabel": "DAMAGE DONE",
+  "suicidesLabel": "SUICIDES",
+  "gamesWonLabel": "GAMES WON",
+  "gamesLostLabel": "GAMES LOST",
+  "winRateLabel": "WIN RATE",
+  "unitsSection": "UNITS",
+  "vehiclesSection": "VEHICLES",
+  "starfighterSection": "STARFIGHTER",
+  "serverSectionTitle": "SERVER",
+  "maxPlayersLabel": "MAX PLAYERS",
+  "maxSpectatorsLabel": "Max Spectators",
+  "privacySectionTitle": "Privacy",
+  "passwordLabel": "Password",
+  "passwordPlaceholder": "EXAMPLE",
+  "modeHeroesVersusVillains": "Heroes Versus Villains",
+  "modeGalacticAssault": "Galactic Assault",
+  "modeSupremacy": "Supremacy",
+  "modeCoOpAttack": "CO-OP Attack",
+  "modeCoOpDefend": "CO-OP Defend",
+  "modeStrike": "Strike",
+  "modeExtraction": "Extraction",
+  "modeBlast": "Blast",
+  "modeEwokHunt": "Ewok Hunt",
+  "modeJetpackCargo": "Jetpack Cargo",
+  "modeStarfighterAssault": "Starfighter Assault",
+  "modeHeroStarfighters": "Hero Starfighters",
+  "modeHeroShowdown": "Hero Showdown",
+  "mapTatooineMosEisley": "Tatooine - Mos Eisley",
+  "mapTatooineJabbasPalace": "Tatooine - Jabba's Palace",
+  "mapRepublicVenator": "Republic Venator",
+  "mapSeparatistDreadnought": "Separatist Dreadnought",
+  "mapResurgentStarDestroyer": "Resurgent Star Destroyer",
+  "mapMc85StarCruiser": "MC85 Star Cruiser",
+  "mapNabooPalaceHangar": "Naboo - Palace Hangar",
+  "mapEndorResearchStation9": "Endor - Research Station 9",
+  "mapEndorEwokVillage": "Endor - Ewok Village",
+  "mapNabooTheedPalace": "Naboo - Theed Palace",
+  "mapCrait": "Crait",
+  "activeRotation": "Active Rotation",
+  "importLabel": "Import",
+  "importMapRotation": "Import Map Rotation",
+  "invalidFileFormat": "Invalid file format",
+  "mapRotationImported": "Map rotation imported",
+  "noMapsActive": "No maps active",
+  "customMapNotFoundTooltip": "Custom map not found, this can happen if the map is not part of the current mod collection.\nThis map will be ignored when starting the server.",
+  "notFound": "Not found"
+}

@@ -9,6 +9,7 @@ import 'package:kyber_launcher/core/utils/transparent_image.dart';
 import 'package:kyber_launcher/features/mod_browser/screens/mod_details.dart';
 import 'package:kyber_launcher/features/mod_browser/widgets/mod_tile.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/cards/kyber_container.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_tab_bar.dart';
 import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
@@ -34,6 +35,10 @@ class _NexusProfileState extends State<NexusProfile> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Query$userById$Widget(
       options: .new(
         variables: .new(
@@ -45,7 +50,7 @@ class _NexusProfileState extends State<NexusProfile> {
         if (result.hasException) {
           late String error;
           if (result.exception == null) {
-            error = 'Unknown error';
+            error = l10n.unknownError;
           } else if (result.exception!.linkException != null) {
             error = result.exception!.linkException!.originalStackTrace
                 .toString();
@@ -64,8 +69,8 @@ class _NexusProfileState extends State<NexusProfile> {
         final isLoading = result.isLoading;
 
         if (!isLoading && data == null) {
-          return const Center(
-            child: Text('No data found'),
+          return Center(
+            child: Text(l10n.noDataFound),
           );
         }
 
@@ -132,9 +137,8 @@ class _NexusProfileState extends State<NexusProfile> {
                                         children: [
                                           Text(
                                             data?.user?.name ?? '...',
-                                            style: const TextStyle(
-                                              fontFamily:
-                                                  FontFamily.battlefrontUI,
+                                            style: TextStyle(
+                                              fontFamily: currentFont,
                                               fontSize: 19,
                                               color: kWhiteColor,
                                             ),
@@ -150,12 +154,11 @@ class _NexusProfileState extends State<NexusProfile> {
                                                 ),
                                                 const SizedBox(width: 5),
                                                 Text(
-                                                  'Verified Mod Author'
+                                                  l10n.verifiedModAuthor
                                                       .toUpperCase(),
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     color: kGrayColor,
-                                                    fontFamily: FontFamily
-                                                        .battlefrontUI,
+                                                    fontFamily: currentFont,
                                                     fontSize: 15,
                                                   ),
                                                 ),
@@ -181,16 +184,15 @@ class _NexusProfileState extends State<NexusProfile> {
                                           color: hovered
                                               ? kActiveColor
                                               : kWhiteColor,
-                                          fontFamily: FontFamily.battlefrontUI,
+                                          fontFamily: currentFont,
                                           fontSize: 15,
                                         ),
                                         child: Row(
                                           children: [
                                             Text(
-                                              'VIEWING PROFILE'.toUpperCase(),
-                                              style: const TextStyle(
-                                                fontFamily:
-                                                    FontFamily.battlefrontUI,
+                                              l10n.viewingProfile.toUpperCase(),
+                                              style: TextStyle(
+                                                fontFamily: currentFont,
                                                 fontSize: 15,
                                               ),
                                             ),
@@ -289,12 +291,11 @@ class _NexusProfileState extends State<NexusProfile> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
-                                                'PUBLISHED MODS',
+                                              Text(
+                                                l10n.publishedMods,
                                                 style: TextStyle(
                                                   fontSize: 24,
-                                                  fontFamily:
-                                                      FontFamily.battlefrontUI,
+                                                  fontFamily: currentFont,
                                                   height: 1,
                                                 ),
                                               ),
@@ -316,10 +317,9 @@ class _NexusProfileState extends State<NexusProfile> {
                                                                       ?.uniqueModDownloads ??
                                                                   0,
                                                             ),
-                                                        style: const TextStyle(
+                                                        style: TextStyle(
                                                           color: kWhiteColor,
-                                                          fontFamily: FontFamily
-                                                              .battlefrontUI,
+                                                          fontFamily: currentFont,
                                                           fontSize: 15,
                                                         ),
                                                       ),
@@ -341,10 +341,9 @@ class _NexusProfileState extends State<NexusProfile> {
                                                                       ?.modCount ??
                                                                   0,
                                                             ),
-                                                        style: const TextStyle(
+                                                        style: TextStyle(
                                                           color: kWhiteColor,
-                                                          fontFamily: FontFamily
-                                                              .battlefrontUI,
+                                                          fontFamily: currentFont,
                                                           fontSize: 15,
                                                         ),
                                                       ),
@@ -504,24 +503,24 @@ class _NexusProfileState extends State<NexusProfile> {
                             ),
                             child: Row(
                               children: [
-                                const Expanded(
+                                Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'USER INFORMATION',
+                                        l10n.userInformation,
                                         style: TextStyle(
                                           fontSize: 20,
-                                          fontFamily: FontFamily.battlefrontUI,
+                                          fontFamily: currentFont,
                                           height: 1,
                                         ),
                                       ),
                                       Text(
-                                        'VIEW USER STATS',
+                                        l10n.viewUserStats,
                                         style: TextStyle(
                                           color: kWhiteColor,
-                                          fontFamily: FontFamily.battlefrontUI,
+                                          fontFamily: currentFont,
                                           fontSize: 15,
                                         ),
                                       ),
@@ -570,9 +569,9 @@ class _NexusProfileState extends State<NexusProfile> {
                                   children: [
                                     Row(
                                       children: [
-                                        const Text(
-                                          'Joined: ',
-                                          style: TextStyle(color: kWhiteColor),
+                                        Text(
+                                          l10n.joinedLabel,
+                                          style: const TextStyle(color: kWhiteColor),
                                         ),
                                         Text(
                                           DateFormat.yMd().format(
@@ -583,9 +582,9 @@ class _NexusProfileState extends State<NexusProfile> {
                                     ),
                                     Row(
                                       children: [
-                                        const Text(
-                                          'Mods: ',
-                                          style: TextStyle(color: kWhiteColor),
+                                        Text(
+                                          l10n.modsLabel,
+                                          style: const TextStyle(color: kWhiteColor),
                                         ),
                                         Text(
                                           NumberFormat.decimalPattern().format(
@@ -596,9 +595,9 @@ class _NexusProfileState extends State<NexusProfile> {
                                     ),
                                     Row(
                                       children: [
-                                        const Text(
-                                          'Posts: ',
-                                          style: TextStyle(color: kWhiteColor),
+                                        Text(
+                                          l10n.postsLabel,
+                                          style: const TextStyle(color: kWhiteColor),
                                         ),
                                         Text(
                                           NumberFormat.decimalPattern().format(
@@ -609,9 +608,9 @@ class _NexusProfileState extends State<NexusProfile> {
                                     ),
                                     Row(
                                       children: [
-                                        const Text(
-                                          'Unique-DLs: ',
-                                          style: TextStyle(color: kWhiteColor),
+                                        Text(
+                                          l10n.uniqueDlsLabel,
+                                          style: const TextStyle(color: kWhiteColor),
                                         ),
                                         Text(
                                           NumberFormat.decimalPattern().format(
@@ -622,9 +621,9 @@ class _NexusProfileState extends State<NexusProfile> {
                                     ),
                                     Row(
                                       children: [
-                                        const Text(
-                                          'Views: ',
-                                          style: TextStyle(color: kWhiteColor),
+                                        Text(
+                                          l10n.viewsLabel,
+                                          style: const TextStyle(color: kWhiteColor),
                                         ),
                                         Text(
                                           NumberFormat.decimalPattern().format(
@@ -635,9 +634,9 @@ class _NexusProfileState extends State<NexusProfile> {
                                     ),
                                     Row(
                                       children: [
-                                        const Text(
-                                          'Kudos: ',
-                                          style: TextStyle(color: kWhiteColor),
+                                        Text(
+                                          l10n.kudosLabel,
+                                          style: const TextStyle(color: kWhiteColor),
                                         ),
                                         Text(
                                           NumberFormat.decimalPattern().format(
@@ -648,9 +647,9 @@ class _NexusProfileState extends State<NexusProfile> {
                                     ),
                                     Row(
                                       children: [
-                                        const Text(
-                                          'Contributed: ',
-                                          style: TextStyle(color: kWhiteColor),
+                                        Text(
+                                          l10n.contributedLabel,
+                                          style: const TextStyle(color: kWhiteColor),
                                         ),
                                         Text(
                                           NumberFormat.decimalPattern().format(
@@ -672,18 +671,16 @@ class _NexusProfileState extends State<NexusProfile> {
                                             color: hovered
                                                 ? kActiveColor
                                                 : Colors.white,
-                                            fontFamily:
-                                                FontFamily.battlefrontUI,
+                                            fontFamily: currentFont,
                                             fontSize: 15,
                                           ),
                                           child: Row(
                                             children: [
                                               Text(
-                                                'VIEW ON NEXUS MODS'
+                                                l10n.viewOnNexusMods
                                                     .toUpperCase(),
-                                                style: const TextStyle(
-                                                  fontFamily:
-                                                      FontFamily.battlefrontUI,
+                                                style: TextStyle(
+                                                  fontFamily: currentFont,
                                                   fontSize: 15,
                                                 ),
                                               ),

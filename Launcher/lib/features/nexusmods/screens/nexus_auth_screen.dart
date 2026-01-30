@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_event_container.dart';
@@ -14,6 +15,10 @@ class NexusAuthScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       children: [
         KyberEventContainer(
@@ -21,26 +26,26 @@ class NexusAuthScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'NexusMods Authorization'.toUpperCase(),
-                style: const TextStyle(
+                l10n.nexusModsAuthorization.toUpperCase(),
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  fontFamily: FontFamily.battlefrontUI,
+                  fontFamily: currentFont,
                 ),
               ),
-              const Text(
-                'You need to authorize KyberLauncher on NexusMods to use the mod browser.',
+              Text(
+                l10n.nexusAuthDescription,
                 style: TextStyle(
                   fontSize: 18,
                   color: kWhiteColor,
-                  fontFamily: FontFamily.battlefrontUI,
+                  fontFamily: currentFont,
                 ),
               ),
               const SizedBox(height: 20),
               Row(
                 children: [
                   KyberButton(
-                    text: 'Authorize Kyber',
+                    text: l10n.authorizeKyber,
                     onPressed: () {
                       sl<NexusModsService>()
                           .requestApiToken(onUrl: launchUrlString)

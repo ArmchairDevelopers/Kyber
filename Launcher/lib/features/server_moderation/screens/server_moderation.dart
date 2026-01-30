@@ -17,6 +17,7 @@ import 'package:kyber_launcher/features/server_moderation/dialogs/moderation_inp
 import 'package:kyber_launcher/features/server_moderation/providers/moderation_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:logging/logging.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
@@ -34,6 +35,10 @@ class ServerModeration extends StatefulWidget {
 class _ServerModerationState extends State<ServerModeration> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return BlocBuilder<ModerationCubit, ModerationServerState>(
       builder: (context, state) {
         if (state.id == null) {
@@ -50,14 +55,14 @@ class _ServerModerationState extends State<ServerModeration> {
                     width: 131,
                     children: [
                       const SizedBox(width: 10),
-                      Text('OPTIONS'.toUpperCase()),
+                      Text(l10n.optionsHeader.toUpperCase()),
                     ],
                   ),
                   ExpandedHeaderSection(
-                    children: [Text('MODERATORS'.toUpperCase())],
+                    children: [Text(l10n.moderatorsHeader.toUpperCase())],
                   ),
                   ExpandedHeaderSection(
-                    children: [Text('BANNED PLAYERS'.toUpperCase())],
+                    children: [Text(l10n.bannedPlayersHeader.toUpperCase())],
                   ),
                 ],
               ),
@@ -76,7 +81,7 @@ class _ServerModerationState extends State<ServerModeration> {
                               spacing: 15,
                               children: [
                                 KyberButton(
-                                  text: 'PLAY',
+                                  text: l10n.playButton,
                                   onPressed: () async {
                                     if (state.server == null) return;
 
@@ -105,7 +110,7 @@ class _ServerModerationState extends State<ServerModeration> {
                                   },
                                 ),
                                 KyberButton(
-                                  text: 'SPECTATE',
+                                  text: l10n.spectateButton,
                                   onPressed: () {
                                     KyberServerHelper.joinServer(
                                       state.server!,
@@ -122,7 +127,7 @@ class _ServerModerationState extends State<ServerModeration> {
                             child: Column(
                               children: [
                                 KyberButton(
-                                  text: 'COPY LINK',
+                                  text: l10n.copyLinkButton,
                                   onPressed: () {
                                     final uri = Uri(
                                       scheme: 'https',
@@ -137,7 +142,7 @@ class _ServerModerationState extends State<ServerModeration> {
                                       .new(text: uri.toString()),
                                     );
                                     NotificationService.info(
-                                      message: 'Copied to clipboard!',
+                                      message: l10n.copiedToClipboard,
                                     );
                                   },
                                 ),
@@ -145,26 +150,26 @@ class _ServerModerationState extends State<ServerModeration> {
                             ),
                           ),
                           const CardSection(),
-                          const Padding(
-                            padding: EdgeInsets.all(10),
+                          Padding(
+                            padding: const EdgeInsets.all(10),
                             child: Column(
                               spacing: 15,
                               children: [
                                 NormalButton(
-                                  label: Text('EXPORT BANS'),
+                                  label: Text(l10n.exportBans),
                                   onPressed: NotificationService.notImplemented,
                                 ),
                                 NormalButton(
-                                  label: Text('IMPORT BANS'),
+                                  label: Text(l10n.importBans),
                                   onPressed: NotificationService.notImplemented,
                                 ),
                                 NormalButton(
-                                  label: Text('KICK ALL'),
+                                  label: Text(l10n.kickAll),
                                   onPressed: NotificationService.notImplemented,
                                 ),
                                 NormalButton(
                                   label: Text(
-                                    'BAN ALL',
+                                    l10n.banAll,
                                     textAlign: TextAlign.center,
                                   ),
                                   onPressed: NotificationService.notImplemented,
@@ -192,13 +197,13 @@ class _ServerModerationState extends State<ServerModeration> {
             KyberHeader(
               sections: [
                 ExpandedHeaderSection(
-                  children: [Text('Event Log'.toUpperCase())],
+                  children: [Text(l10n.eventLogHeader.toUpperCase())],
                 ),
                 ExpandedHeaderSection(
-                  children: [Text('Light Side'.toUpperCase())],
+                  children: [Text(l10n.lightSideHeader.toUpperCase())],
                 ),
                 ExpandedHeaderSection(
-                  children: [Text('Dark Side'.toUpperCase())],
+                  children: [Text(l10n.darkSideHeader.toUpperCase())],
                 ),
               ],
             ),
@@ -232,11 +237,15 @@ class _UserManager extends StatefulWidget {
 class _UserManagerState extends State<_UserManager> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return KyberEventContainer(
       child: Text(
-        'User Manager'.toUpperCase(),
-        style: const TextStyle(
-          fontFamily: FontFamily.battlefrontUI,
+        l10n.userManager.toUpperCase(),
+        style: TextStyle(
+          fontFamily: currentFont,
           fontWeight: FontWeight.bold,
           fontSize: 18,
         ),
@@ -258,6 +267,10 @@ class _ConsoleState extends State<_Console> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       children: [
         Expanded(
@@ -290,29 +303,29 @@ class _ConsoleState extends State<_Console> {
           padding: const EdgeInsets.all(15),
           child: mt.TextFormField(
             controller: controller,
-            style: const TextStyle(
+            style: TextStyle(
               color: kWhiteColor,
-              fontFamily: FontFamily.battlefrontUI,
+              fontFamily: currentFont,
               height: 1.5,
             ),
             maxLines: 4,
             minLines: 1,
-            decoration: const mt.InputDecoration(
-              hintText: '/COMMAND OR SEND MESSAGE',
+            decoration: mt.InputDecoration(
+              hintText: l10n.consoleHint,
               hintStyle: TextStyle(
                 fontSize: 14,
                 height: 1,
                 color: kWhiteColor,
-                fontFamily: FontFamily.battlefrontUI,
+                fontFamily: currentFont,
               ),
               isDense: true,
-              enabledBorder: mt.OutlineInputBorder(
+              enabledBorder: const mt.OutlineInputBorder(
                 borderSide: BorderSide(color: kGrayColor, width: 2),
                 borderRadius: BorderRadius.all(
                   Radius.circular(kDefaultInnerBorderRadius),
                 ),
               ),
-              focusedBorder: mt.OutlineInputBorder(
+              focusedBorder: const mt.OutlineInputBorder(
                 borderSide: BorderSide(color: kWhiteColor, width: 2),
                 borderRadius: BorderRadius.all(
                   Radius.circular(kDefaultInnerBorderRadius),
@@ -483,6 +496,10 @@ class _Punishment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       children: [
         ButtonBuilder(
@@ -511,8 +528,8 @@ class _Punishment extends StatelessWidget {
                   children: [
                     Text(
                       '${punishment.user.name} (${punishment.user.id})',
-                      style: const TextStyle(
-                        fontFamily: FontFamily.battlefrontUI,
+                      style: TextStyle(
+                        fontFamily: currentFont,
                         fontSize: 18,
                       ),
                     ),
@@ -551,6 +568,13 @@ class _Punishment extends StatelessWidget {
                   final until = DateTime.fromMillisecondsSinceEpoch(
                     punishment.expiresAt.toInt(),
                   );
+                  final untilText = punishment.expiresAt == 0 
+                      ? l10n.permanent 
+                      : DateFormat.yMd().format(until);
+                  final durationSuffix = punishment.expiresAt != 0 
+                      ? ' (${formatDuration(until.difference(DateTime.now()), l10n)})' 
+                      : '';
+
                   return Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -560,14 +584,14 @@ class _Punishment extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'UNTIL: ${punishment.expiresAt == 0 ? 'PERMANENT' : DateFormat.yMd().format(until)} ${punishment.expiresAt != 0 ? '(${formatDuration(until.difference(DateTime.now()))})' : ''}',
+                          l10n.untilLabel('$untilText$durationSuffix'),
                           style: const TextStyle(
                             fontFamily: FontFamily.iBMPlexMono,
                             fontSize: 12,
                           ),
                         ),
                         Text(
-                          'REASON: ${punishment.reason}',
+                          l10n.reasonLabel(punishment.reason),
                           style: const TextStyle(
                             fontFamily: FontFamily.iBMPlexMono,
                             fontSize: 12,
@@ -580,18 +604,18 @@ class _Punishment extends StatelessWidget {
                             spacing: 10,
                             children: [
                               KyberButton(
-                                text: 'UNBAN',
+                                text: l10n.unban,
                                 onPressed: () {
                                   context.read<ModerationCubit>().unbanPlayer(
                                     punishment.user.id,
                                   );
                                   NotificationService.info(
-                                    message: 'Player unbanned',
+                                    message: l10n.playerUnbanned,
                                   );
                                 },
                               ),
-                              const KyberButton(
-                                text: 'MODIFY',
+                              KyberButton(
+                                text: l10n.modify,
                                 onPressed: NotificationService.notImplemented,
                               ),
                             ],
@@ -612,9 +636,9 @@ class _Punishment extends StatelessWidget {
     );
   }
 
-  String formatDuration(Duration duration) {
+  String formatDuration(Duration duration, AppLocalizations l10n) {
     if (duration.isNegative) {
-      return 'Time has elapsed';
+      return l10n.timeElapsed;
     }
 
     final days = duration.inDays;
@@ -625,28 +649,32 @@ class _Punishment extends StatelessWidget {
     final parts = <String>[];
 
     if (days > 0) {
-      parts.add("$days day${days != 1 ? 's' : ''}");
+      parts.add(l10n.daysRemaining(days));
     }
 
     if (hours > 0 && days < 1) {
-      parts.add("$hours hour${hours != 1 ? 's' : ''}");
+      parts.add(l10n.hoursRemaining(hours));
     }
 
     if (minutes > 0 && days < 1 && hours < 1) {
-      parts.add("$minutes minute${minutes != 1 ? 's' : ''}");
+      parts.add(l10n.minutesRemaining(minutes));
     }
 
     if (seconds > 0 && days < 1 && hours < 1 && minutes < 1) {
-      parts.add("$seconds second${seconds != 1 ? 's' : ''}");
+      parts.add(l10n.secondsRemaining(seconds));
     }
 
-    return '${parts.join(", ")} remaining';
+    return l10n.remaining(parts.join(", "));
   }
 }
 
 class _ModeratorContainerState extends State<_ModeratorContainer> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return BlocBuilder<ModerationCubit, ModerationServerState>(
       builder: (context, state) {
         final moderators = state.moderators;
@@ -679,8 +707,8 @@ class _ModeratorContainerState extends State<_ModeratorContainer> {
                       children: [
                         Text(
                           player.name,
-                          style: const TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
+                          style: TextStyle(
+                            fontFamily: currentFont,
                             fontSize: 18,
                           ),
                         ),
@@ -692,12 +720,12 @@ class _ModeratorContainerState extends State<_ModeratorContainer> {
                               curve: Curves.easeOut,
                               child: Row(
                                 children: [
-                                  _ModeratorWidget(state, hovered, player),
+                                  _ModeratorWidget(state, hovered, player, l10n),
                                 ],
                               ),
                             ),
                             if (state.isModerator(player.id)) ...[
-                              _ModeratorWidget(state, hovered, player),
+                              _ModeratorWidget(state, hovered, player, l10n),
                             ],
                           ],
                         ),
@@ -721,8 +749,9 @@ class _ModeratorContainerState extends State<_ModeratorContainer> {
     ModerationServerState state,
     bool hovered,
     KyberPlayer player,
+    AppLocalizations l10n,
   ) => KyberTooltip(
-    message: 'Promote User'.toUpperCase(),
+    message: l10n.promoteUserTooltip.toUpperCase(),
     child: CustomSvgButton(
       hoverColor: Colors.black,
       onPressed: () async {
@@ -736,7 +765,7 @@ class _ModeratorContainerState extends State<_ModeratorContainer> {
                 );
               } else {
                 NotificationService.showNotification(
-                  message: 'An error occurred',
+                  message: l10n.errorOccurred,
                   severity: InfoBarSeverity.error,
                 );
                 Logger.root.severe('Error promoting player', error, stackTrace);
@@ -755,7 +784,7 @@ class _ModeratorContainerState extends State<_ModeratorContainer> {
                   );
                 } else {
                   NotificationService.showNotification(
-                    message: 'An error occurred',
+                    message: l10n.errorOccurred,
                     severity: InfoBarSeverity.error,
                   );
                   Logger.root.severe(
@@ -793,6 +822,10 @@ class _TeamContainer extends StatefulWidget {
 class _TeamContainerState extends State<_TeamContainer> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return BlocBuilder<ModerationCubit, ModerationServerState>(
       builder: (context, state) {
         final players = state.players
@@ -827,8 +860,8 @@ class _TeamContainerState extends State<_TeamContainer> {
                       children: [
                         Text(
                           player.name,
-                          style: const TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
+                          style: TextStyle(
+                            fontFamily: currentFont,
                             fontSize: 18,
                           ),
                         ),
@@ -841,7 +874,7 @@ class _TeamContainerState extends State<_TeamContainer> {
                               child: Row(
                                 children: [
                                   KyberTooltip(
-                                    message: 'Swap Player'.toUpperCase(),
+                                    message: l10n.swapPlayerTooltip.toUpperCase(),
                                     child: CustomSvgButton(
                                       onPressed: () {
                                         context
@@ -856,7 +889,7 @@ class _TeamContainerState extends State<_TeamContainer> {
                                   ),
                                   const SizedBox(width: 5),
                                   KyberTooltip(
-                                    message: 'Kick player'.toUpperCase(),
+                                    message: l10n.kickPlayerTooltip.toUpperCase(),
                                     child: CustomSvgButton(
                                       onPressed: () async {
                                         final reason =
@@ -884,7 +917,7 @@ class _TeamContainerState extends State<_TeamContainer> {
                                                 );
                                               } else {
                                                 NotificationService.showNotification(
-                                                  message: 'An error occurred',
+                                                  message: l10n.errorOccurred,
                                                   severity:
                                                       InfoBarSeverity.error,
                                                 );
@@ -904,10 +937,10 @@ class _TeamContainerState extends State<_TeamContainer> {
                                   ),
                                   const SizedBox(width: 5),
                                   KyberTooltip(
-                                    message: 'Ban player'.toUpperCase(),
+                                    message: l10n.banPlayerTooltip.toUpperCase(),
                                     child: CustomSvgButton(
                                       onPressed: () async {
-                                        final result = await showKyberDialog(
+                                        await showKyberDialog(
                                           context: context,
                                           builder: (_) => BlocProvider.value(
                                             value: context
@@ -934,13 +967,13 @@ class _TeamContainerState extends State<_TeamContainer> {
                                               .servicePlayer
                                               ?.id ==
                                           state.server?.creatorId)
-                                    _ModeratorWidget(state, hovered, player),
+                                    _ModeratorWidget(state, hovered, player, l10n),
                                 ],
                               ),
                             ),
                             if (state.moderators.contains(player) ||
                                 state.server?.creatorId == player.id) ...[
-                              _ModeratorWidget(state, hovered, player),
+                              _ModeratorWidget(state, hovered, player, l10n),
                             ],
                           ],
                         ),
@@ -964,8 +997,9 @@ class _TeamContainerState extends State<_TeamContainer> {
     ModerationServerState state,
     bool hovered,
     ServerPlayer player,
+    AppLocalizations l10n,
   ) => KyberTooltip(
-    message: 'Promote User'.toUpperCase(),
+    message: l10n.promoteUserTooltip.toUpperCase(),
     child: CustomSvgButton(
       hoverColor: Colors.black,
       onPressed: () async {
@@ -979,7 +1013,7 @@ class _TeamContainerState extends State<_TeamContainer> {
                 );
               } else {
                 NotificationService.showNotification(
-                  message: 'An error occurred',
+                  message: l10n.errorOccurred,
                   severity: InfoBarSeverity.error,
                 );
                 Logger.root.severe('Error promoting player', error, stackTrace);
@@ -998,7 +1032,7 @@ class _TeamContainerState extends State<_TeamContainer> {
                   );
                 } else {
                   NotificationService.showNotification(
-                    message: 'An error occurred',
+                    message: l10n.errorOccurred,
                     severity: InfoBarSeverity.error,
                   );
                   Logger.root.severe(

@@ -6,6 +6,7 @@ import 'package:kyber_launcher/features/mod_browser/widgets/nmb_mod_tile.dart';
 import 'package:kyber_launcher/features/nexusmods/dialogs/nexusmods_login.dart';
 import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
@@ -21,6 +22,10 @@ class CategorizedModList extends StatefulWidget {
 class _CategorizedModListState extends State<CategorizedModList> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return FutureBuilder(
       future: sl.isReady<NexusModsService>(),
       builder: (context, snapshot) {
@@ -37,12 +42,12 @@ class _CategorizedModListState extends State<CategorizedModList> {
             mainAxisAlignment: MainAxisAlignment.center,
             spacing: 20,
             children: [
-              const Text('Please sign in to Nexus Mods to view mods'),
+              Text(l10n.signInNexusPrompt),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   KyberButton(
-                    text: 'LOGIN',
+                    text: l10n.login,
                     onPressed: () async {
                       await showKyberDialog(
                         context: context,
@@ -71,9 +76,9 @@ class _CategorizedModListState extends State<CategorizedModList> {
               if (searchState.results.isEmpty) {
                 return Center(
                   child: Text(
-                    'No mods found'.toUpperCase(),
-                    style: const TextStyle(
-                      fontFamily: FontFamily.battlefrontUI,
+                    l10n.noModsFound.toUpperCase(),
+                    style: TextStyle(
+                      fontFamily: currentFont,
                       fontSize: 17,
                     ),
                   ),

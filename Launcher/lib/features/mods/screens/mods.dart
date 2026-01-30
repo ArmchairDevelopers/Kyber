@@ -25,6 +25,7 @@ import 'package:kyber_launcher/features/mods/widgets/mod_list/mod_list_header.da
 import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
 import 'package:kyber_launcher/shared/ui/elements/filter_dropdown.dart';
@@ -299,19 +300,23 @@ class _LoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
+    return Center(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         spacing: 15,
         children: [
-          SizedBox(
+          const SizedBox(
             height: 20,
             width: 20,
             child: ProgressRing(),
           ),
           Text(
-            'LOADING MODS...',
-            style: TextStyle(fontFamily: FontFamily.battlefrontUI),
+            l10n.loadingMods,
+            style: TextStyle(fontFamily: currentFont),
           ),
         ],
       ),
@@ -398,24 +403,28 @@ class _CollectionsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Container(
       height: 61,
       padding: const EdgeInsets.all(13),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'COLLECTIONS',
+            l10n.collections,
             style: TextStyle(
-              fontFamily: FontFamily.battlefrontUI,
+              fontFamily: currentFont,
               fontSize: 21,
               height: 1,
             ),
           ),
           Text(
-            'MANAGE MOD COLLECTIONS & CURATE COSMETIC MODS',
+            l10n.manageCollectionsSub,
             style: TextStyle(
-              fontFamily: FontFamily.battlefrontUI,
+              fontFamily: currentFont,
               fontSize: 14,
               color: kWhiteColor,
               height: 0.9,
@@ -529,6 +538,8 @@ class _TabSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return SizedBox(
       width: 220,
       child: KyberTabBar(
@@ -540,8 +551,8 @@ class _TabSelector extends StatelessWidget {
           onPageChanged(value);
         },
         tabs: [
-          Text('Mods'.toUpperCase()),
-          Text('Browser'.toUpperCase()),
+          Text(l10n.mods.toUpperCase()),
+          Text(l10n.browser.toUpperCase()),
         ],
       ),
     );
@@ -673,6 +684,8 @@ class _BrowserPagination extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return SizedBox(
       width: 150,
       child: BlocBuilder<ModBrowserCubit, ModBrowserState>(
@@ -684,7 +697,7 @@ class _BrowserPagination extends StatelessWidget {
             onChanged: (value) => _handlePageChange(context, value),
             tabs: [
               const Icon(mt.Icons.arrow_back_ios_new_rounded),
-              Text('$page/$totalPages'.toUpperCase()),
+              Text(l10n.paginationInfo(page, totalPages).toUpperCase()),
               const Icon(mt.Icons.arrow_forward_ios_rounded),
             ],
           );
@@ -731,13 +744,15 @@ class _ModsFilterDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<ModsListCubit>();
+    final l10n = AppLocalizations.of(context)!;
+
     return KyberSearchFilterDropdown(
       dropdownContent: BlocBuilder<ModsListCubit, ModsListState>(
         builder: (context, state) {
           return SuperListView(
             children: [
               KyberFilterSection<ModScope>(
-                title: 'MOD SCOPE',
+                title: l10n.modScope,
                 selectedItems: [state.filter.scope],
                 items: toSelectorItems(
                   ModScope.values,

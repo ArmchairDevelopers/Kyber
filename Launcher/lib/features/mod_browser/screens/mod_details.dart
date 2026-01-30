@@ -16,6 +16,7 @@ import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dar
 import 'package:kyber_launcher/features/nexusmods/widgets/graphql_provider.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/cards/kyber_container.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
@@ -60,6 +61,10 @@ class _ModInfoState extends State<ModInfo> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Query$modByUID$Widget(
       options: .new(
         variables: .new(uid: .parse(widget.id)),
@@ -69,7 +74,7 @@ class _ModInfoState extends State<ModInfo> {
         if (result.hasException) {
           late String error;
           if (result.exception == null) {
-            error = 'Unknown error';
+            error = l10n.unknownError;
           } else if (result.exception!.linkException != null) {
             error = result.exception!.linkException!.originalStackTrace
                 .toString();
@@ -88,8 +93,8 @@ class _ModInfoState extends State<ModInfo> {
         final isLoading = result.isLoading;
 
         if (!isLoading && data == null) {
-          return const Center(
-            child: Text('No data found'),
+          return Center(
+            child: Text(l10n.noDataFound),
           );
         }
 
@@ -215,23 +220,23 @@ class _ModInfoState extends State<ModInfo> {
                             ),
                             child: Row(
                               children: [
-                                const Expanded(
+                                Expanded(
                                   child: Column(
                                     crossAxisAlignment: .start,
                                     children: [
                                       Text(
-                                        'MOD INFORMATION',
-                                        style: .new(
+                                        l10n.modInformation,
+                                        style: TextStyle(
                                           fontSize: 20,
-                                          fontFamily: FontFamily.battlefrontUI,
+                                          fontFamily: currentFont,
                                           height: 1,
                                         ),
                                       ),
                                       Text(
-                                        'VIEW MOD FILES, SHARE AND ENDORSE',
-                                        style: .new(
+                                        l10n.viewModFilesShareEndorse,
+                                        style: TextStyle(
                                           color: kWhiteColor,
-                                          fontFamily: FontFamily.battlefrontUI,
+                                          fontFamily: currentFont,
                                           fontSize: 15,
                                         ),
                                       ),
@@ -272,9 +277,9 @@ class _ModInfoState extends State<ModInfo> {
                                   children: [
                                     Expanded(
                                       child: KyberTabBar(
-                                        tabs: const [
-                                          Text('FILES'),
-                                          Text('POSTS'),
+                                        tabs: [
+                                          Text(l10n.files),
+                                          Text(l10n.posts),
                                         ],
                                         onChanged: (value) {
                                           setState(() {
@@ -330,18 +335,15 @@ class _ModInfoState extends State<ModInfo> {
                                                 var message = error.message;
                                                 if (error.extensions?['code'] ==
                                                     'NOT_DOWNLOADED_MOD') {
-                                                  message =
-                                                      'You must download the mod before endorsing it';
+                                                  message = l10n.endorseMustDownload;
                                                 } else if (error
                                                         .extensions?['code'] ==
                                                     'TOO_SOON_AFTER_DOWNLOAD') {
-                                                  message =
-                                                      'You must wait some time after downloading the mod before endorsing it';
+                                                  message = l10n.endorseWaitTime;
                                                 } else if (error
                                                         .extensions?['code'] ==
                                                     'UNAUTHORIZED') {
-                                                  message =
-                                                      'You must be logged in to endorse mods';
+                                                  message = l10n.endorseLoginRequired;
                                                 }
 
                                                 Logger.root.severe(
@@ -367,8 +369,7 @@ class _ModInfoState extends State<ModInfo> {
                                               ),
                                             );
                                             NotificationService.success(
-                                              message:
-                                                  'Link copied to clipboard',
+                                              message: l10n.linkCopied,
                                             );
                                           }
                                         },
@@ -382,11 +383,11 @@ class _ModInfoState extends State<ModInfo> {
                               Row(
                                 // FORMAT LIKE THIS: 08/08/2021 12:00:00
                                 children: [
-                                  const Text(
-                                    'Updated: ',
+                                  Text(
+                                    l10n.updatedAt,
                                     style: TextStyle(
                                       color: kWhiteColor,
-                                      fontFamily: FontFamily.battlefrontUI,
+                                      fontFamily: currentFont,
                                       fontSize: 15,
                                     ),
                                   ),
@@ -395,9 +396,9 @@ class _ModInfoState extends State<ModInfo> {
                                       .tryParse(data?.updatedAt ?? '') ??
                                           DateTime.now(),
                                     ),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: kWhiteColor,
-                                      fontFamily: FontFamily.battlefrontUI,
+                                      fontFamily: currentFont,
                                       fontSize: 15,
                                     ),
                                   ),
@@ -445,23 +446,23 @@ class _ModInfoState extends State<ModInfo> {
                                     children: [
                                       const ContainerSeparator(),
                                       _FileList(
-                                        title: 'MAIN FILES',
+                                        title: l10n.mainFiles,
                                         initialExpanded: true,
                                         files: mainFiles,
                                       ),
                                       if (miscFiles.isNotEmpty)
                                         _FileList(
-                                          title: 'MISCELLANEOUS FILES',
+                                          title: l10n.miscellaneousFiles,
                                           files: miscFiles,
                                         ),
                                       if (optionalFiles.isNotEmpty)
                                         _FileList(
-                                          title: 'OPTIONAL FILES',
+                                          title: l10n.optionalFiles,
                                           files: optionalFiles,
                                         ),
                                       if (archivedFiles.isNotEmpty)
                                         _FileList(
-                                          title: 'ARCHIVED FILES',
+                                          title: l10n.archivedFiles,
                                           files: archivedFiles,
                                         ),
                                     ],
@@ -509,6 +510,10 @@ class _FileListState extends State<_FileList> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       children: [
         ColoredBox(
@@ -542,9 +547,9 @@ class _FileListState extends State<_FileList> {
                           vertical: 2.5,
                         ),
                         child: Text(
-                          '${widget.title.toUpperCase()} (${widget.files.length})',
-                          style: const .new(
-                            fontFamily: FontFamily.battlefrontUI,
+                          l10n.fileListTitle(widget.title, widget.files.length),
+                          style: TextStyle(
+                            fontFamily: currentFont,
                             fontSize: 15,
                           ),
                         ),
@@ -590,7 +595,7 @@ class _FileListState extends State<_FileList> {
                       child: AnimatedDefaultTextStyle(
                         duration: const .new(milliseconds: 150),
                         style: TextStyle(
-                          fontFamily: FontFamily.battlefrontUI,
+                          fontFamily: currentFont,
                           color: hovered ? kActiveColor : kWhiteColor,
                         ),
                         child: Container(
@@ -681,14 +686,17 @@ class SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title.toUpperCase(),
-          style: const .new(
+          style: TextStyle(
             height: 1,
-            fontFamily: FontFamily.battlefrontUI,
+            fontFamily: currentFont,
             fontSize: 16,
             color: kInactiveColor,
           ),
@@ -697,8 +705,8 @@ class SidebarItem extends StatelessWidget {
         subtitleWidget ??
             Text(
               subtitle,
-              style: const .new(
-                fontFamily: FontFamily.battlefrontUI,
+              style: TextStyle(
+                fontFamily: currentFont,
                 fontSize: 19,
               ),
             ),

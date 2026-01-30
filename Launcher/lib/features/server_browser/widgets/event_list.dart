@@ -6,6 +6,7 @@ import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/events/providers/event_cubic.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 import 'package:url_launcher/url_launcher_string.dart';
@@ -15,6 +16,10 @@ class HomeEventList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Expanded(
       child: KyberCard(
         padding: EdgeInsets.zero,
@@ -28,8 +33,8 @@ class HomeEventList extends StatelessWidget {
               return Center(
                 child: Text(
                   state.error,
-                  style: const TextStyle(
-                    fontFamily: FontFamily.battlefrontUI,
+                  style: TextStyle(
+                    fontFamily: currentFont,
                     fontSize: 18,
                   ),
                 ),
@@ -41,26 +46,26 @@ class HomeEventList extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(
+                SizedBox(
                   height: 60,
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'EVENTS & ANNOUNCEMENTS',
+                          l10n.eventsAndAnnouncements,
                           style: TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
+                            fontFamily: currentFont,
                             fontSize: 21,
                             height: 1,
                           ),
                         ),
                         Text(
-                          'VIEW UPCOMING EVENTS & RECEIVE ANNOUNCEMENTS',
+                          l10n.viewUpcomingEventsDesc,
                           style: TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
+                            fontFamily: currentFont,
                             fontSize: 14,
                             color: kWhiteColor,
                             height: 1,
@@ -134,6 +139,9 @@ class _EventContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return ButtonBuilder(
       onClick: () {
         if (post.link.isNotEmpty) {
@@ -208,8 +216,8 @@ class _EventContainer extends StatelessWidget {
                           children: [
                             Text(
                               post.header,
-                              style: const TextStyle(
-                                fontFamily: FontFamily.battlefrontUI,
+                              style: TextStyle(
+                                fontFamily: currentFont,
                                 fontSize: 18,
                                 height: 1,
                               ),
@@ -226,7 +234,7 @@ class _EventContainer extends StatelessWidget {
                               child: Text(
                                 post.body,
                                 style: TextStyle(
-                                  fontFamily: FontFamily.battlefrontUI,
+                                  fontFamily: currentFont,
                                   color: kActiveColor,
                                   fontSize: 12,
                                   height: 1,
@@ -251,8 +259,8 @@ class _EventContainer extends StatelessWidget {
                   children: [
                     Text(
                       post.header,
-                      style: const TextStyle(
-                        fontFamily: FontFamily.battlefrontUI,
+                      style: TextStyle(
+                        fontFamily: currentFont,
                         fontSize: 28,
                       ),
                     ),
@@ -271,7 +279,7 @@ class _EventContainer extends StatelessWidget {
                               child: Text(
                                 post.body,
                                 style: TextStyle(
-                                  fontFamily: FontFamily.battlefrontUI,
+                                  fontFamily: currentFont,
                                   color: kActiveColor,
                                   fontSize: 12,
                                   height: 1,

@@ -1,7 +1,10 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:kyber_launcher/core/config/colors.dart';
-import 'package:kyber_launcher/shared/ui/ui.dart';
+import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
+import 'package:kyber_launcher/shared/ui/elements/header/kyber_header.dart';
+import 'package:kyber_launcher/shared/ui/utils/button_builder.dart';
 
 class ServerListHeader extends StatelessWidget {
   const ServerListHeader({super.key, this.withoutQuickJoin = false});
@@ -10,6 +13,10 @@ class ServerListHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Container(
       decoration: const BoxDecoration(
         border: Border.symmetric(
@@ -21,27 +28,29 @@ class ServerListHeader extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: KyberHeader(
-        title: 'SERVER BROWSER',
+        title: l10n.serverBrowser.toUpperCase(),
         headerLength: 150,
         sections: [
           const ExpandedHeaderSection(children: []),
-          const FixedWidthHeaderSection(
+          FixedWidthHeaderSection(
             width: 99,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'PLAYERS',
+                l10n.playersHeader,
                 textAlign: TextAlign.left,
+                style: TextStyle(fontFamily: currentFont),
               ),
             ],
           ),
-          const FixedWidthHeaderSection(
+          FixedWidthHeaderSection(
             width: 120,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'SERVER TYPE',
+                l10n.serverType,
                 textAlign: TextAlign.left,
+                style: TextStyle(fontFamily: currentFont),
               ),
             ],
           ),
@@ -49,7 +58,12 @@ class ServerListHeader extends StatelessWidget {
             FixedWidthHeaderSection(
               width: 67,
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [Text('PLAY'.toUpperCase())],
+              children: [
+                Text(
+                  l10n.playButton,
+                  style: TextStyle(fontFamily: currentFont),
+                ),
+              ],
             ),
         ],
       ),

@@ -8,6 +8,7 @@ import 'package:kyber_launcher/core/routing/app_router.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_event_container.dart';
 import 'package:kyber_launcher/shared/ui/elements/list/kyber_list.dart';
@@ -38,6 +39,10 @@ class _CollectionImportState extends State<CollectionImport> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     if (_metaData == null) {
       return const Center(child: ProgressRing());
     }
@@ -63,10 +68,10 @@ class _CollectionImportState extends State<CollectionImport> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'Collection Mods'.toUpperCase(),
-                              style: const TextStyle(
+                              l10n.collectionMods.toUpperCase(),
+                              style: TextStyle(
                                 fontSize: 15,
-                                fontFamily: FontFamily.battlefrontUI,
+                                fontFamily: currentFont,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -104,12 +109,12 @@ class _CollectionImportState extends State<CollectionImport> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: AutoSizeText(
-                                      '${mod.name} (${mod.version})',
-                                      style: const TextStyle(
+                                      l10n.modNameVersion(mod.name, mod.version),
+                                      style: TextStyle(
                                         fontSize: 18,
                                         height: 1,
                                         color: kWhiteColor,
-                                        fontFamily: FontFamily.battlefrontUI,
+                                        fontFamily: currentFont,
                                       ),
                                       maxLines: 1,
                                     ),
@@ -117,10 +122,10 @@ class _CollectionImportState extends State<CollectionImport> {
                                   const SizedBox(width: 10),
                                   Text(
                                     formatBytes(200, 2),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       color: kWhiteColor1,
-                                      fontFamily: FontFamily.battlefrontUI,
+                                      fontFamily: currentFont,
                                     ),
                                   ),
                                 ],
@@ -142,11 +147,11 @@ class _CollectionImportState extends State<CollectionImport> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             KyberButton(
-              text: 'CANCEL',
+              text: l10n.cancel,
               onPressed: router.pop,
             ),
             KyberButton(
-              text: 'DOWNLOAD COLLECTION MODS',
+              text: l10n.downloadCollectionMods,
               onPressed: () {},
             ),
           ],

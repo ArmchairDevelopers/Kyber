@@ -16,6 +16,7 @@ import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/s
 import 'package:kyber_launcher/features/server_browser/widgets/server_list/server_list.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/elements/filter_dropdown.dart';
 import 'package:kyber_launcher/shared/ui/layout/bordered_content.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
@@ -110,6 +111,8 @@ class _HeaderBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Align(
       child: SizedBox(
         child: Row(
@@ -153,8 +156,6 @@ class _HeaderBar extends StatelessWidget {
               width: 120,
               child: BlocBuilder<ServerListCubit, ServerListState>(
                 builder: (context, state) {
-                  final pageText = '${state.page ?? 0}/${state.pages ?? 0}';
-
                   return KyberTabBar(
                     selectedIndex: -1,
                     onChanged: (value) {
@@ -166,7 +167,7 @@ class _HeaderBar extends StatelessWidget {
                     },
                     tabs: [
                       const Icon(mt.Icons.arrow_back_ios_new_rounded),
-                      Text(pageText),
+                      Text(l10n.paginationInfo(state.page ?? 0, state.pages ?? 0)),
                       const Icon(mt.Icons.arrow_forward_ios_rounded),
                     ],
                   );
@@ -185,6 +186,8 @@ class _FilterDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return KyberSearchFilterDropdown(
       onSearchChanged: (value) {
         final filter = context.read<ServerListCubit>().filter;
@@ -199,7 +202,7 @@ class _FilterDropdown extends StatelessWidget {
           return SuperListView(
             children: [
               KyberFilterSection<ServerRegion>(
-                title: 'REGION',
+                title: l10n.region,
                 selectedItems: [cubit.filter.region],
                 items: toSelectorItems(
                   ServerRegion.values,
@@ -212,7 +215,7 @@ class _FilterDropdown extends StatelessWidget {
                 },
               ),
               KyberFilterSection<ServerType>(
-                title: 'SERVER TYPE',
+                title: l10n.serverType,
                 selectedItems: [cubit.filter.type],
                 items: toSelectorItems(
                   ServerType.values,
@@ -225,7 +228,7 @@ class _FilterDropdown extends StatelessWidget {
                 },
               ),
               KyberFilterSection<GameType>(
-                title: 'GAME TYPE',
+                title: l10n.gameType,
                 selectedItems: [cubit.filter.gameType],
                 items: toSelectorItems(
                   GameType.values,
@@ -238,7 +241,7 @@ class _FilterDropdown extends StatelessWidget {
                 },
               ),
               KyberFilterSection<String>(
-                title: 'GAME MODE',
+                title: l10n.gameMode,
                 selectedItems: cubit.filter.modes,
                 includeAll: true,
                 items: toSelectorItems(
@@ -265,6 +268,10 @@ class _StatusWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return BlocBuilder<LightswitchCubit, LightswitchStatus>(
       builder: (context, apiState) {
         if (apiState.status != KyberStatusEnum.warning) {
@@ -290,9 +297,9 @@ class _StatusWidget extends StatelessWidget {
                       mainAxisAlignment: .center,
                       children: [
                         Text(
-                          'WARNING',
-                          style: .new(
-                            fontFamily: FontFamily.battlefrontUI,
+                          l10n.warning,
+                          style: TextStyle(
+                            fontFamily: currentFont,
                             fontSize: 21,
                             color: kDefaultActiveColor,
                             shadows: [
@@ -319,9 +326,9 @@ class _StatusWidget extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          apiState.message ?? 'Warning message not available.',
-                          style: const TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
+                          apiState.message ?? l10n.warningMessageFallback,
+                          style: TextStyle(
+                            fontFamily: currentFont,
                             fontSize: 15,
                             height: 1,
                           ),

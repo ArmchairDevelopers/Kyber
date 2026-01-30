@@ -10,6 +10,8 @@ import 'package:kyber_launcher/features/kyber/models/modes.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_list/entry.dart';
 import 'package:kyber_launcher/features/server_moderation/providers/moderation_cubit.dart';
 import 'package:kyber_launcher/features/server_moderation/providers/moderation_servers_cubit.dart';
+import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 import 'package:tinycolor2/tinycolor2.dart';
@@ -32,6 +34,10 @@ class _ModerationServerListState extends State<ModerationServerList> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       children: [
         Expanded(
@@ -61,7 +67,7 @@ class _ModerationServerListState extends State<ModerationServerList> {
                             if (servers.isEmpty) {
                               return Center(
                                 child: StrokeText(
-                                  'No servers found'.toUpperCase(),
+                                  l10n.noServersFound.toUpperCase(),
                                   color: kWhiteColor,
                                   fontWeight: FontWeight.w500,
                                   strokeColor: kWhiteBackgroundColor.darken(20),
@@ -137,8 +143,10 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(
+    final l10n = AppLocalizations.of(context)!;
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
         border: Border.symmetric(
           vertical: BorderSide(
             color: decoColor,
@@ -147,9 +155,9 @@ class _Header extends StatelessWidget {
         ),
       ),
       child: KyberHeader(
-        title: 'Server Browser',
+        title: l10n.serverBrowser,
         headerLength: 150,
-        sections: [
+        sections: const [
           ExpandedHeaderSection(
             children: [],
           ),
