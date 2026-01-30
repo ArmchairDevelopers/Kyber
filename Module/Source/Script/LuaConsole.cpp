@@ -52,26 +52,13 @@ static int ConsoleRegisterFunc(lua_State* L)
         return 0;
     }
 
-    if (!lua_isstring(L, 1))
-    {
-        return 0;
-    }
     std::string groupName = luaL_checkstring(L, 1);
-
-    if (!lua_isstring(L, 2))
-    {
-        return 0;
-    }
     std::string name = luaL_checkstring(L, 2);
-
-    if (!lua_isstring(L, 3))
-    {
-        return 0;
-    }
     std::string description = luaL_checkstring(L, 3);
 
     if (!lua_istable(L, 4))
     {
+        KYBER_LOG(Warning, "Invalid table given for fourth argument");
         return 0;
     }
 
@@ -80,6 +67,7 @@ static int ConsoleRegisterFunc(lua_State* L)
 
     if (!lua_isfunction(L, 5))
     {
+        KYBER_LOG(Warning, "Invalid function ref");
         return 0;
     }
     lua_pushvalue(L, 5);

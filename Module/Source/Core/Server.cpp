@@ -100,7 +100,7 @@ void InitLevelSetup(LevelSetup* levelSetup, const char* level, const char* mode,
 
     if (g_program->m_scriptManager != nullptr)
     {
-        g_program->m_scriptManager->GetEventManager().Fire("Level:Loaded", level, mode);
+        g_program->m_scriptManager->GetEventManager().Fire("Level:Loading", level, mode);
     }
 
     g_program->m_server->m_currentLevel = level;
@@ -278,6 +278,11 @@ void Server::OnLevelLoaded()
 
         requestGuard->level = "";
         requestGuard->mode = "";
+    }
+
+    if (g_program->m_scriptManager != nullptr)
+    {
+        g_program->m_scriptManager->GetEventManager().Fire("Level:Loaded", m_currentLevel, m_currentMode);
     }
 
     KyberSettings* kyberSettings = Settings<KyberSettings>("Kyber");
@@ -825,7 +830,7 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
 
                 if (g_program->m_scriptManager != nullptr)
                 {
-                    g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Joined", player);
+                    g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Join", player);
                 }
 
                 g_program->GetAPI()->GetServerManagement()->SendPlayerList();

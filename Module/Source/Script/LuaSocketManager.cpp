@@ -45,6 +45,42 @@ const SOCKET* LuaSocketManager::WrapSocket(lua_State* L, const SOCKET socket)
     return userdata;
 }
 
+static int WinSocketCreateConnect(lua_State* L)
+{
+    const char* ipAddress = luaL_checkstring(L, 1);
+    if (strcmp(ipAddress, "127.0.0.1") != 0)
+    {
+        KYBER_LOG(Fatal, ScriptManager::GetPlugin(L)->LogPrefix()
+                             << " Plugin attempted to create an unsafe socket (address was not '127.0.0.1', found " << ipAddress << ")");
+        return 0;
+    }
+
+    int port = luaL_checknumber(L, 2);
+
+    SOCKET winSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (winSock == INVALID_SOCKET)
+    {
+        luaL_error(L, "Failed to create socket");
+        return 0;
+    }
+
+    u_long mode = 1;
+    ioctlsocket(winSock, FIONBIO, &mode);
+
+    SocketAddr socketAddr(ipAddress, port);
+    const sockaddr_in* addr = reinterpret_cast<const sockaddr_in*>(socketAddr.Data());
+
+    if (connect(winSock, (sockaddr*)addr, sizeof(sockaddr_in)) == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK)
+    {
+        luaL_error(L, "Failed to connect to remote address %d", WSAGetLastError());
+        closesocket(winSock);
+        return 0;
+    }
+
+    LuaUtils::Push(L, winSock);
+    return 1;
+}
+
 static int WinSocketCreate(lua_State* L)
 {
     if (!lua_isinteger(L, 1))
@@ -154,10 +190,17 @@ static int WinSocketSend(lua_State* L)
     lua_pushinteger(L, result);
     return 1;
 }
+static int WinSocketShutdownSend(lua_State* L)
+{
+    SOCKET socket = LuaSocketManager::GetSocket(L, 1);
+    shutdown(socket, SD_SEND);
+    return 0;
+}
 
 static int WinSocketClose(lua_State* L)
 {
     SOCKET socket = LuaSocketManager::GetSocket(L, 1);
+    shutdown(socket, SD_BOTH);
     closesocket(socket);
     return 0;
 }
@@ -187,6 +230,11 @@ static int WinSocketIndex(lua_State* L)
         lua_pushcfunction(L, WinSocketClose);
         return 1;
     }
+    else if (key == "ShutdownSend")
+    {
+        lua_pushcfunction(L, WinSocketShutdownSend);
+        return 1;
+    }
 
     return 0;
 }
@@ -198,7 +246,7 @@ void LuaSocketManager::Register(lua_State* L)
     luaL_newmetatable(L, "WinSocket");
     luaL_setfuncs(L, s_winSocketMeta, 0);
 
-    luaL_Reg funcs[] = { { "Create", WinSocketCreate }, { NULL, NULL } };
+    luaL_Reg funcs[] = { { "Create", WinSocketCreate }, { "CreateConnect", WinSocketCreateConnect }, { NULL, NULL } };
     LuaUtils::RegisterFunctionTable(L, "SocketManager", funcs);
 }
 } // namespace Kyber
