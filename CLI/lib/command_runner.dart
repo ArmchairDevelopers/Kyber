@@ -112,10 +112,21 @@ class KyberCliCommandRunner extends CompletionCommandRunner<int> {
       Env.set('KYBER_ENVIRONMENT', apiEnv);
       sl.registerSingleton(KyberGRPCService.fromEnv(apiEnv));
 
+      final kyberToken = Platform.environment['KYBER_TOKEN'];
+      if (kyberToken?.isNotEmpty ?? false) {
+        sl.get<KyberGRPCService>().token = kyberToken;
+        _logger.info('Using provided KYBER_TOKEN for API authentication.');
+      }
+
       if (topLevelResults.command != null &&
           !topLevelResults.arguments.contains('--help')) {
+        final isLinux = Platform.isLinux;
+        final hasModuleEnv = Platform.environment.containsKey(
+          'KYBER_MODULE_CHANNEL',
+        );
+
         if (!topLevelResults.arguments.contains('--skip-updates') &&
-            !Platform.isLinux &&
+            (!isLinux || hasModuleEnv) &&
             [
               'start_server',
               'start_game',
