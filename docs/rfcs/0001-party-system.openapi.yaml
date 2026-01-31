@@ -1,0 +1,133 @@
+openapi: 3.0.3
+info:
+  title: Kyber Party System API (RFC 0001)
+  version: "0.1"
+paths:
+  /party/create:
+    post:
+      summary: Create a party
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                leader_player_id: { type: string }
+                leader_display_name: { type: string }
+              required: [leader_player_id]
+      responses:
+        "200":
+          description: Party created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+
+  /party/join:
+    post:
+      summary: Join a party by code/id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                party_id: { type: string }
+                player_id: { type: string }
+                display_name: { type: string }
+              required: [party_id, player_id]
+      responses:
+        "200":
+          description: Joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+        "404":
+          description: Party not found
+
+  /party/leave:
+    post:
+      summary: Leave a party
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                party_id: { type: string }
+                player_id: { type: string }
+              required: [party_id, player_id]
+      responses:
+        "200":
+          description: Left
+
+  /party/{party_id}:
+    get:
+      summary: Get party state
+      parameters:
+        - name: party_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Party state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+
+  /party/token:
+    post:
+      summary: Create a short-lived join token for a target server
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                party_id: { type: string }
+                server_id: { type: string }
+                requester_player_id: { type: string }
+              required: [party_id, server_id, requester_player_id]
+      responses:
+        "200":
+          description: Token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  expires_at: { type: string, format: date-time }
+                required: [token, expires_at]
+
+components:
+  schemas:
+    Party:
+      type: object
+      properties:
+        party_id: { type: string }
+        leader_player_id: { type: string }
+        created_at: { type: string, format: date-time }
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/PartyMember"
+      required: [party_id, leader_player_id, members]
+
+    PartyMember:
+      type: object
+      properties:
+        player_id: { type: string }
+        display_name: { type: string }
+        status:
+          type: string
+          enum: [idle, ready, joining, joined, failed, left]
+        joined_at: { type: string, format: date-time }
+      required: [player_id, status]
