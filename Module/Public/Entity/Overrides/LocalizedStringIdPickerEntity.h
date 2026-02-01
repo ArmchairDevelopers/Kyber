@@ -15,6 +15,7 @@ public:
 
 private:
     PropertyWriter<LocalizedStringId> m_localizedStringId;
+    int32_t CalcStringHash(const std::string&);
     void GetLocalized();
 };
 } // namespace Kyber

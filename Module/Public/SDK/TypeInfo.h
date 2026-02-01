@@ -3055,6 +3055,6 @@ class LocalizedStringIdPickerEntityData : public EntityData
 public:
     Realm Realm; //0x0020
     char* Sid; //0x0028
-};//Size=0x0030
+}; //Size=0x0030
 
 } // namespace Kyber

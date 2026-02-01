@@ -1,11 +1,9 @@
-// Copyright Armchair Developers / Sean Kahler. Licensed under GPLv3.
+// Copyright Armchair Developers. Licensed under GPLv3.
 
 #include <Entity/Overrides/LocalizedStringIdPickerEntity.h>
 
 #include <Entity/KyberSettings.h>
 #include <Core/Program.h>
-#include <cstdint>
-#include <ios>
 
 namespace Kyber
 {
@@ -23,33 +21,26 @@ void LocalizedStringIdPickerEntity::PropertyChanged(PropertyModification* modifi
     GetLocalized();
 }
 
+// Gets the Sid input to the entity either from a connection or the entity data and creates a LocalizedStringId instance to output to StringId
 void LocalizedStringIdPickerEntity::GetLocalized()
 {
     auto sidField = GetFieldReader<char*>("Sid");
-
-    KYBER_LOG(Debug, "GetLocalized Triggered!");
-
     std::string id = sidField.HasConnection() && sidField.HasConnectionValue() ? sidField.Get() : GetData()->Sid;
+    int32_t stringHash = CalcStringHash(id);
 
-    KYBER_LOG(Debug, "Attempting to hash " << id);
-
-    //hash the id
-    int32_t result = 0xFFFFFFFF; 
-    for (int i = 0; i < id.length(); i++)
-    {
-        result = id[i] + 33 * result;
-    }
-
-    KYBER_LOG(Debug, "Hashed ID " << result);
-    
     LocalizedStringId* container = g_program->m_entityManager->CreateContainer<LocalizedStringId>("LocalizedStringId");
-    container->StringHash = result;
-
-    KYBER_LOG(Debug, "Created container " << std::hex << container);
+    container->StringHash = stringHash;
 
     m_localizedStringId = container;
-
-    KYBER_LOG(Debug, "StringId " << m_localizedStringId.Get());
 }
 
+// Strings in Frostbite are referenced by a hash of a unique ID for each string, This calculates that hash for a given ID and returns it
+int32_t LocalizedStringIdPickerEntity::CalcStringHash(const std::string& string)
+{
+    int32_t result = 0xFFFFFFFF; 
+    for (int i = 0; i < string.length(); i++)
+    {
+        result = string[i] + 33 * result;
+    }
+}
 } // namespace Kyber
