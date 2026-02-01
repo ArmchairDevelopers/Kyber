@@ -42,5 +42,6 @@ int32_t LocalizedStringIdPickerEntity::CalcStringHash(const std::string& string)
     {
         result = string[i] + 33 * result;
     }
+    return result;
 }
 } // namespace Kyber
