@@ -244,8 +244,7 @@ void Server::Start(const ServerCreationInfo& info, bool changeState)
 
 void Server::KickPlayer(ServerPlayer* player, const char* reason)
 {
-    void* serverPeer = GetServerGameContext()->serverPeer;
-    ServerConnection* serverConnection = ServerPeer_connectionForPlayer(serverPeer, player);
+    ServerConnection* serverConnection = GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
     serverConnection->SafeDisconnect(reason, SecureReason_KickedByAdmin);
 
     SendConsoleMessage(
@@ -829,7 +828,7 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
                 }
 
                 g_program->GetAPI()->GetServerManagement()->SendPlayerList();
-                g_program->m_server->SendConsoleMessage(StringUtils::Format("%s (%llu) successfully authenticated", player->m_name, userId));
+                g_program->m_server->SendConsoleMessage(StringUtils::Format("%s (%llu) joined the server", player->m_name, userId));
             }
 
             FB_SERVER_ARENA->free(copiedMessage->playerName);

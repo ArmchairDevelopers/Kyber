@@ -17,6 +17,7 @@ PlayerExtentRegistration* ServerGamePlayerExtent::s_registration = reinterpret_c
 PlayerExtentRegistration* ServerPlayerExtent4::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB7470);
 PlayerExtentRegistration* WSServerPlayerAbilityExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB5F50);
 PlayerExtentRegistration* PersistenceServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB4900);
+PlayerExtentRegistration* SoldierServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AAD370);
 
 TL_DECLARE_FUNC(0x140C45C30, __int64, ServerTeleportEntity_clearNewPosition, void* inst, void* character, void* vehicle,
     const LinearTransform& transform);

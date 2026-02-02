@@ -16,8 +16,6 @@
 #include <Utilities/PlatformUtils.h>
 #include <Core/ThreadExecutor.h>
 #include <Entity/KyberSettings.h>
-#include <Misc/EventSyncListener.h>
-#include <Misc/ServerSpawnListener.h>
 
 #include <MinHook.h>
 
@@ -645,10 +643,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     {
         KYBER_LOG(Info, "[Server] Server level loaded");
 
-        if (g_program->m_isDedicatedServer)
-        {
-            g_program->m_server->OnLevelLoaded();
-        }
+        g_program->m_server->OnLevelLoaded();
     }
     else if (name == "ServerLevelSpawnEntitiesBeginMessage")
     {
@@ -717,11 +712,11 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
             g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Spawned", msg->player);
         }
     }
-    else if (name == "ServerSoldierFiringMessage")
-    {
-        KYBER_LOG(Debug, "Server Player Firing: " << std::hex << message);
-        KYBER_LOG(Debug, "BREAKME");
-    }
+    //else if (name == "ServerSoldierFiringMessage")
+    //{
+    //    KYBER_LOG(Debug, "Server Player Firing: " << std::hex << message);
+    //    KYBER_LOG(Debug, "BREAKME");
+    //}
     else if (name == "WSServerBattlepointsChangedMessage")
     {
         KYBER_LOG(Debug, "Server Battlepoints Changed: " << std::hex << message);
@@ -935,9 +930,6 @@ void Program::Initialize()
 
     m_server->Initialize();
 
-    //InitializeEventSyncHook();
-    InitializeSpawnListenerHook();
-    
     KYBER_LOG(Info, "[Engine] Kyber post-initialized");
 }
 } // namespace Kyber

@@ -5,7 +5,7 @@
 #define KYBER_VERSION_MAJOR 2
 #define KYBER_VERSION_MINOR 0
 #define KYBER_VERSION_PATCH 0
-#define KYBER_SUFFIX "-beta8"
+#define KYBER_SUFFIX "-beta10"
 
 #define KB_STRINGIFY2(x) #x
 #define KB_STRINGIFY(x) KB_STRINGIFY2(x)
