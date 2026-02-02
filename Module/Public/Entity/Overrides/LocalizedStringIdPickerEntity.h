@@ -14,8 +14,9 @@ public:
     void PropertyChanged(PropertyModification* modification) override;
 
 private:
-    PropertyWriter<LocalizedStringId> m_localizedStringId;
     int32_t CalcStringHash(const std::string&);
     void GetLocalized();
+
+    PropertyWriter<LocalizedStringId> m_localizedStringId;
 };
 } // namespace Kyber
