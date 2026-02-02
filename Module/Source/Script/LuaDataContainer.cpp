@@ -539,7 +539,7 @@ static int FBArrayInsertFunc(lua_State* L)
 static int FBArrayExtendFunc(lua_State* L)
 {
     LuaFBArrayData* data = LuaDataContainer::GetFBArray(L, 1);
-    int32_t extendAmount = luaL_checkinteger(L, 3);
+    int32_t extendAmount = luaL_checkinteger(L, 2);
     data->value->extend(extendAmount);
     
     return 1;
@@ -570,6 +570,8 @@ static void PushFBArrayValue(lua_State* L, LuaFBArrayData* data, int32_t index)
         // since we cant get the size of the type and feed it into a fbarray dynamically we have to do some nasty things
         uintptr_t base = reinterpret_cast<uintptr_t>(*(void**)data->value);
         uint16_t typeSize = elementTypeInfo->typeInfoData->totalSize;
+        KYBER_LOG(Debug,
+            "Wrapping value type: " << std::hex << base << " " << index << " " << elementTypeInfo->typeInfoData->name << " " << typeSize);
 
         LuaDataContainer::WrapValueType(L, elementTypeInfo, reinterpret_cast<void*>(base + (typeSize * index)));
         luaL_setmetatable(L, elementTypeInfo->typeInfoData->name);

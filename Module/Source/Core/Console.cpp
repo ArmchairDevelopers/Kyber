@@ -29,14 +29,10 @@ TL_DECLARE_FUNC(0x145478280, void*, AllocatingBuffer_writeEx, void* inst, const 
 TL_DECLARE_FUNC(0x1401B4EB0, void, ConsoleRegistry_registerConsoleMethods, const char* groupName, ConsoleMethod* methods, int count);
 TL_DECLARE_FUNC(0x1453ECF10, SINGLE_ARG(eastl::fixed_vector<InstanceMethod, 128>&), ConsoleRegistry_getInstanceMethods);
 TL_DECLARE_FUNC(0x14BEC6FE0, void*, NetworkSettingsMessage_ctor, void* inst);
-TL_DECLARE_FUNC(0x1483DBE40, void*, ServerPeerMaybe_updateSyncedGameSettings, void* null, void* serverConnection);
-TL_DECLARE_FUNC(0x140BF7070, void*, ServerConnection_sendMessage, void* serverConnection, Message* message);
 TL_DECLARE_FUNC(0x141BCE400, void, ServerPlayerExtent4_setActiveKit, ServerPlayerExtent* inst, uint32_t gpId, uint32_t unk0,
     uint32_t vurId, uint32_t skinInfoId);
 TL_DECLARE_FUNC(0x141BCFC40, void, ServerPlayerExtent4_updateActiveKit, ServerPlayerExtent* inst, uint32_t gpId, void** selectionInfo, __int64 garbage);
 TL_DECLARE_FUNC(0x14D8987B0, void, PlayerAbilityPickedUpMessage_ctor, PlayerAbilityPickedUpMessage* inst, LocalPlayerId localPlayerId);
-
-TL_DECLARE_FUNC(0x14686C3A0, void, ServerPlayer_enableInput, ServerPlayer* m_player, int inputAction, bool enabled);
 
 void ConsoleContext::pushOutput(const std::string& out)
 {
@@ -108,24 +104,6 @@ Message* SendStatProgressMessageCtorHk(void* inst, __int64 category, __int64 typ
 {
     static auto trampoline = HookManager::Call(SendStatProgressMessageCtorHk);
     return trampoline(inst, category, type, localPlayerId);
-}
-
-void ServerPlayerEnableInput(ConsoleContext& cc)
-{
-    auto stream = cc.stream();
-    std::string playerName;
-    int inputAction;
-    int enabled;
-    stream >> playerName >> inputAction >> enabled;
-
-    ServerPlayer* m_player = g_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
-    if (m_player == nullptr)
-    {
-        KYBER_LOG(Debug, "No Player Found");
-        cc << "No Player Found";
-        return;
-    }
-    ServerPlayer_enableInput(m_player, inputAction, enabled);
 }
 
 eastl::string ConsoleRegistryExecuteConsoleCommandHk(const char* cmdString, bool force)
@@ -216,31 +194,6 @@ void TestUpdateActiveKit(ConsoleContext& cc)
     cc << "Done";
 }
 
-void DebugUpdateSyncedGameSettings(ConsoleContext& cc)
-{
-    void* serverPeer = g_program->m_server->GetServerGameContext()->serverPeer;
-
-    auto& playerList = g_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
-    for (ServerPlayer* player : playerList)
-    {
-        if (player == nullptr || player->IsAIPlayer())
-        {
-            continue;
-        }
-
-        void* serverConnection = ServerPeer_connectionForPlayer(serverPeer, player);
-        *reinterpret_cast<__int64*>((reinterpret_cast<__int64>(serverConnection)) + 0x5FAD) = 0; // idk
-        void* out = ServerPeerMaybe_updateSyncedGameSettings(nullptr, serverConnection);
-        
-        // NetworkSettingsMessage message;
-        // NetworkSettingsMessage_ctor(&message);
-        // ServerConnection_sendMessage(serverConnection, reinterpret_cast<Message*>(&message));
-        cc << "Forced update on " << player->m_name << " " << std::hex << out;
-    }
-}
-
-TL_DECLARE_FUNC(0x146892CC0, void, ServerPeer_sendMessage, void* serverPeer, void* message);
-
 void TestSetAbility(ConsoleContext& cc)
 {
     auto stream = cc.stream();
@@ -258,7 +211,7 @@ void TestSetAbility(ConsoleContext& cc)
     message->abilityId = abilityId;
     message->playerAbilityCategory = slot;
 
-    ServerPeer_sendMessage(g_program->m_server->GetServerGameContext()->serverPeer, message);
+    g_program->m_server->GetServerGameContext()->serverPeer->SendMessage(message);
     MessageManager_queueMessage(g_program->m_server->GetServerGameContext()->messageManager, reinterpret_cast<Message*>(message), 0.0f);
 
     cc << "Done";
@@ -662,11 +615,9 @@ Console::Console()
     RegisterConsoleCommand(&BroadcastCommand, "Broadcast", "<message>");
     RegisterConsoleCommand(&JoinServerCommand, "JoinServer", "<ip> <port>");
     RegisterConsoleCommand(&HotReloadLuaCommand, "HotReloadLua");
-    RegisterConsoleCommand(&DebugUpdateSyncedGameSettings, "DebugSynced");
     RegisterConsoleCommand(&TestSetPlayerActiveKit, "TestSetActive", "<player> <gpId> <unknown> <vurId> <skinInfoId>");
     RegisterConsoleCommand(&TestUpdateActiveKit, "TestUpdateActive", "<player> <gpId>");
     RegisterConsoleCommand(&TestSetAbility, "TestSetAbility", "<player> <abilityId> <slot>");
-    RegisterConsoleCommand(&ServerPlayerEnableInput, "EnableInput", "<player> <action> <enabled>");
 
     if (true || !g_program->m_isDedicatedServer)
     {
