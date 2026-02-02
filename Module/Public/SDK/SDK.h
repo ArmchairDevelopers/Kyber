@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 
+#include <minwinbase.h>
 #include <rpc.h>
 #include <rpcdce.h>
 
@@ -428,8 +429,9 @@ public:
 
         T* dest = (T*)(reinterpret_cast<uint8_t*>(FB_GLOBAL_ARENA->alloc(headerSize + ((prevSize + amount) * sizeof(T)))) + headerSize);
         memcpy(dest, m_data, prevSize * sizeof(T));
+        ZeroMemory(&dest[prevSize], amount * sizeof(T));
 
-        // @TODO: free previous array (requires proper padding when alloc-ing tho) 
+        // @TODO: free previous array (requires proper padding when alloc-ing tho)
         // FB_GLOBAL_ARENA->free(reinterpret_cast<uint8_t*>(m_data) - headerSize);
         m_data = dest;
 
@@ -599,6 +601,49 @@ struct SocketSpawnInfo
     std::string password;
 };
 
+enum SecureReason;
+
+class EngineConnection
+{
+public:
+};
+
+class ServerConnection : EngineConnection
+{
+public:
+    KB_DECLARE_GAMEMEMBERFUNC(
+        0x140BF6460, class ServerPlayer*, GetPlayer, (playerId, allowFail), enum LocalPlayerId playerId, bool allowFail)
+    KB_DECLARE_GAMEMEMBERFUNC(0x140BFA820, void*, ValidateLocalPlayer, (playerId, allowFail), enum LocalPlayerId playerId, bool allowFail)
+    void SafeDisconnect(const char* reasonText, SecureReason reason);
+    void SafeDisconnect(const char* reasonText);
+
+private:
+    char pad_0000[0x5FAD];       // 0x0000
+    bool m_shouldDisconnect;     // 0x5FAD
+    char pad_5FAD[0x2];          // 0x5FAE
+    uint32_t m_disconnectReason; // 0x5FB0
+    char pad_5FB4[0x4];          // 0x5FB4
+    char* m_disconnectText;      // 0x5FB8
+};
+
+class ClientConnection : EngineConnection
+{
+public:
+};
+
+// To allow for SendMessage() in ServerPeer
+#ifdef SendMessage
+    #undef SendMessage
+#endif
+
+class ServerPeer
+{
+public:
+    KB_DECLARE_GAMEMEMBERFUNC(0x146888E10, ServerConnection*, GetConnectionForPlayer, (player), const class ServerPlayer* player)
+    KB_DECLARE_GAMEMEMBERFUNC(0x146892CC0, void, SendMessage, (message), class Message* message)
+    KB_DECLARE_GAMEMEMBERFUNC(0x140BF03E0, void, ForceDisconnectAll, (message), class Message* message)
+};
+
 class ServerGameContext
 {
 public:
@@ -606,7 +651,7 @@ public:
     void* messageManager;                     // 0x0010
     char pad_0018[64];                        // 0x0018
     ServerPlayerManager* serverPlayerManager; // 0x0058
-    void* serverPeer;                         // 0x0060
+    ServerPeer* serverPeer;                   // 0x0060
 }; // Size: 0x0890
 
 class VehicleEntityData
@@ -680,9 +725,9 @@ public:
 class HealthComponent : public TypeObject
 {
 public:
-    char pad_0008[24];              // 0x0008
-    float m_health;                 // 0x0020
-    float m_unkLastHealthMaybe;     // 0x0020
+    char pad_0008[24];          // 0x0008
+    float m_health;             // 0x0020
+    float m_unkLastHealthMaybe; // 0x0020
 
     KB_DECLARE_GAMEMEMBERFUNC(0x148E65FF0, void, SetHealth, (health), float health)
 
@@ -720,22 +765,23 @@ public:
     void SetRegenerationDelay(float value);
 };
 
-class ClientSoldierHealthComponent : public HealthComponent {};
+class ClientSoldierHealthComponent : public HealthComponent
+{};
 
 class ClientSoldierEntity : public TypeObject
 {
 public:
-    char pad_0000[704];                                               // 0x0000
-    ClientSoldierHealthComponent* clientSoldierHealthComponent;       // 0x02C8
-    char pad_02D0[104];                                               // 0x02D0
-    class SoldierBlueprint* soldierBlueprint;                         // 0x0338
-    char pad_0340[632];                                               // 0x0340
-    float N000001AE;                                                  // 0x05B8
-    float Yaw;                                                        // 0x05BC
-    float Pitch;                                                      // 0x05C0
-    char pad_05C4[404];                                               // 0x05C4
-    ClientSoldierPrediction* clientSoldierPrediction;                 // 0x0758
-    char pad_0760[2488];                                              // 0x0760
+    char pad_0000[704];                                         // 0x0000
+    ClientSoldierHealthComponent* clientSoldierHealthComponent; // 0x02C8
+    char pad_02D0[104];                                         // 0x02D0
+    class SoldierBlueprint* soldierBlueprint;                   // 0x0338
+    char pad_0340[632];                                         // 0x0340
+    float N000001AE;                                            // 0x05B8
+    float Yaw;                                                  // 0x05BC
+    float Pitch;                                                // 0x05C0
+    char pad_05C4[404];                                         // 0x05C4
+    ClientSoldierPrediction* clientSoldierPrediction;           // 0x0758
+    char pad_0760[2488];                                        // 0x0760
 
     SoldierBlueprint* GetSoldierBlueprint()
     {
@@ -1170,6 +1216,9 @@ public:
     // Research:
     // +0xE60 is unlock bitarray
 
+    char pad_0008[0xBD0];     // 0x0008
+    const Asset* m_activeKit; // 0x0BD8
+
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x14686AC80, TypeObject*, GetCharacter)
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1468843B0, TypeObject*, GetVehicle)
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x146875A70, bool, IsInVehicle)
@@ -1244,6 +1293,38 @@ public:
     uint32_t m_battlepoints;
 };
 
+enum WeaponSlot
+{
+    WeaponSlot_0,         // 0x0000
+    WeaponSlot_1,         // 0x0001
+    WeaponSlot_2,         // 0x0002
+    WeaponSlot_3,         // 0x0003
+    WeaponSlot_4,         // 0x0004
+    WeaponSlot_5,         // 0x0005
+    WeaponSlot_6,         // 0x0006
+    WeaponSlot_7,         // 0x0007
+    WeaponSlot_8,         // 0x0008
+    WeaponSlot_9,         // 0x0009
+    WeaponSlot_NumSlots,  // 0x000A
+    WeaponSlot_NotDefined // 0x000B
+};
+
+struct SoldierServerPlayerExtent : ServerPlayerExtent
+{
+    static PlayerExtentRegistration* s_registration;
+
+    struct PlayerWeapon
+    {
+        Asset* asset;
+    };
+
+    KB_DECLARE_GAMEMEMBERFUNC(
+        0x1416A7840, bool, OnPlayerSelectedWeaponMessage, (message), struct NetworkPlayerSelectedWeaponMessage* message);
+
+    char gap0[1928];
+    eastl::fixed_vector<PlayerWeapon, WeaponSlot_NumSlots> m_weapons;
+};
+
 #define KB_DECLARE_SERVERPLAYEREXTENT(name)                                                                                                \
     name* Get##name() const                                                                                                                \
     {                                                                                                                                      \
@@ -1281,6 +1362,7 @@ public:
     }
 
     KB_DECLARE_GAMEMEMBERFUNC(0x140BE9C10, void, SetTeam, (teamId), int teamId)
+    KB_DECLARE_GAMEMEMBERFUNC(0x14686C3A0, void, SetInputEnabled, (inputAction, enabled), int inputAction, bool enabled)
 
     ServerCharacterEntity* GetCharacterEntity();
     ServerVehicleEntity* GetVehicleEntity();
@@ -1313,6 +1395,7 @@ public:
     KB_DECLARE_SERVERPLAYEREXTENT(ServerPlayerExtent4)
     KB_DECLARE_SERVERPLAYEREXTENT(WSServerPlayerAbilityExtent)
     KB_DECLARE_SERVERPLAYEREXTENT(PersistenceServerPlayerExtent)
+    KB_DECLARE_SERVERPLAYEREXTENT(SoldierServerPlayerExtent)
 }; // Size: 0x024C
 
 class ServerPlayerManager
@@ -1363,42 +1446,13 @@ public:
     char buf[200];
 };
 
-enum SecureReason;
-
-class EngineConnection
-{
-public:
-};
-
-class ServerConnection : EngineConnection
-{
-public:
-    KB_DECLARE_GAMEMEMBERFUNC(0x140BF6460, ServerPlayer*, GetPlayer, (playerId, allowFail), LocalPlayerId playerId, bool allowFail)
-    KB_DECLARE_GAMEMEMBERFUNC(0x140BFA820, void*, ValidateLocalPlayer, (playerId, allowFail), LocalPlayerId playerId, bool allowFail)
-    void SafeDisconnect(const char* reasonText, SecureReason reason);
-    void SafeDisconnect(const char* reasonText);
-
-private:
-    char pad_0000[0x5FAD];              // 0x0000
-    bool m_shouldDisconnect;            // 0x5FAD
-    char pad_5FAD[0x2];                 // 0x5FAE
-    uint32_t m_disconnectReason;        // 0x5FB0
-    char pad_5FB4[0x4];                 // 0x5FB4
-    char* m_disconnectText;             // 0x5FB8
-};
-
-class ClientConnection : EngineConnection
-{
-public:
-};
-
 class Message : public TypeObject
 {
 public:
-    const int category;             // 0x08
-    const int type;                 // 0x0C
-    LocalPlayerId localPlayerId;    // 0x10
-    char pad_0014[0x1C];            // 0x14
+    const int category;          // 0x08
+    const int type;              // 0x0C
+    LocalPlayerId localPlayerId; // 0x10
+    char pad_0014[0x1C];         // 0x14
 
     bool Is(const char* messageType) const
     {
@@ -1425,9 +1479,9 @@ class NetworkPlayerSpawnMessage : public NetworkableMessage
 class EventSyncReachedClientMessage : public NetworkableMessage
 {
 public:
-    uintptr_t ghostPtr;             // 0x58
-    uint32_t data;                  // 0x60
-    uint32_t bus;                   // 0x64
+    uintptr_t ghostPtr; // 0x58
+    uint32_t data;      // 0x60
+    uint32_t bus;       // 0x64
 };
 
 class ServerPlayerChatMessage : public Message
@@ -1450,15 +1504,15 @@ public:
 class ServerPlayerAboutToCreateForConnectionMessage : public Message
 {
 public:
-    char pad_0030[8];             // 0x0030
+    char pad_0030[8];    // 0x0030
     char* requestedName; // 0x0038
 };
 
 class NetworkCreatePlayerMessage : public NetworkableMessage
 {
 public:
-    char* playerName;  // 0x0058
-    bool isSpectator;  // 0x0060
+    char* playerName; // 0x0058
+    bool isSpectator; // 0x0060
 }; // Size: 0x68
 
 struct Win32Buffer
@@ -1600,7 +1654,7 @@ public:
 
     EntityBase* GetExposedPeer() const;
     DataContainer* GetExposedPeerData() const;
-    
+
     uintptr_t GetEntityBusBridge() const
     {
         return (m_entityBusBridgeOrExposedObject & 1) == 0 ? m_entityBusBridgeOrExposedObject : 0;
@@ -1696,7 +1750,7 @@ public:
     }
 };
 
-class ServerCharacterEntity : public TypeObject 
+class ServerCharacterEntity : public TypeObject
 {
 public:
     HealthComponent* GetHealthComponent() const
@@ -1733,44 +1787,16 @@ struct PlayerKilledMessage_Info
 class ServerPlayerKilledMessage : public Message
 {
 public:
-    char gap30[0x04]; // 0x30
-    unsigned int m_reviveePlayerId; // 0x34
-    char gap38[0x08]; // 0x38
-    ServerPlayer* m_victimPlayer; // 0x40
-    PlayerKilledMessage_Info* m_deathInfo; // 0x48
-    ServerPlayer* m_inflictorPlayer;       // 0x50
-    char* m_weaponName;                    // 0x58 // not full path, name of asset. Literally just "U_Ability_B1_E5_AI"
-    char gap60[0x18]; // 0x60
+    char gap30[0x04];                       // 0x30
+    unsigned int m_reviveePlayerId;         // 0x34
+    char gap38[0x08];                       // 0x38
+    ServerPlayer* m_victimPlayer;           // 0x40
+    PlayerKilledMessage_Info* m_deathInfo;  // 0x48
+    ServerPlayer* m_inflictorPlayer;        // 0x50
+    char* m_weaponName;                     // 0x58 // not full path, name of asset. Literally just "U_Ability_B1_E5_AI"
+    char gap60[0x18];                       // 0x60
     void* pointlessPtrToNetworkableMessage; // 0x78 // literally a ptr to NetworkableMessage::NetworkableMessage
 }; // Size: 0x80
-
-enum WeaponSlot
-{
-    WeaponSlot_0,         // 0x0000
-    WeaponSlot_1,         // 0x0001
-    WeaponSlot_2,         // 0x0002
-    WeaponSlot_3,         // 0x0003
-    WeaponSlot_4,         // 0x0004
-    WeaponSlot_5,         // 0x0005
-    WeaponSlot_6,         // 0x0006
-    WeaponSlot_7,         // 0x0007
-    WeaponSlot_8,         // 0x0008
-    WeaponSlot_9,         // 0x0009
-    WeaponSlot_NumSlots,  // 0x000A
-    WeaponSlot_NotDefined // 0x000B
-};
-
-
-struct SoldierServerPlayerExtent : ServerPlayerExtent
-{
-    struct PlayerWeapon
-    {
-        Asset* asset;
-    };
-
-    char gap0[1928];
-    eastl::fixed_vector<PlayerWeapon, WeaponSlot_NumSlots> m_weapons;
-};
 
 struct WSServerSoldierSpawnDoneMessage : public Message
 {
@@ -1791,22 +1817,33 @@ struct WSServerBattlepointsChangedMessage : public Message
 
 struct PlayerAbilityPickedUpMessage : public Message
 {
-    char pad_030[0x28];   // 0x0030
-    uint32_t abilityId;   // 0x0058
-    uint32_t unk1;        // 0x005C
-    uint64_t playerId;    // 0x0060
+    char pad_030[0x28];             // 0x0030
+    uint32_t abilityId;             // 0x0058
+    uint32_t unk1;                  // 0x005C
+    uint64_t playerId;              // 0x0060
     uint32_t playerAbilityCategory; // 0x0068
-    uint32_t alwaysOne; // 0x006C
+    uint32_t alwaysOne;             // 0x006C
 }; // Size: 0x38
 
 struct NetworkSettingsMessage : public NetworkableMessage
 {
-    uint32_t N000008D6;                // 0x0058
-    float N000008DC;                   // 0x005C
-    char pad_0060[24];                 // 0x0060
+    uint32_t N000008D6; // 0x0058
+    float N000008DC;    // 0x005C
+    char pad_0060[24];  // 0x0060
 }; // Size: 0x00C8
 
-// note to all those who attempt to look into it: NetworkChangeGameSettingMessage is a scam. 
+struct NetworkPlayerSelectedWeaponMessage
+{
+    char gap0[88];
+    int m_slot;
+    char gap5C[4];
+    DataContainer* m_soldierWeaponUnlockAsset;
+    FBArray<DataContainer*> m_unlockAssets;
+    char gap70;
+    bool m_isFirstWeapon;
+};
+
+// note to all those who attempt to look into it: NetworkChangeGameSettingMessage is a scam.
 // it does nothing. its for unused profile options.
 
 } // namespace Kyber

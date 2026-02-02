@@ -15,6 +15,7 @@ extern void ServerPlayerSetUnlock(ServerPlayer* player, const Guid& guid, bool v
 TL_DECLARE_FUNC(0x14686B6F0, ServerPlayer*, ServerPlayerManager_createPlayer, void* inst, uint8_t connectionId, const eastl::string& name,
     LocalPlayerId localPlayerId, uint32_t playerId, bool isSpectator, bool a7);
 TL_DECLARE_FUNC(0x14064F700, Asset*, getWsPlayerAbilityAsset, uint32_t abilityId);
+TL_DECLARE_FUNC(0x14189EFD0, void*, sendPlayerSyncedGameSettings, void* unused, void* serverConnection);
 
 template<>
 void LuaUtils::Push<ServerPlayer*>(lua_State* L, ServerPlayer* value)
@@ -116,19 +117,6 @@ static int GetPlayersFunc(lua_State* L)
     return 1;
 }
 
-struct NetworkPlayerSelectedWeaponMessage
-{
-    char gap0[88];
-    int m_slot;
-    char gap5C[4];
-    DataContainer* m_soldierWeaponUnlockAsset;
-    FBArray<DataContainer*> m_unlockAssets;
-    char gap70;
-    bool m_isFirstWeapon;
-};
-
-TL_DECLARE_FUNC(0x1416A7840, bool, SoldierServerPlayerExtent_onPlayerSelectedWeaponMessage, void* inst, NetworkPlayerSelectedWeaponMessage* message);
-
 static int ServerPlayerGetWeapon(lua_State* L)
 {
     ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
@@ -137,7 +125,7 @@ static int ServerPlayerGetWeapon(lua_State* L)
         return 0;
     }
 
-    SoldierServerPlayerExtent* extent = reinterpret_cast<SoldierServerPlayerExtent*>(player->GetExtent("SoldierServerPlayerExtent"));
+    SoldierServerPlayerExtent* extent = player->GetSoldierServerPlayerExtent();
     if (extent == nullptr)
     {
         KYBER_LOG(Warning, "Failed to get extent");
@@ -157,7 +145,7 @@ static int ServerPlayerSetWeapon(lua_State* L)
         return 0;
     }
 
-    TypeObject* extent = player->GetExtent("SoldierServerPlayerExtent");
+    SoldierServerPlayerExtent* extent = player->GetSoldierServerPlayerExtent();
     if (extent == nullptr)
     {
         KYBER_LOG(Warning, "Failed to get extent");
@@ -181,7 +169,7 @@ static int ServerPlayerSetWeapon(lua_State* L)
     message.m_isFirstWeapon = false;
 
     KYBER_LOG(Trace, "Setting weapon");
-    SoldierServerPlayerExtent_onPlayerSelectedWeaponMessage(extent, &message);
+    extent->OnPlayerSelectedWeaponMessage(&message);
     return 1;
 }
 
@@ -484,6 +472,34 @@ static int ServerPlayerForceSendChatMessage(lua_State* L)
     return 1;
 }
 
+static int ServerPlayerSetInputEnabled(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+    
+    int32_t actionId = luaL_checkinteger(L, 2);
+    bool enabled = lua_toboolean(L, 3);
+
+    player->SetInputEnabled(actionId, enabled);
+    return 1;
+}
+
+static int ServerPlayerSendSyncedSettings(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    ServerConnection* playerConnection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+    sendPlayerSyncedGameSettings(nullptr, playerConnection);
+    return 0;
+}
+
 static int ServerPlayerKick(lua_State* L)
 {
     ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
@@ -597,6 +613,16 @@ static int ServerPlayerIndex(lua_State* L)
         lua_pushcfunction(L, ServerPlayerForceSendChatMessage);
         return 1;
     }
+    else if (key == "SetInputEnabled")
+    {
+        lua_pushcfunction(L, ServerPlayerSetInputEnabled);
+        return 1;
+    }
+    else if (key == "SendSyncedSettings")
+    {
+        lua_pushcfunction(L, ServerPlayerSendSyncedSettings);
+        return 1;
+    }
     else if (key == "name")
     {
         lua_pushstring(L, player->m_name);
@@ -645,6 +671,11 @@ static int ServerPlayerIndex(lua_State* L)
     else if (key == "vehicleEntity")
     {
         LuaUtils::Push(L, reinterpret_cast<NativeEntity*>(player->GetVehicleEntity()));
+        return 1;
+    }
+    else if (key == "activeKit")
+    {
+        LuaUtils::Push(L, reinterpret_cast<DataContainer*>(const_cast<Asset*>(player->GetServerGamePlayerExtent()->m_activeKit)));
         return 1;
     }
     else if (key == "isBot")
