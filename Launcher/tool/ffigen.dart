@@ -20,14 +20,18 @@ void main() {
     ),
     headers: Headers(
       compilerOptions: [
-        '-include',
-        'stdbool.h',
-        '-I${packageRoot.resolve('third_party/vivox').path.substring(1)}',
+        //TODO: figure out a better way to handle this
+        if (!Platform.isLinux) ...[
+          '-include',
+          'stdbool.h',
+          '-I${packageRoot.resolve('third_party/vivox').path.substring(1)}',
+          ]
       ],
       entryPoints: [
-        packageRoot.resolve(
-          'third_party/vivox/ffigen_vivox_shim.h',
-        ),
+        if (!Platform.isLinux) 
+          packageRoot.resolve(
+            'third_party/vivox/ffigen_vivox_shim.h',
+          ),
         packageRoot.resolve('third_party/unrar.h'),
       ],
     ),

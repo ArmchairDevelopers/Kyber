@@ -430,7 +430,7 @@ class MaximaCubit extends Cubit<MaximaState> {
   }
 
   Future<void> _checkDebugMaximaFiles() async {
-    if (!kDebugMode || Platform.isMacOS) {
+    if (!kDebugMode || !Platform.isWindows) {
       return;
     }
 

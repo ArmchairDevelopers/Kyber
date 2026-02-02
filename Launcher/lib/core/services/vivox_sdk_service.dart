@@ -118,7 +118,8 @@ class VivoxService with ChangeNotifier {
 }
 
 Future<void> _vivoxIsolateEntry(Map args) async {
-  final SendPort mainSend = args['mainSend'] as SendPort;
+  // TODO: in the long run, it would probably better to move this to a separate package to have seperate windows, macos and linux implementations
+  /*final SendPort mainSend = args['mainSend'] as SendPort;
   final String libPath = args['libPath'] as String;
 
   final ctrl = ReceivePort('vivox_iso_ctrl');
@@ -316,6 +317,7 @@ Future<void> _vivoxIsolateEntry(Map args) async {
       sendError('init failed: $e');
     }
   }();
+   */
 }
 
 extension MoveElement<T> on List<T> {

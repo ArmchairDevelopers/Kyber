@@ -110,6 +110,8 @@ class _MaximaStartGameDialogState extends State<MaximaStartGameDialog> {
       }
 
       await checkService();
+
+      // TODO: figure out why maxima returns 0 for the game pid
       await MaximaHelper.startGame(
             gameDataPath: widget.gameDataDir,
             initializeRequest: widget.initializeRequest,
@@ -218,9 +220,6 @@ class _MaximaStartGameDialogState extends State<MaximaStartGameDialog> {
               );
             }
 
-            if (mounted) {
-              Navigator.of(context).pop();
-            }
 
             Sentry.captureException(error, stackTrace: stackTrace);
             Logger.root.severe(

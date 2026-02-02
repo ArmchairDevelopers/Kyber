@@ -215,9 +215,10 @@ class _AppState extends State<App> {
 
     Timer.run(() async {
       Logger('flutter_js').info('Loading runtime');
-      flutterJs = getJavascriptRuntime();
-      bbCodeJs = await rootBundle.loadString('assets/js/bundle.js');
-      flutterJs!.evaluate(bbCodeJs!);
+      // TODO: figure out why flutter_js causes crashes on Linux
+      // flutterJs = getJavascriptRuntime();
+      // bbCodeJs = await rootBundle.loadString('assets/js/bundle.js');
+      // flutterJs!.evaluate(bbCodeJs!);
 
       await Sentry.configureScope((scope) async {
         await scope.setTag(

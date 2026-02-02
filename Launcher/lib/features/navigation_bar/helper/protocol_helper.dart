@@ -40,6 +40,10 @@ class ProtocolHelper {
   }
 
   static Future<void> initialize() async {
+    if (!Platform.isWindows) {
+      return;
+    }
+
     final initialUrl = await protocolHandler.getInitialUrl();
     if (Preferences.general.setup && initialUrl != null) {
       await ProtocolHelper.handleCall(initialUrl);
