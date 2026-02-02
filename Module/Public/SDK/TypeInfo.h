@@ -3049,4 +3049,12 @@ struct QueryEntityResult
     uint32_t Unused;                       // 0x0008
     char _0x000C[4];                       // 0x000C
 };
+
+class LocalizedStringIdPickerEntityData : public EntityData
+{
+public:
+    Realm Realm; //0x0020
+    char* Sid; //0x0028
+}; //Size=0x0030
+
 } // namespace Kyber
