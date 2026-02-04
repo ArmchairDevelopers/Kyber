@@ -18,8 +18,6 @@
 
 namespace Kyber
 {
-extern void* s_mainLoop;
-
 void InitLevelSetup(LevelSetup* levelSetup, const char* level, const char* mode, const char* startPoint, const char* initialSubLevel);
 
 struct ServerCreationInfo

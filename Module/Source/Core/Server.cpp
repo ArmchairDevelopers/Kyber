@@ -510,6 +510,7 @@ void ServerUpdatePassPreFrameHk(void* inst, const UpdateParameters& params)
 
     g_program->m_server->Heartbeat(params);
     g_threadExecutor->Process(GameThread_Server);
+    g_program->m_server->m_eventManager->ProcessEventQueue();
 
     if (g_program->m_server->IsRunning())
     {

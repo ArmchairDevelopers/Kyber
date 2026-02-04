@@ -349,6 +349,7 @@ __int64 ClientUpdatePassPreFrameHk(void* inst, const UpdateParameters& params)
     }
 
     g_threadExecutor->Process(GameThread_Client);
+    g_program->m_client->m_eventManager->ProcessEventQueue();
 
     if (!g_program->m_server->IsRunning())
     {
