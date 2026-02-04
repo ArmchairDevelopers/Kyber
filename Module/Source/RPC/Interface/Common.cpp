@@ -47,12 +47,13 @@ ServerUnaryReactor* CommonInterfaceService::GetInfo(
             protoPlayer->set_teamid(player->m_teamId);
         }
     }
-    else if (g_program->m_connected)
+    else if (g_program->m_client->m_connected)
     {
         response->mutable_client()->set_serverid(g_program->m_server->m_socketSpawnInfo.serverName);
     }
 
-    bool vivoxInitialized = g_program->m_voipManager != nullptr && !g_program->m_voipManager->GetRenderDevices().empty();
+    bool vivoxInitialized =
+        g_program->m_client->m_voipManager != nullptr && !g_program->m_client->m_voipManager->GetRenderDevices().empty();
     response->set_vivoxinitialized(vivoxInitialized);
 
     reactor->Finish(Status::OK);
