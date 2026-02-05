@@ -18,7 +18,7 @@ using namespace kyber_interface;
 ServerUnaryReactor* ClientInterfaceService::JoinServer( 
     CallbackServerContext* context, const JoinServerRequest* request, kyber_common::Empty* response)
 {
-    g_program->JoinServer(request->id(), request->ip(), request->port(), request->spectate(),
+    g_program->m_client->JoinServer(request->id(), request->ip(), request->port(), request->spectate(),
         request->type() == kyber_interface::JoinServerType::PROXIED, true);
 
     ServerUnaryReactor* reactor = context->DefaultReactor();
@@ -31,7 +31,7 @@ ServerUnaryReactor* ClientInterfaceService::SetVoipSettings(CallbackServerContex
 {
     KYBER_LOG(Info, "[RPC] Setting VoIP settings");
 
-    VoipManager* voipManager = g_program->m_voipManager;
+    VoipManager* voipManager = g_program->m_client->m_voipManager;
     if (!voipManager)
     {
         KYBER_LOG(Warning, "[RPC] VoIP manager not initialized");
@@ -55,7 +55,7 @@ ServerUnaryReactor* ClientInterfaceService::SetVoipSettings(CallbackServerContex
 
     if (request->enabled())
     {
-        g_program->AttemptJoinVoip();
+        g_program->m_client->AttemptJoinVoip();
     }
     else
     {
@@ -70,7 +70,7 @@ ServerUnaryReactor* ClientInterfaceService::SetVoipSettings(CallbackServerContex
 ServerUnaryReactor* ClientInterfaceService::GetVoipSettings(CallbackServerContext* context,
     const kyber_common::Empty* request, kyber_interface::VoipSettings* response)
 {
-    VoipManager* voipManager = g_program->m_voipManager;
+    VoipManager* voipManager = g_program->m_client->m_voipManager;
     if (!voipManager)
     {
         KYBER_LOG(Warning, "VoIP manager not initialized");

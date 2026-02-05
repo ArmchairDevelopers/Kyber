@@ -41,7 +41,7 @@ void KyberVoipPlayerStatusEntity::Update(const UpdateParameters& params)
         return;
     }
 
-    bool isPlayerSpeaking = g_program->m_voipManager->IsParticipantSpeaking(m_currentPlayer);
+    bool isPlayerSpeaking = g_program->m_client->m_voipManager->IsParticipantSpeaking(m_currentPlayer);
     m_isPlayerTalking = &isPlayerSpeaking;
 
     // KYBER_LOG(Trace, "[VoIP] Speaking Status for " << m_currentPlayer << " is " << isPlayerSpeaking);

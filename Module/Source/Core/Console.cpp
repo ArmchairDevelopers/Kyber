@@ -528,7 +528,7 @@ void JoinServerCommand(ConsoleContext& cc)
     stream >> ip >> port;
 
     cc << "Connecting to " << ip << ":" << port << "...";
-    g_program->JoinServer("", ip, port, "", false);
+    g_program->m_client->JoinServer("", ip, port, "", false);
 }
 
 void FullEntityBusInternalFireEventHk2(void* inst, const DataContainer* data, const EntityEvent* entityEvent)
