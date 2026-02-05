@@ -110,7 +110,7 @@ std::optional<std::string> ServerBrowserAPI::RegisterServer(const ServerCreation
         return std::nullopt;
     }
 
-    g_program->m_joinToken = response.proxytoken();
+    g_program->m_client->m_joinToken = response.proxytoken();
 
     return response.id();
 }

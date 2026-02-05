@@ -40,15 +40,6 @@
 
 #define OFFSET_APPLY_SETTINGS HOOK_OFFSET(0x1401B31B0)
 
-#define OFFSET_CLIENT_INIT_NETWORK HOOK_OFFSET(0x140A8DE80)
-#define OFFSET_CLIENT_CONNECTTOADDRESS HOOK_OFFSET(0x140CB3990)
-
-#define OFFSET_MAINLOOP_INIT HOOK_OFFSET(0x140186B90)
-#define OFFSET_MAINLOOP_INITDATAPLATFORM HOOK_OFFSET(0x145315E30)
-
-#define OFFSET_GAMESIMULATION_INIT HOOK_OFFSET(0x145315930)
-#define OFFSET_GAMESIMULATION_SPAWNSERVER HOOK_OFFSET(0x14018EE70)
-
 #define OFFSET_SERVER_PATCH 0x140A92F71
 
 namespace Kyber
@@ -133,11 +124,11 @@ void InitLevelSetup(LevelSetup* levelSetup, const char* level, const char* mode,
 }
 
 Server::Server()
-    : m_mainLoopInitEventManager(new EventManager())
-    , m_socketManager()
+    : m_socketManager()
     , m_natClient(nullptr)
     , m_playerManager(nullptr)
     , m_persistenceManager(new PersistenceManager())
+    , m_eventManager(new EventManager())
     , m_socketSpawnInfo(SocketSpawnInfo(false, "", "", ""))
     , m_serverInstance(nullptr)
     , m_onlineMode(IsOnlineMode())
@@ -147,8 +138,7 @@ Server::Server()
     , m_levelLoaded(false)
     , m_latestLoadLevelRequest(LoadLevelRequest())
 {
-    m_mainLoopInitEventManager->RegisterListener<MainLoopInitStartServerEvent>(this);
-    m_mainLoopInitEventManager->RegisterListener<MainLoopInitJoinServerEvent>(this);
+    m_eventManager->RegisterListener<MainLoopInitStartServerEvent>(this);
 
     // Using the dirty sock socket manager makes KYBER servers compatible with non-kyber battlefront clients
     bool useDirtySockSocketManager = std::getenv("KYBER_USE_DIRTY_SOCK") != nullptr;
@@ -445,62 +435,6 @@ __int64 SettingsManagerApplyHk(__int64 inst, __int64* a2, char* script, BYTE* a4
     return result;
 }
 
-bool ClientInitNetworkHk(__int64 inst, bool singleplayer, bool localhost, bool coop, bool hosted)
-{
-    static const auto trampoline = HookManager::Call(ClientInitNetworkHk);
-    KYBER_LOG(Info, "[Client] Client is initializing network, singleplayer: " << singleplayer);
-    if (g_program->m_server->m_runningHosted || strlen(Settings<ClientSettings>("Client")->ServerIp) > 0)
-    {
-        *reinterpret_cast<void**>(inst + 0xA8) =
-            reinterpret_cast<void*>(new SocketManagerCreator(&g_program->m_clientSocketManager, g_program->m_server->m_socketSpawnInfo));
-        KYBER_LOG(Info, "[Client] Using custom socket manager");
-    }
-    return trampoline(inst, singleplayer, localhost, coop, hosted);
-}
-
-void ClientConnectToAddressHk(__int64 inst, const char* ipAddress, const char* serverPassword)
-{
-    static const auto trampoline = HookManager::Call(ClientConnectToAddressHk);
-    SocketSpawnInfo info = g_program->m_server->m_socketSpawnInfo;
-    if (false && g_program->m_joining && info.isProxied)
-    {
-        KYBER_LOG(Info, "[Client] Connecting to server (proxied)");
-        trampoline(inst, (std::string(info.proxyAddress) + ":25201").c_str(), serverPassword);
-    }
-    else
-    {
-        KYBER_LOG(Info, "[Client] Connecting to server " << ipAddress);
-        trampoline(inst, ipAddress, serverPassword);
-    }
-
-    if (g_program->m_joining)
-    {
-        g_program->m_connected = true;
-        g_program->m_joining = false;
-    }
-}
-
-void** OnlineManagerConnectHk(void* inst, const SocketAddr& address)
-{
-    static const auto trampoline = HookManager::Call(OnlineManagerConnectHk);
-
-    StringBuilder builder;
-    char buf[256];
-
-    StringBuilder_ctor(&builder, buf, 256);
-    networkAddressToString(&address, builder);
-
-    KYBER_LOG(Info, "[Client] Connecting to server (2) " << buf);
-
-    // std::ofstream fout;
-    // fout.open("addr.bin", std::ios::binary | std::ios::out);
-
-    // fout.write((char*)&address, sizeof(SocketAddr));
-    // fout.close();
-
-    return trampoline(inst, address);
-}
-
 void ServerPlayerSetTeamIdHk(ServerPlayer* inst, int teamId)
 {
     static const auto trampoline = HookManager::Call(ServerPlayerSetTeamIdHk);
@@ -510,156 +444,6 @@ void ServerPlayerSetTeamIdHk(ServerPlayer* inst, int teamId)
     {
         g_program->GetAPI()->GetServerManagement()->SendPlayerList();
     }
-}
-
-struct MainLoop
-{
-    char pad_0000[8];       // 0x0000
-    bool isDedicatedServer; // 0x0008
-};
-
-void* s_mainLoop = nullptr;
-
-bool MainLoopInitHk(MainLoop* inst)
-{
-    static const auto trampoline = HookManager::Call(MainLoopInitHk);
-    s_mainLoop = inst;
-
-    if (g_program->m_isDedicatedServer)
-    {
-        inst->isDedicatedServer = true;
-    }
-
-    g_program->InitializeConsole();
-
-    if (g_program->m_scriptManager != nullptr)
-    {
-        g_program->m_scriptManager->LoadScripts(PluginRealm_Server);
-    }
-
-    KYBER_LOG(Info, "[Engine] Initializing Game Loop");
-    bool result = trampoline(inst);
-
-    KYBER_LOG(Info, "[Engine] Processing initial events");
-    g_program->m_server->m_mainLoopInitEventManager->ProcessEventQueue();
-
-    if (g_program->m_settingsManager != nullptr)
-    {
-        g_program->m_settingsManager->ApplySettings();
-        g_program->m_server->OnSettingsRegistered();
-    }
-
-    return result;
-}
-
-void MainLoopInitDataPlatform()
-{
-    static const auto trampoline = HookManager::Call(MainLoopInitDataPlatform);
-    trampoline();
-
-    /*const char** dataPlatformPathName = (const char**)0x143AF6010;
-    *dataPlatformPathName = "DedicatedServer";
-
-    const char** dataPlatformPathNameLower = (const char**)0x143AF6018;
-    *dataPlatformPathNameLower = "dedicatedserver";*/
-}
-
-void GameSimulationSpawnServerHk(void* inst, ServerSpawnInfo& createInfo)
-{
-    static const auto trampoline = HookManager::Call(GameSimulationSpawnServerHk);
-    KYBER_LOG(Trace, "[GameSim] Spawning server: " << createInfo.isDedicated);
-    return trampoline(inst, createInfo);
-}
-
-void GameSimulationInitDedicatedServerHk(void* inst, void* createInfo)
-{
-    KYBER_LOG(Info, "[GameSim] Initializing Dedicated Server");
-
-    if (!g_program->m_server->m_creationInfo)
-    {
-        KYBER_LOG(Error, "[GameSim] Failed to find server creation info; halting");
-        return;
-    }
-
-    if (g_program->m_server->m_socketManager == nullptr)
-    {
-        g_program->m_server->m_socketManager = (SocketManager*)FB_STATIC_ARENA->alloc(448);
-        if (g_program->m_server->m_socketManager == nullptr)
-        {
-            KYBER_LOG(Error, "[GameSim] Failed to allocate socket manager; halting");
-            return;
-        }
-
-        DirtySockSocketManager_ctor(g_program->m_server->m_socketManager, FB_STATIC_ARENA, 1168);
-    }
-
-    NetworkSettings* networkSettings = Settings<NetworkSettings>("Network");
-    networkSettings->MaxClientCount = 64;
-
-    GameSettings* gameSettings = Settings<GameSettings>("Game");
-    gameSettings->MaxSpectatorCount = 4;
-
-    NetObjectSystemSettings* netObjectSettings = Settings<NetObjectSystemSettings>("NetObjectSystem");
-    netObjectSettings->MaxServerConnectionCount = 64;
-    // netObjectSettings->DeltaCompressionSettings.IsEnabled = false;
-
-    if (g_program->m_server->m_onlineMode)
-    {
-        g_program->m_server->Register();
-    }
-
-    g_program->m_server->m_socketSpawnInfo = SocketSpawnInfo(false, "", g_program->m_server->m_serverId, "");
-
-    MapRotationEntry rotation = g_program->m_server->m_mapRotation.GetNextEntry();
-
-    LevelSetup levelSetup;
-    InitLevelSetup(
-        &levelSetup, g_program->m_server->m_creationInfo->level.c_str(), g_program->m_server->m_creationInfo->mode.c_str(), "", "");
-
-    WSGameSettings* wsSettings = Settings<WSGameSettings>("Whiteshark");
-    wsSettings->AutoBalanceTeamsOnNeutral = true;
-
-    ServerSpawnInfo spawnInfo(levelSetup);
-    spawnInfo.isSinglePlayer = false;
-    spawnInfo.isLocalHost = false;
-    spawnInfo.isDedicated = true;
-    spawnInfo.saveData.init(0);
-    GameSimulationSpawnServerHk(inst, spawnInfo);
-}
-
-class GameSimulation
-{
-public:
-    char pad_0000[256];       // 0x0000
-    uint32_t unk1;            // 0x0100
-    uint32_t m_tickFrequency; // 0x0104
-    uint32_t m_looping;       // 0x0108
-};
-
-void GameSimulationInitHk(GameSimulation* inst, void* createInfo)
-{
-    static const auto trampoline = HookManager::Call(GameSimulationInitHk);
-    KYBER_LOG(Info, "[GameSim] Initializing Game Simulation");
-
-    if (g_program->m_isDedicatedServer)
-    {
-        PlatformUtils::HookVTableFunction(inst, &GameSimulationInitDedicatedServerHk, 31);
-    }
-
-    // Changeable, but causes some weird things.
-    // In Battlefield, this works properly when paired
-    // with changing Server.OutgoingHighFrequency,
-    // but the equivalent settings (Server.OutgoingFrequency,
-    // Server.IncomingFrequency, Client.OutgoingFrequency,
-    // Client.IncomingFrequency, GameTime.MaxSimFps,
-    // GameTime.ForceSimRate) in battlefront just cause
-    // the player to not spawn properly.
-    // inst->m_tickFrequency = 30;
-
-    trampoline(inst, createInfo);
-    KYBER_LOG(Info, "[GameSim] Game Simulation initialized: " << std::hex << inst);
-
-    // GenericUpdateManager::Get().GameSimInit();
 }
 
 void PresenceBackendManagerAddBackendHk(void* inst, TypeObject* backend)
@@ -726,6 +510,7 @@ void ServerUpdatePassPreFrameHk(void* inst, const UpdateParameters& params)
 
     g_program->m_server->Heartbeat(params);
     g_threadExecutor->Process(GameThread_Server);
+    g_program->m_server->m_eventManager->ProcessEventQueue();
 
     if (g_program->m_server->IsRunning())
     {
@@ -903,11 +688,6 @@ void Server::OnEvent(const Event& event)
         const auto& e = event.as<MainLoopInitStartServerEvent>();
         m_creationInfo = e.info;
     }
-    else if (event.is<MainLoopInitJoinServerEvent>())
-    {
-        const auto& e = event.as<MainLoopInitJoinServerEvent>();
-        g_program->JoinServer(e.id, e.ip, e.port, e.spectate, e.proxied, false);
-    }
 }
 
 void Server::OnSettingsRegistered()
@@ -915,15 +695,10 @@ void Server::OnSettingsRegistered()
 }
 
 HookTemplate clientServerHookOffsets[] = {
-    { OFFSET_MAINLOOP_INIT, MainLoopInitHk },
     { OFFSET_SERVER_CONSTRUCTOR, ServerCtorHk },
     { OFFSET_SERVER_START, ServerStartHk },
-    { OFFSET_GAMESIMULATION_INIT, GameSimulationInitHk },
     { OFFSET_SERVERPLAYER_SETTEAMID, ServerPlayerSetTeamIdHk },
     { OFFSET_APPLY_SETTINGS, SettingsManagerApplyHk },
-    { OFFSET_CLIENT_INIT_NETWORK, ClientInitNetworkHk },
-    { OFFSET_CLIENT_CONNECTTOADDRESS, ClientConnectToAddressHk },
-    { HOOK_OFFSET(0x140CB3640), OnlineManagerConnectHk },
     { HOOK_OFFSET(0x1478F8440), PresenceBackendManagerAddBackendHk },
     { HOOK_OFFSET(0x1418CA790), LoadSomethingHk },
     //{ HOOK_OFFSET(0x145FE09E0), ProtoHttpControlHk },
@@ -939,11 +714,7 @@ HookTemplate clientServerHookOffsets[] = {
 };
 
 HookTemplate dedicatedServerHookOffsets[] = {
-    { OFFSET_MAINLOOP_INIT, MainLoopInitHk },
     { OFFSET_SERVER_CONSTRUCTOR, ServerCtorHk },
-    //{ OFFSET_MAINLOOP_INITDATAPLATFORM, MainLoopInitDataPlatform },
-    { OFFSET_GAMESIMULATION_INIT, GameSimulationInitHk },
-    { OFFSET_GAMESIMULATION_SPAWNSERVER, GameSimulationSpawnServerHk },
     { OFFSET_SERVERPLAYER_SETTEAMID, ServerPlayerSetTeamIdHk },
     { HOOK_OFFSET(0x1484213F0), GetSocketManagerHk },
     { HOOK_OFFSET(0x1478F8440), PresenceBackendManagerAddBackendHk },

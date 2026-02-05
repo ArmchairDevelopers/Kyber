@@ -66,7 +66,7 @@ void LauncherInterface::Initialize() const
 
         auto* event = new MainLoopInitStartServerEvent();
         event->info = info;
-        g_program->m_server->m_mainLoopInitEventManager->QueueEvent(event);
+        g_program->m_server->m_eventManager->QueueEvent(event);
         break;
     }
     case kyber_interface::InitializeRequest::kJoinServer: {
@@ -79,8 +79,8 @@ void LauncherInterface::Initialize() const
         event->spectate = joinServer.spectate();
         event->proxied = joinServer.type() == kyber_interface::JoinServerType::PROXIED;
         event->password = "";
-        g_program->m_joinToken = joinServer.jointoken();
-        g_program->m_server->m_mainLoopInitEventManager->QueueEvent(event);
+        g_program->m_client->m_joinToken = joinServer.jointoken();
+        g_program->m_client->m_eventManager->QueueEvent(event);
         break;
     }
     case kyber_interface::InitializeRequest::STARTSTATE_NOT_SET:
