@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -18,9 +17,7 @@ type PartyRepository interface {
 	GetByLeaderID(ctx context.Context, leaderID string) (*models.PartyModel, error)
 	Update(ctx context.Context, partyID uint64, update interface{}) error
 	Delete(ctx context.Context, partyID uint64) error
-	GetPendingInvite(ctx context.Context, partyID uint64, userID string) (*models.PartyModel, error)
 	GetNextID(ctx context.Context) (uint64, error)
-	CleanupExpiredInvites(ctx context.Context, now time.Time) error
 }
 
 type mongoPartyRepo struct {
@@ -82,25 +79,6 @@ func (r *mongoPartyRepo) Delete(ctx context.Context, partyID uint64) error {
 	return err
 }
 
-func (r *mongoPartyRepo) GetPendingInvite(ctx context.Context, partyID uint64, userID string) (*models.PartyModel, error) {
-	var party models.PartyModel
-	err := r.col.FindOne(ctx, bson.M{
-		"_id": partyID,
-		"invites": bson.M{
-			"$elemMatch": bson.M{
-				"invitee_id": userID,
-			},
-		},
-	}).Decode(&party)
-	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &party, nil
-}
-
 func (r *mongoPartyRepo) GetNextID(ctx context.Context) (uint64, error) {
 	opts := options.FindOne().SetSort(bson.M{"_id": -1})
 	var result models.PartyModel
@@ -113,15 +91,4 @@ func (r *mongoPartyRepo) GetNextID(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	return result.ID + 1, nil
-}
-
-func (r *mongoPartyRepo) CleanupExpiredInvites(ctx context.Context, now time.Time) error {
-	_, err := r.col.UpdateMany(ctx, bson.M{}, bson.M{
-		"$pull": bson.M{
-			"invites": bson.M{
-				"expires_at": bson.M{"$lt": now},
-			},
-		},
-	})
-	return err
 }

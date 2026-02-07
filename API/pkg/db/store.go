@@ -2,19 +2,21 @@ package db
 
 import (
 	"context"
+
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/repository"
 )
 
 type Store struct {
-	Users       repository.UserRepository
-	Servers     repository.ServerRepository
-	JoinTokens  repository.JoinTokenRepository
-	Punishments repository.PunishmentRepository
-	HostedMods  repository.HostedModRepository
-	Stats       repository.StatsRepository
-	Reports     repository.ReportRepository
-	ModImages   repository.ModImageRepository
-	Parties     repository.PartyRepository
+	Users        repository.UserRepository
+	Servers      repository.ServerRepository
+	JoinTokens   repository.JoinTokenRepository
+	Punishments  repository.PunishmentRepository
+	HostedMods   repository.HostedModRepository
+	Stats        repository.StatsRepository
+	Reports      repository.ReportRepository
+	ModImages    repository.ModImageRepository
+	Parties      repository.PartyRepository
+	PartyInvites repository.PartyInviteRepository
 }
 
 func NewStore(ctx context.Context, uri string) (*Store, error) {
@@ -34,16 +36,18 @@ func NewStore(ctx context.Context, uri string) (*Store, error) {
 	reportCollection := GetCollection("kyber", "reports")
 	modImageCollection := GetCollection("kyber", "mod_images")
 	partyCollection := GetCollection("kyber", "parties")
+	partyInviteCollection := GetCollection("kyber", "party_invites")
 
 	return &Store{
-		Users:       repository.NewUserRepo(userCollection),
-		Servers:     repository.NewServerRepository(serverCollection),
-		JoinTokens:  repository.NewJoinTokenRepo(joinTokenCollection),
-		Punishments: repository.NewPunishmentRepo(punishmentCollection),
-		HostedMods:  repository.NewHostedModRepo(hostedModCollection),
-		Stats:       repository.NewStatsRepo(statsCollection),
-		Reports:     repository.NewReportRepo(reportCollection),
-		ModImages:   repository.NewModImageRepo(modImageCollection),
-		Parties:     repository.NewPartyRepo(partyCollection),
+		Users:        repository.NewUserRepo(userCollection),
+		Servers:      repository.NewServerRepository(serverCollection),
+		JoinTokens:   repository.NewJoinTokenRepo(joinTokenCollection),
+		Punishments:  repository.NewPunishmentRepo(punishmentCollection),
+		HostedMods:   repository.NewHostedModRepo(hostedModCollection),
+		Stats:        repository.NewStatsRepo(statsCollection),
+		Reports:      repository.NewReportRepo(reportCollection),
+		ModImages:    repository.NewModImageRepo(modImageCollection),
+		Parties:      repository.NewPartyRepo(partyCollection),
+		PartyInvites: repository.NewPartyInviteRepo(partyInviteCollection),
 	}, nil
 }

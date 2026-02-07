@@ -69,6 +69,16 @@ func setupIndexes(ctx context.Context, client *mongo.Client) {
 		zap.L().Error("failed to create servers TTL index", zap.Error(err))
 	}
 
+	ptiTTLIdx := mongo.IndexModel{
+		Keys: bson.D{{Key: "created", Value: 1}},
+		Options: options.Index().
+			SetName("created_ttl_idx").
+			SetExpireAfterSeconds(60),
+	}
+	if _, err := db.Collection("party_invites").Indexes().CreateOne(ctx, ptiTTLIdx); err != nil {
+		zap.L().Error("failed to create party_invites TTL index", zap.Error(err))
+	}
+
 	imageHashIdx := mongo.IndexModel{
 		Keys:    bson.D{{Key: "hash", Value: 1}},
 		Options: options.Index().SetName("hash_idx"),

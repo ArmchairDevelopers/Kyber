@@ -44,7 +44,6 @@ func NewPartyServer(store *db.Store, mqClient mq.Client) *PartyService {
 	}
 
 	go s.consumePartyEvents()
-	go s.cleanupExpiredInvites()
 	go s.cleanupDisconnectedPlayers()
 
 	return s
@@ -111,7 +110,6 @@ func (s *PartyService) CreateParty(ctx context.Context, _ *pbcommon.Empty) (*pba
 				JoinedAt: time.Now(),
 			},
 		},
-		Invites:   []models.PartyInviteModel{},
 		CreatedAt: time.Now(),
 	}
 
@@ -172,11 +170,17 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		return nil, status.Error(codes.AlreadyExists, "Player is already in a party")
 	}
 
-	if party.GetInvite(req.UserId) != nil {
+	invites, err := s.store.PartyInvites.GetInvites(ctx, party.ID)
+	if err != nil {
+		logger.L().Error("Failed to check existing invite", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to check existing invite")
+	}
+
+	if s.getInvite(invites, req.GetUserId()) != nil {
 		return nil, status.Error(codes.AlreadyExists, "Invite already sent to this player")
 	}
 
-	if len(party.Invites) >= 10 {
+	if len(invites) >= 10 {
 		return nil, status.Error(codes.AlreadyExists, "Reached the maximum number of invites")
 	}
 
@@ -191,15 +195,15 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 	}
 
 	invite := models.PartyInviteModel{
+		ID:        util.GenerateToken(),
 		InviterID: user.ID,
 		InviteeID: req.UserId,
-		Token:     util.GenerateToken(),
+		PartyID:   party.ID,
 		ExpiresAt: time.Now().Add(1 * time.Minute),
+		CreatedAt: time.Now(),
 	}
 
-	if err := s.store.Parties.Update(ctx, party.ID, bson.M{
-		"$push": bson.M{"invites": invite},
-	}); err != nil {
+	if err := s.store.PartyInvites.Create(ctx, &invite); err != nil {
 		logger.L().Error("Failed to add invite to party", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Failed to add invite to party")
 	}
@@ -212,7 +216,7 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 				InviteReceived: &pbapi.InviteReceivedEvent{
 					PartyId:     party.ID,
 					Inviter:     user.Proto(),
-					InviteToken: invite.Token,
+					InviteToken: invite.ID,
 					ExpiresAt:   invite.ExpiresAt.Unix(),
 				},
 			},
@@ -237,7 +241,7 @@ func (s *PartyService) AcceptInvite(ctx context.Context, req *pbapi.AcceptInvite
 		return nil, status.Error(codes.AlreadyExists, "You are already in a party")
 	}
 
-	party, err := s.store.Parties.GetPendingInvite(ctx, req.PartyId, user.ID)
+	party, err := s.store.Parties.GetByID(ctx, req.PartyId)
 	if err != nil {
 		logger.L().Error("Failed to get party invite", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Failed to get party invite")
@@ -247,7 +251,12 @@ func (s *PartyService) AcceptInvite(ctx context.Context, req *pbapi.AcceptInvite
 		return nil, status.Error(codes.NotFound, "Party invite not found")
 	}
 
-	invite := party.GetInvite(user.ID)
+	invite, err := s.store.PartyInvites.GetByInvitee(ctx, req.GetPartyId(), user.ID)
+	if err != nil {
+		logger.L().Error("Failed to get party invite", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get party invite")
+	}
+
 	if invite == nil {
 		return nil, status.Error(codes.NotFound, "Invite not found")
 	}
@@ -296,7 +305,7 @@ func (s *PartyService) AcceptInvite(ctx context.Context, req *pbapi.AcceptInvite
 func (s *PartyService) DeclineInvite(ctx context.Context, req *pbapi.DeclineInviteRequest) (*pbcommon.Empty, error) {
 	user := ctx.Value("user").(*models.UserModel)
 
-	party, err := s.store.Parties.GetPendingInvite(ctx, req.PartyId, user.ID)
+	party, err := s.store.Parties.GetByID(ctx, req.PartyId)
 	if err != nil {
 		logger.L().Error("Failed to get party invite", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Failed to get party invite")
@@ -306,11 +315,19 @@ func (s *PartyService) DeclineInvite(ctx context.Context, req *pbapi.DeclineInvi
 		return nil, status.Error(codes.NotFound, "Party invite not found")
 	}
 
-	if err := s.store.Parties.Update(ctx, party.ID, bson.M{
-		"$pull": bson.M{"invites": bson.M{"invitee_id": user.ID}},
-	}); err != nil {
-		logger.L().Error("Failed to remove invite", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Failed to remove invite")
+	invite, err := s.store.PartyInvites.GetByInvitee(ctx, req.GetPartyId(), user.ID)
+	if err != nil {
+		logger.L().Error("Failed to get party invite", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get party invite")
+	}
+
+	if invite == nil {
+		return nil, status.Error(codes.NotFound, "Invite not found")
+	}
+
+	if err := s.store.PartyInvites.Delete(ctx, invite.ID); err != nil {
+		logger.L().Error("Failed to delete party invite", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to delete party invite")
 	}
 
 	s.publishPartyEvent(&PartyEventMessage{
@@ -433,22 +450,6 @@ func (s *PartyService) getAllMemberIDs(party *models.PartyModel) []string {
 	return ids
 }
 
-func (s *PartyService) cleanupExpiredInvites() {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-
-		err := s.store.Parties.CleanupExpiredInvites(ctx, time.Now())
-		if err != nil {
-			logger.L().Error("Failed to cleanup expired invites", zap.Error(err))
-		}
-
-		cancel()
-	}
-}
-
 func (s *PartyService) cleanupDisconnectedPlayers() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -492,6 +493,16 @@ func (s *PartyService) cleanupDisconnectedPlayers() {
 
 		cancel()
 	}
+}
+
+func (s *PartyService) getInvite(invites []*models.PartyInviteModel, inviteeID string) *models.PartyInviteModel {
+	for _, invite := range invites {
+		if invite.InviteeID == inviteeID {
+			return invite
+		}
+	}
+
+	return nil
 }
 
 func (s *PartyService) handleLeave(ctx context.Context, party *models.PartyModel, userID string) error {
