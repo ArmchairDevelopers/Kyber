@@ -14,6 +14,7 @@ type Store struct {
 	Stats       repository.StatsRepository
 	Reports     repository.ReportRepository
 	ModImages   repository.ModImageRepository
+	Parties     repository.PartyRepository
 }
 
 func NewStore(ctx context.Context, uri string) (*Store, error) {
@@ -32,6 +33,7 @@ func NewStore(ctx context.Context, uri string) (*Store, error) {
 	statsCollection := GetCollection("kyber", "user_stats")
 	reportCollection := GetCollection("kyber", "reports")
 	modImageCollection := GetCollection("kyber", "mod_images")
+	partyCollection := GetCollection("kyber", "parties")
 
 	return &Store{
 		Users:       repository.NewUserRepo(userCollection),
@@ -42,5 +44,6 @@ func NewStore(ctx context.Context, uri string) (*Store, error) {
 		Stats:       repository.NewStatsRepo(statsCollection),
 		Reports:     repository.NewReportRepo(reportCollection),
 		ModImages:   repository.NewModImageRepo(modImageCollection),
+		Parties:     repository.NewPartyRepo(partyCollection),
 	}, nil
 }

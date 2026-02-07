@@ -181,6 +181,7 @@ func main() {
 		{Name: "image_hashes", Kind: "fanout", Durable: true},
 		{Name: "reports", Kind: "fanout", Durable: true},
 		{Name: "kronos_server_browser", Kind: "fanout", Durable: true},
+		{Name: "party_events", Kind: "fanout", Durable: true},
 	}
 
 	for _, cfg := range exchanges {
@@ -199,6 +200,7 @@ func main() {
 	pbapi.RegisterVoipServer(grpcServer, rpc.NewVoipServer(store))
 	pbapi.RegisterProxyServer(grpcServer, rpc.NewProxyServer())
 	pbapi.RegisterReportServiceServer(grpcServer, rpc.NewReportServer(store, sm, *mqClient))
+	pbapi.RegisterPartyServer(grpcServer, rpc.NewPartyServer(store, *mqClient))
 
 	eg, _ := errgroup.WithContext(ctx)
 

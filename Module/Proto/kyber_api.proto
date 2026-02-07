@@ -112,31 +112,35 @@ service Party {
   rpc AcceptInvite(AcceptInviteRequest) returns (kyber_common.Empty);
   rpc DeclineInvite(DeclineInviteRequest) returns (kyber_common.Empty);
 
-  rpc GetParty(kyber_common.Empty) returns (PartyState);
+  rpc GetParty(kyber_common.Empty) returns (GetPartyResponse);
 }
 
 // PartyService
+
+message GetPartyResponse {
+  optional PartyState party = 1;
+}
 
 message InvitePlayerRequest {
   string userId = 1;
 }
 
 message AcceptInviteRequest {
-  string partyId = 1;
+  uint64 partyId = 1;
   // string inviteToken = 2;
 }
 
 message DeclineInviteRequest {
-  string partyId = 1;
+  uint64 partyId = 1;
   // string inviteToken = 2;
 }
 
 message CreatePartyResponse {
-  string partyId = 1;
+  uint64 partyId = 1;
 }
 
 message PartyState {
-  string id = 1;
+  uint64 id = 1;
   string leaderId = 2;
   repeated PartyMember members = 3;
   int64 createdAt = 4;
@@ -159,7 +163,7 @@ message PartyEvent {
 }
 
 message InviteReceivedEvent {
-  string partyId = 1;
+  uint64 partyId = 1;
   kyber_common.KyberPlayer inviter = 2;
   string inviteToken = 3;
   int64 expiresAt = 4;
@@ -545,6 +549,8 @@ message ConsumeJoinTokenResponse {
   string id = 1;
   // The user's name
   string name = 2;
+  // The user's party group ID
+  optional uint64 groupId = 3;
 }
 
 // Proxy
