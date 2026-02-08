@@ -23,9 +23,9 @@ import (
 )
 
 type partyEventWire struct {
-	PartyID uint64   `json:"party_id"`
-	UserIDs []string `json:"user_ids"`
-	Event   []byte   `json:"event"`
+	PartyID uint64          `json:"party_id"`
+	UserIDs []string        `json:"user_ids"`
+	Event   json.RawMessage `json:"event"`
 }
 
 type PartyEventMessage struct {
@@ -404,7 +404,7 @@ func (s *PartyService) publishPartyEvent(msg *PartyEventMessage) {
 	wire := partyEventWire{
 		PartyID: msg.PartyID,
 		UserIDs: msg.UserIDs,
-		Event:   eventBytes,
+		Event:   json.RawMessage(eventBytes),
 	}
 
 	data, err := json.Marshal(wire)
