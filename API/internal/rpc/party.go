@@ -19,7 +19,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 )
+
+type partyEventWire struct {
+	PartyID uint64   `json:"party_id"`
+	UserIDs []string `json:"user_ids"`
+	Event   []byte   `json:"event"`
+}
 
 type PartyEventMessage struct {
 	PartyID uint64            `json:"party_id"`
@@ -67,17 +74,22 @@ func (s *PartyService) Subscribe(_ *pbcommon.Empty, stream pbapi.Party_Subscribe
 
 	defer func() {
 		s.mu.Lock()
-		delete(s.subs, user.ID)
-		s.lastSubTime[user.ID] = time.Now()
+		if s.subs[user.ID] == ch {
+			delete(s.subs, user.ID)
+			s.lastSubTime[user.ID] = time.Now()
+		}
 		s.mu.Unlock()
-		close(ch)
 	}()
 
 	for {
 		select {
 		case <-stream.Context().Done():
 			return nil
-		case event := <-ch:
+		case event, ok := <-ch:
+			if !ok {
+				return nil
+			}
+
 			if err := stream.Send(event); err != nil {
 				return err
 			}
@@ -383,7 +395,19 @@ func (s *PartyService) GetParty(ctx context.Context, _ *pbcommon.Empty) (*pbapi.
 }
 
 func (s *PartyService) publishPartyEvent(msg *PartyEventMessage) {
-	data, err := json.Marshal(msg)
+	eventBytes, err := protojson.Marshal(msg.Event)
+	if err != nil {
+		logger.L().Error("Failed to marshal party event proto", zap.Error(err))
+		return
+	}
+
+	wire := partyEventWire{
+		PartyID: msg.PartyID,
+		UserIDs: msg.UserIDs,
+		Event:   eventBytes,
+	}
+
+	data, err := json.Marshal(wire)
 	if err != nil {
 		logger.L().Error("Failed to marshal party event", zap.Error(err))
 		return
@@ -425,19 +449,25 @@ func (s *PartyService) consumePartyEvents() {
 	}
 
 	for msg := range msgs {
-		var eventMsg PartyEventMessage
-		if err := json.Unmarshal(msg.Body, &eventMsg); err != nil {
-			logger.L().Error("Failed to unmarshal party event", zap.Error(err))
+		var wire partyEventWire
+		if err := json.Unmarshal(msg.Body, &wire); err != nil {
+			logger.L().Error("Failed to unmarshal party event wire", zap.Error(err))
+			continue
+		}
+
+		var event pbapi.PartyEvent
+		if err := protojson.Unmarshal(wire.Event, &event); err != nil {
+			logger.L().Error("Failed to unmarshal party event proto", zap.Error(err))
 			continue
 		}
 
 		s.mu.RLock()
-		for _, userID := range eventMsg.UserIDs {
+		for _, userID := range wire.UserIDs {
 			if ch, ok := s.subs[userID]; ok {
 				select {
-				case ch <- eventMsg.Event:
+				case ch <- &event:
 				default:
-					logger.L().Warn("Dropping party event for user", zap.String("user_id", userID), zap.Uint64("party_id", eventMsg.PartyID))
+					logger.L().Warn("Dropping party event for user", zap.String("user_id", userID), zap.Uint64("party_id", wire.PartyID))
 				}
 			}
 		}
