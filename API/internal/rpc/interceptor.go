@@ -101,7 +101,7 @@ func (a *AuthHandler) NewAuthStreamInterceptor() grpc.StreamServerInterceptor {
 		wrapped := grpc_middleware.WrapServerStream(stream)
 		wrapped.WrappedContext = ctx
 
-		return handler(ctx, stream)
+		return handler(srv, wrapped)
 	}
 }
 
