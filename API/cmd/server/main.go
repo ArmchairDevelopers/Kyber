@@ -167,6 +167,7 @@ func main() {
 			),
 			grpc_zap.StreamServerInterceptor(zapLogger),
 			grpc_recovery.StreamServerInterceptor(),
+			rpc.NewAuthHandler(store).NewAuthStreamInterceptor(),
 		)),
 	)
 

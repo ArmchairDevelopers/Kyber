@@ -7,6 +7,7 @@ import (
 
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/db"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -60,6 +61,47 @@ func (a *AuthHandler) NewAuthInterceptor() grpc.UnaryServerInterceptor {
 		ctx = context.WithValue(ctx, "user", user)
 
 		return handler(ctx, req)
+	}
+}
+
+func (a *AuthHandler) NewAuthStreamInterceptor() grpc.StreamServerInterceptor {
+	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		service := strings.Split(info.FullMethod, "/")[1]
+		if (!authMethods[fmt.Sprintf("/%s", service)] && !authMethods[info.FullMethod]) && (!optionalAuthMethods[info.FullMethod] && !optionalAuthMethods[fmt.Sprintf("/%s", service)]) {
+			return handler(srv, stream)
+		}
+
+		md, ok := metadata.FromIncomingContext(stream.Context())
+		if !ok {
+			return status.Error(codes.Unauthenticated, "missing metadata")
+		}
+
+		tokens := md.Get("authorization")
+		if len(tokens) == 0 {
+			if optionalAuthMethods[info.FullMethod] {
+				return handler(srv, stream)
+			}
+
+			return status.Error(codes.Unauthenticated, "missing token")
+		}
+
+		token := tokens[0]
+
+		user, err := a.store.Users.GetByToken(stream.Context(), token)
+		if err != nil {
+			logger.L().Error("Failed to get user by token", zap.Error(err))
+			return status.Error(codes.Internal, "Failed to get user by token")
+		}
+
+		if user == nil {
+			return status.Error(codes.Unauthenticated, "Invalid token")
+		}
+
+		ctx := context.WithValue(stream.Context(), "user", user)
+		wrapped := grpc_middleware.WrapServerStream(stream)
+		wrapped.WrappedContext = ctx
+
+		return handler(ctx, stream)
 	}
 }
 
