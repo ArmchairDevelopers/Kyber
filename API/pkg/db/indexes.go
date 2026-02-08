@@ -70,7 +70,7 @@ func setupIndexes(ctx context.Context, client *mongo.Client) {
 	}
 
 	ptiTTLIdx := mongo.IndexModel{
-		Keys: bson.D{{Key: "created", Value: 1}},
+		Keys: bson.D{{Key: "created_at", Value: 1}},
 		Options: options.Index().
 			SetName("created_ttl_idx").
 			SetExpireAfterSeconds(60),
