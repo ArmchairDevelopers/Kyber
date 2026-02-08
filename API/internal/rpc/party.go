@@ -17,6 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -61,6 +62,8 @@ func (s *PartyService) Subscribe(_ *pbcommon.Empty, stream pbapi.Party_Subscribe
 	s.subs[user.ID] = ch
 	delete(s.lastSubTime, user.ID)
 	s.mu.Unlock()
+
+	stream.SendHeader(metadata.MD{})
 
 	defer func() {
 		s.mu.Lock()
