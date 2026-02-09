@@ -97,49 +97,6 @@ func (s *PartyService) Subscribe(_ *pbcommon.Empty, stream pbapi.Party_Subscribe
 	}
 }
 
-func (s *PartyService) CreateParty(ctx context.Context, _ *pbcommon.Empty) (*pbapi.CreatePartyResponse, error) {
-	user := ctx.Value("user").(*models.UserModel)
-
-	existingParty, err := s.store.Parties.GetByMemberID(ctx, user.ID)
-	if err != nil {
-		logger.L().Error("Failed to check existing party", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Failed to check existing party")
-	}
-
-	if existingParty != nil {
-		return nil, status.Error(codes.AlreadyExists, "You are already in a party")
-	}
-
-	partyID, err := s.store.Parties.GetNextID(ctx)
-	if err != nil {
-		logger.L().Error("Failed to get next party ID", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Failed to generate party ID")
-	}
-
-	party := &models.PartyModel{
-		ID:       partyID,
-		LeaderID: user.ID,
-		Members: []models.PartyMemberModel{
-			{
-				UserID:   user.ID,
-				JoinedAt: time.Now(),
-			},
-		},
-		CreatedAt: time.Now(),
-	}
-
-	if err := s.store.Parties.Create(ctx, party); err != nil {
-		logger.L().Error("Failed to create party", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Failed to create party")
-	}
-
-	logger.L().Info("Created party", zap.Uint64("party_id", party.ID), zap.String("leader_id", user.ID))
-
-	return &pbapi.CreatePartyResponse{
-		PartyId: party.ID,
-	}, nil
-}
-
 func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbcommon.Empty, error) {
 	user := ctx.Value("user").(*models.UserModel)
 
@@ -172,7 +129,10 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 	}
 
 	if party == nil {
-		return nil, status.Error(codes.NotFound, "You are not in a party")
+		party, err = s.createParty(ctx, *user)
+		if err != nil {
+			return nil, status.Error(codes.Internal, "Failed to create party")
+		}
 	}
 
 	inviteeParty, err := s.store.Parties.GetByMemberID(ctx, req.UserId)
@@ -392,6 +352,35 @@ func (s *PartyService) GetParty(ctx context.Context, _ *pbcommon.Empty) (*pbapi.
 	}
 
 	return &pbapi.GetPartyResponse{Party: party.Proto(mapped)}, nil
+}
+
+func (s *PartyService) createParty(ctx context.Context, user models.UserModel) (*models.PartyModel, error) {
+	partyID, err := s.store.Parties.GetNextID(ctx)
+	if err != nil {
+		logger.L().Error("Failed to get next party ID", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to generate party ID")
+	}
+
+	party := &models.PartyModel{
+		ID:       partyID,
+		LeaderID: user.ID,
+		Members: []models.PartyMemberModel{
+			{
+				UserID:   user.ID,
+				JoinedAt: time.Now(),
+			},
+		},
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.store.Parties.Create(ctx, party); err != nil {
+		logger.L().Error("Failed to create party", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to create party")
+	}
+
+	logger.L().Info("Created party", zap.Uint64("party_id", party.ID), zap.String("leader_id", user.ID))
+
+	return party, nil
 }
 
 func (s *PartyService) publishPartyEvent(msg *PartyEventMessage) {
