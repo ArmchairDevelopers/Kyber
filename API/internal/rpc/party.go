@@ -268,6 +268,10 @@ func (s *PartyService) AcceptInvite(ctx context.Context, req *pbapi.AcceptInvite
 		return nil, status.Error(codes.Internal, "Failed to accept invite")
 	}
 
+	if err := s.store.PartyInvites.Delete(ctx, invite.ID); err != nil {
+		logger.L().Error("Failed to delete party invite", zap.Error(err))
+	}
+
 	allMemberIDs := append(memberIDs, user.ID)
 	s.publishPartyEvent(&PartyEventMessage{
 		PartyID: party.ID,
