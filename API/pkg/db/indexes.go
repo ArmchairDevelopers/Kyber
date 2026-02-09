@@ -103,5 +103,15 @@ func setupIndexes(ctx context.Context, client *mongo.Client) {
 		zap.L().Error("failed to create servers.host_id index", zap.Error(err))
 	}
 
+	presenceTTLIdx := mongo.IndexModel{
+		Keys: bson.D{{Key: "updated_at", Value: 1}},
+		Options: options.Index().
+			SetName("updated_at_ttl_idx").
+			SetExpireAfterSeconds(30),
+	}
+	if _, err := db.Collection("party_presence").Indexes().CreateOne(ctx, presenceTTLIdx); err != nil {
+		zap.L().Error("failed to create presence TTL index", zap.Error(err))
+	}
+
 	// TODO: create indexes for hosted mods
 }

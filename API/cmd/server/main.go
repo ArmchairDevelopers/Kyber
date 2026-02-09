@@ -183,6 +183,7 @@ func main() {
 		{Name: "reports", Kind: "fanout", Durable: true},
 		{Name: "kronos_server_browser", Kind: "fanout", Durable: true},
 		{Name: "party_events", Kind: "fanout", Durable: true},
+		{Name: "party_presence", Kind: "fanout", Durable: true},
 	}
 
 	for _, cfg := range exchanges {

@@ -52,6 +52,9 @@ func NewPartyServer(store *db.Store, mqClient mq.Client) *PartyService {
 	}
 
 	go s.consumePartyEvents()
+	go s.consumePresenceEvents()
+	go s.heartbeatPresence()
+	go s.cleanupOrphanedMembers()
 	go s.cleanupDisconnectedPlayers()
 
 	return s
@@ -69,6 +72,12 @@ func (s *PartyService) Subscribe(_ *pbcommon.Empty, stream pbapi.Party_Subscribe
 	s.subs[user.ID] = ch
 	delete(s.lastSubTime, user.ID)
 	s.mu.Unlock()
+
+	s.publishPresence(user.ID)
+
+	if err := s.store.Presence.Upsert(stream.Context(), user.ID); err != nil {
+		logger.L().Error("Failed to upsert presence", zap.Error(err))
+	}
 
 	stream.SendHeader(metadata.MD{})
 
@@ -464,6 +473,55 @@ func (s *PartyService) consumePartyEvents() {
 	}
 }
 
+func (s *PartyService) publishPresence(userID string) {
+	data, err := json.Marshal(map[string]string{"user_id": userID})
+	if err != nil {
+		logger.L().Error("Failed to marshal presence event", zap.Error(err))
+		return
+	}
+
+	err = s.mq.Channel.Publish("party_presence", "", false, false, amqp.Publishing{
+		ContentType: "application/json",
+		Body:        data,
+	})
+	if err != nil {
+		logger.L().Error("Failed to publish presence event", zap.Error(err))
+	}
+}
+
+func (s *PartyService) consumePresenceEvents() {
+	q, err := s.mq.Channel.QueueDeclare("", false, true, true, false, nil)
+	if err != nil {
+		logger.L().Error("Failed to declare presence queue", zap.Error(err))
+		return
+	}
+
+	if err = s.mq.Channel.QueueBind(q.Name, "", "party_presence", false, nil); err != nil {
+		logger.L().Error("Failed to bind presence queue", zap.Error(err))
+		return
+	}
+
+	msgs, err := s.mq.Channel.Consume(q.Name, "", true, false, false, false, nil)
+	if err != nil {
+		logger.L().Error("Failed to consume presence events", zap.Error(err))
+		return
+	}
+
+	for msg := range msgs {
+		var event struct {
+			UserID string `json:"user_id"`
+		}
+		if err := json.Unmarshal(msg.Body, &event); err != nil {
+			logger.L().Error("Failed to unmarshal presence event", zap.Error(err))
+			continue
+		}
+
+		s.mu.Lock()
+		delete(s.lastSubTime, event.UserID)
+		s.mu.Unlock()
+	}
+}
+
 func (s *PartyService) getAllMemberIDs(party *models.PartyModel) []string {
 	ids := make([]string, len(party.Members))
 	for i, member := range party.Members {
@@ -511,6 +569,89 @@ func (s *PartyService) cleanupDisconnectedPlayers() {
 			s.mu.Lock()
 			delete(s.lastSubTime, userID)
 			s.mu.Unlock()
+		}
+
+		cancel()
+	}
+}
+
+func (s *PartyService) heartbeatPresence() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.mu.RLock()
+		userIDs := make([]string, 0, len(s.subs))
+		for userID := range s.subs {
+			userIDs = append(userIDs, userID)
+		}
+		s.mu.RUnlock()
+
+		if len(userIDs) == 0 {
+			continue
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := s.store.Presence.UpsertMany(ctx, userIDs); err != nil {
+			logger.L().Error("Failed to heartbeat presence", zap.Error(err))
+		}
+		cancel()
+	}
+}
+
+func (s *PartyService) cleanupOrphanedMembers() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+
+		parties, err := s.store.Parties.GetAll(ctx)
+		if err != nil {
+			logger.L().Error("Failed to get all parties for orphan cleanup", zap.Error(err))
+			cancel()
+			continue
+		}
+
+		allMemberIDs := make(map[string]bool)
+		for _, party := range parties {
+			for _, member := range party.Members {
+				allMemberIDs[member.UserID] = true
+			}
+		}
+
+		if len(allMemberIDs) == 0 {
+			cancel()
+			continue
+		}
+
+		memberIDList := make([]string, 0, len(allMemberIDs))
+		for id := range allMemberIDs {
+			memberIDList = append(memberIDList, id)
+		}
+
+		existing, err := s.store.Presence.FindExisting(ctx, memberIDList)
+		if err != nil {
+			logger.L().Error("Failed to check presence for orphan cleanup", zap.Error(err))
+			cancel()
+			continue
+		}
+
+		existingSet := make(map[string]bool, len(existing))
+		for _, id := range existing {
+			existingSet[id] = true
+		}
+
+		for _, party := range parties {
+			for _, member := range party.Members {
+				if !existingSet[member.UserID] {
+					if err := s.handleLeave(ctx, party, member.UserID); err != nil {
+						logger.L().Error("Failed to remove member", zap.Error(err), zap.String("user_id", member.UserID), zap.Uint64("party_id", party.ID))
+					} else {
+						logger.L().Info("Removed member from party", zap.Uint64("party_id", party.ID), zap.String("user_id", member.UserID))
+					}
+				}
+			}
 		}
 
 		cancel()

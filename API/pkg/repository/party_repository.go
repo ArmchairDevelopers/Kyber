@@ -17,6 +17,7 @@ type PartyRepository interface {
 	GetByLeaderID(ctx context.Context, leaderID string) (*models.PartyModel, error)
 	Update(ctx context.Context, partyID uint64, update interface{}) error
 	Delete(ctx context.Context, partyID uint64) error
+	GetAll(ctx context.Context) ([]*models.PartyModel, error)
 	GetNextID(ctx context.Context) (uint64, error)
 }
 
@@ -77,6 +78,20 @@ func (r *mongoPartyRepo) Update(ctx context.Context, partyID uint64, update inte
 func (r *mongoPartyRepo) Delete(ctx context.Context, partyID uint64) error {
 	_, err := r.col.DeleteOne(ctx, bson.M{"_id": partyID})
 	return err
+}
+
+func (r *mongoPartyRepo) GetAll(ctx context.Context) ([]*models.PartyModel, error) {
+	cursor, err := r.col.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var parties []*models.PartyModel
+	if err := cursor.All(ctx, &parties); err != nil {
+		return nil, err
+	}
+	return parties, nil
 }
 
 func (r *mongoPartyRepo) GetNextID(ctx context.Context) (uint64, error) {
