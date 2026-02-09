@@ -60,7 +60,7 @@ func NewPartyServer(store *db.Store, mqClient mq.Client) *PartyService {
 	return s
 }
 
-func (s *PartyService) Subscribe(_ *pbcommon.Empty, stream pbapi.Party_SubscribeServer) error {
+func (s *PartyService) Subscribe(stream pbapi.Party_SubscribeServer) error {
 	user := stream.Context().Value("user").(*models.UserModel)
 
 	ch := make(chan *pbapi.PartyEvent, 10)
@@ -88,6 +88,14 @@ func (s *PartyService) Subscribe(_ *pbcommon.Empty, stream pbapi.Party_Subscribe
 			s.lastSubTime[user.ID] = time.Now()
 		}
 		s.mu.Unlock()
+	}()
+
+	go func() {
+		for {
+			if _, err := stream.Recv(); err != nil {
+				return
+			}
+		}
 	}()
 
 	for {

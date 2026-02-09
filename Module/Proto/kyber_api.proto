@@ -103,9 +103,8 @@ service ReportService {
 }
 
 service Party {
-  rpc Subscribe(kyber_common.Empty) returns (stream PartyEvent);
+  rpc Subscribe(stream kyber_common.Empty) returns (stream PartyEvent);
 
-  rpc CreateParty(kyber_common.Empty) returns (CreatePartyResponse);
   rpc LeaveParty(kyber_common.Empty) returns (kyber_common.Empty);
 
   rpc InvitePlayer(InvitePlayerRequest) returns (kyber_common.Empty);
