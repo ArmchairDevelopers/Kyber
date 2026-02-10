@@ -21,6 +21,7 @@ import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/features/navigation_bar/dialogs/disable_comp_mode_dialog.dart';
 import 'package:kyber_launcher/features/navigation_bar/helper/protocol_helper.dart';
 import 'package:kyber_launcher/features/nexusmods/widgets/graphql_provider.dart';
+import 'package:kyber_launcher/features/party/providers/party_cubit.dart';
 import 'package:kyber_launcher/features/server_moderation/providers/moderation_servers_cubit.dart';
 import 'package:kyber_launcher/features/settings/dialogs/update_dialog.dart';
 import 'package:kyber_launcher/features/setup/dialogs/open_beta_dialog.dart';
@@ -51,6 +52,7 @@ class AppInitializationService {
     if (!context.mounted) return;
 
     context.read<ModerationServersCubit>();
+    context.read<PartyCubit>();
 
     unawaited(
       sl.isReady<ModService>().then((_) {

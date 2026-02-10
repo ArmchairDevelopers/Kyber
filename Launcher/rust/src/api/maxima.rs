@@ -255,27 +255,20 @@ pub async fn lsx_get_event_stream(pid: u32, is_startup: Option<bool>, game_sink:
     }
 }
 
+pub async fn avatar_image(pd: &str, width: u16, height: u16) -> anyhow::Result<String> {
+    let maxima_arc = maxima().clone();
+    let mut maxima = maxima_arc.lock().await;
+
+    let avatar = maxima.avatar_image(&pd, width, height).await?;
+
+    Ok(avatar.to_str().unwrap().to_string())
+}
+
 pub async fn get_user(pd: String) -> anyhow::Result<ServicePlayer> {
     let maxima_arc = maxima().clone();
     let maxima = maxima_arc.lock().await;
 
-    let response: Result<MaximaServicePlayer, ServiceLayerError> = maxima
-        .service_layer()
-        .request(
-            SERVICE_REQUEST_GETBASICPLAYER,
-            ServiceGetBasicPlayerRequestBuilder::default()
-                .pd(pd)
-                .build()?,
-        )
-        .await;
-
-    if let Err(err) = response {
-        error!("Failed to get user by PD: {}", err);
-        bail!(err);
-    }
-
-    let player = response?;
-    Ok(convert_service_player(&player))
+    Ok(convert_service_player(&maxima.player_by_id(&pd).await?))
 }
 
 pub async fn search_user(name: String) -> anyhow::Result<ServicePlayer> {

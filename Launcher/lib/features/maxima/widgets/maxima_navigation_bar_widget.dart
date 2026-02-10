@@ -212,8 +212,8 @@ class _MaximaNavigationBarWidgetState extends State<MaximaNavigationBarWidget> {
                   setState(() => hoveredItem = hovered ? 2 : -1);
                 },
                 onClick: () {
-                  router.go('/social');
-                  return;
+                  //router.go('/social');
+                  //return;
                   showKyberDialog(
                     context: context,
                     builder: (_) => const MaximaFriendsDialog(),

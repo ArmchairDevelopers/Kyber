@@ -34,6 +34,7 @@ import 'package:kyber_launcher/features/mods/providers/mod_list_cubit.dart';
 import 'package:kyber_launcher/features/navigation_bar/helper/protocol_helper.dart';
 import 'package:kyber_launcher/features/navigation_bar/providers/status_cubit.dart';
 import 'package:kyber_launcher/features/nexusmods/widgets/graphql_provider.dart';
+import 'package:kyber_launcher/features/party/providers/party_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/providers/ingame_view_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
@@ -326,6 +327,7 @@ class _AppState extends State<App> {
                       BlocProvider(create: (_) => KyberProxyCubit()),
                       BlocProvider(create: (_) => ModsListCubit()),
                       BlocProvider(create: (_) => StatsCubit()),
+                      BlocProvider(create: (_) => PartyCubit()),
                       BlocProvider(create: (_) => IngameViewCubit()),
                       BlocProvider(create: (_) => DownloadCubit(), lazy: false),
                       BlocProvider(

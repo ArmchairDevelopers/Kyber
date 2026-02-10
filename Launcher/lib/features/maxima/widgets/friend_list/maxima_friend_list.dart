@@ -9,7 +9,9 @@ import 'package:kyber_launcher/gen/rust/api/maxima.dart';
 import 'package:kyber_launcher/shared/ui/utils/button_builder.dart';
 
 class MaximaFriendList extends StatefulWidget {
-  const MaximaFriendList({super.key});
+  const MaximaFriendList({this.onFriendSelected, super.key});
+
+  final ValueChanged<ServicePlayer>? onFriendSelected;
 
   @override
   State<MaximaFriendList> createState() => _MaximaFriendListState();
@@ -32,7 +34,10 @@ class _MaximaFriendListState extends State<MaximaFriendList> {
 
             return ButtonBuilder(
               onClick: () {},
-              onDoubleClick: () {},
+              onDoubleClick: () {
+                final friend = friends[index - 1];
+                widget.onFriendSelected?.call(friend);
+              },
               builder: (context, hovered) {
                 final friend = friends[index - 1];
                 final presence = state.presences[friend.id];
