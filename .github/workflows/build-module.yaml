@@ -19,7 +19,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest-large
+    runs-on: windows-latest-l
 
     env:
       working-directory: ./Module
