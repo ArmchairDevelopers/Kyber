@@ -80,7 +80,7 @@ jobs:
         id: upload-unsigned-artifact
         uses: actions/upload-artifact@v4
         with:
-          path: bazel-bin/Kyber.dll
+          path: ${{env.working-directory}}/bazel-bin/Kyber.dll
 
       - id: optional_step_id
         if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
@@ -92,7 +92,7 @@ jobs:
           signing-policy-slug: 'test-signing'
           github-artifact-id: '${{ steps.upload-unsigned-artifact.outputs.artifact-id }}'
           wait-for-completion: true
-          output-artifact-directory: '_signed'
+          output-artifact-directory: '${{env.working-directory}}/_signed'
           wait-for-completion-timeout-in-seconds: 36288000
 
       - name: Copy DLL
