@@ -32,7 +32,7 @@ void KyberDateTimeEntity::Event(EntityEvent* event)
         return;
     }
 
-    KYBER_LOG(Info, "[Module] Updating time for date time entity");
+    // KYBER_LOG(Info, "[Module] Updating time for date time entity");
     UpdateDateTime(GetData()->UseUtc);
 }
 
