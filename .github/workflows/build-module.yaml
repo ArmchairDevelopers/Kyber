@@ -70,10 +70,36 @@ jobs:
         shell: powershell
 
       - name: Copy DLL
-        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         working-directory: ${{env.working-directory}}
         run: |
           cp "bazel-bin/Kyber.dll" "_work/Kyber.dll"
+
+      - name: upload-unsigned-artifact
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
+        id: upload-unsigned-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: bazel-bin/Kyber.dll
+
+      - id: optional_step_id
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORG_ID }}'
+          project-slug: 'kyber'
+          signing-policy-slug: 'test-signing'
+          github-artifact-id: '${{ steps.upload-unsigned-artifact.outputs.artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: '_signed'
+          wait-for-completion-timeout-in-seconds: 36288000
+
+      - name: Copy DLL
+        if: startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
+        working-directory: ${{env.working-directory}}
+        run: |
+          cp "_signed/Kyber.dll" "_work/Kyber.dll"
 
       - name: Zip files
         if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
