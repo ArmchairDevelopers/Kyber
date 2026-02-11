@@ -27,20 +27,24 @@ KyberDateTimeEntity::KyberDateTimeEntity(EntityManager* entityManager, NativeEnt
 
 void KyberDateTimeEntity::Event(EntityEvent* event)
 {
-    if (event->Is("Update"))
+    if (!event->Is("Update"))
     {
-        KYBER_LOG(Info, "[Module] Updating time for date time entity");
-        UpdateDateTime(GetData()->UseUtc);
+        return;
     }
+
+    KYBER_LOG(Info, "[Module] Updating time for date time entity");
+    UpdateDateTime(GetData()->UseUtc);
 }
 
 void KyberDateTimeEntity::PropertyChanged(PropertyModification* modification)
 {
-    if (modification->Is("UseUtc"))
+    if (!modification->Is("UseUtc"))
     {
-        bool useUtc = *reinterpret_cast<bool*>(modification->value);
-        UpdateDateTime(useUtc);
+        return;
     }
+
+    bool useUtc = *reinterpret_cast<bool*>(modification->value);
+    UpdateDateTime(useUtc);
 }
 
 void KyberDateTimeEntity::UpdateDateTime(bool useUtc)
@@ -58,21 +62,25 @@ void KyberDateTimeEntity::UpdateDateTime(bool useUtc)
         time_info = std::localtime(&now_c);
     }
 
-    if (time_info)
+    if (!time_info)
     {
-        const TypeInfo* int32Type = g_program->m_entityManager->GetNativeType("Int32");
-        if (int32Type)
-        {
-            int32_t month = time_info->tm_mon + 1;
-            int32_t day = time_info->tm_mday;
-            int32_t hour = time_info->tm_hour;
-            int32_t minute = time_info->tm_min;
-
-            WriteField("Month", int32Type, &month);
-            WriteField("Day", int32Type, &day);
-            WriteField("Hour", int32Type, &hour);
-            WriteField("Minute", int32Type, &minute);
-        }
+        return;
     }
+
+    const TypeInfo* int32Type = g_program->m_entityManager->GetNativeType("Int32");
+    if (!int32Type)
+    {
+        return;
+    }
+
+    int32_t month = time_info->tm_mon + 1;
+    int32_t day = time_info->tm_mday;
+    int32_t hour = time_info->tm_hour;
+    int32_t minute = time_info->tm_min;
+
+    WriteField("Month", int32Type, &month);
+    WriteField("Day", int32Type, &day);
+    WriteField("Hour", int32Type, &hour);
+    WriteField("Minute", int32Type, &minute);
 }
 } // namespace Kyber
