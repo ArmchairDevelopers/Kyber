@@ -19,7 +19,7 @@ on:
 
 jobs:
   build:
-    runs-on: blacksmith-16vcpu-windows-2025
+    runs-on: windows-latest-large
 
     env:
       working-directory: ./Module
