@@ -1689,7 +1689,7 @@ void ModLoader::FinalizeModLoads()
 
         const ModResource* assignableResource = &resource;
 
-	// Replace resource by higher priority resource
+        // Replace resource by higher priority resource
         if (!resource.bundles.empty())
         {
             auto it = globalOverrides.find(assignableResource->uniqueIdWithType);

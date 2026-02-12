@@ -418,17 +418,17 @@ public:
             hashes.push_back(resources[i]->m_hash);
         }
 
-	// Replace entries that are modified
+        // Replace entries that are modified
         for (int i = 0; i < m_hashes.size(); ++i)
         {
-            size_t indexOf = eastl::find(hashes.begin(), hashes.end(), m_hashes[i]) - hashes.begin();
-            if (indexOf != hashes.size())
+            size_t hashIndex = eastl::find(hashes.begin(), hashes.end(), m_hashes[i]) - hashes.begin();
+            if (hashIndex != hashes.size())
             {
-                m_resources[i] = resources[indexOf];
+                m_resources[i] = resources[hashIndex];
             }
         }
 
-	// Add entries that are not in the original asset
+        // Add entries that are not in the original asset
         for (int i = 0; i < hashes.size(); ++i)
         {
             if (!ContainsHash(hashes[i]))
