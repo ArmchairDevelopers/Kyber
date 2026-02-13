@@ -1737,12 +1737,29 @@ void ModLoader::LoadFile(uint64_t file, const char* fileName)
 // different catalog has more than 10 files, they will need to be accounted for
 int32_t ModLoader::GetNextModFile() const
 {
-    int catalogIndex = 0; // initialexperience
+    const static uint8_t catalogSizes[] = {
+        10, /* initialexperience */
+        5, /* frontend */
+        3, /* sp */
+        12, /* sp_a1 */
+        7, /* sp_a2 */
+        3, /* sp_a3 */
+        6 /* sp_a3_p2 */
+    };
+
     bool inPatch = false;
-    int casIndex = 10 + m_mods.size();
+    int catalogIndex = 0;
+    int casIndex = m_mods.size();
+    int availableCatalogSpace;
+    while (catalogIndex < sizeof(catalogSizes) && casIndex > (availableCatalogSpace = 0xFF - catalogSizes[catalogIndex]))
+    {
+        catalogIndex++;
+        casIndex -= availableCatalogSpace;
+    }
+
+    casIndex += catalogSizes[catalogIndex];
     return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((casIndex - 1) & 0xFF);
 }
-// To increase, make map of cas folders and increase the index as can be allocated
 
 bool ModLoader::IsBundleLoaded(const std::string& bundleName) const
 {
