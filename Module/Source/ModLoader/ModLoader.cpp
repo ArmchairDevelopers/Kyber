@@ -1758,11 +1758,7 @@ int32_t ModLoader::GetNextModFile() const
         casIndex -= availableCatalogSpace;
     }
 
-    if (catalogIndex == kNumCatalogs)
-    {
-        KYBER_LOG(Fatal, "Mod limit reached!");
-        return -1;
-    }
+    KYBER_ASSERT_DESC(catalogIndex < kNumCatalogs, "Mod limit reached!");
 
     casIndex += catalogSizes[catalogIndex];
     return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((static_cast<int32_t>(casIndex) - 1) & 0xFF);
