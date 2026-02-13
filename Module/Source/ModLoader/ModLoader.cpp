@@ -1731,13 +1731,9 @@ void ModLoader::LoadFile(uint64_t file, const char* fileName)
 }
 #pragma runtime_checks("s", restore)
 
-// This function limits the number of possible mods to 247. It should be possible
-// to increase this, if necessary, by incrementing catalogIndex. initialexperience
-// has 10 files, hence the 10 + m_mods.size() in the casIndex calculation. If a
-// different catalog has more than 10 files, they will need to be accounted for
 int32_t ModLoader::GetNextModFile() const
 {
-    const static uint8_t catalogSizes[] = {
+    const static uint8_t kCatalogSizes[] = {
         10, /* initialexperience */
         5,  /* frontend */
         3,  /* sp */
@@ -1746,13 +1742,13 @@ int32_t ModLoader::GetNextModFile() const
         3,  /* sp_a3 */
         6   /* sp_a3_p2 */
     };
-    const static size_t kNumCatalogs = sizeof(catalogSizes) / sizeof(catalogSizes[0]);
+    const static size_t kNumCatalogs = sizeof(kCatalogSizes) / sizeof(kCatalogSizes[0]);
 
     bool inPatch = false;
     int32_t catalogIndex = 0;
     uint32_t casIndex = m_mods.size();
     uint32_t availableCatalogSpace;
-    while (catalogIndex < kNumCatalogs && casIndex > (availableCatalogSpace = 0xFF - catalogSizes[catalogIndex]))
+    while (catalogIndex < kNumCatalogs && casIndex > (availableCatalogSpace = 0xFF - kCatalogSizes[catalogIndex]))
     {
         catalogIndex++;
         casIndex -= availableCatalogSpace;
@@ -1760,7 +1756,7 @@ int32_t ModLoader::GetNextModFile() const
 
     KYBER_ASSERT_DESC(catalogIndex < kNumCatalogs, "Mod limit reached!");
 
-    casIndex += catalogSizes[catalogIndex];
+    casIndex += kCatalogSizes[catalogIndex];
     return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((static_cast<int32_t>(casIndex) - 1) & 0xFF);
 }
 
