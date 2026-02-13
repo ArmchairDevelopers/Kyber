@@ -1739,26 +1739,33 @@ int32_t ModLoader::GetNextModFile() const
 {
     const static uint8_t catalogSizes[] = {
         10, /* initialexperience */
-        5, /* frontend */
-        3, /* sp */
+        5,  /* frontend */
+        3,  /* sp */
         12, /* sp_a1 */
-        7, /* sp_a2 */
-        3, /* sp_a3 */
-        6 /* sp_a3_p2 */
+        7,  /* sp_a2 */
+        3,  /* sp_a3 */
+        6   /* sp_a3_p2 */
     };
+    const static size_t kNumCatalogs = sizeof(catalogSizes) / sizeof(catalogSizes[0]);
 
     bool inPatch = false;
-    int catalogIndex = 0;
-    int casIndex = m_mods.size();
-    int availableCatalogSpace;
-    while (catalogIndex < sizeof(catalogSizes) && casIndex > (availableCatalogSpace = 0xFF - catalogSizes[catalogIndex]))
+    int32_t catalogIndex = 0;
+    uint32_t casIndex = m_mods.size();
+    uint32_t availableCatalogSpace;
+    while (catalogIndex < kNumCatalogs && casIndex > (availableCatalogSpace = 0xFF - catalogSizes[catalogIndex]))
     {
         catalogIndex++;
         casIndex -= availableCatalogSpace;
     }
 
+    if (catalogIndex == kNumCatalogs)
+    {
+        KYBER_LOG(Fatal, "Mod limit reached!");
+        return -1;
+    }
+
     casIndex += catalogSizes[catalogIndex];
-    return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((casIndex - 1) & 0xFF);
+    return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((static_cast<int32_t>(casIndex) - 1) & 0xFF);
 }
 
 bool ModLoader::IsBundleLoaded(const std::string& bundleName) const
