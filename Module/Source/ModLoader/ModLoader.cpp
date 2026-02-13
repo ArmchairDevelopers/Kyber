@@ -1573,6 +1573,8 @@ void ModLoader::LoadMod(const eastl::string& fileName, const eastl::string& rela
 void ModLoader::FinalizeModLoads()
 {
     KYBER_LOG(Debug, "[ModLoader] Finalizing mod resources");
+
+    // Reorder mods, from highest priority to lowest
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 1");
 
     m_modResources.clear();
@@ -1589,9 +1591,11 @@ void ModLoader::FinalizeModLoads()
     eastl::stable_sort(
         m_modResources.begin(), m_modResources.end(), [](const ModResource& a, const ModResource& b) { return a.type < b.type; });
 
+    // Collect highest priority resources, to override lower priority resources
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 2");
 
     eastl::unordered_map<uint32_t, ModResourceData> sources;
+    eastl::map<uint32_t, const ModResource*> globalOverrides;
 
     for (auto& resource : m_modResources)
     {
@@ -1606,8 +1610,10 @@ void ModLoader::FinalizeModLoads()
         }
 
         sources[resource.uniqueIdWithType] = resource.data;
+        globalOverrides[resource.uniqueIdWithType] = &resource;
     }
 
+    // Set modified data for resources that don't have any modified data themselve, if some other mod modifies the same resource
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 3");
 
     for (auto& resource : m_modResources)
@@ -1670,9 +1676,8 @@ void ModLoader::FinalizeModLoads()
         m_bundleResources[entry.first].reserve(entry.second);
     }
 
+    // Add resources to bundles
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 7");
-
-    eastl::map<uint32_t, const ModResource*> globalOverrides;
 
     eastl::map<uint32_t, eastl::set<uint32_t>> visitedNames;
     for (const auto& resource : m_modResources)
@@ -1684,11 +1689,8 @@ void ModLoader::FinalizeModLoads()
 
         const ModResource* assignableResource = &resource;
 
-        if (resource.bundles.empty())
-        {
-            globalOverrides[resource.uniqueIdWithType] = assignableResource;
-        }
-        else
+        // Replace resource by higher priority resource
+        if (!resource.bundles.empty())
         {
             auto it = globalOverrides.find(assignableResource->uniqueIdWithType);
             if (it != globalOverrides.end())
