@@ -17,7 +17,7 @@ type Store struct {
 	ModImages    repository.ModImageRepository
 	Parties      repository.PartyRepository
 	PartyInvites repository.PartyInviteRepository
-	Presence     repository.PresenceRepository
+	Sessions     repository.SessionRepository
 }
 
 func NewStore(ctx context.Context, uri string) (*Store, error) {
@@ -38,7 +38,7 @@ func NewStore(ctx context.Context, uri string) (*Store, error) {
 	modImageCollection := GetCollection("kyber", "mod_images")
 	partyCollection := GetCollection("kyber", "parties")
 	partyInviteCollection := GetCollection("kyber", "party_invites")
-	presenceCollection := GetCollection("kyber", "party_presence")
+	sessionCollection := GetCollection("kyber", "sessions")
 
 	return &Store{
 		Users:        repository.NewUserRepo(userCollection),
@@ -51,6 +51,6 @@ func NewStore(ctx context.Context, uri string) (*Store, error) {
 		ModImages:    repository.NewModImageRepo(modImageCollection),
 		Parties:      repository.NewPartyRepo(partyCollection),
 		PartyInvites: repository.NewPartyInviteRepo(partyInviteCollection),
-		Presence:     repository.NewPresenceRepo(presenceCollection),
+		Sessions:     repository.NewSessionRepo(sessionCollection),
 	}, nil
 }

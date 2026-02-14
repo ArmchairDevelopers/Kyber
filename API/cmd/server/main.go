@@ -107,11 +107,32 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	mqClient, err := mq.NewClient(amqpURL)
+	if err != nil {
+		panic("failed to connect to RabbitMQ: " + err.Error())
+	}
+	defer mqClient.Close()
+
+	exchanges := []mq.ExchangeConfig{
+		{Name: "player_events", Kind: "topic", Durable: true},
+		{Name: "image_hashes", Kind: "fanout", Durable: true},
+		{Name: "reports", Kind: "fanout", Durable: true},
+		{Name: "kronos_server_browser", Kind: "fanout", Durable: true},
+		{Name: "party_events", Kind: "fanout", Durable: true},
+	}
+
+	for _, cfg := range exchanges {
+		if err := mqClient.DeclareExchange(cfg); err != nil {
+			logger.L().Sugar().Fatalf("could not declare %s: %v", cfg.Name, err)
+		}
+	}
+
+	partyPub := mq.NewPartyEventPublisher(mqClient.Channel)
+
 	statsCache := cache.NewStatsCache(redisClient, 10*time.Minute)
 	patronsCache := cache.NewPatronsCache(redisClient, time.Hour)
 	discordCache := cache.NewDiscordAuthCache(redisClient, 5*time.Minute)
 
-	sm := ws.NewServerManager(ctx, amqpURL, store)
 	dockerAuth := api.NewDockerAuthState(store)
 	discordAuth := api.NewDiscordAuthState(store, discordCache)
 
@@ -129,18 +150,23 @@ func main() {
 
 	downloadManager := api.NewDownloadManager(minioClient)
 	imageManager := api.NewImageManager(store)
+	sessionManager := ws.NewSessionManager(store, partyPub)
+	serverManager := ws.NewServerManager(ctx, amqpURL, store)
+
 	httpHandler := sentryHandler.Handle(httpRouter)
 
+	httpRouter.HandleFunc("/.well-known/jwks.json", api.JWKSHandler(jwtService)).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/docker/auth", dockerAuth.AuthHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/discord/auth", discordAuth.AuthHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/discord/callback", discordAuth.CallbackHandler).Methods(http.MethodGet)
-	httpRouter.HandleFunc("/.well-known/jwks.json", api.JWKSHandler(jwtService)).Methods(http.MethodGet)
-	httpRouter.HandleFunc("/ws/server/{id}", wrapWS(sm.HandleServerWS)).Methods(http.MethodGet)
-	httpRouter.HandleFunc("/ws/client/{id}", wrapWS(sm.HandleClientWS)).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/download/{obj}", downloadManager.DownloadHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/images/{id}.jpeg", imageManager.ImageHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/health", api.HealthHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/redirect", api.RedirectHandler).Methods(http.MethodGet)
+
+	httpRouter.HandleFunc("/ws/server/{id}", wrapWS(serverManager.HandleServerWS)).Methods(http.MethodGet)
+	httpRouter.HandleFunc("/ws/client/{id}", wrapWS(serverManager.HandleClientWS)).Methods(http.MethodGet)
+	httpRouter.HandleFunc("/ws/session", wrapWS(sessionManager.HandleWS)).Methods(http.MethodGet)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
 	if err != nil {
@@ -171,38 +197,17 @@ func main() {
 		)),
 	)
 
-	mqClient, err := mq.NewClient(amqpURL)
-	if err != nil {
-		log.Fatalf("failed to connect to RabbitMQ: %v", err)
-	}
-	defer mqClient.Close()
-
-	exchanges := []mq.ExchangeConfig{
-		{Name: "player_events", Kind: "topic", Durable: true},
-		{Name: "image_hashes", Kind: "fanout", Durable: true},
-		{Name: "reports", Kind: "fanout", Durable: true},
-		{Name: "kronos_server_browser", Kind: "fanout", Durable: true},
-		{Name: "party_events", Kind: "fanout", Durable: true},
-		{Name: "party_presence", Kind: "fanout", Durable: true},
-	}
-
-	for _, cfg := range exchanges {
-		if err := mqClient.DeclareExchange(cfg); err != nil {
-			log.Fatalf("could not declare %s: %v", cfg.Name, err)
-		}
-	}
-
 	reflection.Register(grpcServer)
 	pbapi.RegisterAuthenticationServer(grpcServer, rpc.NewAuthenticationServer(ctx, store, *mqClient))
-	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, sm, *mqClient, jwtService))
+	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, serverManager, *mqClient, jwtService))
 	pbapi.RegisterClientServerServer(grpcServer, rpc.NewClientServer(store, jwtService))
 	pbapi.RegisterLauncherServer(grpcServer, rpc.NewLauncherServer(store, minioClient, patronsCache))
-	pbapi.RegisterServerManagementServer(grpcServer, rpc.NewServerManagementServer(store, sm))
+	pbapi.RegisterServerManagementServer(grpcServer, rpc.NewServerManagementServer(store, serverManager))
 	pbapi.RegisterStatisticsServer(grpcServer, rpc.NewStatisticsServer(ctx, store, statsCache))
 	pbapi.RegisterVoipServer(grpcServer, rpc.NewVoipServer(store))
 	pbapi.RegisterProxyServer(grpcServer, rpc.NewProxyServer())
-	pbapi.RegisterReportServiceServer(grpcServer, rpc.NewReportServer(store, sm, *mqClient))
-	pbapi.RegisterPartyServer(grpcServer, rpc.NewPartyServer(store, *mqClient))
+	pbapi.RegisterReportServiceServer(grpcServer, rpc.NewReportServer(store, serverManager, *mqClient))
+	pbapi.RegisterPartyServer(grpcServer, rpc.NewPartyServer(store, *mqClient, partyPub, sessionManager))
 
 	eg, _ := errgroup.WithContext(ctx)
 

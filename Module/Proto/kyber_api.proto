@@ -103,8 +103,6 @@ service ReportService {
 }
 
 service Party {
-  rpc Subscribe(stream kyber_common.Empty) returns (stream PartyEvent);
-
   rpc LeaveParty(kyber_common.Empty) returns (kyber_common.Empty);
 
   rpc InvitePlayer(InvitePlayerRequest) returns (kyber_common.Empty);
@@ -112,6 +110,14 @@ service Party {
   rpc DeclineInvite(DeclineInviteRequest) returns (kyber_common.Empty);
 
   rpc GetParty(kyber_common.Empty) returns (GetPartyResponse);
+}
+
+// SessionService
+
+message SessionEvent {
+  oneof body {
+    PartyEvent partyEvent = 1;
+  }
 }
 
 // PartyService

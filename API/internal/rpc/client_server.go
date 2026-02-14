@@ -228,15 +228,15 @@ func (s *ClientServer) ConsumeJoinToken(ctx context.Context, req *pbapi.ConsumeJ
 		return nil, status.Error(codes.Internal, "Failed to update user")
 	}
 
-	party, err := s.store.Parties.GetByMemberID(ctx, user.ID)
+	session, err := s.store.Sessions.GetByUserID(ctx, user.ID)
 	if err != nil {
 		logger.L().Error(err.Error())
-		return nil, status.Error(codes.Internal, "Failed to get party")
+		return nil, status.Error(codes.Internal, "Failed to get session")
 	}
 
 	var groupId *uint64
-	if party != nil {
-		groupId = &party.ID
+	if session != nil {
+		groupId = session.PartyID
 	}
 
 	logger.L().Info(fmt.Sprintf("Consumed join token for user (id: %s) on server (id: %s)", user.ID, server.ID))
