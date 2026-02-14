@@ -13,6 +13,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 const sessionMaxAge = 30 * time.Second
@@ -251,17 +252,11 @@ func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			// TODO: switch this over to conn.WriteMessage with protobuf, only for debugging purposes right now
-			if err := conn.WriteJSON(event); err != nil {
-				logger.L().Error("Failed to write to ws:", zap.Error(err))
-				return
-			}
-
-			/*out, _ := proto.Marshal(event)
+			out, _ := proto.Marshal(event)
 			if err := conn.WriteMessage(websocket.BinaryMessage, out); err != nil {
 				logger.L().Error("Failed to write to ws:", zap.Error(err))
 				return
-			}*/
+			}
 		}
 	}
 }
