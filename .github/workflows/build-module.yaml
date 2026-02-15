@@ -99,7 +99,7 @@ jobs:
         if: startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         working-directory: ${{env.working-directory}}
         run: |
-          cp "_signed/Kyber.dll" "_work/Kyber.dll"
+          cp -Force "_signed/Kyber.dll" "_work/Kyber.dll"
 
       - name: Zip files
         if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
