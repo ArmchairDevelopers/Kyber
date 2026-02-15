@@ -8,7 +8,7 @@ import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/maxima/widgets/friend_list/maxima_friend_list.dart';
 import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
-import 'package:kyber_launcher/features/party/providers/party_cubit.dart';
+import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
@@ -76,7 +76,7 @@ class MaximaFriendsDialog extends StatelessWidget {
                               ),
                             ),
                             Expanded(
-                              child: BlocBuilder<PartyCubit, UserPartyState>(
+                              child: BlocBuilder<SessionCubit, SessionState>(
                                 builder: (context, state) {
                                   if (state is InParty) {
                                     return _buildPartyList(context);
@@ -221,7 +221,7 @@ class MaximaFriendsDialog extends StatelessWidget {
                                     child: MaximaFriendList(
                                       onFriendSelected: (value) async {
                                         final partyCubit = context
-                                            .read<PartyCubit>();
+                                            .read<SessionCubit>();
                                         await partyCubit.inviteToParty(
                                           value.id,
                                         );
@@ -260,7 +260,7 @@ class MaximaFriendsDialog extends StatelessWidget {
 
   Widget _buildPartyList(BuildContext context) {
     final party = context
-        .watch<PartyCubit>()
+        .watch<SessionCubit>()
         .state;
     final state = (party as InParty).party;
 

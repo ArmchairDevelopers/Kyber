@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
@@ -11,18 +12,21 @@ import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
+import 'package:web_socket_channel/io.dart';
 
-part 'party_state.dart';
+part 'session_state.dart';
 
-class PartyCubit extends Cubit<UserPartyState> {
-  PartyCubit() : super(PartyInitial()) {
+class SessionCubit extends Cubit<SessionState> {
+  SessionCubit() : super(PartyInitial()) {
     _connectToStream();
   }
 
-  final _logger = Logger('party_cubit');
+  final _logger = Logger('session_cubit');
   late final KyberGRPCService _service = sl<KyberGRPCService>();
 
-  StreamSubscription<PartyEvent>? _subscription;
+  StreamSubscription<SessionEvent>? _subscription;
+  Timer? _keepAliveTimer;
+  IOWebSocketChannel? _channel;
   int _reconnectAttempts = 0;
 
   InParty? get _inParty => state is InParty ? state as InParty : null;
@@ -33,6 +37,7 @@ class PartyCubit extends Cubit<UserPartyState> {
   @override
   Future<void> close() async {
     await _subscription?.cancel();
+    _keepAliveTimer?.cancel();
     return super.close();
   }
 
@@ -61,15 +66,20 @@ class PartyCubit extends Cubit<UserPartyState> {
       );
     }
 
-    emit(InParty(party.rebuild((b) {
-      b.members
-        ..clear()
-        ..addAll(unique);
-    })));
+    emit(
+      InParty(
+        party.rebuild((b) {
+          b.members
+            ..clear()
+            ..addAll(unique);
+        }),
+      ),
+    );
     _sortPlayers();
   }
 
   void _sortPlayers() {
+    return;
     final party = _inParty?.party;
     final userId = _userId;
     if (party == null || userId == null) return;
@@ -81,11 +91,15 @@ class PartyCubit extends Cubit<UserPartyState> {
         return 0;
       });
 
-    emit(InParty(party.rebuild((b) {
-      b.members
-        ..clear()
-        ..addAll(sorted);
-    })));
+    emit(
+      InParty(
+        party.rebuild((b) {
+          b.members
+            ..clear()
+            ..addAll(sorted);
+        }),
+      ),
+    );
   }
 
   Future<void> _connectToStream() async {
@@ -116,24 +130,36 @@ class PartyCubit extends Cubit<UserPartyState> {
           _logger.warning('Failed to get current party', error);
         });
 
-    final keepAliveStream = Stream.periodic(
-      const Duration(seconds: 10),
-      (_) => Empty(),
+    _channel = IOWebSocketChannel.connect(
+      'wss://api.${Preferences.admin.apiEnv}.kyber.gg/ws/session',
+      headers: {
+        'Authorization': sl.get<KyberGRPCService>().token,
+      },
+      connectTimeout: const Duration(seconds: 10),
     );
 
-    _subscription = _service.partyServiceClient
-        .subscribe(keepAliveStream)
-        .listen(
-          _handlePartyEvent,
-          cancelOnError: true,
-          onError: (error) {
-            _logger.warning('Party stream error, reconnecting...', error);
-            _reconnect();
-          },
-          onDone: () {
-            _logger.info('Party stream closed');
-          },
-        );
+    await _channel?.ready;
+
+    _channel?.stream.listen(
+      (event) {
+        try {
+          final data = SessionEvent.fromBuffer(event as Uint8List);
+        } catch (e, s) {
+          _logger.severe('Error parsing event', e, s);
+        }
+      },
+      onDone: () {
+        _logger.info('Stream done');
+      },
+      onError: (dynamic e, StackTrace s) {
+        _logger.severe('Stream error', e, s);
+      },
+    );
+
+    _keepAliveTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) async => _channel?.sink.add(''),
+    );
 
     _reconnectAttempts = 0;
   }
