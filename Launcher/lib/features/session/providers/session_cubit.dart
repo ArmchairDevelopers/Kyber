@@ -9,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
+import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
@@ -24,7 +25,6 @@ class SessionCubit extends Cubit<SessionState> {
   final _logger = Logger('session_cubit');
   late final KyberGRPCService _service = sl<KyberGRPCService>();
 
-  StreamSubscription<SessionEvent>? _subscription;
   Timer? _keepAliveTimer;
   IOWebSocketChannel? _channel;
   int _reconnectAttempts = 0;
@@ -36,19 +36,48 @@ class SessionCubit extends Cubit<SessionState> {
 
   @override
   Future<void> close() async {
-    await _subscription?.cancel();
     _keepAliveTimer?.cancel();
+    await _channel?.sink.close();
     return super.close();
   }
 
   Future<void> inviteToParty(String userId) {
-    return _service.partyServiceClient.invitePlayer(
-      InvitePlayerRequest(userId: userId),
-    );
+    return _service.partyServiceClient.invitePlayer(.new(userId: userId));
   }
 
-  Future<void> leaveParty() {
-    return _service.partyServiceClient.leaveParty(Empty());
+  Future<void> acceptInvite(Int64 partyId) async {
+    await _service.partyServiceClient.acceptInvite(.new(partyId: partyId));
+
+    final response = await _service.partyServiceClient.getParty(.new());
+    if (isClosed) return;
+
+    if (response.hasParty()) {
+      emit(InParty(response.party));
+      _sortPlayers();
+    } else {
+      emit(PartyInitial());
+    }
+  }
+
+  Future<void> declineInvite(Int64 partyId) async {
+    try {
+      await _service.partyServiceClient.declineInvite(.new(partyId: partyId));
+    } finally {
+      if (state is PartyInitial) {
+        emit(PartyInitial());
+      } else if (state is InParty) {
+        final current = state as InParty;
+        emit(InParty(current.party));
+      }
+    }
+  }
+
+  Future<void> leaveParty() async {
+    try {
+      await _service.partyServiceClient.leaveParty(.new());
+    } finally {
+      emit(PartyInitial());
+    }
   }
 
   void _handlePartyUpdate(List<PartyMember> members) {
@@ -68,11 +97,12 @@ class SessionCubit extends Cubit<SessionState> {
 
     emit(
       InParty(
-        party.rebuild((b) {
-          b.members
-            ..clear()
-            ..addAll(unique);
-        }),
+        PartyState(
+          id: party.id,
+          leaderId: party.leaderId,
+          createdAt: party.createdAt,
+          members: unique,
+        ),
       ),
     );
     _sortPlayers();
@@ -93,11 +123,12 @@ class SessionCubit extends Cubit<SessionState> {
 
     emit(
       InParty(
-        party.rebuild((b) {
-          b.members
-            ..clear()
-            ..addAll(sorted);
-        }),
+        PartyState(
+          id: party.id,
+          leaderId: party.leaderId,
+          createdAt: party.createdAt,
+          members: sorted,
+        ),
       ),
     );
   }
@@ -105,11 +136,12 @@ class SessionCubit extends Cubit<SessionState> {
   Future<void> _connectToStream() async {
     final userId = _userId;
     if (userId == null) {
-      _logger.warning('User ID is null, cannot subscribe to party stream');
+      _logger.warning('User ID is null, cannot subscribe to session stream');
       return;
     }
 
-    await _subscription?.cancel();
+    _keepAliveTimer?.cancel();
+    await _channel?.sink.close();
 
     _service.partyServiceClient
         .getParty(.new())
@@ -144,20 +176,25 @@ class SessionCubit extends Cubit<SessionState> {
       (event) {
         try {
           final data = SessionEvent.fromBuffer(event as Uint8List);
+          if (data.hasPartyEvent()) {
+            _handlePartyEvent(data.partyEvent);
+          }
         } catch (e, s) {
-          _logger.severe('Error parsing event', e, s);
+          _logger.severe('Error parsing session event', e, s);
         }
       },
       onDone: () {
-        _logger.info('Stream done');
+        _logger.info('Session stream done');
+        _reconnect();
       },
       onError: (dynamic e, StackTrace s) {
-        _logger.severe('Stream error', e, s);
+        _logger.severe('Session stream error', e, s);
+        _reconnect();
       },
     );
 
     _keepAliveTimer = Timer.periodic(
-      const Duration(seconds: 10),
+      const .new(seconds: 10),
       (_) async => _channel?.sink.add(''),
     );
 
@@ -166,6 +203,8 @@ class SessionCubit extends Cubit<SessionState> {
 
   void _reconnect() {
     if (isClosed) return;
+
+    _keepAliveTimer?.cancel();
 
     final delay = Duration(seconds: math.min(2 << _reconnectAttempts, 30));
     _reconnectAttempts++;
@@ -179,14 +218,41 @@ class SessionCubit extends Cubit<SessionState> {
     final userId = _userId;
 
     if (event.hasInviteReceived()) {
+      final invite = event.inviteReceived;
       _logger.info(
-        'Received party invite from ${event.inviteReceived.inviter.name} (${event.inviteReceived.inviter.id})',
+        'Received party invite from ${invite.inviter.name} (${invite.inviter.id})',
       );
+
+      final maximaState = navigatorKey.currentContext
+          ?.read<MaximaRtmCubit>()
+          .state;
+      final isFriend =
+          maximaState?.friends.any((f) => f.id == invite.inviter.id) ?? false;
+      if (!isFriend) {
+        _logger.warning(
+          'Inviter ${invite.inviter.name} (${invite.inviter.id}) is not in friends list, ignoring invite',
+        );
+        return;
+      }
+
+      final pending = PendingInvite(
+        partyId: Int64(invite.partyId.toInt()),
+        inviter: invite.inviter,
+        inviteToken: invite.inviteToken,
+        expiresAt: invite.expiresAt,
+      );
+
+      if (state is InParty) {
+        final current = state as InParty;
+        emit(InParty(current.party, pendingInvite: pending));
+      } else {
+        emit(PartyInitial(pendingInvite: pending));
+      }
       return;
     }
 
     if (_inParty == null) {
-      final party = await _service.partyServiceClient.getParty(Empty());
+      final party = await _service.partyServiceClient.getParty(.new());
       if (isClosed) return;
 
       if (!party.hasParty()) {
@@ -221,11 +287,8 @@ class SessionCubit extends Cubit<SessionState> {
 
       _logger.fine('Member joined: ${event.memberJoined}');
 
-      final existingMember = party.members.firstWhereOrNull(
-        (m) => m.player.id == event.memberJoined.user.id,
-      );
       NotificationService.info(
-        message: '${existingMember?.player.name} left the party',
+        message: '${event.memberJoined.user.name} joined the party',
       );
 
       _handlePartyUpdate([
@@ -242,15 +305,34 @@ class SessionCubit extends Cubit<SessionState> {
         return;
       }
 
-      NotificationService.warning(
-        message: '${event.memberLeft.userId} left the party',
+      final leftMember = party.members.firstWhereOrNull(
+        (m) => m.player.id == event.memberLeft.userId,
       );
+
+      NotificationService.warning(
+        message:
+            '${leftMember?.player.name ?? event.memberLeft.userId} left the party',
+      );
+
+      final updatedMembers = party.members.whereNot(
+        (e) => e.player.id == event.memberLeft.userId,
+      );
+
+      if (updatedMembers.length <= 1) {
+        _logger.info('Party has 1 or fewer members, leaving party');
+        emit(PartyInitial());
+        return;
+      }
 
       _handlePartyUpdate([
         ...party.members.whereNot(
           (e) => e.player.id == event.memberLeft.userId,
         ),
       ]);
+    } else if (event.hasJoinGame()) {
+      _logger.info(
+        'Join game event: server=${event.joinGame.serverId} name=${event.joinGame.serverName}',
+      );
     }
   }
 }

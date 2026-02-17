@@ -8,7 +8,9 @@ import 'package:kyber_launcher/features/download_manager/providers/download_mana
 import 'package:kyber_launcher/features/kyber/providers/kyber_status_cubit.dart';
 import 'package:kyber_launcher/features/maxima/dialogs/maxima_friends_dialog.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
+import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
 import 'package:kyber_launcher/features/navigation_bar/widgets/reports.dart';
+import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
@@ -207,101 +209,138 @@ class _MaximaNavigationBarWidgetState extends State<MaximaNavigationBarWidget> {
                   ),
                 ),
               ),
-              ButtonBuilder(
-                onEvent: (hovered) {
-                  setState(() => hoveredItem = hovered ? 2 : -1);
-                },
-                onClick: () {
-                  //router.go('/social');
-                  //return;
-                  showKyberDialog(
-                    context: context,
-                    builder: (_) => const MaximaFriendsDialog(),
-                  );
-                },
-                builder: (_, hovered) => SizedBox(
-                  height: 30,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        height: 30,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(.1),
-                          ),
-                          child: RepaintBoundary(
-                            child: Center(
-                              child: Row(
-                                children: [
-                                  if (context
-                                          .read<MaximaCubit>()
-                                          .state
-                                          .servicePlayer
-                                          ?.avatar !=
-                                      null)
-                                    Image.network(
-                                      context
-                                          .read<MaximaCubit>()
-                                          .state
-                                          .servicePlayer!
-                                          .avatar!
-                                          .small
-                                          .path,
-                                      width: 20,
-                                      height: 20,
-                                    ),
-                                  if (context
-                                          .read<MaximaCubit>()
-                                          .state
-                                          .servicePlayer
-                                          ?.avatar ==
-                                      null)
-                                    Assets.images.usericonTmp.image(
-                                      height: 20,
-                                      width: 20,
-                                    ),
-                                  const SizedBox(width: 5),
-                                  AnimatedDefaultTextStyle(
-                                    duration: const Duration(
-                                      milliseconds: 150,
-                                    ),
-                                    style: TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
-                                      color: hovered
-                                          ? kActiveColor
-                                          : Colors.white,
-                                    ),
-                                    child: Text(
-                                      '${context.read<MaximaCubit>().state.servicePlayer?.displayName}',
-                                      style: const TextStyle(
-                                        fontFamily: FontFamily.battlefrontUI,
-                                        fontSize: 15,
+              BlocBuilder<SessionCubit, SessionState>(
+                builder: (context, state) {
+                  return ButtonBuilder(
+                    onEvent: (hovered) {
+                      setState(() => hoveredItem = hovered ? 2 : -1);
+                    },
+                    onClick: () {
+                      //router.go('/social');
+                      //return;
+                      showKyberDialog(
+                        context: context,
+                        builder: (_) => const MaximaFriendsDialog(),
+                      );
+                    },
+                    builder: (_, hovered) => SizedBox(
+                      height: 30,
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            height: 30,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(.1),
+                              ),
+                              child: RepaintBoundary(
+                                child: Center(
+                                  child: Row(
+                                    children: [
+                                      if (context
+                                              .read<MaximaCubit>()
+                                              .state
+                                              .servicePlayer
+                                              ?.avatar !=
+                                          null)
+                                        Image.network(
+                                          context
+                                              .read<MaximaCubit>()
+                                              .state
+                                              .servicePlayer!
+                                              .avatar!
+                                              .small
+                                              .path,
+                                          width: 20,
+                                          height: 20,
+                                        ),
+                                      if (context
+                                              .read<MaximaCubit>()
+                                              .state
+                                              .servicePlayer
+                                              ?.avatar ==
+                                          null)
+                                        Assets.images.usericonTmp.image(
+                                          height: 20,
+                                          width: 20,
+                                        ),
+                                      const SizedBox(width: 5),
+                                      AnimatedDefaultTextStyle(
+                                        duration: const Duration(
+                                          milliseconds: 150,
+                                        ),
+                                        style: TextStyle(
+                                          fontFamily: FontFamily.battlefrontUI,
+                                          color: hovered
+                                              ? kActiveColor
+                                              : Colors.white,
+                                        ),
+                                        child: Text(
+                                          '${context.read<MaximaCubit>().state.servicePlayer?.displayName}',
+                                          style: const TextStyle(
+                                            fontFamily:
+                                                FontFamily.battlefrontUI,
+                                            fontSize: 15,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      SizedBox(
-                        height: 30,
-                        width: 2,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          decoration: BoxDecoration(
-                            color: hovered ? kActiveColor : kWhiteColor,
+                          SizedBox(
+                            height: 30,
+                            width: 2,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              decoration: BoxDecoration(
+                                color: hovered ? kActiveColor : kWhiteColor,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (state is InParty) ...[
+                            Container(
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(.1),
+                              ),
+                              padding: const .symmetric(horizontal: 10),
+                              child: Row(
+                                children: [
+                                  for (var member in state.members)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 5),
+                                      child: MaximaAvatar(
+                                        pd: member.id,
+                                        height: 20,
+                                        width: 20,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              height: 30,
+                              width: 2,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                decoration: BoxDecoration(
+                                  color: hovered ? kActiveColor : kWhiteColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
             ],
           ),

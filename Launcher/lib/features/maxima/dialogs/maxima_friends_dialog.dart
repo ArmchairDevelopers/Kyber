@@ -249,9 +249,23 @@ class MaximaFriendsDialog extends StatelessWidget {
         Positioned(
           left: 20,
           bottom: 20,
-          child: KyberButton(
-            text: 'Back',
-            onPressed: () => Navigator.of(context).pop(),
+          child: Row(
+            children: [
+              KyberButton(
+                text: 'Back',
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              const SizedBox(width: 10),
+              BlocBuilder<SessionCubit, SessionState>(
+                builder: (context, state) {
+                  if (state is! InParty) return const SizedBox.shrink();
+                  return KyberButton(
+                    text: 'Leave Party',
+                    onPressed: () => context.read<SessionCubit>().leaveParty(),
+                  );
+                },
+              ),
+            ],
           ),
         ),
       ],
