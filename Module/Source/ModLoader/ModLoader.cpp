@@ -1731,18 +1731,34 @@ void ModLoader::LoadFile(uint64_t file, const char* fileName)
 }
 #pragma runtime_checks("s", restore)
 
-// This function limits the number of possible mods to 247. It should be possible
-// to increase this, if necessary, by incrementing catalogIndex. initialexperience
-// has 10 files, hence the 10 + m_mods.size() in the casIndex calculation. If a
-// different catalog has more than 10 files, they will need to be accounted for
 int32_t ModLoader::GetNextModFile() const
 {
-    int catalogIndex = 0; // initialexperience
+    const static uint8_t kCatalogSizes[] = {
+        10, /* initialexperience */
+        5,  /* frontend */
+        3,  /* sp */
+        12, /* sp_a1 */
+        7,  /* sp_a2 */
+        3,  /* sp_a3 */
+        6   /* sp_a3_p2 */
+    };
+    const static size_t kNumCatalogs = sizeof(kCatalogSizes) / sizeof(kCatalogSizes[0]);
+
     bool inPatch = false;
-    int casIndex = 10 + m_mods.size();
-    return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((casIndex - 1) & 0xFF);
+    int32_t catalogIndex = 0;
+    uint32_t casIndex = m_mods.size();
+    uint32_t availableCatalogSpace;
+    while (catalogIndex < kNumCatalogs && casIndex > (availableCatalogSpace = 0xFF - kCatalogSizes[catalogIndex]))
+    {
+        catalogIndex++;
+        casIndex -= availableCatalogSpace;
+    }
+
+    KYBER_ASSERT_DESC(catalogIndex < kNumCatalogs, "Mod limit reached!");
+
+    casIndex += kCatalogSizes[catalogIndex];
+    return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((static_cast<int32_t>(casIndex) - 1) & 0xFF);
 }
-// To increase, make map of cas folders and increase the index as can be allocated
 
 bool ModLoader::IsBundleLoaded(const std::string& bundleName) const
 {
