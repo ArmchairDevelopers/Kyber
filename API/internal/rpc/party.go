@@ -70,11 +70,12 @@ func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbco
 			logger.L().Error("Failed to delete empty party", zap.Error(err))
 		}
 
-		remainingSession := remainingSessions[0]
-		if err := s.store.Sessions.SetPartyID(ctx, remainingSession.UserID, nil); err != nil {
-			logger.L().Error("Failed to clear party ID on remaining session", zap.Error(err))
+		if len(remainingSessions) > 0 {
+			if err := s.store.Sessions.SetPartyID(ctx, remainingSessions[0].UserID, nil); err != nil {
+				logger.L().Error("Failed to clear party ID on remaining session", zap.Error(err))
+			}
 		}
-	} else if len(remainingSessions) > 0 {
+	} else if len(remainingSessions) > 1 {
 		memberIDs := make([]string, len(remainingSessions))
 		for i, sess := range remainingSessions {
 			memberIDs[i] = sess.UserID
