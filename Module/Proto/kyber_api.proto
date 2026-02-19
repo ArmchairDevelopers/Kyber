@@ -114,9 +114,12 @@ service Party {
 
 // SessionService
 
+message CheckForUpdatesEvent {}
+
 message SessionEvent {
   oneof body {
     PartyEvent partyEvent = 1;
+    CheckForUpdatesEvent checkForUpdates = 2;
   }
 }
 

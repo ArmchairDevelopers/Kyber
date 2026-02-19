@@ -147,6 +147,25 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 	s.partyPub.Publish(partyID, memberIDs, event)
 }
 
+func (s *SessionManager) BroadcastUpdateCheck() {
+	event := &pbapi.SessionEvent{
+		Body: &pbapi.SessionEvent_CheckForUpdates{
+			CheckForUpdates: &pbapi.CheckForUpdatesEvent{},
+		},
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for userID, sub := range s.subs {
+		select {
+		case sub.ch <- event:
+		default:
+			logger.L().Warn("Dropping update check event for user", zap.String("user_id", userID))
+		}
+	}
+}
+
 func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("Authorization")
 	user, err := s.store.Users.GetByToken(r.Context(), token)
