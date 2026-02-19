@@ -42,10 +42,11 @@ class _InviteBanner extends StatefulWidget {
 }
 
 class _InviteBannerState extends State<_InviteBanner>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<Offset> _slideAnimation;
   late final Animation<double> _fadeAnimation;
+  AnimationController? _progressController;
   bool _loading = false;
 
   @override
@@ -66,6 +67,7 @@ class _InviteBannerState extends State<_InviteBanner>
 
     if (widget.invite != null) {
       _controller.forward();
+      _startProgress(widget.invite!);
     }
   }
 
@@ -75,14 +77,42 @@ class _InviteBannerState extends State<_InviteBanner>
     if (widget.invite != null && oldWidget.invite == null) {
       _loading = false;
       _controller.forward();
+      _startProgress(widget.invite!);
     } else if (widget.invite == null && oldWidget.invite != null) {
       _controller.reverse();
+      _progressController?.stop();
     }
+  }
+
+  void _startProgress(PendingInvite invite) {
+    _progressController?.dispose();
+
+    final expiresAt = DateTime.fromMillisecondsSinceEpoch(
+      invite.expiresAt.toInt() * 1000,
+    );
+    final now = DateTime.now();
+    final remaining = expiresAt.difference(now);
+
+    if (remaining.isNegative) {
+      _clear();
+      return;
+    }
+
+    _progressController = AnimationController(
+      vsync: this,
+      duration: remaining,
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _clear();
+        }
+      });
+    _progressController!.forward();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _progressController?.dispose();
     super.dispose();
   }
 
@@ -104,6 +134,11 @@ class _InviteBannerState extends State<_InviteBanner>
         NotificationService.error(message: 'Failed to join party');
       }
     }
+  }
+
+  Future<void> _clear() async {
+    setState(() => _loading = false);
+    context.read<SessionCubit>().clearInvite();
   }
 
   Future<void> _decline() async {
@@ -158,51 +193,77 @@ class _InviteBannerState extends State<_InviteBanner>
             left: const .circular(kDefaultInnerBorderRadius),
           ),
         ),
-        padding: const .symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
+          clipBehavior: .antiAliasWithSaveLayer,
           children: [
-            MaximaAvatar(pd: invite.inviter.id, height: 36, width: 36),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: .start,
+            Padding(
+              padding: const .symmetric(horizontal: 14, vertical: 10),
+              child: Row(
                 mainAxisSize: .min,
                 children: [
-                  Text(
-                    invite.inviter.name.toUpperCase(),
-                    style: const TextStyle(
-                      fontFamily: FontFamily.battlefrontUI,
-                      fontSize: 14,
-                      color: kWhiteColor,
-                      height: 1,
+                  MaximaAvatar(pd: invite.inviter.id, height: 36, width: 36),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: .start,
+                      mainAxisSize: .min,
+                      children: [
+                        Text(
+                          invite.inviter.name.toUpperCase(),
+                          style: const TextStyle(
+                            fontFamily: FontFamily.battlefrontUI,
+                            fontSize: 14,
+                            color: kWhiteColor,
+                            height: 1,
+                          ),
+                          overflow: .ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Party Invite'.toUpperCase(),
+                          style: const TextStyle(
+                            fontFamily: FontFamily.battlefrontUI,
+                            fontSize: 11,
+                            color: kButtonBorder,
+                            height: 1,
+                          ),
+                        ),
+                      ],
                     ),
-                    overflow: .ellipsis,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Party Invite'.toUpperCase(),
-                    style: const TextStyle(
-                      fontFamily: FontFamily.battlefrontUI,
-                      fontSize: 11,
-                      color: kButtonBorder,
-                      height: 1,
-                    ),
+                  const SizedBox(width: 12),
+                  _BannerAction(
+                    icon: FluentIcons.cancel,
+                    color: Colors.red.light,
+                    onPressed: _loading ? null : _decline,
+                  ),
+                  const SizedBox(width: 6),
+                  _BannerAction(
+                    icon: mt.Icons.check,
+                    color: Colors.green.light,
+                    onPressed: _loading ? null : _accept,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
-            _BannerAction(
-              icon: mt.Icons.cancel_outlined,
-              color: Colors.red.light,
-              onPressed: _loading ? null : _decline,
-            ),
-            const SizedBox(width: 6),
-            _BannerAction(
-              icon: mt.Icons.check,
-              color: Colors.green.light,
-              onPressed: _loading ? null : _accept,
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: AnimatedBuilder(
+                animation: _progressController ?? kAlwaysDismissedAnimation,
+                builder: (context, _) {
+                  final value = _progressController?.value ?? 0;
+                  return FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: (1.0 - value).clamp(0.0, 1.0),
+                    child: ColoredBox(
+                      color: kActiveColor,
+                      child: const SizedBox(height: 3),
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),

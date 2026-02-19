@@ -59,6 +59,15 @@ class SessionCubit extends Cubit<SessionState> {
     }
   }
 
+  Future<void> clearInvite() async {
+    if (state is PartyInitial) {
+      emit(PartyInitial());
+    } else if (state is InParty) {
+      final current = state as InParty;
+      emit(InParty(current.party));
+    }
+  }
+
   Future<void> declineInvite(Int64 partyId) async {
     try {
       await _service.partyServiceClient.declineInvite(.new(partyId: partyId));
