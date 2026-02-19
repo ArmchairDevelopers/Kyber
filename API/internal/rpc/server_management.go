@@ -97,6 +97,8 @@ func (s *ServerManagement) GetPunishments(ctx context.Context, req *pbapi.Punish
 			continue
 		}
 
+		punishment.UserModel = user
+
 		convPunishments = append(convPunishments, punishment.Proto())
 	}
 
