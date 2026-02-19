@@ -131,6 +131,10 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 	}
 
 	if inviteeSession != nil && inviteeSession.PartyID != nil {
+		if *inviteeSession.PartyID == party.ID {
+			return nil, status.Error(codes.AlreadyExists, "Player is already in your party")
+		}
+
 		inviteePartyMembers, err := s.store.Sessions.GetByPartyID(ctx, *inviteeSession.PartyID)
 		if err != nil {
 			logger.L().Error("Failed to check invitee party sessions", zap.Error(err))
