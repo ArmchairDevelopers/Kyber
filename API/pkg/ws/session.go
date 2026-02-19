@@ -176,10 +176,13 @@ func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 		logger.L().Warn("No client IP found in headers for session", zap.String("user_id", user.ID))
 	}
 
+	version := r.Header.Get("X-Launcher-Version")
+
 	now := time.Now()
 	existing, _ := s.store.Sessions.GetByUserID(r.Context(), user.ID)
 	if existing != nil {
 		existing.IP = ip
+		existing.Version = version
 		existing.ReconnectAt = &now
 		existing.UpdatedAt = now
 		if err := s.store.Sessions.Upsert(r.Context(), existing); err != nil {
@@ -189,6 +192,7 @@ func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 		session := &models.SessionModel{
 			UserID:    user.ID,
 			IP:        ip,
+			Version:   version,
 			Status:    "launcher",
 			LoginAt:   now,
 			UpdatedAt: now,
