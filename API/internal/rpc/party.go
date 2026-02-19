@@ -98,6 +98,10 @@ func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbco
 func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayerRequest) (*pbcommon.Empty, error) {
 	user := ctx.Value("user").(*models.UserModel)
 
+	if user.ID == req.UserId {
+		return nil, status.Error(codes.InvalidArgument, "You cannot invite yourself to a party")
+	}
+
 	session, err := s.store.Sessions.GetByUserID(ctx, user.ID)
 	if err != nil {
 		logger.L().Error("Failed to get session", zap.Error(err))
