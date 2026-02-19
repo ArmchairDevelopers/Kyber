@@ -108,6 +108,16 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		return nil, status.Error(codes.Internal, "Failed to get session")
 	}
 
+	inviteeSession, err := s.store.Sessions.GetByUserID(ctx, req.UserId)
+	if err != nil {
+		logger.L().Error("Failed to check invitee session", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to check invitee session")
+	}
+
+	if inviteeSession == nil {
+		return nil, status.Error(codes.NotFound, "Player is offline")
+	}
+
 	var party *models.PartyModel
 	if session != nil && session.PartyID != nil {
 		party, err = s.store.Parties.GetByID(ctx, *session.PartyID)
@@ -124,13 +134,7 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		}
 	}
 
-	inviteeSession, err := s.store.Sessions.GetByUserID(ctx, req.UserId)
-	if err != nil {
-		logger.L().Error("Failed to check invitee session", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Failed to check invitee session")
-	}
-
-	if inviteeSession != nil && inviteeSession.PartyID != nil {
+	if inviteeSession.PartyID != nil {
 		if *inviteeSession.PartyID == party.ID {
 			return nil, status.Error(codes.AlreadyExists, "Player is already in your party")
 		}
