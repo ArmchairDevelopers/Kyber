@@ -127,7 +127,36 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 	}
 
 	if inviteeSession != nil && inviteeSession.PartyID != nil {
-		return nil, status.Error(codes.AlreadyExists, "Player is already in a party")
+		inviteePartyMembers, err := s.store.Sessions.GetByPartyID(ctx, *inviteeSession.PartyID)
+		if err != nil {
+			logger.L().Error("Failed to check invitee party sessions", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to check invitee party sessions")
+		}
+
+		if len(inviteePartyMembers) > 1 {
+			return nil, status.Error(codes.AlreadyExists, "Player is already in a party")
+		}
+
+		openInvites, err := s.store.PartyInvites.GetInvites(ctx, *inviteeSession.PartyID)
+		if err != nil {
+			logger.L().Error("Failed to check invitee party invites", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to check invitee party invites")
+		}
+
+		if len(openInvites) > 0 {
+			return nil, status.Error(codes.AlreadyExists, "Player is already in a party")
+		}
+
+		// TODO: maybe do a transaction here so that the sessions party id gets cleared if the party delete fails
+		if err := s.store.Parties.Delete(ctx, *inviteeSession.PartyID); err != nil {
+			logger.L().Error("Failed to delete invitee's empty party", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to check invitee party")
+		}
+
+		if err := s.store.Sessions.SetPartyID(ctx, inviteeSession.UserID, nil); err != nil {
+			logger.L().Error("Failed to clear invitee's party ID", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to check invitee party")
+		}
 	}
 
 	invites, err := s.store.PartyInvites.GetInvites(ctx, party.ID)
