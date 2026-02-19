@@ -93,16 +93,9 @@ class SessionCubit extends Cubit<SessionState> {
     final party = _inParty?.party;
     if (party == null) return;
 
-    final unique = members
-        .toSet()
-        .where((m) => m.player.id.isNotEmpty && m.joinedAt > Int64())
-        .toList();
-
-    if (unique.length != members.length) {
-      _logger.warning(
-        'Filtered ${members.length - unique.length} invalid or duplicate members from party update',
-      );
-    }
+    final unique = <String, PartyMember>{
+      for (final m in members) m.player.id: m,
+    }.values.toList();
 
     emit(
       InParty(
