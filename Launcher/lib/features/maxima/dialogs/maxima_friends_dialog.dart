@@ -23,7 +23,7 @@ class MaximaFriendsDialog extends StatelessWidget {
         Align(
           alignment: Alignment.centerLeft,
           child: Padding(
-            padding: const EdgeInsets.only(left: 50),
+            padding: const .only(left: 50),
             child: FractionallySizedBox(
               heightFactor: .7,
               widthFactor: .7,
@@ -36,15 +36,15 @@ class MaximaFriendsDialog extends StatelessWidget {
                   ),
                   borderRadius: BorderRadius.circular(5),
                 ),
-                padding: EdgeInsets.zero,
+                padding: .zero,
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: .stretch,
                   children: [
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 20),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: .start,
                           children: [
                             Padding(
                               padding: const EdgeInsets.only(
@@ -62,7 +62,7 @@ class MaximaFriendsDialog extends StatelessWidget {
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.only(
+                              padding: const .only(
                                 left: 25,
                                 bottom: 15,
                               ),
@@ -87,9 +87,9 @@ class MaximaFriendsDialog extends StatelessWidget {
                               ),
                             ),
                             const Padding(
-                              padding: EdgeInsets.only(left: 20, bottom: 20),
+                              padding: .only(left: 20, bottom: 20),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: .start,
                                 children: [
                                   Text(
                                     'Invite friends and then choose what to play in the Play menu.',
@@ -122,12 +122,12 @@ class MaximaFriendsDialog extends StatelessWidget {
                     ),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(top: 20),
+                        padding: const .only(top: 20),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          crossAxisAlignment: .stretch,
                           children: [
                             Padding(
-                              padding: const EdgeInsets.only(
+                              padding: const .only(
                                 left: 25,
                                 bottom: 5,
                               ),
@@ -142,25 +142,25 @@ class MaximaFriendsDialog extends StatelessWidget {
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.only(
+                              padding: const .only(
                                 left: 25,
                                 bottom: 15,
                               ),
                               child:
-                              BlocBuilder<MaximaRtmCubit, MaximaRtmState>(
-                                builder: (context, state) {
-                                  final friends = state.getOnlinePlayers();
-                                  return Text(
-                                    'Friends Online: ${friends.length}'
-                                        .toUpperCase(),
-                                    style: const TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
-                                      fontSize: 26,
-                                      height: 1,
-                                    ),
-                                  );
-                                },
-                              ),
+                                  BlocBuilder<MaximaRtmCubit, MaximaRtmState>(
+                                    builder: (context, state) {
+                                      final friends = state.getOnlinePlayers();
+                                      return Text(
+                                        'Friends Online: ${friends.length}'
+                                            .toUpperCase(),
+                                        style: const TextStyle(
+                                          fontFamily: FontFamily.battlefrontUI,
+                                          fontSize: 26,
+                                          height: 1,
+                                        ),
+                                      );
+                                    },
+                                  ),
                             ),
                             const SizedBox(
                               height: 1,
@@ -169,18 +169,18 @@ class MaximaFriendsDialog extends StatelessWidget {
                             SizedBox(
                               height: 35,
                               child: mt.TextField(
-                                style: const mt.TextStyle(
+                                style: const .new(
                                   fontFamily: FontFamily.battlefrontUI,
                                   fontSize: 16,
                                   height: 1,
                                 ),
-                                decoration: mt.InputDecoration(
+                                decoration: .new(
                                   filled: false,
                                   fillColor: kInactiveColor.withOpacity(.05),
                                   isDense: true,
-                                  enabledBorder: mt.InputBorder.none,
-                                  focusedBorder: mt.InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(
+                                  enabledBorder: .none,
+                                  focusedBorder: .none,
+                                  contentPadding: const .symmetric(
                                     horizontal: 15,
                                     vertical: 12.5,
                                   ),
@@ -199,8 +199,8 @@ class MaximaFriendsDialog extends StatelessWidget {
                               child: Builder(
                                 builder: (context) {
                                   final friends = context.select(
-                                        (MaximaRtmCubit cubit) =>
-                                    cubit.state.friends,
+                                    (MaximaRtmCubit cubit) =>
+                                        cubit.state.friends,
                                   );
 
                                   if (friends.isEmpty) {
@@ -227,8 +227,7 @@ class MaximaFriendsDialog extends StatelessWidget {
                                         );
                                         NotificationService.info(
                                           message:
-                                          'Invited ${value
-                                              .displayName} to the party',
+                                              'Invited ${value.displayName} to the party',
                                         );
                                       },
                                     ),
@@ -273,9 +272,7 @@ class MaximaFriendsDialog extends StatelessWidget {
   }
 
   Widget _buildPartyList(BuildContext context) {
-    final party = context
-        .watch<SessionCubit>()
-        .state;
+    final party = context.watch<SessionCubit>().state;
     final state = (party as InParty).party;
 
     return ListView.separated(
@@ -283,7 +280,7 @@ class MaximaFriendsDialog extends StatelessWidget {
       separatorBuilder: (context, index) {
         return const Divider(
           style: DividerThemeData(
-            horizontalMargin: EdgeInsets.zero,
+            horizontalMargin: .zero,
             decoration: BoxDecoration(
               color: decoColor,
             ),
@@ -323,8 +320,7 @@ class MaximaFriendsDialog extends StatelessWidget {
                     Text(
                       player.name,
                       style: const TextStyle(
-                        fontFamily:
-                        FontFamily.battlefrontUI,
+                        fontFamily: FontFamily.battlefrontUI,
                         fontSize: 20,
                         height: 1,
                       ),
@@ -335,10 +331,8 @@ class MaximaFriendsDialog extends StatelessWidget {
                     const Divider(
                       size: 10,
                       style: DividerThemeData(
-                        horizontalMargin:
-                            .zero,
-                        verticalMargin:
-                        EdgeInsets.symmetric(
+                        horizontalMargin: .zero,
+                        verticalMargin: .symmetric(
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
@@ -370,10 +364,7 @@ class MaximaFriendsDialog extends StatelessWidget {
         );
       },
       itemBuilder: (context, index) {
-        final player = context
-            .read<MaximaCubit>()
-            .state
-            .servicePlayer!;
+        final player = context.read<MaximaCubit>().state.servicePlayer!;
         return Container(
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(.05),
@@ -398,8 +389,7 @@ class MaximaFriendsDialog extends StatelessWidget {
               children: [
                 if (player.avatar != null)
                   CachedNetworkImage(
-                    imageUrl:
-                    player.avatar!.medium.path,
+                    imageUrl: player.avatar!.medium.path,
                     height: 55,
                   ),
                 if (player.avatar == null)
@@ -414,8 +404,7 @@ class MaximaFriendsDialog extends StatelessWidget {
                     Text(
                       player.displayName,
                       style: const TextStyle(
-                        fontFamily:
-                        FontFamily.battlefrontUI,
+                        fontFamily: FontFamily.battlefrontUI,
                         fontSize: 20,
                         height: 1,
                       ),
@@ -426,10 +415,8 @@ class MaximaFriendsDialog extends StatelessWidget {
                     const Divider(
                       size: 10,
                       style: DividerThemeData(
-                        horizontalMargin:
-                        EdgeInsets.zero,
-                        verticalMargin:
-                        EdgeInsets.symmetric(
+                        horizontalMargin: .zero,
+                        verticalMargin: .symmetric(
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
