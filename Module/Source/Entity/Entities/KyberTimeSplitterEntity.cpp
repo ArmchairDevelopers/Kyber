@@ -57,7 +57,6 @@ void KyberTimeSplitterEntity::PropertyChanged(PropertyModification* modification
         std::chrono::duration_cast<std::chrono::system_clock::duration>(duration)
     );
 
-    // Get 
     std::time_t sysClockTime = std::chrono::system_clock::to_time_t(timePoint);
     std::tm* time = GetData()->UseUTC ? std::gmtime(&sysClockTime) : std::localtime(&sysClockTime);
 

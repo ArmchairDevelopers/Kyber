@@ -11,7 +11,7 @@ namespace Kyber
 KB_IMPLEMENT_TYPE(KyberCurrentTimeEntityData)
 {
     KyberTypeInfo info("KyberCurrentTimeEntityData", "EntityData");
-    info.AddField("Boolean", "AlwaysUpdate");
+    info.AddField("Boolean", "EnableUpdates");
     return info;
 }
 
@@ -22,12 +22,12 @@ KyberCurrentTimeEntity::KyberCurrentTimeEntity(EntityManager* entityManager, Nat
 {
     m_timeOut = CreateFieldOverride<float>("Time", g_program->m_entityManager->GetNativeType("Float32"));
 
-    SetWantUpdates(data->AlwaysUpdate);
+    SetWantUpdates(data->EnableUpdates);
 }
 
 void KyberCurrentTimeEntity::Event(EntityEvent* event)
 {
-    if (event->Is("Update") && !GetData()->AlwaysUpdate)
+    if (event->Is("Update") && !GetData()->EnableUpdates)
     {
         float currentTime = GetTime();
         m_timeOut = &currentTime;

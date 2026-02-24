@@ -9,7 +9,7 @@ namespace Kyber
 class KyberCurrentTimeEntityData : public EntityData
 {
 public:
-    bool AlwaysUpdate;
+    bool EnableUpdates;
 };
     
 class KyberCurrentTimeEntity : public KyberEntity<KyberCurrentTimeEntityData>
