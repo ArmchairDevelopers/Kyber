@@ -1,30 +1,36 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
+import 'package:flutter_fadein/flutter_fadein.dart';
 import 'package:grpc/grpc.dart' hide Server;
 import 'package:kyber/kyber.dart';
 import 'package:kyber_collection/kyber_collection.dart';
-import 'package:kyber_launcher/core/core.dart';
+import 'package:kyber_launcher/core/config/colors.dart';
+import 'package:kyber_launcher/core/services/app_settings.dart';
+import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
 import 'package:kyber_launcher/features/mods/widgets/collection_list/collection_icon.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
+import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/background_image.dart';
+import 'package:kyber_launcher/features/server_browser/widgets/server_mod_tile.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
-import 'package:kyber_launcher/shared/ui/buttons/button.dart';
-import 'package:kyber_launcher/shared/ui/buttons/normal_button.dart';
-import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
-import 'package:kyber_launcher/shared/ui/elements/dropdown/kyber_dropdown.dart';
-import 'package:kyber_launcher/shared/ui/elements/kyber_input.dart';
-import 'package:kyber_launcher/shared/ui/elements/kyber_tab_bar.dart';
-import 'package:kyber_launcher/shared/ui/utils/button_builder.dart';
+import 'package:kyber_launcher/shared/ui/ui.dart';
+import 'package:local_hero/local_hero.dart';
 import 'package:logging/logging.dart';
+import 'package:vector_graphics/vector_graphics.dart';
 
 class CosmeticModsDialog extends StatefulWidget {
-  const CosmeticModsDialog({required this.server, this.skipPasswordCheck = false, super.key});
+  const CosmeticModsDialog({
+    required this.server,
+    this.skipPasswordCheck = false,
+    super.key,
+  });
 
   final Object server;
   final bool skipPasswordCheck;
@@ -36,7 +42,13 @@ class CosmeticModsDialog extends StatefulWidget {
 class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
   late bool correctPassword;
 
+  String? route;
+
   String password = '';
+
+  bool isMultiRegion = false;
+  ServerRegion selectedRegion = ServerRegion.all;
+
   bool withoutMods = true;
   bool spectator = false;
   bool showInstanceSelector = false;
@@ -48,29 +60,45 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
   @override
   void initState() {
-    serverInfo = widget.server is ServerGroup ? (widget.server as ServerGroup).getPreferredServer() : widget.server as Server;
+    if (widget.server is ServerGroup) {
+      final server = widget.server as ServerGroup;
+      isMultiRegion = server.isMultiRegion();
+      selectedRegion = server.getPreferredRegion();
+    }
+
+    serverInfo = widget.server is ServerGroup
+        ? (widget.server as ServerGroup).getPreferredServer()
+        : widget.server as Server;
     correctPassword = widget.skipPasswordCheck || !serverInfo.requiresPassword;
     withoutMods = !Preferences.general.useCosmetics;
-    final mods = serverInfo.mods.map((e) => CollectionMod(name: e.name, version: e.version, link: e.link)).toList();
+    final mods = serverInfo.mods
+        .map(
+          (e) => CollectionMod(name: e.name, version: e.version, link: e.link),
+        )
+        .toList();
     for (final collection in collectionBox.values) {
       final gameplayMods = collection
           .getLocalMods(
-        onlyGameplay: true,
-        expandCollections: true,
-        expandGameplayCollections: false,
-      )
+            onlyGameplay: true,
+            expandCollections: true,
+            expandGameplayCollections: false,
+          )
           .whereType<FrostyMod>()
           .map((e) => e.toCollectionMod())
           .toList();
 
-      if (const ListEquality<CollectionMod>().equals(gameplayMods, mods) || collection.isCosmetic || gameplayMods.isEmpty) {
+      if (const ListEquality<CollectionMod>().equals(gameplayMods, mods) ||
+          collection.isCosmetic ||
+          gameplayMods.isEmpty) {
         collections.add(collection);
       }
     }
 
     if (Preferences.general.selectedCosmeticCollection != null) {
-      final selectedCollectionId = Preferences.general.selectedCosmeticCollection;
-      if (collectionBox.containsKey(selectedCollectionId) && collections.any((x) => x.localId == selectedCollectionId)) {
+      final selectedCollectionId =
+          Preferences.general.selectedCosmeticCollection;
+      if (collectionBox.containsKey(selectedCollectionId) &&
+          collections.any((x) => x.localId == selectedCollectionId)) {
         selectedCollection = collectionBox.get(selectedCollectionId);
       }
     }
@@ -88,10 +116,12 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
   Future<void> checkPassword() async {
     try {
       final service = sl.get<KyberGRPCService>();
-      final result = await service.serverBrowserClient.canJoinServer(CanJoinServerRequest(
-        id: serverInfo.id,
-        password: password,
-      ));
+      final result = await service.serverBrowserClient.canJoinServer(
+        CanJoinServerRequest(
+          id: serverInfo.id,
+          password: password,
+        ),
+      );
 
       if (result.canJoin) {
         return setState(() {
@@ -122,348 +152,894 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return KyberContentDialog(
-      title: Text('Start Game'.toUpperCase()),
-      constraints: const BoxConstraints(
-        maxHeight: 500,
-        maxWidth: 700,
-      ),
-      content: SizedBox(
-        width: 450,
-        child: Builder(
-          builder: (context) {
-            if (!correctPassword) {
-              return Column(
-                children: [
-                  const Text(
-                    'This server requires a password to join.',
-                    style: TextStyle(
-                      color: kWhiteColor,
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  Align(child: Text('Enter Password'.toUpperCase())),
-                  const SizedBox(
-                    height: 2.5,
-                  ),
-                  KyberInput(
-                    onFieldSubmitted: (value) => checkPassword(),
-                    placeholder: 'Password',
-                    isSensitive: true,
-                    onChanged: (value) {
-                      setState(() {
-                        password = value;
-                      });
-                    },
-                  ),
-                ],
-              );
+    return Actions(
+      actions: {
+        DismissIntent: CallbackAction<DismissIntent>(
+          onInvoke: (intent) {
+            if (route != null) {
+              setState(() => route = null);
+              return null;
             }
 
-            return Column(
+            Navigator.pop(context);
+
+            return null;
+          },
+        ),
+      },
+      child: FocusScope(
+        autofocus: true,
+        child: LocalHeroScope(
+          curve: Curves.easeOutCubic,
+          createRectTween: (begin, end) {
+            return mt.MaterialRectCenterArcTween(begin: begin, end: end);
+          },
+          child: Padding(
+            padding: kDefaultPadding.copyWith(top: 60),
+            child: Column(
               children: [
-                if (widget.server is ServerGroup) ...[
-                  RichText(
-                    text: TextSpan(
-                      text: 'JOINING INSTANCE ',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: kWhiteColor,
-                        fontFamily: FontFamily.battlefrontUI,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: '#${(widget.server as ServerGroup).getInstanceId(serverInfo.id)}',
-                          style: TextStyle(
-                            color: kActiveColor,
-                          ),
-                        ),
-                        const TextSpan(
-                          text: ' | ',
-                          style: TextStyle(
-                            color: decoColor,
-                          ),
-                        ),
-                        TextSpan(
-                          text: '(${serverInfo.playerCount}/${serverInfo.maxPlayerCount})',
-                        ),
-                      ],
-                    ),
+                SizedBox(
+                  height: 40,
+                  child: _NavigationBar(
+                    server: widget.server,
+                    route: route,
                   ),
-                  if (!showInstanceSelector) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: ButtonBuilder(
-                        onClick: () => setState(() => showInstanceSelector = true),
-                        builder: (context, hovered) {
-                          return Text(
-                            'CHANGE INSTANCE',
-                            style: TextStyle(
-                              color: hovered ? kActiveColor : kWhiteColor,
-                              fontFamily: FontFamily.battlefrontUI,
-                              decoration: TextDecoration.underline,
-                            ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 50),
+                    child: Builder(
+                      key: ValueKey(route ?? 'main'),
+                      builder: (context) {
+                        if (route == 'mods') {
+                          return _ModsPage(
+                            onBack: () => setState(() => route = null),
+                            server: widget.server as Server,
+                            collections: collections,
+                            selectedCollection: selectedCollection,
                           );
-                        },
-                      ),
-                    ),
-                  ] else ...[
-                    Padding(
-                      padding: const EdgeInsets.only(top: 5),
-                      child: KyberDropdown<Server>(
-                        onChanged: (value) {
-                          setState(() => serverInfo = value);
-                        },
-                        itemBuilder: (DropdownItem<dynamic> item) {
-                          item as DropdownItem<Server>;
-                          final instanceId = (widget.server as ServerGroup).getInstanceId(item.value.id);
-                          final serverInfo = item.value;
-                          return Row(
+                        }
+
+                        if (widget.server is ServerGroup) {
+                          final server = widget.server as ServerGroup;
+
+                          return Column(
+                            crossAxisAlignment: .center,
                             children: [
                               SizedBox(
-                                width: 70,
-                                height: 45,
-                                child: Builder(builder: (context) {
-                                  if (serverInfo.mapImageHash.isNotEmpty) {
-                                    return CachedNetworkImage(
-                                      imageUrl: 'https://${sl.get<KyberGRPCService>().httpHostname}/images/${serverInfo.mapImageHash}.jpeg',
-                                      fit: BoxFit.cover,
-                                      alignment: Alignment.centerLeft,
-                                      colorBlendMode: BlendMode.darken,
-                                      color: Colors.black.withOpacity(.12),
-                                    );
-                                  }
-
-                                  return MapHelper.getImageForMap(serverInfo.levelSetup.map)!.image(
-                                    fit: BoxFit.cover,
-                                    alignment: Alignment.centerLeft,
-                                    colorBlendMode: BlendMode.darken,
-                                    color: Colors.black.withOpacity(.12),
-                                  );
-                                }),
-                              ),
-                              Container(width: 2, height: 45, color: decoColor),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10).copyWith(top: 5),
-                                      child: Text(
-                                        'INSTANCE #$instanceId',
-                                        style: const TextStyle(
-                                          fontFamily: FontFamily.battlefrontUI,
-                                          fontSize: 16,
-                                          height: 1,
-                                        ),
-                                      ),
+                                height: 500,
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) => ListView(
+                                    padding: .only(
+                                      left:
+                                          constraints.maxWidth / 2 -
+                                          (450 * 0.5),
                                     ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                                      child: Row(
-                                        children: [
-                                          RichText(
-                                            text: TextSpan(
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                color: kWhiteColor1,
-                                                fontFamily: FontFamily.battlefrontUI,
+                                    scrollDirection: .horizontal,
+                                    children: [
+                                      for (final server in server.servers)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 25,
+                                          ),
+                                          child: LocalHero(
+                                            tag:
+                                                'main_server_card_${server.id}',
+                                            child: _ServerCard(
+                                              server: server,
+                                              onMods: () => setState(
+                                                () => route = 'mods',
                                               ),
-                                              children: [
-                                                TextSpan(
-                                                  text: serverInfo.levelSetup.modeName.isNotEmpty
-                                                      ? serverInfo.levelSetup.modeName
-                                                      : MapHelper.getMode(serverInfo.levelSetup.mode)?.name ?? 'UNKNOWN MODE',
-                                                ),
-                                                const TextSpan(
-                                                  text: ' | ',
-                                                  style: TextStyle(
-                                                    color: decoColor,
-                                                  ),
-                                                ),
-                                                TextSpan(
-                                                  text: serverInfo.levelSetup.mapName.isNotEmpty
-                                                      ? serverInfo.levelSetup.mapName
-                                                      : MapHelper.getMap(serverInfo.levelSetup.mode, serverInfo.levelSetup.map)?.name ?? 'UNKNOWN MAP',
-                                                ),
-                                              ],
+                                              onBack: () =>
+                                                  setState(() => route = null),
                                             ),
-                                          )
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 10),
-                                child: Text(
-                                  '${item.value.playerCount}/${item.value.maxPlayerCount}',
-                                  style: const TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
-                                    fontSize: 16,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ],
                           );
-                        },
-                        items: (widget.server as ServerGroup).getSorted().map((e) {
-                          return DropdownItem(value: e, label: 'INSTANCE #${(widget.server as ServerGroup).getInstanceId(e.id)}');
-                        }).toList(),
-                        selectedItem: serverInfo,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 15),
-                ],
-                const Text('PLAY WITH OR WITHOUT COSMETIC MODS'),
-                const Text(
-                  'Select an option to load the game with or without cosmetic mods.',
-                  style: TextStyle(
-                    color: kWhiteColor,
-                  ),
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                SizedBox(
-                  height: 35,
-                  child: KyberTabBar(
-                    tabs: const [
-                      Text('WITH COSMETICS'),
-                      Text('WITHOUT COSMETICS'),
-                    ],
-                    selectedIndex: withoutMods ? 1 : 0,
-                    onChanged: (index) {
-                      Preferences.general.useCosmetics = index == 0;
-                      setState(() {
-                        withoutMods = index == 1;
-                      });
-                    },
-                  ),
-                ),
-                if (!withoutMods) ...[
-                  const SizedBox(
-                    height: 30,
-                  ),
-                  KyberDropdown<ModCollectionMetaData>(
-                    onChanged: (value) {
-                      setState(() => selectedCollection = value);
-                      Preferences.general.selectedCosmeticCollection = value.localId;
-                    },
-                    itemBuilder: (DropdownItem<dynamic> item) {
-                      item as DropdownItem<ModCollectionMetaData>;
-                      return Row(
-                        children: [
-                          SizedBox(height: 40, width: 40, child: CollectionIcon(collection: item.value)),
-                          Container(width: 2, height: 40, color: decoColor),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
-                              child: Text(
-                                item.value.title,
-                                style: const TextStyle(
-                                  fontFamily: FontFamily.battlefrontUI,
-                                  fontSize: 18,
+                          return Row(
+                            spacing: 15,
+                            mainAxisAlignment: .center,
+                            children: [
+                              for (final server in server.servers)
+                                LocalHero(
+                                  tag: 'main_server_card_${server.id}',
+                                  child: _ServerCard(
+                                    server: server,
+                                    onMods: () =>
+                                        setState(() => route = 'mods'),
+                                    onBack: () => setState(() => route = null),
+                                  ),
                                 ),
-                              ),
+                            ],
+                          );
+                        }
+
+                        return Column(
+                          spacing: 20,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                LocalHero(
+                                  tag: 'main_server_card',
+                                  child: _ServerCard(
+                                    server: widget.server as Server,
+                                    onMods: () =>
+                                        setState(() => route = 'mods'),
+                                    onBack: () => setState(() => route = null),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      );
-                    },
-                    items: collections.map((e) => DropdownItem(value: e, label: e.title)).toList(),
-                    selectedItem: selectedCollection,
-                    placeholder: 'SELECT A COLLECTION',
+                          ],
+                        );
+                      },
+                    ),
                   ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-      actions: [
-        KyberButton(
-          text: 'Cancel',
-          onPressed: Navigator.of(context).pop,
-        ),
-        if (!correctPassword)
-          KyberButton(
-            text: 'Next',
-            onPressed: checkPassword,
-          ),
-        if (correctPassword)
-          NormalButton(
-            onPressed: () => setState(() => spectator = !spectator),
-            iconData: spectator ? mt.Icons.check_circle : mt.Icons.circle_outlined,
-            label: const Row(
-              children: [
-                Icon(mt.Icons.remove_red_eye_outlined),
-                SizedBox(width: 6),
-                Text('SPECTATE'),
+                ),
               ],
             ),
           ),
-        if (correctPassword)
-          KyberButton(
-            text: 'Join Server',
-            icon: Assets.icons.kyberLogo.svg(height: 20),
-            onPressed: () async {
-              if (!serverInfo.requiresPassword) {
-                try {
-                  final result = await sl.get<KyberGRPCService>().serverBrowserClient.canJoinServer(
-                    CanJoinServerRequest(
-                      id: serverInfo.id,
-                      password: password,
+        ),
+      ),
+    );
+
+    return Actions(
+      actions: {
+        DismissIntent: CallbackAction<DismissIntent>(
+          onInvoke: (intent) {
+            if (route != null) {
+              setState(() => route = null);
+              return null;
+            }
+
+            Navigator.pop(context);
+
+            return null;
+          },
+        ),
+      },
+      child: FocusScope(
+        autofocus: true,
+        child: LocalHeroScope(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          createRectTween: (begin, end) {
+            return mt.MaterialRectCenterArcTween(begin: begin, end: end);
+          },
+          child: Padding(
+            padding: kDefaultPadding.copyWith(top: 60),
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 40,
+                  child: _NavigationBar(
+                    server: widget.server as Server,
+                    route: route,
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 50),
+                    child: Builder(
+                      key: ValueKey(route ?? 'main'),
+                      builder: (context) {
+                        if (route == 'mods') {
+                          return _ModsPage(
+                            onBack: () => setState(() => route = null),
+                            server: widget.server as Server,
+                            collections: collections,
+                            selectedCollection: selectedCollection,
+                          );
+                        }
+
+                        return Column(
+                          spacing: 20,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                LocalHero(
+                                  tag: 'main_server_card',
+                                  child: _ServerCard(
+                                    server: widget.server as Server,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(
+                              width: 500,
+                              child: KyberList(
+                                itemBuilder: (c, i) {
+                                  const items = ['MODS', 'SPECTATE', 'REPORT'];
+                                  return Text(
+                                    items[i],
+                                    style: const TextStyle(
+                                      fontFamily: FontFamily.battlefrontUI,
+                                      fontSize: 18,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  );
+                                },
+                                onSelectionChanged: (index) {
+                                  switch (index) {
+                                    case 0:
+                                      setState(() => route = 'mods');
+                                    case 1:
+                                      setState(() => spectator = !spectator);
+                                    case 2:
+                                      return;
+                                  }
+                                },
+                                shrinkWrap: true,
+                                borderRadius: kDefaultInnerBorderRadius,
+                                stateless: true,
+                                activeIndex: -1,
+                                roundedStart: true,
+                                roundedEnd: true,
+                                defaultTheme: false,
+                                itemCount: 3,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                  );
-
-                  if (!result.canJoin) {
-                    NotificationService.showNotification(
-                      message: result.reason,
-                      severity: InfoBarSeverity.error,
-                    );
-                    return;
-                  }
-                } catch (e, s) {
-                  if (e is GrpcError && e.code == StatusCode.permissionDenied) {
-                    Logger.root.severe('An error occurred', e, s);
-                    Navigator.pop(context);
-                    NotificationService.showNotification(
-                      message: e.message ?? 'You are banned from this server',
-                      severity: InfoBarSeverity.error,
-                    );
-                  } else {
-                    Logger.root.severe('An error occurred', e, s);
-                    NotificationService.showNotification(
-                      message: e is GrpcError ? e.message ?? e.code.toString() : 'An error occurred',
-                      severity: InfoBarSeverity.error,
-                    );
-                  }
-                  return;
-                }
-              }
-
-              final result = JoinDialogResult(
-                collection: withoutMods ? ModCollectionMetaData.noMods() : selectedCollection ?? ModCollectionMetaData.noMods(),
-                spectator: spectator,
-                password: password,
-                instanceId: widget.server is ServerGroup ? serverInfo.meta['instance_id'] : null,
-              );
-
-              Navigator.of(context).pop(result);
-            },
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// this entire file is a huge mess right now, it'll be split up and cleaned later, just want to get the functionality in place for now
+
+class _ModsPage extends StatefulWidget {
+  const _ModsPage({
+    required this.server,
+    required this.collections,
+    required this.selectedCollection,
+    required this.onBack,
+    super.key,
+  });
+
+  final Server server;
+  final List<ModCollectionMetaData> collections;
+  final ModCollectionMetaData? selectedCollection;
+  final VoidCallback onBack;
+
+  @override
+  State<_ModsPage> createState() => _ModsPageState();
+}
+
+class _ModsPageState extends State<_ModsPage> {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 450,
+      alignment: Alignment.center,
+      child: Column(
+        spacing: 20,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              LocalHero(
+                tag: 'main_server_card',
+                child: _ServerCard(
+                  onBack: widget.onBack,
+                  server: widget.server as Server,
+                  type: _ServerCardType.minimal,
+                ),
+              ),
+            ],
+          ),
+          KyberDropdown<ModCollectionMetaData>(
+            onChanged: (value) {
+              //setState(() => selectedCollection = value);
+              Preferences.general.selectedCosmeticCollection = value.localId;
+            },
+            itemBuilder: (DropdownItem<dynamic> item) {
+              item as DropdownItem<ModCollectionMetaData>;
+              return Row(
+                children: [
+                  SizedBox(
+                    height: 40,
+                    width: 40,
+                    child: CollectionIcon(collection: item.value),
+                  ),
+                  Container(width: 2, height: 40, color: decoColor),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        item.value.title,
+                        style: const TextStyle(
+                          fontFamily: FontFamily.battlefrontUI,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+            items: widget.collections
+                .map((e) => DropdownItem(value: e, label: e.title))
+                .toList(),
+            selectedItem: widget.selectedCollection,
+            placeholder: 'NO COSMETICS',
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                Container(
+                  width: 450,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(.4),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(kDefaultInnerBorderRadius),
+                    ),
+                    border: const Border(
+                      top: kDefaultBorder,
+                      left: kDefaultBorder,
+                      right: kDefaultBorder,
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'MODS',
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1,
+                      fontFamily: FontFamily.battlefrontUI,
+                    ),
+                  ),
+                ),
+                Stack(
+                  fit: StackFit.passthrough,
+                  children: [
+                    IntrinsicHeight(
+                      child: IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(.4),
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(
+                                kDefaultInnerBorderRadius,
+                              ),
+                            ),
+                            border: const Border(
+                              bottom: kDefaultBorder,
+                              left: kDefaultBorder,
+                              right: kDefaultBorder,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      constraints: const BoxConstraints(
+                        maxHeight: 300,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(kDefaultInnerBorderRadius),
+                        ),
+                        child: RepaintBoundary(
+                          key: const Key('server_list'),
+                          child: KyberList(
+                            colorOpacity: .4,
+                            shrinkWrap: true,
+                            blur: false,
+                            activeIndex: -1,
+                            itemPadding: EdgeInsets.zero,
+                            physics: const ScrollPhysics(),
+                            itemBuilder: (context, index) {
+                              final mod = widget.server.mods[index];
+                              return ServerModTile(mod: mod);
+                            },
+                            itemCount: widget.server.mods.length,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      child: IgnorePointer(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            width: 450,
+                            height: 20,
+                            alignment: Alignment.bottomCenter,
+                            decoration: const BoxDecoration(
+                              borderRadius: BorderRadius.vertical(
+                                bottom: Radius.circular(
+                                  kDefaultInnerBorderRadius,
+                                ),
+                              ),
+                              border: Border(bottom: kDefaultBorder),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NavigationBar extends StatelessWidget {
+  const _NavigationBar({required this.server, this.route, super.key});
+
+  final Object server;
+  final String? route;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = switch (server) {
+      final ServerGroup sg => sg.groupName,
+      final Server s => s.name,
+      _ => 'UNKNOWN SERVER',
+    };
+    final routes = ['PLAY', name, ?route];
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        BackgroundBlur(
+          key: const ValueKey('subNavBarList'),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 41,
+                width: 1.5,
+                color: kWhiteColor,
+              ),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                scrollDirection: Axis.horizontal,
+                separatorBuilder: (context, index) => Transform.rotate(
+                  angle: 18 * 3.14 / 180,
+                  child: UnconstrainedBox(
+                    child: Container(
+                      height: 20,
+                      width: 2,
+                      color: kGrayColor,
+                    ),
+                  ),
+                ),
+                itemBuilder: (context, index) => NavigationBarSubItem(
+                  isLast: index == routes.length - 1,
+                  route: routes.elementAt(index),
+                  index: index,
+                  fullRoute: "/${routes.take(index + 1).join("/")}",
+                ),
+                itemCount: routes.length,
+              ),
+              Container(
+                height: 41,
+                width: 1.5,
+                color: kWhiteColor,
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 }
 
+enum _ServerCardType { full, minimal }
+
+class _ServerCard extends StatefulWidget {
+  const _ServerCard({
+    required this.server,
+    this.type = _ServerCardType.full,
+    this.onMods,
+    this.onBack,
+    super.key,
+  });
+
+  final Server server;
+  final _ServerCardType type;
+  final VoidCallback? onBack;
+  final VoidCallback? onMods;
+
+  @override
+  State<_ServerCard> createState() => _ServerCardState();
+}
+
+class _ServerCardState extends State<_ServerCard> {
+  String selectedProxy = 'grm';
+
+  bool hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final map = MapHelper.getMap(
+      widget.server.levelSetup.mode,
+      widget.server.levelSetup.map,
+    );
+    final modeName = widget.server.levelSetup.modeName.isNotEmpty
+        ? widget.server.levelSetup.modeName
+        : MapHelper.getMode(widget.server.levelSetup.mode)?.name ??
+              widget.server.levelSetup.mode;
+    final levelName = widget.server.levelSetup.mapName.isNotEmpty
+        ? widget.server.levelSetup.mapName
+        : map?.name ?? widget.server.levelSetup.map;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => hovered = true),
+      onExit: (_) => setState(() => hovered = false),
+      child: SizedBox(
+        height: widget.type == _ServerCardType.minimal ? 172 : 432,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                Container(
+                  width: 450,
+                  height: constraints.maxHeight < 240 ? 146 : 432,
+                  decoration: BoxDecoration(
+                    border: kDefaultAllBorder,
+                    borderRadius: BorderRadius.circular(
+                      kDefaultInnerBorderRadius,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(
+                      kDefaultInnerBorderRadius - 2,
+                    ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Column(
+                          children: [
+                            SizedBox(
+                              height: constraints.maxHeight < 240 ? 142 : 240,
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: ServerBackgroundImage(
+                                      map: map?.map ?? '',
+                                      fade: false,
+                                      blur: false,
+                                      imageId:
+                                          widget.server.mapImageHash.isNotEmpty
+                                          ? widget.server.mapImageHash
+                                          : null,
+                                    ),
+                                  ),
+                                  Positioned.fill(
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        return Padding(
+                                          padding: const .all(25),
+                                          child: Column(
+                                            spacing: 15,
+                                            mainAxisAlignment: .spaceBetween,
+                                            children: [
+                                              Column(
+                                                children: [
+                                                  Text(
+                                                    modeName.toUpperCase(),
+                                                    style: const TextStyle(
+                                                      fontFamily: FontFamily
+                                                          .battlefrontUI,
+                                                      fontSize: 24,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Text(
+                                                    levelName.toUpperCase(),
+                                                    style: const TextStyle(
+                                                      fontFamily: FontFamily
+                                                          .battlefrontUI,
+                                                      fontSize: 16,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              if (widget.type ==
+                                                      _ServerCardType.full &&
+                                                  constraints.maxHeight >= 240)
+                                                Padding(
+                                                  padding: const .only(
+                                                    bottom: 28,
+                                                  ),
+                                                  child: Wrap(
+                                                    spacing: 8,
+                                                    children: [
+                                                      _KyberTag(
+                                                        prefix: Assets
+                                                            .icons
+                                                            .iconLib
+                                                            .kblHostIcon
+                                                            .svg(),
+                                                        text: 'KYBER',
+                                                      ),
+                                                      _KyberTag(
+                                                        text: widget
+                                                            .server
+                                                            .region,
+                                                      ),
+                                                      _KyberTag(
+                                                        text:
+                                                            '${widget.server.playerCount}/${widget.server.maxPlayerCount}',
+                                                      ),
+                                                      _KyberTag(text: 'VOIP'),
+                                                      _KyberTag(
+                                                        text:
+                                                            '${widget.server.mods.length} MOD',
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (widget.type == _ServerCardType.full &&
+                                constraints.maxHeight >= 240) ...[
+                              const CardSection(),
+                              Expanded(
+                                child: Container(
+                                  color: Colors.black.withOpacity(.5),
+                                  padding: const .all(15),
+                                  child: const SingleChildScrollView(
+                                    padding: .only(top: 20),
+                                    child: Text(
+                                      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. ',
+                                      style: .new(
+                                        fontFamily: FontFamily.battlefrontUI,
+                                        color: kWhiteColor,
+                                        fontSize: 16,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (widget.type == _ServerCardType.full &&
+                            constraints.maxHeight >= 240)
+                          Positioned(
+                            left: 450 / 2 - 104,
+                            top: 240 - 45 / 2,
+                            child: _PlayButton(
+                              onPressed: () {},
+                            ),
+                          ),
+                        if (hovered && widget.type == _ServerCardType.full)
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: FadeIn(
+                              duration: const .new(milliseconds: 150),
+                              child: Container(
+                                height: 36,
+                                width: 450,
+                                margin: const .all(15),
+                                child: BackgroundBlur(
+                                  blurColorOpacity: 1,
+                                  borderRadius: .circular(
+                                    kDefaultInnerBorderRadius,
+                                  ),
+                                  child: KyberTabBar(
+                                    selectedIndex: -1,
+                                    onChanged: (value) {
+                                      switch (value) {
+                                        case 0:
+                                        // spectate
+                                        case 1:
+                                          widget.onMods?.call();
+                                        case 2:
+                                        // report
+                                      }
+                                    },
+                                    tabs: [
+                                      Text('SPECTATE'),
+                                      Text('MODS'),
+                                      Text('REPORT'),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (constraints.maxHeight < 240)
+                  Positioned(
+                    left: 450 / 2 - 104,
+                    top: 146 - 45 / 2,
+                    child: FadeIn(
+                      child: _PlayButton(
+                        onPressed: widget.onBack ?? () {},
+                        text: 'BACK',
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _KyberTag extends StatelessWidget {
+  const _KyberTag({
+    required this.text,
+    super.key,
+    this.prefix,
+    this.minWidth = 40,
+  });
+
+  final double? minWidth;
+  final Widget? prefix;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 26,
+      padding: const .all(5),
+      constraints: BoxConstraints(
+        minWidth: minWidth ?? 0,
+      ),
+      decoration: BoxDecoration(
+        border: .all(
+          color: decoColor,
+          width: 1.5,
+        ),
+        borderRadius: const .all(.circular(4)),
+        color: Colors.black,
+      ),
+      child: Row(
+        mainAxisSize: .min,
+        mainAxisAlignment: .center,
+        children: [
+          if (prefix != null) ...[
+            prefix!,
+            const SizedBox(width: 5),
+          ],
+          Text(
+            text,
+            style: const TextStyle(
+              fontFamily: FontFamily.battlefrontUI,
+              fontSize: 12,
+              height: 1,
+            ),
+            textAlign: .center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayButton extends StatefulWidget {
+  const _PlayButton({required this.onPressed, super.key, this.text});
+
+  final VoidCallback onPressed;
+  final String? text;
+
+  @override
+  State<_PlayButton> createState() => _PlayButtonState();
+}
+
+class _PlayButtonState extends State<_PlayButton> {
+  bool hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = hovered ? kActiveColor : kWhiteColor;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => hovered = true),
+      onExit: (_) => setState(() => hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: Stack(
+          children: [
+            VectorGraphic(
+              loader: AssetBytesLoader(Assets.icons.kblPlayIcon.path),
+              height: 47,
+              width: 208,
+            ),
+            VectorGraphic(
+              loader: AssetBytesLoader(Assets.icons.kblPlayIconBorder.path),
+              height: 47,
+              width: 208,
+              colorFilter: ColorFilter.mode(
+                target,
+                BlendMode.srcIn,
+              ),
+            ),
+            // TODO: re-enable animations?
+            //TweenAnimationBuilder<Color?>(
+            //  tween: ColorTween(end: target),
+            //  duration: const Duration(milliseconds: 300),
+            //  builder: (_, c, __) => Assets.icons.kblPlayIcon.svg(
+            //    height: 47,
+            //    width: 208,
+            //    fit: BoxFit.contain,
+            //    theme: SvgTheme(currentColor: c!),
+            //  ),
+            //),
+            Positioned(
+              top: 12,
+              left: 72,
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 150),
+                style: TextStyle(
+                  color: target,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  height: 1,
+                  shadows: hovered
+                      ? [
+                          Shadow(
+                            color: kActiveColor.withOpacity(.7),
+                            blurRadius: 10,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(widget.text ?? 'PLAY'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class JoinDialogResult {
-  JoinDialogResult({required this.collection, required this.spectator, this.password = '', this.instanceId});
+  JoinDialogResult({
+    required this.collection,
+    required this.spectator,
+    this.password = '',
+    this.instanceId,
+  });
 
   final ModCollectionMetaData collection;
   final bool spectator;

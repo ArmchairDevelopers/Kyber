@@ -70,7 +70,7 @@ class ServerGroup {
     final s = List.of(servers)
       ..removeWhere((e) => e.playerCount >= e.maxPlayerCount)
       ..sort((a, b) => b.playerCount.compareTo(a.playerCount));
-    return s.firstOrNull ?? servers.first;
+    return s.first;
   }
 
   List<Server> getSorted() {
@@ -82,7 +82,10 @@ class ServerGroup {
   }
 
   ServerRegion getPreferredRegion() {
-    final pinnedProxies = servers.where((e) => e.meta.containsKey('pinned_proxy_id')).map((e) => e.meta['pinned_proxy_id']!).toSet();
+    final pinnedProxies = servers
+        .where((e) => e.meta.containsKey('pinned_proxy_id'))
+        .map((e) => e.meta['pinned_proxy_id']!)
+        .toSet();
 
     // TODO: use server region instead
     if (pinnedProxies.isEmpty) {
@@ -101,7 +104,10 @@ class ServerGroup {
       return region.value;
     }
 
-    final proxies = navigatorKey.currentContext!.read<KyberProxyCubit>().state.proxies;
+    final proxies = navigatorKey.currentContext!
+        .read<KyberProxyCubit>()
+        .state
+        .proxies;
 
     final proxy = proxies.firstWhere((e) => pinnedProxies.contains(e.proxy.id));
     final region = regionMappings.entries.firstWhereOrNull(
