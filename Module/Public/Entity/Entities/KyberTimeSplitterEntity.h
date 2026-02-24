@@ -20,13 +20,9 @@ public:
     void PropertyChanged(PropertyModification* modification) override;
     
 private:
-    PropertyWriter<char*> m_dateStrOut;
     PropertyWriter<int> m_secIntOut;
     PropertyWriter<int> m_minIntOut;
     PropertyWriter<int> m_hourIntOut;
-    PropertyWriter<char*> m_dayStrOut;
-    PropertyWriter<char*> m_monthStrOut;
-    PropertyWriter<char*> m_yearStrOut;
     PropertyWriter<int> m_dayIntOut;
     PropertyWriter<int> m_monthIntOut;
     PropertyWriter<int> m_yearIntOut;
