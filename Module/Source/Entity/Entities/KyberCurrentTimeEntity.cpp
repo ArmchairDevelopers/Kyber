@@ -27,11 +27,15 @@ KyberCurrentTimeEntity::KyberCurrentTimeEntity(EntityManager* entityManager, Nat
 
 void KyberCurrentTimeEntity::Event(EntityEvent* event)
 {
-    if (event->Is("Update") && !GetData()->EnableUpdates)
+    if (event->Is("Update"))
     {
         float currentTime = GetTime();
         m_timeOut = &currentTime;
-        FireEvent("OnUpdate");
+
+        if (GetData()->EnableUpdates)
+        {
+            FireEvent("OnUpdate");
+        }
     }
 }
 

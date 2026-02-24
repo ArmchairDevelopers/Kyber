@@ -392,7 +392,7 @@ void KyberEntityBase::FireEvent(EventId entityEvent)
 
 void KyberEntityBase::FireEvent(const char* event)
 {
-    KYBER_LOG(Info, "Firing event " << event);
+    KYBER_LOG(Debug, "Firing event " << event);
 
     FireEvent(StringUtils::HashQuick(event));
 }

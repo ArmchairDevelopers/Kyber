@@ -39,11 +39,7 @@ void KyberTimeSplitterEntity::PropertyChanged(PropertyModification* modification
     PropertyReader<float> fieldValue = GetFieldReader<float>("Time");
     if (fieldValue.HasConnection())
     {
-        bool hasValue = fieldValue.HasConnectionValue();
-        if (hasValue)
-        {
-            currentTime = fieldValue.Get();
-        }
+        currentTime = fieldValue.Get();
     }
 
     if (currentTime <= 0)
