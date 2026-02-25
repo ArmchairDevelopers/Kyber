@@ -31,11 +31,7 @@ void KyberCurrentTimeEntity::Event(EntityEvent* event)
     {
         float currentTime = GetTime();
         m_timeOut = &currentTime;
-
-        if (GetData()->EnableUpdates)
-        {
-            FireEvent("OnUpdate");
-        }
+        FireEvent("OnUpdate");
     }
 }
 
