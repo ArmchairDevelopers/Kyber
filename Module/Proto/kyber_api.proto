@@ -116,10 +116,15 @@ service Party {
 
 message CheckForUpdatesEvent {}
 
+message ProxiesUpdatedEvent {
+  repeated ProxyInfo proxies = 1;
+}
+
 message SessionEvent {
   oneof body {
     PartyEvent partyEvent = 1;
     CheckForUpdatesEvent checkForUpdates = 2;
+    ProxiesUpdatedEvent proxiesUpdated = 3;
   }
 }
 
