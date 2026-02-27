@@ -110,6 +110,8 @@ service Party {
   rpc DeclineInvite(DeclineInviteRequest) returns (kyber_common.Empty);
 
   rpc GetParty(kyber_common.Empty) returns (GetPartyResponse);
+
+  rpc StartJoinGame(StartJoinGameRequest) returns (kyber_common.Empty);
 }
 
 // SessionService
@@ -121,6 +123,17 @@ message SessionEvent {
     PartyEvent partyEvent = 1;
     CheckForUpdatesEvent checkForUpdates = 2;
   }
+}
+
+message SessionClientEvent {
+  oneof body {
+    UpdateJoinGameStatusEvent updateJoinGameStatus = 1;
+  }
+}
+
+message UpdateJoinGameStatusEvent {
+  bool hasMods = 1;
+  optional uint32 modDownloadPercentage = 2;
 }
 
 // PartyService
@@ -152,6 +165,20 @@ message PartyState {
   string leaderId = 2;
   repeated PartyMember members = 3;
   int64 createdAt = 4;
+  optional JoinGameState joinGameState = 5;
+}
+
+message JoinGameState {
+  string serverId = 1;
+  string serverName = 2;
+  repeated kyber_common.ServerMod mods = 3;
+  repeated JoinGameMemberStatus memberStatuses = 4;
+}
+
+message JoinGameMemberStatus {
+  string userId = 1;
+  bool hasMods = 2;
+  optional uint32 modDownloadPercentage = 3;
 }
 
 message PartyMember {
@@ -167,7 +194,15 @@ message PartyEvent {
     MemberJoinedEvent memberJoined = 4;
     MemberLeftEvent memberLeft = 5;
     JoinGameEvent joinGame = 6;
+    JoinGameStatusEvent joinGameStatus = 7;
+    JoinGameReadyEvent joinGameReady = 8;
+    JoinGameCancelledEvent joinGameCancelled = 9;
+    NewLeaderEvent newLeader = 10;
   }
+}
+
+message NewLeaderEvent {
+  string newLeaderId = 1;
 }
 
 message InviteReceivedEvent {
@@ -196,6 +231,25 @@ message MemberLeftEvent {
 message JoinGameEvent {
   string serverId = 1;
   string serverName = 2;
+  repeated kyber_common.ServerMod mods = 3;
+  string leaderId = 4;
+}
+
+message JoinGameStatusEvent {
+  string userId = 1;
+  bool hasMods = 2;
+  optional uint32 modDownloadPercentage = 3;
+}
+
+message JoinGameReadyEvent {
+  string serverId = 1;
+}
+
+message JoinGameCancelledEvent {}
+
+message StartJoinGameRequest {
+  string serverId = 1;
+  string password = 2;
 }
 
 // ReportService
