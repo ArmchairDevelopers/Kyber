@@ -10,7 +10,9 @@ import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
+import 'package:kyber_launcher/features/settings/dialogs/update_dialog.dart';
 import 'package:kyber_launcher/injection_container.dart';
+import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:web_socket_channel/io.dart';
@@ -178,9 +180,11 @@ class SessionCubit extends Cubit<SessionState> {
       (event) {
         try {
           final data = SessionEvent.fromBuffer(event as Uint8List);
-          if (data.hasPartyEvent()) {
-            _handlePartyEvent(data.partyEvent);
-          }
+          final _ = switch (data.whichBody()) {
+            .partyEvent => _handlePartyEvent(data.partyEvent),
+            .checkForUpdates => _handleUpdateCheck(),
+            .notSet => null,
+          };
         } catch (e, s) {
           _logger.severe('Error parsing session event', e, s);
         }
@@ -216,7 +220,26 @@ class SessionCubit extends Cubit<SessionState> {
     Future.delayed(delay, _connectToStream);
   }
 
-  Future<void> _handlePartyEvent(PartyEvent event) async {
+  void _handleUpdateCheck() async {
+    final update = await ModuleVersionService().updateAvailable(
+      module: .installer,
+    );
+    final context = navigatorKey.currentContext;
+
+    if (context == null) {
+      _logger.warning('Context is null, cannot show update dialog');
+      return;
+    }
+
+    if (update && context.mounted) {
+      await showKyberDialog(
+        context: context,
+        builder: (_) => const UpdateDialog(),
+      );
+    }
+  }
+
+  void _handlePartyEvent(PartyEvent event) async {
     final userId = _userId;
 
     if (event.hasInviteReceived()) {

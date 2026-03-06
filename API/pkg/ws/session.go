@@ -243,7 +243,7 @@ func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 		defer conn.Close()
 
 		for {
-			_, _, err := conn.ReadMessage()
+			_, msg, err := conn.ReadMessage()
 			if err != nil {
 				break
 			}
@@ -252,6 +252,10 @@ func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				logger.L().Error("Failed to set read deadline:", zap.Error(err))
 				return
+			}
+
+			if len(msg) > 0 {
+				s.handleClientMessage(user.ID, msg)
 			}
 
 			<-ticker.C
@@ -282,4 +286,56 @@ func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+func (s *SessionManager) handleClientMessage(userID string, msg []byte) {
+	var clientEvent pbapi.SessionClientEvent
+	if err := proto.Unmarshal(msg, &clientEvent); err != nil {
+		return
+	}
+
+	switch evt := clientEvent.Body.(type) {
+	case *pbapi.SessionClientEvent_UpdateJoinGameStatus:
+		s.handleJoinGameStatusUpdate(userID, evt.UpdateJoinGameStatus)
+	}
+}
+
+func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.UpdateJoinGameStatusEvent) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// only temporarily
+	// TODO: find a way to avoid hitting the database on every update, maybee by caching party memberships in memory?
+	session, err := s.store.Sessions.GetByUserID(ctx, userID)
+	if err != nil || session == nil || session.PartyID == nil {
+		return
+	}
+
+	partyID := *session.PartyID
+
+	party, err := s.store.Parties.GetByID(ctx, partyID)
+	if err != nil || party == nil || party.JoinGameState == nil {
+		return
+	}
+
+	sessions, err := s.store.Sessions.GetByPartyID(ctx, partyID)
+	if err != nil {
+		logger.L().Error("Failed to get party sessions", zap.Error(err))
+		return
+	}
+
+	memberIDs := make([]string, len(sessions))
+	for i, sess := range sessions {
+		memberIDs[i] = sess.UserID
+	}
+
+	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+		Body: &pbapi.PartyEvent_JoinGameStatus{
+			JoinGameStatus: &pbapi.JoinGameStatusEvent{
+				UserId:                userID,
+				HasMods:               evt.HasMods,
+				ModDownloadPercentage: evt.ModDownloadPercentage,
+			},
+		},
+	})
 }

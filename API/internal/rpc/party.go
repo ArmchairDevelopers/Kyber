@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/ArmchairDevelopers/Kyber/API/api/v1/pbapi"
@@ -13,6 +14,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/ws"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -88,6 +90,33 @@ func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbco
 				},
 			},
 		})
+
+		party, err := s.store.Parties.GetByID(ctx, partyID)
+		if err == nil && party != nil && party.JoinGameState != nil && party.LeaderID == user.ID {
+			if err := s.store.Parties.Update(ctx, partyID, bson.M{"$unset": bson.M{"join_game_state": ""}}); err != nil {
+				logger.L().Error("Failed to clear join game state", zap.Error(err))
+			}
+			s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+				Body: &pbapi.PartyEvent_JoinGameCancelled{
+					JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
+				},
+			})
+		}
+
+		if party.LeaderID == user.ID {
+			newLeaderID := remainingSessions[0].UserID
+			if err := s.store.Parties.Update(ctx, partyID, bson.M{"$set": bson.M{"leader_id": newLeaderID}}); err != nil {
+				logger.L().Error("Failed to update party leader", zap.Error(err))
+			}
+
+			s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+				Body: &pbapi.PartyEvent_NewLeader{
+					NewLeader: &pbapi.NewLeaderEvent{
+						NewLeaderId: newLeaderID,
+					},
+				},
+			})
+		}
 	}
 
 	logger.L().Debug("User left party", zap.Uint64("party_id", partyID), zap.String("user_id", user.ID))
@@ -396,6 +425,116 @@ func (s *PartyService) GetParty(ctx context.Context, _ *pbcommon.Empty) (*pbapi.
 	}
 
 	return &pbapi.GetPartyResponse{Party: party.Proto(sessions, mapped)}, nil
+}
+
+func (s *PartyService) StartJoinGame(ctx context.Context, req *pbapi.StartJoinGameRequest) (*pbcommon.Empty, error) {
+	user := ctx.Value("user").(*models.UserModel)
+
+	session, err := s.store.Sessions.GetByUserID(ctx, user.ID)
+	if err != nil {
+		logger.L().Error("Failed to get session", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get session")
+	}
+
+	if session == nil || session.PartyID == nil {
+		return nil, status.Error(codes.NotFound, "You are not in a party")
+	}
+
+	party, err := s.store.Parties.GetByID(ctx, *session.PartyID)
+	if err != nil {
+		logger.L().Error("Failed to get party", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get party")
+	}
+
+	if party == nil {
+		return nil, status.Error(codes.NotFound, "Party not found")
+	}
+
+	if party.LeaderID != user.ID {
+		return nil, status.Error(codes.PermissionDenied, "Only the party leader can join a game")
+	}
+
+	server, err := s.store.Servers.GetByID(ctx, req.GetServerId())
+	if err != nil {
+		logger.L().Error("Failed to get server", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get server")
+	}
+
+	if server == nil {
+		return nil, status.Error(codes.NotFound, "Server not found")
+	}
+
+	punishment, err := s.store.Punishments.GetBanForServer(ctx, server.HostID, user.ID)
+	if err != nil {
+		logger.L().Error("Failed to check ban", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to check ban")
+	}
+
+	if punishment != nil {
+		reason := fmt.Sprintf("You are banned from this server: %s", *punishment.Reason)
+		return nil, status.Error(codes.PermissionDenied, reason)
+	}
+
+	if server.Password != nil && *server.Password != req.Password {
+		return nil, status.Error(codes.PermissionDenied, "Invalid password")
+	}
+
+	sessions, err := s.store.Sessions.GetByPartyID(ctx, party.ID)
+	if err != nil {
+		logger.L().Error("Failed to get party sessions", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get party sessions")
+	}
+
+	memberIDs := make([]string, len(sessions))
+	for i, sess := range sessions {
+		memberIDs[i] = sess.UserID
+	}
+
+	if party.JoinGameState != nil {
+		s.partyPub.Publish(party.ID, memberIDs, &pbapi.PartyEvent{
+			Body: &pbapi.PartyEvent_JoinGameCancelled{
+				JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
+			},
+		})
+	}
+
+	mods := make([]models.ServerModModel, len(server.Mods))
+	copy(mods, server.Mods)
+
+	joinGameState := &models.PartyJoinGameState{
+		ServerID:   server.ID,
+		ServerName: server.Name,
+		Mods:       mods,
+		// TODO: automatically share server passwords?
+	}
+
+	if err := s.store.Parties.Update(ctx, party.ID, bson.M{"$set": bson.M{"join_game_state": joinGameState}}); err != nil {
+		logger.L().Error("Failed to save join game state", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to start join game")
+	}
+
+	protoMods := make([]*pbcommon.ServerMod, len(server.Mods))
+	for i, mod := range server.Mods {
+		protoMods[i] = &pbcommon.ServerMod{
+			Name:     mod.Name,
+			Version:  mod.Version,
+			Link:     mod.Link,
+			FileSize: mod.FileSize,
+		}
+	}
+
+	s.partyPub.Publish(party.ID, memberIDs, &pbapi.PartyEvent{
+		Body: &pbapi.PartyEvent_JoinGame{
+			JoinGame: &pbapi.JoinGameEvent{
+				ServerId:   server.ID,
+				ServerName: server.Name,
+				Mods:       protoMods,
+				LeaderId:   user.ID,
+			},
+		},
+	})
+
+	return &pbcommon.Empty{}, nil
 }
 
 func (s *PartyService) createParty(ctx context.Context, user models.UserModel) (*models.PartyModel, error) {
