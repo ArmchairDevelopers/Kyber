@@ -254,43 +254,41 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
                                       margin: const EdgeInsets.symmetric(
                                         vertical: 5,
                                       ),
-                                      child: RadioButton(
-                                        style: RadioButtonThemeData(
-                                          checkedDecoration:
-                                              WidgetStateProperty.resolveWith((
-                                                states,
-                                              ) {
-                                                return BoxDecoration(
-                                                  color: Colors.transparent,
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: (states.isHovered)
-                                                        ? kActiveColor
-                                                        : kWhiteColor,
-                                                    width: !states.isDisabled
-                                                        ? states.isHovered &&
-                                                                  !states
-                                                                      .isPressed
-                                                              ? 3.4
-                                                              : 5.0
-                                                        : 4.0,
-                                                  ),
-                                                );
-                                              }),
-                                        ),
-                                        checked: selectedPacks.contains(index),
-                                        onChanged: (value) {
-                                          if (value) {
-                                            selectedPacks.add(index);
-                                          } else {
-                                            selectedPacks.remove(index);
-                                          }
-
-                                          updateModsToImport();
-                                          setState(() {});
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            if (selectedPacks.contains(index)) {
+                                              selectedPacks.remove(index);
+                                            } else {
+                                              selectedPacks.add(index);
+                                            }
+                                            updateModsToImport();
+                                          });
                                         },
-                                        content: Row(
+                                        child: Row(
                                           children: [
+                                            Container(
+                                              width: 20,
+                                              height: 20,
+                                              decoration: BoxDecoration(
+                                                color: Colors.transparent,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color:
+                                                      selectedPacks.contains(
+                                                        index,
+                                                      )
+                                                      ? kActiveColor
+                                                      : kWhiteColor,
+                                                  width:
+                                                      selectedPacks.contains(
+                                                        index,
+                                                      )
+                                                      ? 5.0
+                                                      : 2.0,
+                                                ),
+                                              ),
+                                            ),
                                             const SizedBox(width: 10),
                                             Expanded(
                                               child: DefaultTextStyle.merge(
