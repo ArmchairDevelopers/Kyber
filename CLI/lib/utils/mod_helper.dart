@@ -7,7 +7,7 @@ class ModHelper {
   ModHelper._();
 
   static List<FrostyMod> filterGameplayMods(List<FrostyMod> mods) {
-    return mods.where((mod) => ['gameplay', 'maps'].contains(mod.details.category.toLowerCase())).toList();
+    return mods.where((mod) => ['gameplay', 'maps', 'map'].contains(mod.details.category.toLowerCase())).toList();
   }
 
   static List<FrostyMod> expandMods(List<FrostyMod> mods) {
