@@ -311,7 +311,7 @@ class _JoinGameBannerState extends State<_JoinGameBanner>
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _fadeAnimation = CurvedAnimation(
       parent: _controller,
-      curve: .easeOut,
+      curve: Curves.easeOut,
     );
 
     if (widget.info != null) _controller.forward();
