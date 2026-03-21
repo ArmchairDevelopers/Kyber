@@ -133,6 +133,7 @@ message SessionEvent {
 message SessionClientEvent {
   oneof body {
     UpdateJoinGameStatusEvent updateJoinGameStatus = 1;
+    JoinGameReadyEvent joinGameReady = 2;
   }
 }
 
