@@ -19,6 +19,7 @@ import 'package:kyber_launcher/features/download_manager/repositories/download_r
 import 'package:kyber_launcher/features/download_manager/services/download_orchestrator.dart';
 import 'package:kyber_launcher/features/download_manager/services/mod_bridge_service.dart';
 import 'package:kyber_launcher/features/kyber/helper/kyber_server_helper.dart';
+import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/features/nexusmods/dialogs/nexusmods_login.dart';
@@ -27,6 +28,7 @@ import 'package:kyber_launcher/features/nexusmods/services/mod_finder_service.da
 import 'package:kyber_launcher/features/server_browser/dialogs/join_server_dialog.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
+import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 import 'package:logging/logging.dart';
@@ -53,7 +55,29 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     emit(.new(joiningServer: state.joiningServer));
   }
 
-  void joinServer({bool enabledDownload = true}) {
+  Future<void> joinServer({bool enabledDownload = true}) async {
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      final sessionState = context.read<SessionCubit>().state;
+      if (sessionState is InParty) {
+        final userId = context.read<MaximaCubit>().state.servicePlayer?.id;
+        if (userId == null) {
+          return;
+        }
+
+        if (sessionState.party.leaderId != userId) {
+          NotificationService.showNotification(
+            message: 'Only the party leader can join a server!',
+            severity: InfoBarSeverity.warning,
+          );
+          return;
+        }
+
+        await _startPartyJoinGame();
+        return;
+      }
+    }
+
     if (hasAllRequiredMods()) {
       if (state.selectedServer! is! ServerGroup) {
         emit(state.copyWith(selectedServer: state.selectedServer! as Server));
@@ -69,6 +93,28 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
         ),
       );
       _startDownloads();
+    }
+  }
+
+  Future<void> _startPartyJoinGame() async {
+    final server = state.selectedServer;
+    if (server == null) return;
+
+    final serverInfo = server is ServerGroup
+        ? server.getPreferredServer()
+        : server as Server;
+
+    try {
+      // TODO: handle password protected servers
+      await navigatorKey.currentContext!.read<SessionCubit>().startJoinGame(
+        serverId: serverInfo.id,
+        password: '',
+      );
+    } catch (e) {
+      Logger('server_browser').severe('Error starting party join game', e);
+      NotificationService.error(
+        message: 'Failed to start party join: $e',
+      );
     }
   }
 

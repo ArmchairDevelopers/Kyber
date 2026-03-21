@@ -27,6 +27,15 @@ class PartyOverlay extends StatelessWidget {
             return _InviteBanner(invite: invite);
           },
         ),
+        BlocSelector<SessionCubit, SessionState, JoinGameInfo?>(
+          selector: (state) => switch (state) {
+            InParty(:final joinGameInfo) => joinGameInfo,
+            _ => null,
+          },
+          builder: (context, info) {
+            return _JoinGameBanner(info: info);
+          },
+        ),
       ],
     );
   }
@@ -119,13 +128,14 @@ class _InviteBannerState extends State<_InviteBanner>
   Future<void> _accept() async {
     final invite = widget.invite;
     if (_loading || invite == null) return;
+
     setState(() => _loading = true);
 
     try {
       await context.read<SessionCubit>().acceptInvite(invite.partyId);
       if (mounted) {
         NotificationService.success(
-          message: 'Joined ${invite.inviter.name}\'s party',
+          message: "Joined ${invite.inviter.name}'s party",
         );
       }
     } catch (e) {
@@ -144,6 +154,7 @@ class _InviteBannerState extends State<_InviteBanner>
   Future<void> _decline() async {
     final invite = widget.invite;
     if (_loading || invite == null) return;
+
     setState(() => _loading = true);
 
     try {
@@ -255,7 +266,7 @@ class _InviteBannerState extends State<_InviteBanner>
                 builder: (context, _) {
                   final value = _progressController?.value ?? 0;
                   return FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
+                    alignment: .centerLeft,
                     widthFactor: (1.0 - value).clamp(0.0, 1.0),
                     child: ColoredBox(
                       color: kActiveColor,
@@ -266,6 +277,144 @@ class _InviteBannerState extends State<_InviteBanner>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JoinGameBanner extends StatefulWidget {
+  const _JoinGameBanner({required this.info});
+
+  final JoinGameInfo? info;
+
+  @override
+  State<_JoinGameBanner> createState() => _JoinGameBannerState();
+}
+
+class _JoinGameBannerState extends State<_JoinGameBanner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Offset> _slideAnimation;
+  late final Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: .zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: .easeOut,
+    );
+
+    if (widget.info != null) _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(_JoinGameBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.info != null && oldWidget.info == null) {
+      _controller.forward();
+    } else if (widget.info == null && oldWidget.info != null) {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      bottom: 120,
+      right: 0,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: _buildBanner(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBanner() {
+    final info = widget.info;
+    if (info == null) return const SizedBox.shrink();
+
+    return BackgroundBlur(
+      borderRadius: const .horizontal(
+        left: .circular(kDefaultInnerBorderRadius),
+      ),
+      blurColorOpacity: 0.6,
+      blurIntensity: 8,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 300, minWidth: 260),
+        decoration: BoxDecoration(
+          border: const Border(
+            left: BorderSide(color: decoColor, width: 2),
+            top: BorderSide(color: decoColor, width: 2),
+            bottom: BorderSide(color: decoColor, width: 2),
+          ),
+          borderRadius: .horizontal(
+            left: const .circular(kDefaultInnerBorderRadius),
+          ),
+        ),
+        child: Padding(
+          padding: const .symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            mainAxisSize: .min,
+            children: [
+              Icon(FluentIcons.game, size: 24, color: kActiveColor),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: .start,
+                  mainAxisSize: .min,
+                  children: [
+                    Text(
+                      info.serverName.toUpperCase(),
+                      style: const TextStyle(
+                        fontFamily: FontFamily.battlefrontUI,
+                        fontSize: 13,
+                        color: kWhiteColor,
+                        height: 1,
+                      ),
+                      overflow: .ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'JOINING GAME',
+                      style: TextStyle(
+                        fontFamily: FontFamily.battlefrontUI,
+                        fontSize: 11,
+                        color: kButtonBorder,
+                        height: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _BannerAction(
+                icon: mt.Icons.open_in_full,
+                color: kActiveColor,
+                onPressed: () {
+                  context.read<SessionCubit>().showJoinGameDialog();
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
