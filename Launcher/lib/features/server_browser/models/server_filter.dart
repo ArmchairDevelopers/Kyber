@@ -52,19 +52,34 @@ enum GameType {
 }
 
 // api should return this at some point
-const Map<List<String>, ServerRegion> regionMappings = {
-  ['de-nuremberg']: .eu,
-  ['us-ashburn']: .na,
+const Map<String, ServerRegion> regionMappings = {
+  'de-nuremberg': .eu,
+  'us-ashburn': .na,
 };
+
+// TODO: temp
+const Map<ServerRegion, String> regionToProxy = {
+  .eu: 'de-nuremberg',
+  .na: 'us-ashburn',
+};
+
+enum ServerGroupType {
+  crossRegion,
+  persisted,
+}
 
 class ServerGroup {
   ServerGroup({
     required this.servers,
     required this.groupName,
+    required this.groupType,
+    required this.groupKey,
   });
 
   final List<Server> servers;
   final String groupName;
+  final ServerGroupType groupType;
+  final String groupKey;
 
   Server getPreferredServer() {
     final s = List.of(servers)
@@ -76,9 +91,23 @@ class ServerGroup {
   List<Server> getSorted() {
     final s = List.of(servers)
       ..sort(
-        (a, b) => (a.meta['instance_id']!).compareTo(b.meta['instance_id']!),
+        (a, b) => (a.meta['instance_id'] ?? a.id)
+            .compareTo(b.meta['instance_id'] ?? b.id),
       );
     return s;
+  }
+
+  Set<ServerRegion> get regions {
+    return servers
+        .where((e) => e.region.isNotEmpty)
+        .map(
+          (e) => ServerRegion.values.firstWhereOrNull(
+            (r) => r.name == e.region.toLowerCase(),
+          ),
+        )
+        .whereType<ServerRegion>()
+        .where((r) => r != ServerRegion.all)
+        .toSet();
   }
 
   ServerRegion getPreferredRegion() {

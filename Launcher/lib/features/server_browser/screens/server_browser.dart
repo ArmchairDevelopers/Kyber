@@ -1,7 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/kyber/helper/kyber_status_helper.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_api_status_cubit.dart';
@@ -55,15 +54,10 @@ class _ServerBrowserState extends State<ServerBrowser> {
                   return;
                 }
 
-                final serverId = selectedServer is ServerGroup
-                    ? selectedServer.serverInfo.id
-                    : (selectedServer as Server).id;
+                final serverId = selectedServer.serverInfo.id;
 
                 final server = state.servers.where((s) {
-                  final id = s is ServerGroup
-                      ? s.serverInfo.id
-                      : (s as Server).id;
-                  return id == serverId;
+                  return s.serverInfo.id == serverId;
                 }).toList();
 
                 if (server.isEmpty) {

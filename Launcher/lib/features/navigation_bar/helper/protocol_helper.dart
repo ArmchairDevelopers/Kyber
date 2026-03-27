@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,15 +8,16 @@ import 'package:kyber_launcher/core/config/strings.dart';
 import 'package:kyber_launcher/core/routing/app_router.dart';
 import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
-import 'package:kyber_launcher/features/download_manager/models/download_link_type.dart' as dl;
+import 'package:kyber_launcher/features/download_manager/models/download_link_type.dart'
+    as dl;
 import 'package:kyber_launcher/features/download_manager/models/download_request.dart';
-import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
 import 'package:kyber_launcher/features/download_manager/services/download_orchestrator.dart';
 import 'package:kyber_launcher/features/maxima/helper/maxima_helper.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
@@ -264,7 +264,8 @@ class ProtocolHelper {
     }
 
     if (context.mounted) {
-      context.read<ServerBrowserCubit>().selectServer(server);
+      final entry = SingleServer(server: server);
+      context.read<ServerBrowserCubit>().selectServer(entry);
 
       if (forceJoin) {
         context.read<ServerBrowserCubit>().joinServer();
@@ -275,7 +276,7 @@ class ProtocolHelper {
       if (mods.every((m) => ModHelper.isInstalled(m.name, m.version))) {
         context.read<ServerBrowserCubit>().joinServer();
       } else {
-        context.read<ServerBrowserCubit>().selectServer(server);
+        context.read<ServerBrowserCubit>().selectServer(entry);
       }
     }
   }

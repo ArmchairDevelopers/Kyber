@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_status_cubit.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/server_info_box.dart';
 import 'package:kyber_launcher/features/server_host/providers/host_search_cubit.dart';
 import 'package:kyber_launcher/features/server_host/widgets/create_server/map_rotation_page.dart';
@@ -19,7 +20,6 @@ import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_input.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_tab_bar.dart';
 import 'package:kyber_launcher/shared/ui/layout/bordered_content.dart';
-import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
 import 'package:logging/logging.dart';
 
 class ServerHost extends StatefulWidget {
@@ -68,10 +68,9 @@ class _ServerHostState extends State<ServerHost> {
           Expanded(
             flex: 6,
             child: BorderedContent(
-              overlappingBorder: !createServer &&! context
-                  .watch<ModerationCubit>()
-                  .state
-                  .selected,
+              overlappingBorder:
+                  !createServer &&
+                  !context.watch<ModerationCubit>().state.selected,
               header: BlocBuilder<ModerationCubit, ModerationServerState>(
                 builder: (context, state) {
                   return Row(
@@ -239,7 +238,7 @@ class _ServerHostState extends State<ServerHost> {
 
                 if (state.server != null) {
                   return ServerInfoBox(
-                    server: state.server!,
+                    server: SingleServer(server: state.server!),
                     onClose: () =>
                         context.read<ModerationCubit>().unloadServer(),
                     onServerSelected: () =>

@@ -6,7 +6,6 @@ import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/features/kyber/models/maps.dart';
 import 'package:kyber_launcher/features/kyber/models/mode.dart';
 import 'package:kyber_launcher/features/kyber/models/modes.dart';
-import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_list_state.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_list/entry.dart';
@@ -89,9 +88,7 @@ class _TableServerListState extends State<TableServerList> {
                         }
 
                         final server = servers[index - 1];
-                        final serverInfo = (server is ServerGroup
-                            ? server.getPreferredServer()
-                            : server as Server);
+                        final serverInfo = server.serverInfo;
                         final mode =
                             modes
                                 .where(

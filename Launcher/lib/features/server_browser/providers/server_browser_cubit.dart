@@ -25,7 +25,7 @@ import 'package:kyber_launcher/features/nexusmods/dialogs/nexusmods_login.dart';
 import 'package:kyber_launcher/features/nexusmods/exceptions/missing_nexus_auth_exception.dart';
 import 'package:kyber_launcher/features/nexusmods/services/mod_finder_service.dart';
 import 'package:kyber_launcher/features/server_browser/dialogs/join_server_dialog.dart';
-import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
@@ -45,7 +45,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     return super.close();
   }
 
-  void selectServer(Object? server) {
+  void selectServer(ServerEntry? server) {
     emit(state.copyWith(selectedServer: server));
   }
 
@@ -55,31 +55,28 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
 
   void joinServer({bool enabledDownload = true}) {
     if (hasAllRequiredMods()) {
-      if (state.selectedServer! is! ServerGroup) {
-        emit(state.copyWith(selectedServer: state.selectedServer! as Server));
-      }
-
       _joinServer();
     } else if (enabledDownload) {
-      emit(
-        state.copyWith(
-          joiningServer: (state.selectedServer is ServerGroup
-              ? (state.selectedServer! as ServerGroup).getPreferredServer()
-              : (state.selectedServer! as Server)),
-        ),
-      );
+      final joiningServer = switch (state.selectedServer!) {
+        GroupedServer(:final group) => group.getPreferredServer(),
+        SingleServer(:final server) => server,
+      };
+      emit(state.copyWith(joiningServer: joiningServer));
       _startDownloads();
     }
   }
 
   bool hasAllRequiredMods() {
-    final targetServer = state.joiningServer ?? state.selectedServer;
-    if (targetServer == null) return false;
+    if (state.joiningServer != null) {
+      return state.joiningServer!.mods.every(
+        (mod) => ModHelper.isInstalled(mod.name, mod.version),
+      );
+    }
 
-    final server = targetServer is ServerGroup
-        ? targetServer.getPreferredServer()
-        : targetServer as Server;
+    final selected = state.selectedServer;
+    if (selected == null) return false;
 
+    final server = selected.serverInfo;
     return server.mods.every(
       (mod) => ModHelper.isInstalled(mod.name, mod.version),
     );
@@ -88,15 +85,13 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
   Future<void> _joinServer() async {
     try {
       final dialogCompleted = Completer<JoinDialogResult?>();
-      final server = state.selectedServer!;
-      final initialServerData = (server is ServerGroup)
-          ? server.getPreferredServer()
-          : server as Server;
+      final entry = state.selectedServer!;
+      final initialServerData = entry.serverInfo;
 
       showKyberDialog<JoinDialogResult?>(
         context: navigatorKey.currentContext!,
         builder: (context) => CosmeticModsDialog(
-          server: server,
+          server: entry,
         ),
       ).then(dialogCompleted.complete);
 
@@ -133,15 +128,16 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
       final result = await dialogCompleted.future;
 
       if (result == null) {
-        emit(.new(selectedServer: server));
+        emit(.new(selectedServer: entry));
         return;
       }
 
-      final selectedServer = server is! ServerGroup
-          ? server as Server
-          : server.servers.firstWhere(
-              (e) => e.meta['instance_id'] == result.instanceId,
-            );
+      final selectedServer = switch (entry) {
+        SingleServer(:final server) => server,
+        GroupedServer(:final group) => group.servers.firstWhere(
+          (e) => e.meta['instance_id'] == result.instanceId,
+        ),
+      };
       await KyberServerHelper.joinServer(
         selectedServer,
         selectedCollection: result.collection,
@@ -149,7 +145,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
         password: result.password,
       );
 
-      emit(ServerBrowserState(selectedServer: server));
+      emit(ServerBrowserState(selectedServer: entry));
     } catch (e, s) {
       Logger('server_browser').severe('Error joining server!', e, s);
       emit(const ServerBrowserState());
@@ -251,8 +247,8 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
   }
 
   Future<void> _startDownloads() async {
-    final server = state.selectedServer;
-    if (server == null) {
+    final entry = state.selectedServer;
+    if (entry == null) {
       return;
     }
 
@@ -268,9 +264,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
       NotificationService.info(message: 'Paused download for $name');
     }
 
-    final serverInfo = server is ServerGroup
-        ? server.getPreferredServer()
-        : server as Server;
+    final serverInfo = entry.serverInfo;
 
     final missingMods = serverInfo.mods
         .where((mod) => !ModHelper.isInstalled(mod.name, mod.version))
@@ -391,7 +385,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
           Logger.root.info('No more running downloads, stopping checker.');
           timer.cancel();
           _downloadChecker = null;
-          emit(.new(selectedServer: server));
+          emit(.new(selectedServer: entry));
         }
 
         return;
@@ -409,8 +403,8 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
         await router.pushReplacement('/home');
       }
 
-      if (state.selectedServer != server) {
-        selectServer(server);
+      if (state.selectedServer != entry) {
+        selectServer(entry);
       }
 
       await _joinServer();

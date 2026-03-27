@@ -3,16 +3,17 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_fadein/flutter_fadein.dart';
 import 'package:grpc/grpc.dart' hide Server;
 import 'package:kyber/kyber.dart';
 import 'package:kyber_collection/kyber_collection.dart';
-import 'package:kyber_launcher/core/config/colors.dart';
-import 'package:kyber_launcher/core/services/app_settings.dart';
-import 'package:kyber_launcher/core/services/notification_service.dart';
+import 'package:kyber_launcher/core/core.dart';
+import 'package:kyber_launcher/features/kyber/providers/kyber_proxy_cubit.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
 import 'package:kyber_launcher/features/mods/widgets/collection_list/collection_icon.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/background_image.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_mod_tile.dart';
@@ -32,7 +33,7 @@ class CosmeticModsDialog extends StatefulWidget {
     super.key,
   });
 
-  final Object server;
+  final ServerEntry server;
   final bool skipPasswordCheck;
 
   @override
@@ -47,7 +48,9 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
   String password = '';
 
   bool isMultiRegion = false;
-  ServerRegion selectedRegion = ServerRegion.all;
+  bool isCrossRegion = false;
+  ServerRegion selectedRegion = .all;
+  int _regionTabIndex = 0;
 
   bool withoutMods = true;
   bool spectator = false;
@@ -60,15 +63,22 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
   @override
   void initState() {
-    if (widget.server is ServerGroup) {
-      final server = widget.server as ServerGroup;
-      isMultiRegion = server.isMultiRegion();
-      selectedRegion = server.getPreferredRegion();
+    if (widget.server case GroupedServer(:final group)) {
+      isMultiRegion = group.isMultiRegion();
+      isCrossRegion = group.groupType == ServerGroupType.crossRegion;
+      if (!isCrossRegion) {
+        selectedRegion = group.getPreferredRegion();
+      } else {
+        final regionByProxy = findRegion(group.regions);
+
+        if (regionByProxy != null) {
+          selectedRegion = regionByProxy;
+          _regionTabIndex = group.regions.toList().indexOf(regionByProxy) + 1;
+        }
+      }
     }
 
-    serverInfo = widget.server is ServerGroup
-        ? (widget.server as ServerGroup).getPreferredServer()
-        : widget.server as Server;
+    serverInfo = widget.server.serverInfo;
     correctPassword = widget.skipPasswordCheck || !serverInfo.requiresPassword;
     withoutMods = !Preferences.general.useCosmetics;
     final mods = serverInfo.mods
@@ -106,6 +116,23 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
     selectedCollection ??= collections.firstOrNull;
 
     super.initState();
+  }
+
+  ServerRegion? findRegion(Set<ServerRegion> regions) {
+    final proxies = navigatorKey.currentContext!
+        .read<KyberProxyCubit>()
+        .state
+        .proxies;
+
+    final serverProxies = regions.map((e) => regionToProxy[e]);
+
+    for (final proxy in proxies) {
+      if (serverProxies.contains(proxy.proxy.id)) {
+        return regionMappings[proxy.proxy.id];
+      }
+    }
+
+    return null;
   }
 
   @override
@@ -194,20 +221,50 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                         if (route == 'mods') {
                           return _ModsPage(
                             onBack: () => setState(() => route = null),
-                            server: widget.server as Server,
+                            server: serverInfo,
                             collections: collections,
                             selectedCollection: selectedCollection,
                           );
                         }
 
-                        if (widget.server is ServerGroup) {
-                          final server = widget.server as ServerGroup;
+                        if (widget.server case GroupedServer(:final group)) {
+                          final displayedServers = selectedRegion == .all
+                              ? group.servers
+                              : group.getForRegion(selectedRegion);
 
                           return Column(
-                            crossAxisAlignment: .center,
                             children: [
+                              if (isCrossRegion && isMultiRegion)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 15),
+                                  child: SizedBox(
+                                    width: 450,
+                                    height: 35,
+                                    child: KyberTabBar(
+                                      tabs: [
+                                        const Text('ALL'),
+                                        for (final region in group.regions)
+                                          Text(
+                                            region.displayName.toUpperCase(),
+                                          ),
+                                      ],
+                                      selectedIndex: _regionTabIndex,
+                                      onChanged: (index) {
+                                        setState(() {
+                                          if (index == 0) {
+                                            selectedRegion = .all;
+                                          } else {
+                                            selectedRegion = group.regions
+                                                .elementAt(index - 1);
+                                          }
+                                          _regionTabIndex = index;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
                               SizedBox(
-                                height: 500,
+                                height: 480,
                                 child: LayoutBuilder(
                                   builder: (context, constraints) => ListView(
                                     padding: .only(
@@ -217,7 +274,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                                     ),
                                     scrollDirection: .horizontal,
                                     children: [
-                                      for (final server in server.servers)
+                                      for (final server in displayedServers)
                                         Padding(
                                           padding: const EdgeInsets.only(
                                             right: 25,
@@ -241,22 +298,6 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                               ),
                             ],
                           );
-                          return Row(
-                            spacing: 15,
-                            mainAxisAlignment: .center,
-                            children: [
-                              for (final server in server.servers)
-                                LocalHero(
-                                  tag: 'main_server_card_${server.id}',
-                                  child: _ServerCard(
-                                    server: server,
-                                    onMods: () =>
-                                        setState(() => route = 'mods'),
-                                    onBack: () => setState(() => route = null),
-                                  ),
-                                ),
-                            ],
-                          );
                         }
 
                         return Column(
@@ -269,124 +310,14 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                                 LocalHero(
                                   tag: 'main_server_card',
                                   child: _ServerCard(
-                                    server: widget.server as Server,
+                                    server:
+                                        (widget.server as SingleServer).server,
                                     onMods: () =>
                                         setState(() => route = 'mods'),
                                     onBack: () => setState(() => route = null),
                                   ),
                                 ),
                               ],
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    return Actions(
-      actions: {
-        DismissIntent: CallbackAction<DismissIntent>(
-          onInvoke: (intent) {
-            if (route != null) {
-              setState(() => route = null);
-              return null;
-            }
-
-            Navigator.pop(context);
-
-            return null;
-          },
-        ),
-      },
-      child: FocusScope(
-        autofocus: true,
-        child: LocalHeroScope(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-          createRectTween: (begin, end) {
-            return mt.MaterialRectCenterArcTween(begin: begin, end: end);
-          },
-          child: Padding(
-            padding: kDefaultPadding.copyWith(top: 60),
-            child: Column(
-              children: [
-                SizedBox(
-                  height: 40,
-                  child: _NavigationBar(
-                    server: widget.server as Server,
-                    route: route,
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 50),
-                    child: Builder(
-                      key: ValueKey(route ?? 'main'),
-                      builder: (context) {
-                        if (route == 'mods') {
-                          return _ModsPage(
-                            onBack: () => setState(() => route = null),
-                            server: widget.server as Server,
-                            collections: collections,
-                            selectedCollection: selectedCollection,
-                          );
-                        }
-
-                        return Column(
-                          spacing: 20,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                LocalHero(
-                                  tag: 'main_server_card',
-                                  child: _ServerCard(
-                                    server: widget.server as Server,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(
-                              width: 500,
-                              child: KyberList(
-                                itemBuilder: (c, i) {
-                                  const items = ['MODS', 'SPECTATE', 'REPORT'];
-                                  return Text(
-                                    items[i],
-                                    style: const TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
-                                      fontSize: 18,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  );
-                                },
-                                onSelectionChanged: (index) {
-                                  switch (index) {
-                                    case 0:
-                                      setState(() => route = 'mods');
-                                    case 1:
-                                      setState(() => spectator = !spectator);
-                                    case 2:
-                                      return;
-                                  }
-                                },
-                                shrinkWrap: true,
-                                borderRadius: kDefaultInnerBorderRadius,
-                                stateless: true,
-                                activeIndex: -1,
-                                roundedStart: true,
-                                roundedEnd: true,
-                                defaultTheme: false,
-                                itemCount: 3,
-                              ),
                             ),
                           ],
                         );
@@ -441,7 +372,7 @@ class _ModsPageState extends State<_ModsPage> {
                 tag: 'main_server_card',
                 child: _ServerCard(
                   onBack: widget.onBack,
-                  server: widget.server as Server,
+                  server: widget.server,
                   type: _ServerCardType.minimal,
                 ),
               ),
@@ -593,15 +524,14 @@ class _ModsPageState extends State<_ModsPage> {
 class _NavigationBar extends StatelessWidget {
   const _NavigationBar({required this.server, this.route, super.key});
 
-  final Object server;
+  final ServerEntry server;
   final String? route;
 
   @override
   Widget build(BuildContext context) {
     final name = switch (server) {
-      final ServerGroup sg => sg.groupName,
-      final Server s => s.name,
-      _ => 'UNKNOWN SERVER',
+      GroupedServer(:final group) => group.groupName,
+      SingleServer(:final server) => server.name,
     };
     final routes = ['PLAY', name, ?route];
 

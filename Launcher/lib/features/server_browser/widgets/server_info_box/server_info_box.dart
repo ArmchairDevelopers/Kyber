@@ -11,7 +11,7 @@ import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/features/reports/dialogs/report_player_dialog.dart';
-import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/background_image.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/download_progress.dart';
@@ -31,7 +31,7 @@ class ServerInfoBox extends StatefulWidget {
     super.key,
   });
 
-  final Object server;
+  final ServerEntry server;
   final bool moderationMode;
   final VoidCallback? onServerSelected;
   final VoidCallback? onClose;
@@ -51,9 +51,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
 
   @override
   void initState() {
-    serverInfo = widget.server is ServerGroup
-        ? (widget.server as ServerGroup).getPreferredServer()
-        : widget.server as Server;
+    serverInfo = widget.server.serverInfo;
     super.initState();
   }
 
@@ -63,9 +61,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
       selectedIndex = 0;
     }
 
-    serverInfo = widget.server is ServerGroup
-        ? (widget.server as ServerGroup).getPreferredServer()
-        : widget.server as Server;
+    serverInfo = widget.server.serverInfo;
 
     super.didUpdateWidget(oldWidget);
   }
@@ -399,7 +395,8 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                   ),
                 ),
               ] else if (serverInfo.description.isNotEmpty &&
-                  selectedIndex == (selectedServer is ServerGroup ? 2 : 1)) ...[
+                  selectedIndex ==
+                      (selectedServer is GroupedServer ? 2 : 1)) ...[
                 Expanded(
                   child: BackgroundBlur(
                     borderRadius: const BorderRadius.vertical(
@@ -462,224 +459,235 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                   ),
                 ),
               ] else if (selectedIndex == 1 &&
-                  selectedServer is ServerGroup) ...[
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(kDefaultOuterBorderRadius),
-                  ),
-                  child: BackgroundBlur(
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: IgnorePointer(
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                borderRadius: BorderRadius.vertical(
-                                  bottom: Radius.circular(
-                                    kDefaultOuterBorderRadius,
+                  selectedServer is GroupedServer) ...[
+                Builder(
+                  builder: (context) {
+                    final serverGroup = selectedServer.group;
+                    return ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(kDefaultOuterBorderRadius),
+                      ),
+                      child: BackgroundBlur(
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    borderRadius: BorderRadius.vertical(
+                                      bottom: Radius.circular(
+                                        kDefaultOuterBorderRadius,
+                                      ),
+                                    ),
+                                    border: Border(
+                                      bottom: kDefaultBorder,
+                                      left: kDefaultBorder,
+                                      right: kDefaultBorder,
+                                    ),
                                   ),
                                 ),
-                                border: Border(
-                                  bottom: kDefaultBorder,
-                                  left: kDefaultBorder,
-                                  right: kDefaultBorder,
+                              ),
+                            ),
+                            ColoredBox(
+                              color: Colors.black.withValues(alpha: .5),
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  bottom: Radius.circular(
+                                    kDefaultOuterBorderRadius + 4,
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        ColoredBox(
-                          color: Colors.black.withValues(alpha: .5),
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(
-                                kDefaultOuterBorderRadius + 4,
-                              ),
-                            ),
-                            child: RepaintBoundary(
-                              key: Key('server_list'),
-                              child: KyberList(
-                                colorOpacity: 0,
-                                shrinkWrap: true,
-                                blur: false,
-                                activeIndex:
-                                    selectedServer.getInstanceId(
-                                      selectedServer.getPreferredServer().id,
-                                    ) -
-                                    1,
-                                roundedEnd: false,
-                                //itemPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 13),
-                                itemPadding: EdgeInsets.zero,
-                                physics: const ScrollPhysics(),
-                                itemBuilder: (context, index) {
-                                  final item = selectedServer
-                                      .getSorted()[index];
-                                  final serverInfo = item;
-                                  return Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 75,
-                                        height: 50,
-                                        child: Builder(
-                                          builder: (context) {
-                                            if (serverInfo
-                                                .mapImageHash
-                                                .isNotEmpty) {
-                                              return CachedNetworkImage(
-                                                imageUrl:
-                                                    'https://${sl.get<KyberGRPCService>().httpHostname}/images/${serverInfo.mapImageHash}.jpeg',
-                                                fit: BoxFit.cover,
-                                                alignment: Alignment.centerLeft,
-                                                colorBlendMode:
-                                                    BlendMode.darken,
-                                                color: Colors.black.withOpacity(
-                                                  .12,
-                                                ),
-                                              );
-                                            }
+                                child: RepaintBoundary(
+                                  key: Key('server_list'),
+                                  child: KyberList(
+                                    colorOpacity: 0,
+                                    shrinkWrap: true,
+                                    blur: false,
+                                    activeIndex:
+                                        serverGroup.getInstanceId(
+                                          serverGroup.getPreferredServer().id,
+                                        ) -
+                                        1,
+                                    roundedEnd: false,
+                                    //itemPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 13),
+                                    itemPadding: EdgeInsets.zero,
+                                    physics: const ScrollPhysics(),
+                                    itemBuilder: (context, index) {
+                                      final item = serverGroup
+                                          .getSorted()[index];
+                                      final serverInfo = item;
+                                      return Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 75,
+                                            height: 50,
+                                            child: Builder(
+                                              builder: (context) {
+                                                if (serverInfo
+                                                    .mapImageHash
+                                                    .isNotEmpty) {
+                                                  return CachedNetworkImage(
+                                                    imageUrl:
+                                                        'https://${sl.get<KyberGRPCService>().httpHostname}/images/${serverInfo.mapImageHash}.jpeg',
+                                                    fit: BoxFit.cover,
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    colorBlendMode:
+                                                        BlendMode.darken,
+                                                    color: Colors.black
+                                                        .withOpacity(
+                                                          .12,
+                                                        ),
+                                                  );
+                                                }
 
-                                            return MapHelper.getImageForMap(
-                                              serverInfo.levelSetup.map,
-                                            )!.image(
-                                              fit: BoxFit.cover,
-                                              alignment: Alignment.centerLeft,
-                                              colorBlendMode: BlendMode.darken,
-                                              color: Colors.black.withOpacity(
-                                                .12,
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                      Container(
-                                        width: 2,
-                                        height: 50,
-                                        color: decoColor,
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                  ).copyWith(top: 5),
-                                              child: Text(
-                                                'INSTANCE #${index + 1}',
-                                                style: const TextStyle(
-                                                  fontFamily:
-                                                      FontFamily.battlefrontUI,
-                                                  fontSize: 16,
-                                                  height: 1,
-                                                ),
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                  ),
-                                              child: Row(
-                                                children: [
-                                                  RichText(
-                                                    text: TextSpan(
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                        color: kWhiteColor1,
-                                                        fontFamily: FontFamily
-                                                            .battlefrontUI,
+                                                return MapHelper.getImageForMap(
+                                                  serverInfo.levelSetup.map,
+                                                )!.image(
+                                                  fit: BoxFit.cover,
+                                                  alignment:
+                                                      Alignment.centerLeft,
+                                                  colorBlendMode:
+                                                      BlendMode.darken,
+                                                  color: Colors.black
+                                                      .withOpacity(
+                                                        .12,
                                                       ),
-                                                      children: [
-                                                        TextSpan(
-                                                          text:
-                                                              serverInfo
-                                                                  .levelSetup
-                                                                  .modeName
-                                                                  .isNotEmpty
-                                                              ? serverInfo
-                                                                    .levelSetup
-                                                                    .modeName
-                                                              : MapHelper.getMode(
-                                                                      serverInfo
-                                                                          .levelSetup
-                                                                          .mode,
-                                                                    )?.name ??
-                                                                    'UNKNOWN MODE',
-                                                        ),
-                                                        const TextSpan(
-                                                          text: ' | ',
-                                                          style: TextStyle(
-                                                            color: decoColor,
-                                                          ),
-                                                        ),
-                                                        TextSpan(
-                                                          text:
-                                                              serverInfo
-                                                                  .levelSetup
-                                                                  .mapName
-                                                                  .isNotEmpty
-                                                              ? serverInfo
-                                                                    .levelSetup
-                                                                    .mapName
-                                                              : MapHelper.getMap(
-                                                                      serverInfo
-                                                                          .levelSetup
-                                                                          .mode,
-                                                                      serverInfo
-                                                                          .levelSetup
-                                                                          .map,
-                                                                    )?.name ??
-                                                                    'UNKNOWN MAP',
-                                                        ),
-                                                      ],
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                          Container(
+                                            width: 2,
+                                            height: 50,
+                                            color: decoColor,
+                                          ),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                      ).copyWith(top: 5),
+                                                  child: Text(
+                                                    'INSTANCE #${index + 1}',
+                                                    style: const TextStyle(
+                                                      fontFamily: FontFamily
+                                                          .battlefrontUI,
+                                                      fontSize: 16,
+                                                      height: 1,
                                                     ),
                                                   ),
-                                                ],
+                                                ),
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                      ),
+                                                  child: Row(
+                                                    children: [
+                                                      RichText(
+                                                        text: TextSpan(
+                                                          style: const TextStyle(
+                                                            fontSize: 16,
+                                                            color: kWhiteColor1,
+                                                            fontFamily: FontFamily
+                                                                .battlefrontUI,
+                                                          ),
+                                                          children: [
+                                                            TextSpan(
+                                                              text:
+                                                                  serverInfo
+                                                                      .levelSetup
+                                                                      .modeName
+                                                                      .isNotEmpty
+                                                                  ? serverInfo
+                                                                        .levelSetup
+                                                                        .modeName
+                                                                  : MapHelper.getMode(
+                                                                          serverInfo
+                                                                              .levelSetup
+                                                                              .mode,
+                                                                        )?.name ??
+                                                                        'UNKNOWN MODE',
+                                                            ),
+                                                            const TextSpan(
+                                                              text: ' | ',
+                                                              style: TextStyle(
+                                                                color:
+                                                                    decoColor,
+                                                              ),
+                                                            ),
+                                                            TextSpan(
+                                                              text:
+                                                                  serverInfo
+                                                                      .levelSetup
+                                                                      .mapName
+                                                                      .isNotEmpty
+                                                                  ? serverInfo
+                                                                        .levelSetup
+                                                                        .mapName
+                                                                  : MapHelper.getMap(
+                                                                          serverInfo
+                                                                              .levelSetup
+                                                                              .mode,
+                                                                          serverInfo
+                                                                              .levelSetup
+                                                                              .map,
+                                                                        )?.name ??
+                                                                        'UNKNOWN MAP',
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                            ),
+                                            child: Text(
+                                              '${item.playerCount}/${item.maxPlayerCount}',
+                                              style: const TextStyle(
+                                                fontFamily:
+                                                    FontFamily.battlefrontUI,
+                                                fontSize: 16,
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                        ),
-                                        child: Text(
-                                          '${item.playerCount}/${item.maxPlayerCount}',
-                                          style: const TextStyle(
-                                            fontFamily:
-                                                FontFamily.battlefrontUI,
-                                            fontSize: 16,
                                           ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                                itemCount: selectedServer.servers.length,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned.fill(
-                          child: IgnorePointer(
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                borderRadius: BorderRadius.vertical(
-                                  bottom: Radius.circular(
-                                    kDefaultOuterBorderRadius,
+                                        ],
+                                      );
+                                    },
+                                    itemCount: serverGroup.servers.length,
                                   ),
                                 ),
-                                border: Border(bottom: kDefaultBorder),
                               ),
                             ),
-                          ),
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    borderRadius: BorderRadius.vertical(
+                                      bottom: Radius.circular(
+                                        kDefaultOuterBorderRadius,
+                                      ),
+                                    ),
+                                    border: Border(bottom: kDefaultBorder),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ],
@@ -808,12 +816,7 @@ class _DownloadItem extends StatefulWidget {
 
 class _DownloadItemState extends State<_DownloadItem> {
   Server get server {
-    final info = context.read<ServerBrowserCubit>().state.selectedServer!;
-    if (info is ServerGroup) {
-      return info.serverInfo;
-    }
-
-    return info as Server;
+    return context.read<ServerBrowserCubit>().state.selectedServer!.serverInfo;
   }
 
   @override
@@ -826,7 +829,7 @@ class _DownloadItemState extends State<_DownloadItem> {
         final hasRequiredMods = context
             .read<ServerBrowserCubit>()
             .hasAllRequiredMods();
-        if (state.selectedServer != server ||
+        if (state.selectedServer?.serverInfo != server ||
             server.mods.isEmpty ||
             hasRequiredMods ||
             !hasRequiredMods && state.joiningServer != server) {
