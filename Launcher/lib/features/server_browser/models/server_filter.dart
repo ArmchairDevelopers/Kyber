@@ -51,16 +51,10 @@ enum GameType {
   vanilla,
 }
 
-// api should return this at some point
+// TODO: api should return this at some point
 const Map<String, ServerRegion> regionMappings = {
   'de-nuremberg': .eu,
   'us-ashburn': .na,
-};
-
-// TODO: temp
-const Map<ServerRegion, String> regionToProxy = {
-  .eu: 'de-nuremberg',
-  .na: 'us-ashburn',
 };
 
 enum ServerGroupType {
@@ -95,6 +89,26 @@ class ServerGroup {
             .compareTo(b.meta['instance_id'] ?? b.id),
       );
     return s;
+  }
+
+  Map<String, ServerRegion> get regionProxyMappings {
+    final mappings = <String, ServerRegion>{};
+
+    for (final server in servers) {
+      if (server.region.isEmpty) continue;
+
+      final region = ServerRegion.values.firstWhereOrNull(
+        (r) => r.name == server.region.toLowerCase(),
+      );
+      if (region == null || region == ServerRegion.all) continue;
+
+      final proxyId = server.meta['pinned_proxy_id'];
+      if (proxyId == null) continue;
+
+      mappings[proxyId] = region;
+    }
+
+    return mappings;
   }
 
   Set<ServerRegion> get regions {

@@ -43,6 +43,8 @@ class CosmeticModsDialog extends StatefulWidget {
 class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
   late bool correctPassword;
 
+  final _logger = Logger('join_server_dialog');
+
   String? route;
 
   String password = '';
@@ -69,11 +71,16 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
       if (!isCrossRegion) {
         selectedRegion = group.getPreferredRegion();
       } else {
-        final regionByProxy = findRegion(group.regions);
+        final regionByProxy = findRegion(group);
 
         if (regionByProxy != null) {
           selectedRegion = regionByProxy;
-          _regionTabIndex = group.regions.toList().indexOf(regionByProxy) + 1;
+          _regionTabIndex = group.regions.toList().indexOf(regionByProxy);
+        } else {
+          selectedRegion = group.regions.first;
+          _logger.warning(
+            'Could not find a matching proxy for any of the server regions, defaulting to $selectedRegion',
+          );
         }
       }
     }
@@ -118,17 +125,19 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
     super.initState();
   }
 
-  ServerRegion? findRegion(Set<ServerRegion> regions) {
+  ServerRegion? findRegion(ServerGroup group) {
     final proxies = navigatorKey.currentContext!
         .read<KyberProxyCubit>()
         .state
         .proxies;
 
-    final serverProxies = regions.map((e) => regionToProxy[e]);
+    // TODO: maybe respect the user selected proxy here?
 
     for (final proxy in proxies) {
-      if (serverProxies.contains(proxy.proxy.id)) {
-        return regionMappings[proxy.proxy.id];
+      final region = group.regionProxyMappings[proxy.proxy.id];
+
+      if (region != null) {
+        return region;
       }
     }
 
