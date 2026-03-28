@@ -122,6 +122,10 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
     selectedCollection ??= collections.firstOrNull;
 
+    if (!correctPassword) {
+      route = 'password';
+    }
+
     super.initState();
   }
 
@@ -161,6 +165,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
       if (result.canJoin) {
         return setState(() {
+          route = null;
           correctPassword = true;
         });
       }
@@ -192,7 +197,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
       actions: {
         DismissIntent: CallbackAction<DismissIntent>(
           onInvoke: (intent) {
-            if (route != null) {
+            if (route != null && route != 'password') {
               setState(() => route = null);
               return null;
             }
@@ -227,6 +232,10 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                     child: Builder(
                       key: ValueKey(route ?? 'main'),
                       builder: (context) {
+                        if (route == 'password') {
+                          return _PasswordPage(server: serverInfo);
+                        }
+
                         if (route == 'mods') {
                           return _ModsPage(
                             onBack: () => setState(() => route = null),
@@ -340,6 +349,87 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
 // this entire file is a huge mess right now, it'll be split up and cleaned later, just want to get the functionality in place for now
 
+class _PasswordPage extends StatelessWidget {
+  const _PasswordPage({required this.server, super.key});
+
+  final Server server;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 450,
+      alignment: .center,
+      child: Column(
+        children: [
+          LocalHero(
+            tag: 'main_server_card',
+            child: _ServerCard(
+              server: server,
+              type: .minimal,
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(.4),
+              borderRadius: const .vertical(
+                bottom: .circular(kDefaultInnerBorderRadius),
+              ),
+              border: const Border(
+                bottom: kDefaultBorder,
+                left: kDefaultBorder,
+                right: kDefaultBorder,
+              ),
+            ),
+            child: Padding(
+              padding: const .all(15),
+              child: Column(
+                spacing: 50,
+                children: [
+                  KyberInput(
+                    placeholder: 'SERVER PASSWORD',
+                    onFieldSubmitted: (_) => context
+                        .findAncestorStateOfType<_CosmeticModsDialogState>()
+                        ?.checkPassword(),
+                    onChanged: (value) => context
+                        .findAncestorStateOfType<_CosmeticModsDialogState>()
+                    // this is so cooked but it works for now
+                    // TODO: clean this up when refactoring the entire dialog
+                        ?.setState(
+                          () =>
+                              context
+                                      .findAncestorStateOfType<
+                                        _CosmeticModsDialogState
+                                      >()
+                                      ?.password =
+                                  value,
+                        ),
+                  ),
+                  Row(
+                    mainAxisAlignment: .center,
+                    spacing: 10,
+                    children: [
+                      KyberButton(
+                        text: 'JOIN SERVER',
+                        onPressed: () => context
+                            .findAncestorStateOfType<_CosmeticModsDialogState>()
+                            ?.checkPassword(),
+                      ),
+                      KyberButton(
+                        text: 'BACK',
+                        onPressed: () => Navigator.of(context).pop()
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ModsPage extends StatefulWidget {
   const _ModsPage({
     required this.server,
@@ -363,21 +453,19 @@ class _ModsPageState extends State<_ModsPage> {
   Widget build(BuildContext context) {
     return Container(
       width: 450,
-      alignment: Alignment.center,
+      alignment: .center,
       child: Column(
         spacing: 20,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: .center,
             children: [
               LocalHero(
                 tag: 'main_server_card',
                 child: _ServerCard(
                   onBack: widget.onBack,
                   server: widget.server,
-                  type: _ServerCardType.minimal,
+                  type: .minimal,
                 ),
               ),
             ],
@@ -626,11 +714,26 @@ class _ServerCardState extends State<_ServerCard> {
         ? widget.server.levelSetup.mapName
         : map?.name ?? widget.server.levelSetup.map;
 
+    final maxHeight = switch (widget.type) {
+      _ServerCardType.full => 432.0,
+      _ServerCardType.minimal => widget.onBack != null ? 172.0 : 146.0,
+    };
+
+    final borderRadius = switch (widget.type) {
+      _ServerCardType.full => BorderRadius.circular(kDefaultInnerBorderRadius),
+      _ServerCardType.minimal =>
+        widget.onBack != null
+            ? BorderRadius.circular(kDefaultInnerBorderRadius)
+            : const BorderRadius.vertical(
+                top: .circular(kDefaultInnerBorderRadius),
+              ),
+    };
+
     return MouseRegion(
       onEnter: (_) => setState(() => hovered = true),
       onExit: (_) => setState(() => hovered = false),
       child: SizedBox(
-        height: widget.type == _ServerCardType.minimal ? 172 : 432,
+        height: maxHeight,
         child: LayoutBuilder(
           builder: (context, constraints) {
             return Stack(
@@ -640,9 +743,7 @@ class _ServerCardState extends State<_ServerCard> {
                   height: constraints.maxHeight < 240 ? 146 : 432,
                   decoration: BoxDecoration(
                     border: kDefaultAllBorder,
-                    borderRadius: BorderRadius.circular(
-                      kDefaultInnerBorderRadius,
-                    ),
+                    borderRadius: borderRadius,
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(
@@ -817,7 +918,10 @@ class _ServerCardState extends State<_ServerCard> {
                     ),
                   ),
                 ),
-                if (constraints.maxHeight < 240)
+                // TODO: cleanup
+                if (constraints.maxHeight < 240 &&
+                    (widget.type != .minimal ||
+                        (widget.type == .minimal && widget.onBack != null)))
                   Positioned(
                     left: 450 / 2 - 104,
                     top: 146 - 45 / 2,
