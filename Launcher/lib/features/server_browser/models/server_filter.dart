@@ -51,12 +51,6 @@ enum GameType {
   vanilla,
 }
 
-// TODO: api should return this at some point
-const Map<String, ServerRegion> regionMappings = {
-  'de-nuremberg': .eu,
-  'us-ashburn': .na,
-};
-
 enum ServerGroupType {
   crossRegion,
   persisted,
@@ -130,6 +124,11 @@ class ServerGroup {
         .map((e) => e.meta['pinned_proxy_id']!)
         .toSet();
 
+    final proxies = navigatorKey.currentContext!
+        .read<KyberProxyCubit>()
+        .state
+        .proxies;
+
     // TODO: use server region instead
     if (pinnedProxies.isEmpty) {
       throw Exception('No pinned proxies found for server group $groupName');
@@ -137,31 +136,16 @@ class ServerGroup {
 
     if (pinnedProxies.length == 1) {
       final proxyId = pinnedProxies.first;
-      final region = regionMappings.entries.firstWhereOrNull(
-        (entry) => entry.key.contains(proxyId),
-      );
-      if (region == null) {
+      final proxy = proxies.firstWhereOrNull((e) => e.proxy.id == proxyId);
+      if (proxy == null) {
         throw Exception('Unknown pinned proxy id: $proxyId');
       }
 
-      return region.value;
+      return ServerRegion.values.byName(proxy.proxy.region);
     }
-
-    final proxies = navigatorKey.currentContext!
-        .read<KyberProxyCubit>()
-        .state
-        .proxies;
 
     final proxy = proxies.firstWhere((e) => pinnedProxies.contains(e.proxy.id));
-    final region = regionMappings.entries.firstWhereOrNull(
-      (entry) => entry.key.contains(proxy.proxy.id),
-    );
-
-    if (region == null) {
-      throw Exception('Unknown pinned proxy id: ${proxy.proxy.id}');
-    }
-
-    return region.value;
+    return ServerRegion.values.byName(proxy.proxy.region);
   }
 
   List<Server> getForRegion(ServerRegion region) {
