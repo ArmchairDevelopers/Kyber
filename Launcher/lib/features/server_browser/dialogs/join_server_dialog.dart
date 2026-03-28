@@ -51,7 +51,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
   bool isMultiRegion = false;
   bool isCrossRegion = false;
-  ServerRegion selectedRegion = .all;
+  late ServerRegion selectedRegion;
   int _regionTabIndex = 0;
 
   bool withoutMods = true;
@@ -251,7 +251,6 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                                     height: 35,
                                     child: KyberTabBar(
                                       tabs: [
-                                        const Text('ALL'),
                                         for (final region in group.regions)
                                           Text(
                                             region.displayName.toUpperCase(),
@@ -260,12 +259,8 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                                       selectedIndex: _regionTabIndex,
                                       onChanged: (index) {
                                         setState(() {
-                                          if (index == 0) {
-                                            selectedRegion = .all;
-                                          } else {
-                                            selectedRegion = group.regions
-                                                .elementAt(index - 1);
-                                          }
+                                          selectedRegion = group.regions
+                                              .elementAt(index);
                                           _regionTabIndex = index;
                                         });
                                       },
