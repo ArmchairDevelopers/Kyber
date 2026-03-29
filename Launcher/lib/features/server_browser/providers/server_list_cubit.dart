@@ -232,7 +232,7 @@ class ServerListCubit extends Cubit<ServerListState> {
     final groupIdServers =
         List.of(s)
             .where((e) => e.meta.containsKey('group_id'))
-            .groupListsBy((e) => e.meta['group_id']!)
+            .groupListsBy((e) => e.meta['group_id']! + e.creatorId)
           ..removeWhere((k, v) => v.length < 2);
 
     for (final entry in groupIdServers.entries) {
@@ -256,7 +256,7 @@ class ServerListCubit extends Cubit<ServerListState> {
                   e.meta.containsKey('instance_id') &&
                   e.meta.containsKey('persisted_id'),
             )
-            .groupListsBy((e) => e.meta['persisted_id']!)
+            .groupListsBy((e) => e.meta['persisted_id']! + e.creatorId)
           ..removeWhere((k, v) => v.length < 2);
 
     for (final entry in persistedGroups.entries) {
