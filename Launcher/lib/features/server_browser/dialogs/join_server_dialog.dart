@@ -224,9 +224,37 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
               children: [
                 SizedBox(
                   height: 40,
-                  child: _NavigationBar(
-                    server: widget.server,
-                    route: route,
+                  child: Row(
+                    spacing: 15,
+                    children: [
+                      SizedBox(
+                        width: 40,
+                        child: ButtonBuilder(
+                          onClick: () => Navigator.of(context).pop(),
+                          builder: (context, hovered) => Row(
+                            mainAxisAlignment: .spaceBetween,
+                            children: [
+                              Container(
+                                width: 1.5,
+                                color: hovered ? kActiveColor : decoColor,
+                              ),
+                              const Icon(
+                                mt.Icons.close,
+                                size: 22,
+                              ),
+                              Container(
+                                width: 1.5,
+                                color: hovered ? kActiveColor : decoColor,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      _NavigationBar(
+                        server: widget.server,
+                        route: route,
+                      ),
+                    ],
                   ),
                 ),
                 Expanded(
@@ -397,8 +425,8 @@ class _PasswordPage extends StatelessWidget {
                         ?.checkPassword(),
                     onChanged: (value) => context
                         .findAncestorStateOfType<_CosmeticModsDialogState>()
-                    // this is so cooked but it works for now
-                    // TODO: clean this up when refactoring the entire dialog
+                        // this is so cooked but it works for now
+                        // TODO: clean this up when refactoring the entire dialog
                         ?.setState(
                           () =>
                               context
@@ -421,7 +449,7 @@ class _PasswordPage extends StatelessWidget {
                       ),
                       KyberButton(
                         text: 'BACK',
-                        onPressed: () => Navigator.of(context).pop()
+                        onPressed: () => Navigator.of(context).pop(),
                       ),
                     ],
                   ),
@@ -650,7 +678,7 @@ class _NavigationBar extends StatelessWidget {
               Container(
                 height: 41,
                 width: 1.5,
-                color: kWhiteColor,
+                color: decoColor,
               ),
               ListView.separated(
                 shrinkWrap: true,
@@ -677,7 +705,7 @@ class _NavigationBar extends StatelessWidget {
               Container(
                 height: 41,
                 width: 1.5,
-                color: kWhiteColor,
+                color: decoColor,
               ),
             ],
           ),
