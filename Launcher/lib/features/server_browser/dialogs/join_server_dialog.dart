@@ -93,6 +93,9 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
           (e) => CollectionMod(name: e.name, version: e.version, link: e.link),
         )
         .toList();
+
+    collections.add(.noMods().copyWith(title: 'No Cosmetics'));
+
     for (final collection in collectionBox.values) {
       final gameplayMods = collection
           .getLocalMods(
@@ -239,6 +242,8 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                         if (route == 'mods') {
                           return _ModsPage(
                             onBack: () => setState(() => route = null),
+                            onChanged: (item) =>
+                                setState(() => selectedCollection = item),
                             server: serverInfo,
                             collections: collections,
                             selectedCollection: selectedCollection,
@@ -436,12 +441,14 @@ class _ModsPage extends StatefulWidget {
     required this.collections,
     required this.selectedCollection,
     required this.onBack,
+    required this.onChanged,
     super.key,
   });
 
   final Server server;
   final List<ModCollectionMetaData> collections;
   final ModCollectionMetaData? selectedCollection;
+  final ValueChanged<ModCollectionMetaData> onChanged;
   final VoidCallback onBack;
 
   @override
@@ -472,32 +479,37 @@ class _ModsPageState extends State<_ModsPage> {
           ),
           KyberDropdown<ModCollectionMetaData>(
             onChanged: (value) {
-              //setState(() => selectedCollection = value);
+              widget.onChanged(value);
               Preferences.general.selectedCosmeticCollection = value.localId;
             },
             itemBuilder: (DropdownItem<dynamic> item) {
               item as DropdownItem<ModCollectionMetaData>;
-              return Row(
-                children: [
-                  SizedBox(
-                    height: 40,
-                    width: 40,
-                    child: CollectionIcon(collection: item.value),
-                  ),
-                  Container(width: 2, height: 40, color: decoColor),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        item.value.title,
-                        style: const TextStyle(
-                          fontFamily: FontFamily.battlefrontUI,
-                          fontSize: 18,
+              return SizedBox(
+                height: 40,
+                child: Row(
+                  children: [
+                    if (widget.collections.indexOf(item.value) != 0) ...[
+                      SizedBox(
+                        height: 40,
+                        width: 40,
+                        child: CollectionIcon(collection: item.value),
+                      ),
+                      Container(width: 2, height: 40, color: decoColor),
+                    ],
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          item.value.title,
+                          style: const TextStyle(
+                            fontFamily: FontFamily.battlefrontUI,
+                            fontSize: 18,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               );
             },
             items: widget.collections
