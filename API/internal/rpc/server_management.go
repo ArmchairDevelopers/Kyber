@@ -276,6 +276,16 @@ func (s *ServerManagement) BanPlayer(ctx context.Context, req *pbapi.ServerBanPl
 		return nil, status.Error(codes.PermissionDenied, "You cannot ban the server host")
 	}
 
+	activeBan, err := s.store.Punishments.GetBanForServer(ctx, server.HostID, target.ID)
+	if err != nil {
+		logger.L().Error("Failed to check punishment", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to check punishments")
+	}
+
+	if activeBan != nil {
+		return nil, status.Error(codes.PermissionDenied, "User is already banned")
+	}
+
 	var expiresAt *time.Time
 	if req.Duration != nil {
 		expiresAt = new(time.Time)
