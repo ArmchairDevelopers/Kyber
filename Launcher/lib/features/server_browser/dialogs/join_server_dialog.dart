@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:collection/collection.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
@@ -25,6 +23,8 @@ import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:local_hero/local_hero.dart';
 import 'package:logging/logging.dart';
 import 'package:vector_graphics/vector_graphics.dart';
+
+const _kCardWidth = 450.0;
 
 class CosmeticModsDialog extends StatefulWidget {
   const CosmeticModsDialog({
@@ -54,10 +54,6 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
   late ServerRegion selectedRegion;
   int _regionTabIndex = 0;
 
-  bool withoutMods = true;
-  bool spectator = false;
-  bool showInstanceSelector = false;
-
   late Server serverInfo;
 
   List<ModCollectionMetaData> collections = [];
@@ -67,7 +63,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
   void initState() {
     if (widget.server case GroupedServer(:final group)) {
       isMultiRegion = group.isMultiRegion();
-      isCrossRegion = group.groupType == ServerGroupType.crossRegion;
+      isCrossRegion = group.groupType == .crossRegion;
       if (!isCrossRegion) {
         selectedRegion = group.getPreferredRegion();
       } else {
@@ -87,7 +83,6 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
     serverInfo = widget.server.serverInfo;
     correctPassword = widget.skipPasswordCheck || !serverInfo.requiresPassword;
-    withoutMods = !Preferences.general.useCosmetics;
     final mods = serverInfo.mods
         .map(
           (e) => CollectionMod(name: e.name, version: e.version, link: e.link),
@@ -151,11 +146,6 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
     return null;
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   Future<void> checkPassword() async {
     try {
       final service = sl.get<KyberGRPCService>();
@@ -173,23 +163,14 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
         });
       }
 
-      NotificationService.showNotification(
-        message: 'Invalid password',
-        severity: InfoBarSeverity.error,
-      );
+      NotificationService.error(message: 'Invalid password');
     } catch (e, s) {
       if (e is GrpcError && e.code == StatusCode.notFound) {
         Navigator.pop(context);
-        NotificationService.showNotification(
-          message: 'Server not found',
-          severity: InfoBarSeverity.error,
-        );
+        NotificationService.error(message: 'Server not found');
       } else {
         Logger.root.severe('An error occurred', e, s);
-        NotificationService.showNotification(
-          message: 'An error occurred',
-          severity: InfoBarSeverity.error,
-        );
+        NotificationService.error(message: 'An error occurred');
       }
     }
   }
@@ -201,7 +182,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
         DismissIntent: CallbackAction<DismissIntent>(
           onInvoke: (intent) {
             if (route != null && route != 'password') {
-              setState(() => route = null);
+              setRoute(null);
               return null;
             }
 
@@ -259,17 +240,22 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                 ),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 50),
+                    padding: const .only(bottom: 50),
                     child: Builder(
                       key: ValueKey(route ?? 'main'),
                       builder: (context) {
                         if (route == 'password') {
-                          return _PasswordPage(server: serverInfo);
+                          return _PasswordPage(
+                            server: serverInfo,
+                            onPasswordChanged: (value) =>
+                                setState(() => password = value),
+                            onSubmit: checkPassword,
+                          );
                         }
 
                         if (route == 'mods') {
                           return _ModsPage(
-                            onBack: () => setState(() => route = null),
+                            onBack: () => setRoute(null),
                             onChanged: (item) =>
                                 setState(() => selectedCollection = item),
                             server: serverInfo,
@@ -287,9 +273,9 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                             children: [
                               if (isCrossRegion && isMultiRegion)
                                 Padding(
-                                  padding: const EdgeInsets.only(bottom: 15),
+                                  padding: const .only(bottom: 15),
                                   child: SizedBox(
-                                    width: 450,
+                                    width: _kCardWidth,
                                     height: 35,
                                     child: KyberTabBar(
                                       tabs: [
@@ -316,13 +302,13 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                                     padding: .only(
                                       left:
                                           constraints.maxWidth / 2 -
-                                          (450 * 0.5),
+                                          (_kCardWidth * 0.5),
                                     ),
                                     scrollDirection: .horizontal,
                                     children: [
                                       for (final server in displayedServers)
                                         Padding(
-                                          padding: const EdgeInsets.only(
+                                          padding: const .only(
                                             right: 25,
                                           ),
                                           child: LocalHero(
@@ -330,11 +316,8 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                                                 'main_server_card_${server.id}',
                                             child: _ServerCard(
                                               server: server,
-                                              onMods: () => setState(
-                                                () => route = 'mods',
-                                              ),
-                                              onBack: () =>
-                                                  setState(() => route = null),
+                                              onMods: () => setRoute('mods'),
+                                              onBack: () => setRoute(null),
                                             ),
                                           ),
                                         ),
@@ -346,21 +329,31 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                           );
                         }
 
+                        final singleServer = widget.server as SingleServer;
+
                         return Column(
                           spacing: 20,
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment: .center,
                           children: [
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisAlignment: .center,
                               children: [
                                 LocalHero(
                                   tag: 'main_server_card',
                                   child: _ServerCard(
-                                    server:
-                                        (widget.server as SingleServer).server,
-                                    onMods: () =>
-                                        setState(() => route = 'mods'),
-                                    onBack: () => setState(() => route = null),
+                                    server: singleServer.server,
+                                    onMods: () => setRoute('mods'),
+                                    onBack: () => setRoute(null),
+                                    onPlay: (value) {
+                                      final collection =
+                                          selectedCollection ?? .noMods();
+                                      Navigator.of(context).pop(
+                                        JoinDialogResult(
+                                          collection: collection,
+                                          spectator: value,
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ],
@@ -378,19 +371,31 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
       ),
     );
   }
+
+  void setRoute(String? route) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => this.route = route);
+  }
 }
 
-// this entire file is a huge mess right now, it'll be split up and cleaned later, just want to get the functionality in place for now
-
 class _PasswordPage extends StatelessWidget {
-  const _PasswordPage({required this.server, super.key});
+  const _PasswordPage({
+    required this.server,
+    required this.onPasswordChanged,
+    required this.onSubmit,
+  });
 
   final Server server;
+  final ValueChanged<String> onPasswordChanged;
+  final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 450,
+      width: _kCardWidth,
       alignment: .center,
       child: Column(
         children: [
@@ -420,22 +425,8 @@ class _PasswordPage extends StatelessWidget {
                 children: [
                   KyberInput(
                     placeholder: 'SERVER PASSWORD',
-                    onFieldSubmitted: (_) => context
-                        .findAncestorStateOfType<_CosmeticModsDialogState>()
-                        ?.checkPassword(),
-                    onChanged: (value) => context
-                        .findAncestorStateOfType<_CosmeticModsDialogState>()
-                        // this is so cooked but it works for now
-                        // TODO: clean this up when refactoring the entire dialog
-                        ?.setState(
-                          () =>
-                              context
-                                      .findAncestorStateOfType<
-                                        _CosmeticModsDialogState
-                                      >()
-                                      ?.password =
-                                  value,
-                        ),
+                    onFieldSubmitted: (_) => onSubmit(),
+                    onChanged: onPasswordChanged,
                   ),
                   Row(
                     mainAxisAlignment: .center,
@@ -443,9 +434,7 @@ class _PasswordPage extends StatelessWidget {
                     children: [
                       KyberButton(
                         text: 'JOIN SERVER',
-                        onPressed: () => context
-                            .findAncestorStateOfType<_CosmeticModsDialogState>()
-                            ?.checkPassword(),
+                        onPressed: onSubmit,
                       ),
                       KyberButton(
                         text: 'BACK',
@@ -463,14 +452,13 @@ class _PasswordPage extends StatelessWidget {
   }
 }
 
-class _ModsPage extends StatefulWidget {
+class _ModsPage extends StatelessWidget {
   const _ModsPage({
     required this.server,
     required this.collections,
     required this.selectedCollection,
     required this.onBack,
     required this.onChanged,
-    super.key,
   });
 
   final Server server;
@@ -480,14 +468,9 @@ class _ModsPage extends StatefulWidget {
   final VoidCallback onBack;
 
   @override
-  State<_ModsPage> createState() => _ModsPageState();
-}
-
-class _ModsPageState extends State<_ModsPage> {
-  @override
   Widget build(BuildContext context) {
     return Container(
-      width: 450,
+      width: _kCardWidth,
       alignment: .center,
       child: Column(
         spacing: 20,
@@ -498,8 +481,8 @@ class _ModsPageState extends State<_ModsPage> {
               LocalHero(
                 tag: 'main_server_card',
                 child: _ServerCard(
-                  onBack: widget.onBack,
-                  server: widget.server,
+                  onBack: onBack,
+                  server: server,
                   type: .minimal,
                 ),
               ),
@@ -507,7 +490,7 @@ class _ModsPageState extends State<_ModsPage> {
           ),
           KyberDropdown<ModCollectionMetaData>(
             onChanged: (value) {
-              widget.onChanged(value);
+              onChanged(value);
               Preferences.general.selectedCosmeticCollection = value.localId;
             },
             itemBuilder: (DropdownItem<dynamic> item) {
@@ -516,7 +499,7 @@ class _ModsPageState extends State<_ModsPage> {
                 height: 40,
                 child: Row(
                   children: [
-                    if (widget.collections.indexOf(item.value) != 0) ...[
+                    if (collections.indexOf(item.value) != 0) ...[
                       SizedBox(
                         height: 40,
                         width: 40,
@@ -526,7 +509,7 @@ class _ModsPageState extends State<_ModsPage> {
                     ],
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        padding: const .symmetric(horizontal: 10),
                         child: Text(
                           item.value.title,
                           style: const TextStyle(
@@ -540,21 +523,21 @@ class _ModsPageState extends State<_ModsPage> {
                 ),
               );
             },
-            items: widget.collections
+            items: collections
                 .map((e) => DropdownItem(value: e, label: e.title))
                 .toList(),
-            selectedItem: widget.selectedCollection,
+            selectedItem: selectedCollection,
             placeholder: 'NO COSMETICS',
           ),
           Expanded(
             child: Column(
               children: [
                 Container(
-                  width: 450,
+                  width: _kCardWidth,
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(.4),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(kDefaultInnerBorderRadius),
+                    borderRadius: const .vertical(
+                      top: .circular(kDefaultInnerBorderRadius),
                     ),
                     border: const Border(
                       top: kDefaultBorder,
@@ -563,7 +546,7 @@ class _ModsPageState extends State<_ModsPage> {
                     ),
                   ),
                   padding: const EdgeInsets.all(10),
-                  alignment: Alignment.center,
+                  alignment: .center,
                   child: const Text(
                     'MODS',
                     style: TextStyle(
@@ -574,15 +557,15 @@ class _ModsPageState extends State<_ModsPage> {
                   ),
                 ),
                 Stack(
-                  fit: StackFit.passthrough,
+                  fit: .passthrough,
                   children: [
                     IntrinsicHeight(
                       child: IgnorePointer(
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(.4),
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(
+                            borderRadius: const .vertical(
+                              bottom: .circular(
                                 kDefaultInnerBorderRadius,
                               ),
                             ),
@@ -600,8 +583,8 @@ class _ModsPageState extends State<_ModsPage> {
                         maxHeight: 300,
                       ),
                       child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(kDefaultInnerBorderRadius),
+                        borderRadius: const .vertical(
+                          bottom: .circular(kDefaultInnerBorderRadius),
                         ),
                         child: RepaintBoundary(
                           key: const Key('server_list'),
@@ -610,13 +593,13 @@ class _ModsPageState extends State<_ModsPage> {
                             shrinkWrap: true,
                             blur: false,
                             activeIndex: -1,
-                            itemPadding: EdgeInsets.zero,
+                            itemPadding: .zero,
                             physics: const ScrollPhysics(),
                             itemBuilder: (context, index) {
-                              final mod = widget.server.mods[index];
+                              final mod = server.mods[index];
                               return ServerModTile(mod: mod);
                             },
-                            itemCount: widget.server.mods.length,
+                            itemCount: server.mods.length,
                           ),
                         ),
                       ),
@@ -625,14 +608,14 @@ class _ModsPageState extends State<_ModsPage> {
                       bottom: 0,
                       child: IgnorePointer(
                         child: Align(
-                          alignment: Alignment.bottomCenter,
+                          alignment: .bottomCenter,
                           child: Container(
-                            width: 450,
+                            width: _kCardWidth,
                             height: 20,
-                            alignment: Alignment.bottomCenter,
+                            alignment: .bottomCenter,
                             decoration: const BoxDecoration(
-                              borderRadius: BorderRadius.vertical(
-                                bottom: Radius.circular(
+                              borderRadius: .vertical(
+                                bottom: .circular(
                                   kDefaultInnerBorderRadius,
                                 ),
                               ),
@@ -654,7 +637,7 @@ class _ModsPageState extends State<_ModsPage> {
 }
 
 class _NavigationBar extends StatelessWidget {
-  const _NavigationBar({required this.server, this.route, super.key});
+  const _NavigationBar({required this.server, this.route});
 
   final ServerEntry server;
   final String? route;
@@ -667,50 +650,45 @@ class _NavigationBar extends StatelessWidget {
     };
     final routes = ['PLAY', name, ?route];
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        BackgroundBlur(
-          key: const ValueKey('subNavBarList'),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                height: 41,
-                width: 1.5,
-                color: decoColor,
-              ),
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                scrollDirection: Axis.horizontal,
-                separatorBuilder: (context, index) => Transform.rotate(
-                  angle: 18 * 3.14 / 180,
-                  child: UnconstrainedBox(
-                    child: Container(
-                      height: 20,
-                      width: 2,
-                      color: kGrayColor,
-                    ),
-                  ),
-                ),
-                itemBuilder: (context, index) => NavigationBarSubItem(
-                  isLast: index == routes.length - 1,
-                  route: routes.elementAt(index),
-                  index: index,
-                  fullRoute: "/${routes.take(index + 1).join("/")}",
-                ),
-                itemCount: routes.length,
-              ),
-              Container(
-                height: 41,
-                width: 1.5,
-                color: decoColor,
-              ),
-            ],
+    return BackgroundBlur(
+      key: const ValueKey('subNavBarList'),
+      child: Row(
+        mainAxisSize: .min,
+        children: [
+          Container(
+            height: 41,
+            width: 1.5,
+            color: decoColor,
           ),
-        ),
-      ],
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            scrollDirection: .horizontal,
+            separatorBuilder: (context, index) => Transform.rotate(
+              angle: 18 * 3.14 / 180,
+              child: UnconstrainedBox(
+                child: Container(
+                  height: 20,
+                  width: 2,
+                  color: kGrayColor,
+                ),
+              ),
+            ),
+            itemBuilder: (context, index) => NavigationBarSubItem(
+              isLast: index == routes.length - 1,
+              route: routes.elementAt(index),
+              index: index,
+              fullRoute: "/${routes.take(index + 1).join("/")}",
+            ),
+            itemCount: routes.length,
+          ),
+          Container(
+            height: 41,
+            width: 1.5,
+            color: decoColor,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -720,39 +698,94 @@ enum _ServerCardType { full, minimal }
 class _ServerCard extends StatefulWidget {
   const _ServerCard({
     required this.server,
-    this.type = _ServerCardType.full,
+    this.onPlay,
+    this.type = .full,
     this.onMods,
     this.onBack,
-    super.key,
   });
 
   final Server server;
   final _ServerCardType type;
   final VoidCallback? onBack;
   final VoidCallback? onMods;
+  final ValueChanged<bool>? onPlay;
 
   @override
   State<_ServerCard> createState() => _ServerCardState();
 }
 
 class _ServerCardState extends State<_ServerCard> {
-  String selectedProxy = 'grm';
-
   bool hovered = false;
+
+  Widget _buildTags() {
+    return Wrap(
+      spacing: 8,
+      children: [
+        _KyberTag(
+          prefix: Assets.icons.iconLib.kblHostIcon.svg(),
+          text: widget.server.official ? 'KYBER' : widget.server.creator,
+        ),
+        _KyberTag(text: widget.server.region),
+        _KyberTag(
+          text: '${widget.server.playerCount}/${widget.server.maxPlayerCount}',
+        ),
+        const _KyberTag(text: 'VOIP'),
+        _KyberTag(
+          text:
+              '${widget.server.mods.length} MOD ${widget.server.mods.length > 1 ? 'S' : ''}',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHoverToolbar() {
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: FadeIn(
+        duration: const .new(milliseconds: 150),
+        child: Container(
+          height: 36,
+          width: _kCardWidth,
+          margin: const .all(15),
+          child: BackgroundBlur(
+            blurColorOpacity: 1,
+            borderRadius: .circular(kDefaultInnerBorderRadius),
+            child: KyberTabBar(
+              selectedIndex: -1,
+              onChanged: (value) {
+                switch (value) {
+                  case 0:
+                    widget.onPlay?.call(true);
+                  case 1:
+                    widget.onMods?.call();
+                  case 2:
+                  // TODO: implement this
+                }
+              },
+              tabs: const [
+                Text('SPECTATE'),
+                Text('MODS'),
+                Text('REPORT'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final map = MapHelper.getMap(
-      widget.server.levelSetup.mode,
-      widget.server.levelSetup.map,
-    );
-    final modeName = widget.server.levelSetup.modeName.isNotEmpty
-        ? widget.server.levelSetup.modeName
-        : MapHelper.getMode(widget.server.levelSetup.mode)?.name ??
-              widget.server.levelSetup.mode;
-    final levelName = widget.server.levelSetup.mapName.isNotEmpty
-        ? widget.server.levelSetup.mapName
-        : map?.name ?? widget.server.levelSetup.map;
+    final levelSetup = widget.server.levelSetup;
+    final map = MapHelper.getMap(levelSetup.mode, levelSetup.map);
+    final modeName = levelSetup.modeName.isNotEmpty
+        ? levelSetup.modeName
+        : MapHelper.getMode(levelSetup.mode)?.name ?? levelSetup.mode;
+    final levelName = levelSetup.mapName.isNotEmpty
+        ? levelSetup.mapName
+        : map?.name ?? levelSetup.map;
 
     final maxHeight = switch (widget.type) {
       _ServerCardType.full => 432.0,
@@ -760,8 +793,8 @@ class _ServerCardState extends State<_ServerCard> {
     };
 
     final borderRadius = switch (widget.type) {
-      _ServerCardType.full => BorderRadius.circular(kDefaultInnerBorderRadius),
-      _ServerCardType.minimal =>
+      .full => BorderRadius.circular(kDefaultInnerBorderRadius),
+      .minimal =>
         widget.onBack != null
             ? BorderRadius.circular(kDefaultInnerBorderRadius)
             : const BorderRadius.vertical(
@@ -776,11 +809,15 @@ class _ServerCardState extends State<_ServerCard> {
         height: maxHeight,
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final isFullSize =
+                widget.type == _ServerCardType.full &&
+                constraints.maxHeight >= 240;
+
             return Stack(
               children: [
                 Container(
-                  width: 450,
-                  height: constraints.maxHeight < 240 ? 146 : 432,
+                  width: _kCardWidth,
+                  height: isFullSize ? 432 : 146,
                   decoration: BoxDecoration(
                     border: kDefaultAllBorder,
                     borderRadius: borderRadius,
@@ -795,7 +832,7 @@ class _ServerCardState extends State<_ServerCard> {
                         Column(
                           children: [
                             SizedBox(
-                              height: constraints.maxHeight < 240 ? 142 : 240,
+                              height: isFullSize ? 240 : 142,
                               child: Stack(
                                 children: [
                                   Positioned.fill(
@@ -810,81 +847,46 @@ class _ServerCardState extends State<_ServerCard> {
                                     ),
                                   ),
                                   Positioned.fill(
-                                    child: LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        return Padding(
-                                          padding: const .all(25),
-                                          child: Column(
-                                            spacing: 15,
-                                            mainAxisAlignment: .spaceBetween,
+                                    child: Padding(
+                                      padding: const .all(25),
+                                      child: Column(
+                                        spacing: 15,
+                                        mainAxisAlignment: .spaceBetween,
+                                        children: [
+                                          Column(
                                             children: [
-                                              Column(
-                                                children: [
-                                                  Text(
-                                                    modeName.toUpperCase(),
-                                                    style: const TextStyle(
-                                                      fontFamily: FontFamily
-                                                          .battlefrontUI,
-                                                      fontSize: 24,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 10),
-                                                  Text(
-                                                    levelName.toUpperCase(),
-                                                    style: const TextStyle(
-                                                      fontFamily: FontFamily
-                                                          .battlefrontUI,
-                                                      fontSize: 16,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              if (widget.type ==
-                                                      _ServerCardType.full &&
-                                                  constraints.maxHeight >= 240)
-                                                Padding(
-                                                  padding: const .only(
-                                                    bottom: 28,
-                                                  ),
-                                                  child: Wrap(
-                                                    spacing: 8,
-                                                    children: [
-                                                      _KyberTag(
-                                                        prefix: Assets
-                                                            .icons
-                                                            .iconLib
-                                                            .kblHostIcon
-                                                            .svg(),
-                                                        text: 'KYBER',
-                                                      ),
-                                                      _KyberTag(
-                                                        text: widget
-                                                            .server
-                                                            .region,
-                                                      ),
-                                                      _KyberTag(
-                                                        text:
-                                                            '${widget.server.playerCount}/${widget.server.maxPlayerCount}',
-                                                      ),
-                                                      _KyberTag(text: 'VOIP'),
-                                                      _KyberTag(
-                                                        text:
-                                                            '${widget.server.mods.length} MOD',
-                                                      ),
-                                                    ],
-                                                  ),
+                                              Text(
+                                                modeName.toUpperCase(),
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      FontFamily.battlefrontUI,
+                                                  fontSize: 24,
                                                 ),
+                                              ),
+                                              const SizedBox(height: 10),
+                                              Text(
+                                                levelName.toUpperCase(),
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      FontFamily.battlefrontUI,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
                                             ],
                                           ),
-                                        );
-                                      },
+                                          if (isFullSize)
+                                            Padding(
+                                              padding: const .only(bottom: 28),
+                                              child: _buildTags(),
+                                            ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            if (widget.type == _ServerCardType.full &&
-                                constraints.maxHeight >= 240) ...[
+                            if (isFullSize) ...[
                               const CardSection(),
                               Expanded(
                                 child: Container(
@@ -893,7 +895,7 @@ class _ServerCardState extends State<_ServerCard> {
                                   child: const SingleChildScrollView(
                                     padding: .only(top: 20),
                                     child: Text(
-                                      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. ',
+                                      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. ',
                                       style: .new(
                                         fontFamily: FontFamily.battlefrontUI,
                                         color: kWhiteColor,
@@ -907,63 +909,24 @@ class _ServerCardState extends State<_ServerCard> {
                             ],
                           ],
                         ),
-                        if (widget.type == _ServerCardType.full &&
-                            constraints.maxHeight >= 240)
+                        if (isFullSize)
                           Positioned(
-                            left: 450 / 2 - 104,
+                            left: _kCardWidth / 2 - 104,
                             top: 240 - 45 / 2,
                             child: _PlayButton(
-                              onPressed: () {},
+                              onPressed: () => widget.onPlay?.call(false),
                             ),
                           ),
                         if (hovered && widget.type == _ServerCardType.full)
-                          Positioned(
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            child: FadeIn(
-                              duration: const .new(milliseconds: 150),
-                              child: Container(
-                                height: 36,
-                                width: 450,
-                                margin: const .all(15),
-                                child: BackgroundBlur(
-                                  blurColorOpacity: 1,
-                                  borderRadius: .circular(
-                                    kDefaultInnerBorderRadius,
-                                  ),
-                                  child: KyberTabBar(
-                                    selectedIndex: -1,
-                                    onChanged: (value) {
-                                      switch (value) {
-                                        case 0:
-                                        // spectate
-                                        case 1:
-                                          widget.onMods?.call();
-                                        case 2:
-                                        // report
-                                      }
-                                    },
-                                    tabs: [
-                                      Text('SPECTATE'),
-                                      Text('MODS'),
-                                      Text('REPORT'),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
+                          _buildHoverToolbar(),
                       ],
                     ),
                   ),
                 ),
-                // TODO: cleanup
-                if (constraints.maxHeight < 240 &&
-                    (widget.type != .minimal ||
-                        (widget.type == .minimal && widget.onBack != null)))
+                if (!isFullSize &&
+                    (widget.type != .minimal || widget.onBack != null))
                   Positioned(
-                    left: 450 / 2 - 104,
+                    left: _kCardWidth / 2 - 104,
                     top: 146 - 45 / 2,
                     child: FadeIn(
                       child: _PlayButton(
@@ -984,12 +947,9 @@ class _ServerCardState extends State<_ServerCard> {
 class _KyberTag extends StatelessWidget {
   const _KyberTag({
     required this.text,
-    super.key,
     this.prefix,
-    this.minWidth = 40,
   });
 
-  final double? minWidth;
   final Widget? prefix;
   final String text;
 
@@ -998,9 +958,7 @@ class _KyberTag extends StatelessWidget {
     return Container(
       height: 26,
       padding: const .all(5),
-      constraints: BoxConstraints(
-        minWidth: minWidth ?? 0,
-      ),
+      constraints: const BoxConstraints(minWidth: 40),
       decoration: BoxDecoration(
         border: .all(
           color: decoColor,
@@ -1033,7 +991,7 @@ class _KyberTag extends StatelessWidget {
 }
 
 class _PlayButton extends StatefulWidget {
-  const _PlayButton({required this.onPressed, super.key, this.text});
+  const _PlayButton({required this.onPressed, this.text});
 
   final VoidCallback onPressed;
   final String? text;
@@ -1071,17 +1029,6 @@ class _PlayButtonState extends State<_PlayButton> {
                 BlendMode.srcIn,
               ),
             ),
-            // TODO: re-enable animations?
-            //TweenAnimationBuilder<Color?>(
-            //  tween: ColorTween(end: target),
-            //  duration: const Duration(milliseconds: 300),
-            //  builder: (_, c, __) => Assets.icons.kblPlayIcon.svg(
-            //    height: 47,
-            //    width: 208,
-            //    fit: BoxFit.contain,
-            //    theme: SvgTheme(currentColor: c!),
-            //  ),
-            //),
             Positioned(
               top: 12,
               left: 72,
