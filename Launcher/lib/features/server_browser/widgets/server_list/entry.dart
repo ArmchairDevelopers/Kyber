@@ -154,39 +154,49 @@ class ServerListEntry extends StatelessWidget {
                             return CachedNetworkImage(
                               imageUrl:
                                   'https://${sl.get<KyberGRPCService>().httpHostname}/images/${serverInfo.mapImageHash}.jpeg',
-                              fit: BoxFit.cover,
-                              alignment: Alignment.centerLeft,
-                              colorBlendMode: BlendMode.darken,
+                              fit: .cover,
+                              alignment: .centerLeft,
+                              colorBlendMode: .darken,
                               color: Colors.black.withOpacity(.12),
                               fadeInDuration: .zero,
                             );
                           }
 
                           if (server is GroupedServer) {
-                            return Row(
-                              children: [
-                                for (final image in getMapImages())
-                                  Expanded(
-                                    child: Image.asset(
-                                      image,
-                                      height: 70,
-                                      fit: .fitHeight,
-                                      colorBlendMode: .darken,
-                                      color: Colors.black.withOpacity(
-                                        .12,
+                            final images = getMapImages().toList();
+                            final width = 150.0 / images.length + 16.0;
+                            return ClipRect(
+                              child: Stack(
+                                children: [
+                                  for (int i = 0; i < images.length; i++)
+                                    Positioned(
+                                      left: (i * (width - 16)) - 8,
+                                      top: 0,
+                                      bottom: 0,
+                                      width: width,
+                                      child: ClipPath(
+                                        clipper: _ImageClipper(
+                                          isFirst: i == 0,
+                                          isLast: i == images.length - 1,
+                                        ),
+                                        child: Image.asset(
+                                          images[i],
+                                          height: 70,
+                                          fit: .cover,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             );
                           }
 
                           return MapHelper.getImageForMap(
                             map['map'] as String,
                           )!.image(
-                            fit: BoxFit.cover,
-                            alignment: Alignment.centerLeft,
-                            colorBlendMode: BlendMode.darken,
+                            fit: .cover,
+                            alignment: .centerLeft,
+                            colorBlendMode: .darken,
                             color: Colors.black.withOpacity(.12),
                           );
                         },
@@ -196,10 +206,10 @@ class ServerListEntry extends StatelessWidget {
                       child: Stack(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(left: 20),
+                            padding: const .only(left: 20),
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: .center,
+                              crossAxisAlignment: .start,
                               children: [
                                 _TableServerName(server: serverInfo),
                                 _ServerInfoBar(
@@ -480,4 +490,30 @@ class _Divider extends StatelessWidget {
       color: kInactiveColor,
     );
   }
+}
+
+class _ImageClipper extends CustomClipper<Path> {
+  const _ImageClipper({
+    required this.isFirst,
+    required this.isLast,
+  });
+
+  final bool isFirst;
+  final bool isLast;
+
+  static const double skewOffset = 16;
+
+  @override
+  Path getClip(Size size) {
+    return Path()
+      ..moveTo(isFirst ? 0 : skewOffset, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(isLast ? size.width : size.width - skewOffset, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant _ImageClipper oldClipper) =>
+      isFirst != oldClipper.isFirst || isLast != oldClipper.isLast;
 }
