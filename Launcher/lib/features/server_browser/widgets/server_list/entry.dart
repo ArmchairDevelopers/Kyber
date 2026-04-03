@@ -120,7 +120,7 @@ class ServerListEntry extends StatelessWidget {
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
             onEnter: (_) => onHover(true),
-            onExit: (_) => onHover.call(false),
+            onExit: (_) => onHover(false),
             child: AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 150),
               style: TextStyle(
@@ -162,6 +162,25 @@ class ServerListEntry extends StatelessWidget {
                             );
                           }
 
+                          if (server is GroupedServer) {
+                            return Row(
+                              children: [
+                                for (final image in getMapImages())
+                                  Expanded(
+                                    child: Image.asset(
+                                      image,
+                                      height: 70,
+                                      fit: .fitHeight,
+                                      colorBlendMode: .darken,
+                                      color: Colors.black.withOpacity(
+                                        .12,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }
+
                           return MapHelper.getImageForMap(
                             map['map'] as String,
                           )!.image(
@@ -184,7 +203,7 @@ class ServerListEntry extends StatelessWidget {
                               children: [
                                 _TableServerName(server: serverInfo),
                                 _ServerInfoBar(
-                                  server: serverInfo,
+                                  server: server,
                                   map: map,
                                   mode: mode,
                                 ),
@@ -243,6 +262,26 @@ class ServerListEntry extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // TODO: convert this into a stateful widget and call this onInit or on dep change
+  Set<String> getMapImages() {
+    final images = <String>{};
+    if (server is GroupedServer) {
+      final group = server as GroupedServer;
+      for (final server in group.group.servers) {
+        if (server.mapImageHash.isNotEmpty) {
+          images.add(server.mapImageHash);
+        } else {
+          final map = MapHelper.getImageForMap(server.levelSetup.map);
+          if (map != null) {
+            images.add(map.path);
+          }
+        }
+      }
+    }
+
+    return images.take(3).toSet();
   }
 }
 
@@ -378,12 +417,21 @@ class _ServerInfoBar extends StatelessWidget {
     super.key,
   });
 
-  final Server server;
+  final ServerEntry server;
   final Map map;
   final Mode mode;
 
   @override
   Widget build(BuildContext context) {
+    final serverInfo = server.serverInfo;
+    final text = switch (server) {
+      GroupedServer(:final group) => 'JOIN ${group.servers.length} SERVERS',
+      _ =>
+        serverInfo.levelSetup.mapName.isNotEmpty
+            ? serverInfo.levelSetup.mapName.toUpperCase()
+            : (map['name'] as String).toUpperCase(),
+    };
+
     return DefaultTextStyle.merge(
       style: const TextStyle(
         fontFamily: FontFamily.battlefrontUI,
@@ -393,12 +441,14 @@ class _ServerInfoBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (server.hasRegion() &&
-              regionIcons.containsKey(server.region.toLowerCase())) ...[
+          if (serverInfo.hasRegion() &&
+              regionIcons.containsKey(
+                serverInfo.region.toLowerCase(),
+              )) ...[
             Padding(
               padding: const EdgeInsets.only(right: 5),
               child: SvgPicture.asset(
-                regionIcons[server.region.toLowerCase()]!,
+                regionIcons[serverInfo.region.toLowerCase()]!,
                 width: 20,
                 height: 15,
               ),
@@ -406,16 +456,12 @@ class _ServerInfoBar extends StatelessWidget {
             const _Divider(),
           ],
           Text(
-            server.levelSetup.modeName.isNotEmpty
-                ? server.levelSetup.modeName.toUpperCase()
+            serverInfo.levelSetup.modeName.isNotEmpty
+                ? serverInfo.levelSetup.modeName.toUpperCase()
                 : mode.name.toUpperCase(),
           ),
           const _Divider(),
-          Text(
-            server.levelSetup.mapName.isNotEmpty
-                ? server.levelSetup.mapName.toUpperCase()
-                : (map['name'] as String).toUpperCase(),
-          ),
+          Text(text),
         ],
       ),
     );
