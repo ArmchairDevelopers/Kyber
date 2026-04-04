@@ -19,10 +19,10 @@ import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
+import 'package:kyber_launcher/shared/ui/buttons/interactive_button.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:local_hero/local_hero.dart';
 import 'package:logging/logging.dart';
-import 'package:vector_graphics/vector_graphics.dart';
 
 const _kCardWidth = 450.0;
 
@@ -913,7 +913,8 @@ class _ServerCardState extends State<_ServerCard> {
                           Positioned(
                             left: _kCardWidth / 2 - 104,
                             top: 240 - 45 / 2,
-                            child: _PlayButton(
+                            child: InteractiveButton(
+                              child: const Text('PLAY'),
                               onPressed: () => widget.onPlay?.call(false),
                             ),
                           ),
@@ -929,9 +930,9 @@ class _ServerCardState extends State<_ServerCard> {
                     left: _kCardWidth / 2 - 104,
                     top: 146 - 45 / 2,
                     child: FadeIn(
-                      child: _PlayButton(
+                      child: InteractiveButton(
                         onPressed: widget.onBack ?? () {},
-                        text: 'BACK',
+                        child: const Text('BACK'),
                       ),
                     ),
                   ),
@@ -985,74 +986,6 @@ class _KyberTag extends StatelessWidget {
             textAlign: .center,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PlayButton extends StatefulWidget {
-  const _PlayButton({required this.onPressed, this.text});
-
-  final VoidCallback onPressed;
-  final String? text;
-
-  @override
-  State<_PlayButton> createState() => _PlayButtonState();
-}
-
-class _PlayButtonState extends State<_PlayButton> {
-  bool hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final target = hovered ? kActiveColor : kWhiteColor;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => hovered = true),
-      onExit: (_) => setState(() => hovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: Stack(
-          children: [
-            VectorGraphic(
-              loader: AssetBytesLoader(Assets.icons.kblPlayIcon.path),
-              height: 47,
-              width: 208,
-            ),
-            VectorGraphic(
-              loader: AssetBytesLoader(Assets.icons.kblPlayIconBorder.path),
-              height: 47,
-              width: 208,
-              colorFilter: ColorFilter.mode(
-                target,
-                BlendMode.srcIn,
-              ),
-            ),
-            Positioned(
-              top: 12,
-              left: 72,
-              child: AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 150),
-                style: TextStyle(
-                  color: target,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  height: 1,
-                  shadows: hovered
-                      ? [
-                          Shadow(
-                            color: kActiveColor.withOpacity(.7),
-                            blurRadius: 10,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Text(widget.text ?? 'PLAY'),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
