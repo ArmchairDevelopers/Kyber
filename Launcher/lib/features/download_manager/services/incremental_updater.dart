@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/gen/rust/api/downloader.dart';
@@ -11,148 +12,342 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:slugify/slugify.dart';
 
+const _kAllowedHosts = [
+  'kyber.gg',
+  'nexusmods.com',
+];
+
 class IncrementalUpdater {
   final _logger = Logger('incremental_updater');
 
-  // only a poc for now
-  void updateMod({required String downloadUrl}) async {
+  Future<bool> checkEligibility(String downloadUrl) async {
+    final uri = Uri.parse(downloadUrl);
+
+    if (!_kAllowedHosts.any((host) => uri.host.endsWith(host))) {
+      return false;
+    }
+
     await sl.isReady<ModService>();
 
     final tmpDir = await getTemporaryDirectory();
 
-    var entries = <ZipEntryInfo>[];
-    final installed = <FrostyMod>[];
-    final missing = <(String, String)>[];
-    FrostyMod? collection;
-    ZipEntryInfo? collectionEntry;
-    late DownloaderHandle d;
-
     try {
-      d = await downloaderCreate(
-        id: '0',
-        zipUrl: downloadUrl,
-        outputDir: tmpDir.path,
-      );
-      entries = await downloaderListEntries(d: d);
+      var entries = <ZipEntryInfo>[];
+      final installed = <FrostyMod>[];
+      final missing = <(String, String)>[];
+      FrostyMod? collection;
+      String? tempCollectionPath;
 
-      collectionEntry = entries.firstWhereOrNull(
-            (entry) => extension(entry.name) == '.fbcollection',
-      );
+      DownloaderHandle? d;
+      try {
+        d = await downloaderCreate(
+          id: 'check-${DateTime.now().millisecondsSinceEpoch}',
+          zipUrl: downloadUrl,
+          outputDir: tmpDir.path,
+        );
+        entries = await downloaderListEntries(d: d);
 
-      if (collectionEntry == null) {
-        print('No collection found in the mod package');
-        return;
-      }
+        final collectionEntry = entries.firstWhereOrNull(
+          (entry) => extension(entry.name) == '.fbcollection',
+        );
 
-      await downloaderDownloadEntryByName(
-        d: d,
-        entryName: collectionEntry.name,
-      );
+        if (collectionEntry == null) {
+          return false;
+        }
 
-      final file = File(join(tmpDir.path, collectionEntry.name)).openSync();
-      collection = FrostyCollectionReader(
-        file,
-        collectionEntry.name,
-      ).readMod();
-      if (collection == null) {
-        return;
-      }
+        await downloaderDownloadEntryByName(
+          d: d,
+          entryName: collectionEntry.name,
+        );
 
-      final installedMods = sl.get<ModService>().mods;
-      for (final mod in collection.mods!) {
-        final index = collection.mods!.indexOf(mod);
-        final modVersion = collection.modVersions![index];
-        final installedMod = installedMods
-            .where((m) => basename(m.filename) == mod)
-            .where((m) => m.details.version == modVersion)
-            .firstOrNull;
+        tempCollectionPath = join(tmpDir.path, collectionEntry.name);
+        final file = File(tempCollectionPath).openSync();
+        collection = FrostyCollectionReader(
+          file,
+          collectionEntry.name,
+        ).readMod();
 
-        if (installedMod == null) {
-          missing.add((mod, modVersion));
-        } else {
-          installed.add(installedMod);
+        if (collection == null) {
+          return false;
+        }
+
+        final installedMods = sl.get<ModService>().mods;
+        for (final mod in collection.mods!) {
+          final index = collection.mods!.indexOf(mod);
+          final modVersion = collection.modVersions![index];
+          final installedMod = installedMods
+              .where((m) => basename(m.filename) == mod)
+              .where((m) => m.details.version == modVersion)
+              .firstOrNull;
+
+          if (installedMod == null) {
+            missing.add((mod, modVersion));
+          } else {
+            installed.add(installedMod);
+          }
+        }
+
+        entries = entries
+            .where((entry) => extension(entry.name).endsWith('.fbmod'))
+            .toList();
+      } finally {
+        if (d != null) await downloaderDispose(d: d);
+        if (tempCollectionPath != null) {
+          try {
+            await File(tempCollectionPath).delete();
+          } catch (_) {}
         }
       }
 
-      entries = entries
-          .where((entry) => extension(entry.name).endsWith('.fbmod'))
-          .toList();
-    } finally {
-      await downloaderDispose(d: d);
+      if (missing.length == entries.length) {
+        return false;
+      }
+
+      return true;
+    } catch (e, s) {
+      _logger.warning('Eligibility check failed', e, s);
+      return false;
+    }
+  }
+
+  Future<bool> update({
+    required String downloadUrl,
+    void Function(UpdatePhase phase)? onPhaseChanged,
+    void Function(int current, int total)? onProgress,
+    void Function(int bytesDownloaded, int totalBytes)? onDownloadProgress,
+  }) async {
+    final uri = Uri.parse(downloadUrl);
+
+    if (!_kAllowedHosts.any((host) => uri.host.endsWith(host))) {
+      _logger.warning(
+        'Rejected download from unallowed domain: ${uri.host}',
+      );
+      return false;
     }
 
-    if (missing.length == entries.length - 1) {
-      print('All mods are missing');
-      return;
-    }
+    await sl.isReady<ModService>();
 
-    final random = String.fromCharCodes(
-      List.generate(8, (index) => Random().nextInt(26) + 97),
-    );
-
-    final newDir = join(
-      ModService.getBasePath(),
-      slugify(
-        '${collection.details.name} ${collection.details.version} $random',
-      ),
-    );
-
-    d = await downloaderCreate(
-      id: '1',
-      zipUrl: downloadUrl,
-      outputDir: join(ModService.getBasePath(), ''),
-    );
-
-    print(
-      'Missing mods for collection ${collection.details.name} (${collection.details.version}): ${missing.length}',
-    );
-
-    final totalZipSize = entries.fold<int>(
-      0,
-          (previousValue, element) => previousValue + element.compressedSize,
-    );
-    final missingSize = entries
-        .where(
-          (entry) => missing.where((mod) => mod.$1 == entry.name).isNotEmpty,
-    )
-        .fold<int>(
-      0,
-          (previousValue, element) => previousValue + element.compressedSize,
-    );
-    print(
-      'Total zip size: ${totalZipSize / 1024 / 1024 / 1024} GB, missing mods size: ${missingSize / 1024 / 1024 / 1024} GB',
-    );
-
-    print('Copying existing mods to $newDir');
-    await Directory(newDir).create(recursive: true);
-
-    for (final mod in installed) {
-      final newPath = join(newDir, basename(mod.filename));
-      print('Copying ${basename(mod.filename)} to $newPath');
-      await File(join(ModService.getBasePath(), mod.filename)).copy(newPath);
-    }
+    final tmpDir = await getTemporaryDirectory();
+    String? newDir;
 
     try {
-      for (final mod in missing) {
-        print('Downloading missing mod ${mod.$1}');
-        await downloaderDownloadEntryByName(d: d, entryName: mod.$1);
-        final downloadedPath = join(
-          ModService.getBasePath(),
-          basename(mod.$1),
+      onPhaseChanged?.call(.fetchingEntries);
+
+      onProgress?.call(1, 1);
+
+      var entries = <ZipEntryInfo>[];
+      final installed = <FrostyMod>[];
+      final missing = <(String, String)>[];
+      FrostyMod? collection;
+      ZipEntryInfo? collectionEntry;
+
+      _logger.info('Fetching mod collection entries from $downloadUrl');
+
+      late DownloaderHandle d;
+      try {
+        d = await downloaderCreate(
+          id: '0',
+          zipUrl: downloadUrl,
+          outputDir: tmpDir.path,
         );
-        final newPath = join(newDir, basename(mod.$1));
-        await File(downloadedPath).rename(newPath);
+        entries = await downloaderListEntries(d: d);
+
+        collectionEntry = entries.firstWhereOrNull(
+          (entry) => extension(entry.name) == '.fbcollection',
+        );
+
+        if (collectionEntry == null) {
+          _logger.warning('No .fbcollection found in the mod package');
+          return false;
+        }
+
+        onPhaseChanged?.call(.parsingCollection);
+
+        await downloaderDownloadEntryByName(
+          d: d,
+          entryName: collectionEntry.name,
+        );
+
+        final file = File(join(tmpDir.path, collectionEntry.name)).openSync();
+        collection = FrostyCollectionReader(
+          file,
+          collectionEntry.name,
+        ).readMod();
+
+        if (collection == null) {
+          _logger.warning('Failed to parse collection manifest');
+          return false;
+        }
+
+        onPhaseChanged?.call(.comparingMods);
+
+        final installedMods = sl.get<ModService>().mods;
+        for (final mod in collection.mods!) {
+          final index = collection.mods!.indexOf(mod);
+          final modVersion = collection.modVersions![index];
+          final installedMod = installedMods
+              .where((m) => basename(m.filename) == mod)
+              .where((m) => m.details.version == modVersion)
+              .firstOrNull;
+
+          if (installedMod == null) {
+            missing.add((mod, modVersion));
+          } else {
+            installed.add(installedMod);
+          }
+        }
+
+        entries = entries
+            .where((entry) => extension(entry.name).endsWith('.fbmod'))
+            .toList();
+      } finally {
+        await downloaderDispose(d: d);
       }
-    } finally {
-      await downloaderDispose(d: d);
+
+      if (missing.length == entries.length) {
+        _logger.info('All mods are missing, incremental update not beneficial');
+        return false;
+      }
+
+      final missingSize = entries
+          .where(
+            (entry) => missing.where((mod) => mod.$1 == entry.name).isNotEmpty,
+          )
+          .fold<int>(0, (sum, e) => sum + e.compressedSize);
+
+      onPhaseChanged?.call(.copyingExistingMods);
+
+      final random = String.fromCharCodes(
+        List.generate(8, (index) => Random().nextInt(26) + 97),
+      );
+
+      newDir = join(
+        ModService.getBasePath(),
+        slugify(
+          '${collection.details.name} ${collection.details.version} $random',
+        ),
+      );
+
+      _logger.info('Creating collection in $newDir');
+      await Directory(newDir).create(recursive: true);
+
+      onPhaseChanged?.call(.downloadingMissingMods);
+
+      d = await downloaderCreate(
+        id: '1',
+        zipUrl: downloadUrl,
+        outputDir: join(ModService.getBasePath(), ''),
+      );
+
+      final total = missingSize;
+      var current = 0;
+
+      _logger.info(
+        'Starting download of ${missing.length} missing mods (${_formatBytes(total)})',
+      );
+
+      try {
+        for (var i = 0; i < missing.length; i++) {
+          final mod = missing[i];
+          final entryInfo = entries.firstWhereOrNull(
+            (e) => e.name == mod.$1,
+          );
+          _logger.fine(
+            'Downloading ${basename(mod.$1)} (${_formatBytes(entryInfo?.compressedSize ?? 0)})',
+          );
+          final streamSink = RustStreamSink<int>();
+
+          final future = downloaderDownloadEntryByName(
+            d: d,
+            entryName: mod.$1,
+            progress: streamSink,
+          );
+
+          streamSink.stream.listen((bytes) {
+            current += bytes;
+            onDownloadProgress?.call(current, total);
+          });
+
+          await future;
+
+          final downloadedPath = join(
+            ModService.getBasePath(),
+            basename(mod.$1),
+          );
+          final destPath = join(newDir, basename(mod.$1));
+          await File(downloadedPath).rename(destPath);
+        }
+      } finally {
+        await downloaderDispose(d: d);
+      }
+
+      onDownloadProgress?.call(total, total);
+      
+      _logger.info('All missing mods downloaded, copying existing mods');
+
+      for (var i = 0; i < installed.length; i++) {
+        final mod = installed[i];
+        onProgress?.call(i + 1, installed.length);
+
+        final newPath = join(newDir, basename(mod.filename));
+        _logger.fine('Copying ${basename(mod.filename)}');
+        await File(join(ModService.getBasePath(), mod.filename)).copy(newPath);
+      }
+
+      onPhaseChanged?.call(.finalizing);
+
+      onProgress?.call(1, 1);
+
+      final collectionFilePath = join(
+        newDir,
+        basename(collectionEntry.name),
+      );
+      _logger.fine('Copying collection manifest to $collectionFilePath');
+
+      final tempCollectionFile = File(
+        join(tmpDir.path, collectionEntry.name),
+      );
+      await tempCollectionFile.copy(collectionFilePath);
+
+      try {
+        await tempCollectionFile.delete();
+      } catch (_) {}
+
+      return true;
+    } catch (e, s) {
+      _logger.severe('Incremental update failed', e, s);
+
+      if (newDir != null) {
+        try {
+          await Directory(newDir).delete(recursive: true);
+        } catch (_) {
+          _logger.warning(
+            'Failed to clean up partial output directory: $newDir',
+          );
+        }
+      }
+
+      return false;
     }
-
-    final collectionFilePath = join(newDir, basename(collectionEntry!.name));
-    print('Copying collection file to $collectionFilePath');
-    await File(
-      join(tmpDir.path, collectionEntry.name),
-    ).copy(collectionFilePath);
-
-    print('All mods for collection are now in $newDir');
   }
+
+  static String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
+  }
+}
+
+enum UpdatePhase {
+  fetchingEntries,
+  parsingCollection,
+  comparingMods,
+  copyingExistingMods,
+  downloadingMissingMods,
+  finalizing,
 }
