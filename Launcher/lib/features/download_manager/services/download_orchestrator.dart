@@ -320,6 +320,7 @@ class DownloadOrchestrator with ChangeNotifier {
         final updater = IncrementalUpdater();
         final result = await updater.update(
           downloadUrl: downloadUrl,
+          controller: controller,
           onPhaseChanged: (phase) {
             if (phase != .downloadingMissingMods) {
               controller.updateProgress(1);

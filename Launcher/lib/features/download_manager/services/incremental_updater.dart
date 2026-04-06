@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:background_downloader/background_downloader.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:kyber_collection/kyber_collection.dart';
@@ -40,11 +41,15 @@ class IncrementalUpdater {
 
       DownloaderHandle? d;
       try {
+        _logger.fine('Checking incremental update eligibility for $downloadUrl');
+
         d = await downloaderCreate(
           id: 'check-${DateTime.now().millisecondsSinceEpoch}',
           zipUrl: downloadUrl,
           outputDir: tmpDir.path,
         );
+
+        _logger.fine('Fetching mod collection entries for eligibility check');
         entries = await downloaderListEntries(d: d);
 
         final collectionEntry = entries.firstWhereOrNull(
@@ -55,6 +60,7 @@ class IncrementalUpdater {
           return false;
         }
 
+        _logger.fine('Downloading collection manifest for eligibility check');
         await downloaderDownloadEntryByName(
           d: d,
           entryName: collectionEntry.name,
@@ -115,6 +121,7 @@ class IncrementalUpdater {
     void Function(UpdatePhase phase)? onPhaseChanged,
     void Function(int current, int total)? onProgress,
     void Function(int bytesDownloaded, int totalBytes)? onDownloadProgress,
+    CallbackTaskController? controller,
   }) async {
     final uri = Uri.parse(downloadUrl);
 
@@ -131,6 +138,7 @@ class IncrementalUpdater {
     String? newDir;
 
     try {
+      controller?.throwIfCancelled();
       onPhaseChanged?.call(.fetchingEntries);
 
       onProgress?.call(1, 1);
@@ -161,6 +169,7 @@ class IncrementalUpdater {
           return false;
         }
 
+        controller?.throwIfCancelled();
         onPhaseChanged?.call(.parsingCollection);
 
         await downloaderDownloadEntryByName(
@@ -179,6 +188,7 @@ class IncrementalUpdater {
           return false;
         }
 
+        controller?.throwIfCancelled();
         onPhaseChanged?.call(.comparingMods);
 
         final installedMods = sl.get<ModService>().mods;
@@ -215,6 +225,7 @@ class IncrementalUpdater {
           )
           .fold<int>(0, (sum, e) => sum + e.compressedSize);
 
+      controller?.throwIfCancelled();
       onPhaseChanged?.call(.copyingExistingMods);
 
       final random = String.fromCharCodes(
@@ -231,6 +242,7 @@ class IncrementalUpdater {
       _logger.info('Creating collection in $newDir');
       await Directory(newDir).create(recursive: true);
 
+      controller?.throwIfCancelled();
       onPhaseChanged?.call(.downloadingMissingMods);
 
       d = await downloaderCreate(
@@ -248,6 +260,7 @@ class IncrementalUpdater {
 
       try {
         for (var i = 0; i < missing.length; i++) {
+          controller?.throwIfCancelled();
           final mod = missing[i];
           final entryInfo = entries.firstWhereOrNull(
             (e) => e.name == mod.$1,
@@ -257,6 +270,7 @@ class IncrementalUpdater {
           );
           final streamSink = RustStreamSink<int>();
 
+          // TODO: use frb cancel token to allow cancelling mid-download
           final future = downloaderDownloadEntryByName(
             d: d,
             entryName: mod.$1,
@@ -286,6 +300,7 @@ class IncrementalUpdater {
       _logger.info('All missing mods downloaded, copying existing mods');
 
       for (var i = 0; i < installed.length; i++) {
+        controller?.throwIfCancelled();
         final mod = installed[i];
         onProgress?.call(i + 1, installed.length);
 
@@ -314,6 +329,20 @@ class IncrementalUpdater {
       } catch (_) {}
 
       return true;
+    } on CancelledException {
+      _logger.info('Incremental update cancelled');
+
+      if (newDir != null) {
+        try {
+          await Directory(newDir).delete(recursive: true);
+        } catch (_) {
+          _logger.warning(
+            'Failed to clean up partial output directory: $newDir',
+          );
+        }
+      }
+
+      rethrow;
     } catch (e, s) {
       _logger.severe('Incremental update failed', e, s);
 
