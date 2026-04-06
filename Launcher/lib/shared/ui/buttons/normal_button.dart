@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:tinycolor2/tinycolor2.dart';
 
 class NormalButton extends StatefulWidget {
@@ -164,6 +165,51 @@ class _NormalButtonState extends State<NormalButton>
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class Button extends StatelessWidget {
+  const Button({required this.child, required this.onPressed, super.key});
+
+  final Widget child;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return BackgroundBlur(
+      borderRadius: const .all(.circular(6)),
+      child: ButtonBuilder(
+        builder: (context, hovered) {
+          final itemColor = switch (hovered) {
+            true => kActiveColor,
+            false => const Color(0xFFD9D9D9),
+          };
+      
+          return Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFD9D9D9).withOpacity(.1),
+              border: .all(
+                color: hovered ? kActiveColor : const Color(0xFF5C5C5C),
+                width: 1.5,
+              ),
+              borderRadius: const .all(.circular(6)),
+            ),
+            child: IconTheme(
+              data: .new(
+                color: itemColor,
+              ),
+              child: DefaultTextStyle(
+                style: .new(color: itemColor),
+                child: Padding(
+                  padding: const .symmetric(vertical: 6, horizontal: 16),
+                  child: child,
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
