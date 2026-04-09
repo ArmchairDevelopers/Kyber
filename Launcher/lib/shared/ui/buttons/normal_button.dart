@@ -181,6 +181,7 @@ class Button extends StatelessWidget {
     return BackgroundBlur(
       borderRadius: const .all(.circular(6)),
       child: ButtonBuilder(
+        onClick: onPressed,
         builder: (context, hovered) {
           final itemColor = switch (hovered) {
             true => kActiveColor,
