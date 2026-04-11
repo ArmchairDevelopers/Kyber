@@ -1,9 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
-import 'package:kyber_launcher/gen/assets.gen.dart';
+import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
 import 'package:kyber_launcher/shared/ui/utils/button_builder.dart';
@@ -71,21 +70,17 @@ class _MaximaFriendListState extends State<MaximaFriendList> {
                     ).copyWith(left: 15),
                     child: Row(
                       children: [
-                        if (friend.avatar != null)
-                          CachedNetworkImage(
-                            imageUrl: friend.avatar!.medium.path,
-                            height: 45,
-                            width: 45,
-                            fadeInDuration: const Duration(
-                              milliseconds: 150,
-                            ),
-                            fadeInCurve: Curves.easeOut,
+                        Container(
+                          clipBehavior: .antiAliasWithSaveLayer,
+                          decoration: const BoxDecoration(
+                            borderRadius: .all(.circular(6)),
                           ),
-                        if (friend.avatar == null)
-                          Assets.images.usericonTmp.image(
-                            height: 45,
-                            width: 45,
+                          child: MaximaAvatar(
+                            height: 50,
+                            width: 50,
+                            pd: friend.pd,
                           ),
+                        ),
                         const SizedBox(width: 10),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

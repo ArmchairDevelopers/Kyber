@@ -59,8 +59,8 @@ class _MaximaAvatarState extends State<MaximaAvatar> {
   Widget build(BuildContext context) {
     if (!loaded) {
       return Container(
-        width: 24,
-        height: 24,
+        width: widget.width,
+        height: widget.height,
         alignment: .center,
         child: const ProgressRing(),
       );
