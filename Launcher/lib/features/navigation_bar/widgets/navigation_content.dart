@@ -73,7 +73,8 @@ class NavigationContent extends StatelessWidget {
                   // TODO: find the correct positions
                   const Positioned(
                     top: 12.5,
-                    right: 20,
+                    right: 0,
+                    left: 0,
                     child: SocialBar(),
                   ),
                 ],

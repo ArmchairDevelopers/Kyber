@@ -21,32 +21,37 @@ class SocialBar extends StatefulWidget {
 class _SocialBarState extends State<SocialBar> {
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 45,
-      // TODO: just a placeholder, should never use MediaQuery directly in widgets like this :)
-      width: MediaQuery.of(context).size.width * 0.3 + 25,
-      child: BackgroundBlur(
-        child: Container(
-          decoration: const BoxDecoration(
-            border: .symmetric(vertical: kDefaultBorder),
-          ),
-          padding: const .symmetric(horizontal: 15, vertical: 4),
-          alignment: .center,
-          child: Row(
-            spacing: 15,
-            children: [
-              Button(
-                onPressed: () => showKyberDialog(
-                  context: context,
-                  builder: (_) => const MaximaFriendsDialog(),
-                ),
-                child: const Icon(mt.Icons.group),
+    return Padding(
+      padding: const .only(left: 35, right: 20),
+      child: FractionallySizedBox(
+        widthFactor: 1 / 3,
+        alignment: .centerRight,
+        child: SizedBox(
+          height: 45,
+          child: BackgroundBlur(
+            child: Container(
+              decoration: const BoxDecoration(
+                border: .symmetric(vertical: kDefaultBorder),
               ),
-              const VCardSection(),
-              const Flexible(child: _FriendsBar()),
-              const VCardSection(),
-              const _DownloadManagerButton(),
-            ],
+              padding: const .symmetric(horizontal: 15, vertical: 4),
+              alignment: .center,
+              child: Row(
+                spacing: 15,
+                children: [
+                  Button(
+                    onPressed: () => showKyberDialog(
+                      context: context,
+                      builder: (_) => const MaximaFriendsDialog(),
+                    ),
+                    child: const Icon(mt.Icons.group),
+                  ),
+                  const VCardSection(),
+                  const Flexible(child: _FriendsBar()),
+                  const VCardSection(),
+                  const _DownloadManagerButton(),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -186,7 +191,7 @@ class _FriendsBar extends StatelessWidget {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final maxItems = ((constraints.maxWidth - 15) / 43).floor();
+            final maxItems = ((constraints.maxWidth - 15) / 45).floor();
             final displayedFriends = friends.take(maxItems).toList();
 
             return Row(

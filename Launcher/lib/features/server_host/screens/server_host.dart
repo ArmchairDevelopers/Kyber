@@ -220,7 +220,7 @@ class _ServerHostState extends State<ServerHost> {
               ),
             ),
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width: 15),
           Expanded(
             flex: 3,
             child: BlocBuilder<ModerationCubit, ModerationServerState>(

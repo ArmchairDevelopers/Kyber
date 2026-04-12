@@ -37,7 +37,8 @@ class _ServerBrowserState extends State<ServerBrowser> {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 15,
+      crossAxisAlignment: .start,
       children: [
         Expanded(
           flex: 6,
@@ -78,7 +79,6 @@ class _ServerBrowserState extends State<ServerBrowser> {
             ),
           ),
         ),
-        const SizedBox(width: 20),
         Expanded(
           flex: 3,
           child: Column(
