@@ -529,7 +529,7 @@ func (s *ServerBrowserServer) RegisterServer(ctx context.Context, req *pbapi.Reg
 	}
 
 	joinToken := &models.JoinTokenModel{
-		ID:      util.GenerateShortToken(),
+		ID:      util.GenerateToken(),
 		Token:   proxyToken,
 		User:    user.ID,
 		Server:  serverID,
