@@ -1573,6 +1573,8 @@ void ModLoader::LoadMod(const eastl::string& fileName, const eastl::string& rela
 void ModLoader::FinalizeModLoads()
 {
     KYBER_LOG(Debug, "[ModLoader] Finalizing mod resources");
+
+    // Reorder mods, from highest priority to lowest
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 1");
 
     m_modResources.clear();
@@ -1589,9 +1591,11 @@ void ModLoader::FinalizeModLoads()
     eastl::stable_sort(
         m_modResources.begin(), m_modResources.end(), [](const ModResource& a, const ModResource& b) { return a.type < b.type; });
 
+    // Collect highest priority resources, to override lower priority resources
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 2");
 
     eastl::unordered_map<uint32_t, ModResourceData> sources;
+    eastl::map<uint32_t, const ModResource*> globalOverrides;
 
     for (auto& resource : m_modResources)
     {
@@ -1606,8 +1610,10 @@ void ModLoader::FinalizeModLoads()
         }
 
         sources[resource.uniqueIdWithType] = resource.data;
+        globalOverrides[resource.uniqueIdWithType] = &resource;
     }
 
+    // Set modified data for resources that don't have any modified data themselve, if some other mod modifies the same resource
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 3");
 
     for (auto& resource : m_modResources)
@@ -1670,9 +1676,8 @@ void ModLoader::FinalizeModLoads()
         m_bundleResources[entry.first].reserve(entry.second);
     }
 
+    // Add resources to bundles
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 7");
-
-    eastl::map<uint32_t, const ModResource*> globalOverrides;
 
     eastl::map<uint32_t, eastl::set<uint32_t>> visitedNames;
     for (const auto& resource : m_modResources)
@@ -1684,11 +1689,8 @@ void ModLoader::FinalizeModLoads()
 
         const ModResource* assignableResource = &resource;
 
-        if (resource.bundles.empty())
-        {
-            globalOverrides[resource.uniqueIdWithType] = assignableResource;
-        }
-        else
+        // Replace resource by higher priority resource
+        if (!resource.bundles.empty())
         {
             auto it = globalOverrides.find(assignableResource->uniqueIdWithType);
             if (it != globalOverrides.end())
@@ -1729,18 +1731,34 @@ void ModLoader::LoadFile(uint64_t file, const char* fileName)
 }
 #pragma runtime_checks("s", restore)
 
-// This function limits the number of possible mods to 247. It should be possible
-// to increase this, if necessary, by incrementing catalogIndex. initialexperience
-// has 10 files, hence the 10 + m_mods.size() in the casIndex calculation. If a
-// different catalog has more than 10 files, they will need to be accounted for
 int32_t ModLoader::GetNextModFile() const
 {
-    int catalogIndex = 0; // initialexperience
+    const static uint8_t kCatalogSizes[] = {
+        10, /* initialexperience */
+        5,  /* frontend */
+        3,  /* sp */
+        12, /* sp_a1 */
+        7,  /* sp_a2 */
+        3,  /* sp_a3 */
+        6   /* sp_a3_p2 */
+    };
+    const static size_t kNumCatalogs = sizeof(kCatalogSizes) / sizeof(kCatalogSizes[0]);
+
     bool inPatch = false;
-    int casIndex = 10 + m_mods.size();
-    return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((casIndex - 1) & 0xFF);
+    int32_t catalogIndex = 0;
+    uint32_t casIndex = m_mods.size();
+    uint32_t availableCatalogSpace;
+    while (catalogIndex < kNumCatalogs && casIndex > (availableCatalogSpace = 0xFF - kCatalogSizes[catalogIndex]))
+    {
+        catalogIndex++;
+        casIndex -= availableCatalogSpace;
+    }
+
+    KYBER_ASSERT_DESC(catalogIndex < kNumCatalogs, "Mod limit reached!");
+
+    casIndex += kCatalogSizes[catalogIndex];
+    return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((static_cast<int32_t>(casIndex) - 1) & 0xFF);
 }
-// To increase, make map of cas folders and increase the index as can be allocated
 
 bool ModLoader::IsBundleLoaded(const std::string& bundleName) const
 {

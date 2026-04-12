@@ -29,13 +29,13 @@ void OnSdkMessageAvailable(void* callbackHandle)
 
 void VoipMuteCommand(ConsoleContext& cc)
 {
-    VoipManager* manager = g_program->m_voipManager;
+    VoipManager* manager = g_program->m_client->m_voipManager;
     manager->SetMuted(true);
 }
 
 void VoipListCaptureDevicesCommand(ConsoleContext& cc)
 {
-    VoipManager* manager = g_program->m_voipManager;
+    VoipManager* manager = g_program->m_client->m_voipManager;
     cc << "Capture devices:\n";
 
     int i = 0;
@@ -50,7 +50,7 @@ void VoipListCaptureDevicesCommand(ConsoleContext& cc)
 
 void VoipSetCaptureDeviceCommand(ConsoleContext& cc)
 {
-    VoipManager* manager = g_program->m_voipManager;
+    VoipManager* manager = g_program->m_client->m_voipManager;
 
     auto stream = cc.stream();
     int id;
@@ -64,7 +64,7 @@ void VoipSetCaptureDeviceCommand(ConsoleContext& cc)
 
 void VoipSetInputVolumeCommand(ConsoleContext& cc)
 {
-    VoipManager* manager = g_program->m_voipManager;
+    VoipManager* manager = g_program->m_client->m_voipManager;
 
     auto stream = cc.stream();
     float volume;
@@ -76,7 +76,7 @@ void VoipSetInputVolumeCommand(ConsoleContext& cc)
 
 void VoipSetSpeakerVolumeCommand(ConsoleContext& cc)
 {
-    VoipManager* manager = g_program->m_voipManager;
+    VoipManager* manager = g_program->m_client->m_voipManager;
 
     auto stream = cc.stream();
     float volume;
@@ -122,7 +122,7 @@ VoipManager::VoipManager()
 {
     RegisterRenderListener(this);
 
-    g_program->RegisterClientUpdatePassListener(this);
+    g_program->m_client->RegisterClientUpdatePassListener(this);
     g_program->m_consoleRegistrationCallbacks.push_back([&]() {
         RegisterConsoleCommand(&VoipMuteCommand, "VoipMute", "");
         RegisterConsoleCommand(&VoipListCaptureDevicesCommand, "VoipListCaptureDevices", "");
@@ -295,7 +295,7 @@ void VoipManager::Call(ClientUpdatePass pass)
         return;
     }
 
-    if (g_program->m_clientState != ClientState_Ingame)
+    if (g_program->m_client->m_clientState != ClientState_Ingame)
     {
         return;
     }

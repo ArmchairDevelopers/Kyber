@@ -421,7 +421,6 @@ func (sm *ServerManager) HandleServerWS(w http.ResponseWriter, r *http.Request) 
 		}
 
 		delete(sm.ownedServers, id)
-		sm.mu.Unlock()
 	}
 
 	sm.ownedServers[id] = &OwnedServer{Conn: conn}

@@ -18,7 +18,7 @@
 
 namespace Kyber
 {
-extern void* s_mainLoop;
+void InitLevelSetup(LevelSetup* levelSetup, const char* level, const char* mode, const char* startPoint, const char* initialSubLevel);
 
 struct ServerCreationInfo
 {
@@ -106,13 +106,11 @@ public:
 
     void SetDedicatedCreationInfo(const ServerCreationInfo& info);
 
-    // The events in this manager are processed once on MainLoop::init
-    EventManager* m_mainLoopInitEventManager;
-
     SocketManager* m_socketManager;
     ISocket* m_natClient;
     ServerPlayerManager* m_playerManager;
     PersistenceManager* m_persistenceManager;
+    EventManager* m_eventManager;
     SocketSpawnInfo m_socketSpawnInfo;
     MapRotation m_mapRotation;
     std::string m_currentLevel;
