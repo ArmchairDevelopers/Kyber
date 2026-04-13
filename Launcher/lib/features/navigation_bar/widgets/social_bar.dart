@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
-import 'package:kyber_launcher/features/maxima/dialogs/maxima_friends_dialog.dart';
+import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
@@ -21,38 +21,63 @@ class SocialBar extends StatefulWidget {
 class _SocialBarState extends State<SocialBar> {
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const .only(left: 35, right: 20),
-      child: FractionallySizedBox(
-        widthFactor: 1 / 3,
-        alignment: .centerRight,
-        child: SizedBox(
-          height: 45,
-          child: BackgroundBlur(
-            child: Container(
-              decoration: const BoxDecoration(
-                border: .symmetric(vertical: kDefaultBorder),
-              ),
-              padding: const .symmetric(horizontal: 15, vertical: 4),
-              alignment: .center,
-              child: Row(
-                spacing: 15,
-                children: [
-                  KOutlinedButton(
-                    onPressed: () => showKyberDialog(
-                      context: context,
-                      builder: (_) => const MaximaFriendsDialog(),
-                    ),
-                    child: const Icon(mt.Icons.group),
-                  ),
-                  const VCardSection(),
-                  const Flexible(child: _FriendsBar()),
-                  const VCardSection(),
-                  const _DownloadManagerButton(),
-                ],
+    return SizedBox(
+      height: 45,
+      child: Container(
+        decoration: BoxDecoration(
+          border: .fromLTRB(right: kDefaultBorder),
+        ),
+        padding: const .symmetric(horizontal: 15),
+        alignment: .center,
+        child: Row(
+          mainAxisAlignment: .end,
+          spacing: 15,
+          children: [
+            const Expanded(flex: 4, child: SizedBox.shrink()),
+            Flexible(
+              flex: 2,
+              child: ConstrainedBox(
+                constraints: const .new(
+                  maxWidth: 300,
+                ),
+                child: const Padding(
+                  padding: const .symmetric(vertical: 4),
+                  child: _FriendsBar(),
+                ),
               ),
             ),
-          ),
+            const VCardSection(),
+            Builder(
+              builder: (context) {
+                final currentUser = context
+                    .watch<MaximaCubit>()
+                    .state
+                    .servicePlayer;
+                return Row(
+                  spacing: 8,
+                  children: [
+                    MaximaAvatar(
+                      pd: currentUser!.pd,
+                      height: 28,
+                      width: 28,
+                    ),
+                    Text(
+                      currentUser!.displayName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontFamily: FontFamily.battlefrontUI,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const VCardSection(),
+            CustomIconButton(
+              iconData: mt.Icons.settings,
+              onPressed: () => null,
+            ),
+          ],
         ),
       ),
     );
@@ -71,25 +96,57 @@ class _DownloadManagerButton extends StatelessWidget {
         downloadManagerState.activeTasks.isNotEmpty;
 
     if (isDownloadActive) {
-      return buildBigDownloadButton(state: downloadManagerState);
+      return buildActiveDownloadButton(state: downloadManagerState);
     }
 
-    return buildSmallDownloadButton();
+    return buildDownloadButton();
   }
 
-  Widget buildSmallDownloadButton() {
-    return KOutlinedButton(
-      onPressed: () => router.push('/downloads/overview'),
-      child: const Icon(mt.Icons.download),
+  Widget buildDownloadButton() {
+    return ButtonBuilder(
+      onClick: () => router.push('/downloads/overview'),
+      builder: (context, hovered) {
+        final itemColor = switch (hovered) {
+          true => kActiveColor,
+          false => const Color(0xFFD9D9D9),
+        };
+
+        return Container(
+          child: IconTheme(
+            data: .new(
+              color: itemColor,
+            ),
+            child: DefaultTextStyle(
+              style: .new(
+                color: itemColor,
+                fontFamily: FontFamily.battlefrontUI,
+              ),
+              child: const Padding(
+                padding: .symmetric(vertical: 4, horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: .center,
+                  children: [
+                    Icon(mt.Icons.download),
+                    Padding(
+                      padding: .symmetric(horizontal: 6),
+                      child: Text('DOWNLOADS'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget buildBigDownloadButton({required DownloadLoaded state}) {
+  Widget buildActiveDownloadButton({required DownloadLoaded state}) {
     final progress = switch (state.progressUpdate) {
       null => state.currentDownload?.progress ?? 1.0,
       final update => update.progress,
     };
-    final progressText = '${(progress * 100).toStringAsFixed(1)}%';
+    final progressText = '${(progress * 100).toStringAsFixed(0)}%';
 
     final expectedSize = switch (state.progressUpdate) {
       null => state.currentDownload?.expectedFileSize ?? 0,
@@ -100,82 +157,72 @@ class _DownloadManagerButton extends StatelessWidget {
     final currentSize = (expectedSize * progress).toInt();
     final currentSizeText = formatBytes(currentSize, 1);
 
-    return BackgroundBlur(
-      borderRadius: const .all(.circular(6)),
-      child: ButtonBuilder(
-        onClick: () => router.push('/downloads/overview'),
-        builder: (context, hovered) {
-          final itemColor = switch (hovered) {
-            true => kActiveColor,
-            false => const Color(0xFFD9D9D9),
-          };
+    return ButtonBuilder(
+      onClick: () => router.push('/downloads/overview'),
+      builder: (context, hovered) {
+        final itemColor = switch (hovered) {
+          true => kActiveColor,
+          false => const Color(0xFFD9D9D9),
+        };
 
-          return Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFD9D9D9).withOpacity(.1),
-              border: .all(
-                color: hovered ? kActiveColor : const Color(0xFF5C5C5C),
-                width: 1.5,
-              ),
-              borderRadius: const .all(.circular(6)),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: AnimatedFractionallySizedBox(
-                          duration: const .new(milliseconds: 200),
-                          widthFactor: progress,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: kActiveColor,
-                              borderRadius: const .vertical(
-                                bottom: .circular(4),
-                              ),
-                            ),
-                            height: 3,
+        return Container(
+          child: Stack(
+            clipBehavior: .antiAliasWithSaveLayer,
+            children: [
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: AnimatedFractionallySizedBox(
+                        duration: const .new(milliseconds: 200),
+                        widthFactor: progress >= 0.0 ? progress : 0.01,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: kActiveColor,
                           ),
+                          height: 3,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                IconTheme(
-                  data: .new(
+              ),
+              IconTheme(
+                data: .new(
+                  color: itemColor,
+                ),
+                child: DefaultTextStyle(
+                  style: .new(
                     color: itemColor,
+                    fontFamily: FontFamily.battlefrontUI,
                   ),
-                  child: DefaultTextStyle(
-                    style: .new(color: itemColor),
-                    child: Padding(
-                      padding: const .symmetric(vertical: 6, horizontal: 16),
-                      child: Row(
-                        spacing: 15,
-                        mainAxisAlignment: .spaceBetween,
-                        children: [
-                          const Icon(mt.Icons.download),
-                          Text(
-                            '$progressText ($currentSizeText / $expectedSizeText)',
-                            style: const .new(
-                              fontSize: 14,
-                              fontFamily: FontFamily.battlefrontUI,
-                              fontFeatures: [.tabularFigures()],
-                            ),
+                  child: Padding(
+                    padding: const .symmetric(vertical: 4, horizontal: 16),
+                    child: Row(
+                      spacing: 5,
+                      mainAxisAlignment: .center,
+                      children: [
+                        const Icon(mt.Icons.download),
+                        Text(
+                          '$progressText ($currentSizeText / $expectedSizeText)',
+                          style: const .new(
+                            fontSize: 15,
+                            fontFamily: FontFamily.battlefrontUI,
+                            fontFeatures: [.tabularFigures()],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -191,11 +238,12 @@ class _FriendsBar extends StatelessWidget {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final maxItems = ((constraints.maxWidth - 15) / 45).floor();
+            final maxItems = ((constraints.maxWidth - 20) / 40).floor();
             final displayedFriends = friends.take(maxItems).toList();
 
             return Row(
               spacing: 10,
+              mainAxisAlignment: .end,
               children: [
                 for (final friend in displayedFriends)
                   Container(
@@ -203,8 +251,8 @@ class _FriendsBar extends StatelessWidget {
                       border: kDefaultAllBorder,
                       borderRadius: .all(.circular(3)),
                     ),
-                    clipBehavior: .antiAliasWithSaveLayer,
-                    child: MaximaAvatar(pd: friend.pd, height: 33, width: 33),
+                    alignment: .center,
+                    child: MaximaAvatar(pd: friend.pd, height: 33, width: 30),
                   ),
                 if (friends.length > maxItems)
                   Text(

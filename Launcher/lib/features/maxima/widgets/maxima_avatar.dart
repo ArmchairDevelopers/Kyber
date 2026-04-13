@@ -5,7 +5,12 @@ import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
 
 class MaximaAvatar extends StatefulWidget {
-  const MaximaAvatar({required this.pd, this.height = 64, this.width = 64, super.key});
+  const MaximaAvatar({
+    required this.pd,
+    this.height = 64,
+    this.width = 64,
+    super.key,
+  });
 
   final String pd;
   final double width;
@@ -70,6 +75,7 @@ class _MaximaAvatarState extends State<MaximaAvatar> {
       return Assets.images.usericonTmp.image(
         width: widget.width,
         height: widget.height,
+        fit: .cover,
       );
     }
 
@@ -77,6 +83,7 @@ class _MaximaAvatarState extends State<MaximaAvatar> {
       File(path ?? ''),
       width: widget.width,
       height: widget.height,
+      fit: .cover,
     );
   }
 }

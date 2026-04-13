@@ -33,14 +33,13 @@ class NavigationBarItem extends StatelessWidget {
           cursor: SystemMouseCursors.click,
           onHover: (_) => onHover(true),
           onExit: (_) => onHover(false),
-          child: BackgroundBlur(
-            blurColor: active ? kWhiteBackgroundColor : null,
-            blurIntensity: 10,
+          child: Container(
+            color: active ? const Color.fromRGBO(67, 73, 76, 0.3) : null,
             child: Center(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: .center,
                 children: [
-                  if (child != null) child!,
+                  ?child,
                   Text(
                     item.title.toUpperCase(),
                     style: TextStyle(
