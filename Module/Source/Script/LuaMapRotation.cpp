@@ -22,6 +22,18 @@ static int MapRotationAddMapFunc(lua_State* L)
     std::string level = luaL_checkstring(L, 1);
     std::string mode = luaL_checkstring(L, 2);
 
+    if (level.size() == 0)
+    {
+        luaL_error(L, "Level path provided is empty.");
+        return 0;
+    }
+
+    if (mode.size() == 0)
+    {
+        luaL_error(L, "Gamemode id provided is empty.");
+        return 0;
+    }
+
     rotation.AddEntry(level, mode);
     return 0;
 }
@@ -34,6 +46,18 @@ static int MapRotationClearFunc(lua_State* L)
     // Clear with a required at least 1 entry, as there is no backup.
     std::string level = luaL_checkstring(L, 1);
     std::string mode = luaL_checkstring(L, 2);
+
+    if (level.size() == 0)
+    {
+        luaL_error(L, "Level path provided is empty.");
+        return 0;
+    }
+
+    if (mode.size() == 0)
+    {
+        luaL_error(L, "Gamemode id provided is empty.");
+        return 0;
+    }
 
     rotation.AddEntry(level, mode);
     return 0;
@@ -52,6 +76,13 @@ static int MapRotationRemoveNextMapFunc(lua_State* L)
     MapRotation& rotation = g_program->m_server->m_mapRotation;
     rotation.RemoveNextEntry();
     return 0;
+}
+
+static int MapRotationGetCurrentEntryIndexFunc(lua_State* L)
+{
+    const MapRotation& rotation = g_program->m_server->m_mapRotation;
+    lua_pushinteger(L, rotation.GetIndex());
+    return 1;
 }
 
 static int MapRotationGetListFunc(lua_State* L)
@@ -75,6 +106,7 @@ static const luaL_Reg s_mapRotationFuncs[] = {
     { "Clear", MapRotationClearFunc },
     { "GetNextMap", MapRotationGetNextMapFunc }, 
     { "RemoveNextMap", MapRotationRemoveNextMapFunc }, 
+    { "GetCurrentEntryIndex", MapRotationGetCurrentEntryIndexFunc }, 
     { "GetList", MapRotationGetListFunc }, 
     { NULL, NULL } 
 };

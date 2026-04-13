@@ -63,6 +63,13 @@ public:
     {
         if (m_entries.size() <= 0)
         {
+            KYBER_LOG(Error, "Attempted to remove entry when nothing exists in the rotation.");
+            return;
+        }
+
+        if (m_entries.size() == 1)
+        {
+            KYBER_LOG(Warning, "Attempted to remove next entry in map rotation when there is only one entry in the list.");
             return;
         }
 
@@ -79,6 +86,11 @@ public:
     std::vector<MapRotationEntry> GetList() const
     {
         return m_entries;
+    }
+
+    uint16_t GetIndex() const
+    {
+        return m_current;
     }
 
 private:
