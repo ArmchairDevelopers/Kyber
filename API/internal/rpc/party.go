@@ -42,6 +42,56 @@ func NewPartyServer(store *db.Store, mqClient mq.Client, partyPub *mq.PartyEvent
 	return s
 }
 
+func (s *PartyService) CancelJoinGame(ctx context.Context, _ *pbcommon.Empty) (*pbcommon.Empty, error) {
+	user := ctx.Value("user").(*models.UserModel)
+
+	session, err := s.store.Sessions.GetByUserID(ctx, user.ID)
+	if err != nil {
+		logger.L().Error("Failed to get session", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get session")
+	}
+
+	if session == nil || session.PartyID == nil {
+		return nil, status.Error(codes.NotFound, "You are not in a party")
+	}
+
+	partyID := *session.PartyID
+	party, err := s.store.Parties.GetByID(ctx, partyID)
+	if err != nil {
+		logger.L().Error("Failed to get party", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get party")
+	}
+
+	if party.LeaderID != user.ID {
+		return nil, status.Error(codes.PermissionDenied, "Only the party leader can cancel joining a game")
+	}
+
+	if party.JoinGameState == nil {
+		return nil, status.Error(codes.InvalidArgument, "Not currently joining a game")
+	}
+
+	if err := s.store.Parties.Update(ctx, partyID, bson.M{"$unset": bson.M{"join_game_state": ""}}); err != nil {
+		logger.L().Error("Failed to clear join game state", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to cancel joining game")
+	}
+
+	sessions, err := s.store.Sessions.GetByPartyID(ctx, partyID)
+	userIDs := make([]string, 0, len(sessions))
+	for _, s := range sessions {
+		userIDs = append(userIDs, s.UserID)
+	}
+
+	s.partyPub.Publish(partyID, userIDs, &pbapi.PartyEvent{
+		Body: &pbapi.PartyEvent_JoinGameCancelled{
+			JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
+		},
+	})
+
+	logger.L().Debug("Cancelled joining game", zap.Uint64("party_id", partyID), zap.String("user_id", user.ID))
+
+	return &pbcommon.Empty{}, nil
+}
+
 func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbcommon.Empty, error) {
 	user := ctx.Value("user").(*models.UserModel)
 

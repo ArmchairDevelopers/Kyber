@@ -112,6 +112,7 @@ service Party {
   rpc GetParty(kyber_common.Empty) returns (GetPartyResponse);
 
   rpc StartJoinGame(StartJoinGameRequest) returns (kyber_common.Empty);
+  rpc CancelJoinGame(kyber_common.Empty) returns (kyber_common.Empty);
 }
 
 // SessionService
