@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_fadein/flutter_fadein.dart';
+import 'package:grpc/grpc.dart';
 import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
@@ -9,6 +10,7 @@ import 'package:kyber_launcher/features/maxima/widgets/friend_list/maxima_friend
 import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
 import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/rust/api/maxima.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 
 class MaximaFriendsDialog extends StatelessWidget {
@@ -184,14 +186,22 @@ class _FriendsList extends StatelessWidget {
 
     return FadeIn(
       child: MaximaFriendList(
-        onFriendSelected: (value) async {
-          await context.read<SessionCubit>().inviteToParty(value.id);
-          NotificationService.info(
-            message: 'Invited ${value.displayName} to the party',
-          );
-        },
+        onFriendSelected: (value) async => inviteFriend(context, value),
       ),
     );
+  }
+
+  void inviteFriend(BuildContext context, ServicePlayer player) async {
+    try {
+      await context.read<SessionCubit>().inviteToParty(player.id);
+      NotificationService.info(
+        message: 'Invited friend to the party',
+      );
+    } on GrpcError catch (e) {
+      NotificationService.error(
+        message: 'Failed to invite friend: ${e.message}',
+      );
+    }
   }
 }
 
