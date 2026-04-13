@@ -38,7 +38,7 @@ class _SocialBarState extends State<SocialBar> {
               child: Row(
                 spacing: 15,
                 children: [
-                  Button(
+                  KOutlinedButton(
                     onPressed: () => showKyberDialog(
                       context: context,
                       builder: (_) => const MaximaFriendsDialog(),
@@ -78,7 +78,7 @@ class _DownloadManagerButton extends StatelessWidget {
   }
 
   Widget buildSmallDownloadButton() {
-    return Button(
+    return KOutlinedButton(
       onPressed: () => router.push('/downloads/overview'),
       child: const Icon(mt.Icons.download),
     );

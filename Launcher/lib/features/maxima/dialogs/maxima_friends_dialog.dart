@@ -11,7 +11,9 @@ import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
 import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
-import 'package:kyber_launcher/shared/ui/buttons/button.dart';
+import 'package:kyber_launcher/shared/ui/buttons/normal_button.dart';
+import 'package:kyber_launcher/shared/ui/ui.dart';
+import 'package:super_sliver_list/super_sliver_list.dart';
 
 class MaximaFriendsDialog extends StatelessWidget {
   const MaximaFriendsDialog({super.key});
@@ -65,9 +67,10 @@ class _PartyPanel extends StatelessWidget {
     return Padding(
       padding: const .only(top: 20),
       child: Column(
-        crossAxisAlignment: .start,
+        crossAxisAlignment: .stretch,
         children: [
           const _SectionHeader(title: 'Multiplayer Group'),
+          const SizedBox(height: 1, child: ColoredBox(color: decoColor)),
           Expanded(
             child: BlocBuilder<SessionCubit, SessionState>(
               builder: (context, state) {
@@ -214,14 +217,33 @@ class _PartyMemberList extends StatelessWidget {
   Widget build(BuildContext context) {
     final members = party.party.members;
 
-    return ListView.separated(
-      itemCount: members.length,
-      separatorBuilder: (_, __) => const _MemberDivider(),
+    return SuperListView.separated(
+      itemCount: members.length + 1,
       itemBuilder: (_, index) {
+        if (index == members.length) {
+          return const SizedBox.shrink();
+        }
+
         final player = members[index].player;
+        final isLeader = party.party.leaderId == player.id;
+
         return _MemberTile(
           name: player.name,
           avatar: MaximaAvatar(pd: player.id, height: 50, width: 50),
+          id: player.id,
+          status: switch (isLeader) {
+            true => Text(
+              'Group Leader',
+              style: .new(color: kActiveColor),
+            ),
+            _ => const Text('Online'),
+          },
+        );
+      },
+      separatorBuilder: (context, index) {
+        return Container(
+          height: 1,
+          color: decoColor,
         );
       },
     );
@@ -237,6 +259,7 @@ class _CurrentUserTile extends StatelessWidget {
         _MemberTile(
           name: player.displayName,
           avatar: MaximaAvatar(pd: player.id, height: 50, width: 50),
+          id: player.id,
         ),
         const _MemberDivider(),
       ],
@@ -245,57 +268,100 @@ class _CurrentUserTile extends StatelessWidget {
 }
 
 class _MemberTile extends StatelessWidget {
-  const _MemberTile({required this.name, required this.avatar});
+  const _MemberTile({
+    required this.name,
+    required this.avatar,
+    this.status,
+    this.id = '',
+  });
 
   final String name;
   final Widget avatar;
+  final Text? status;
+  final String id;
 
   @override
   Widget build(BuildContext context) {
+    final userId = context.read<MaximaCubit>().state.servicePlayer!.id;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(.05),
-        border: const .symmetric(
-          horizontal: .new(color: decoColor, width: 1.5),
-        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 5,
-        ).copyWith(left: 15),
-        child: Row(
-          crossAxisAlignment: .start,
-          children: [
-            Container(
-              clipBehavior: .antiAliasWithSaveLayer,
-              decoration: const BoxDecoration(
-                borderRadius: .all(.circular(6)),
-              ),
-              child: avatar,
+      child: HoverBuilder(
+        builder: (context, hovered) {
+          final partyState = context.select(
+            (SessionCubit cubit) => cubit.state,
+          );
+          final isLeader =
+              partyState is InParty && partyState.party.leaderId == userId;
+
+          return Padding(
+            padding: const .symmetric(
+              horizontal: 15,
+              vertical: 5,
             ),
-            const SizedBox(width: 10),
-            DefaultTextStyle(
-              style: const .new(height: 1, fontFamily: FontFamily.battlefrontUI),
-              child: Column(
-                crossAxisAlignment: .start,
-                children: [
-                  const SizedBox(height: 2),
-                  Text(name, style: const .new(fontSize: 18)),
-                  const SizedBox(height: 5),
-                  const Divider(
-                    size: 10,
-                    style: DividerThemeData(
-                      horizontalMargin: .zero,
-                      verticalMargin: .symmetric(vertical: 10),
-                      decoration: BoxDecoration(color: decoColor),
+            child: Stack(
+              children: [
+                Row(
+                  crossAxisAlignment: .start,
+                  children: [
+                    Container(
+                      clipBehavior: .antiAliasWithSaveLayer,
+                      decoration: const BoxDecoration(
+                        borderRadius: .all(.circular(6)),
+                      ),
+                      child: avatar,
+                    ),
+                    const SizedBox(width: 10),
+                    DefaultTextStyle(
+                      style: const .new(
+                        height: 1,
+                        fontFamily: FontFamily.battlefrontUI,
+                      ),
+                      child: Padding(
+                        padding: const .symmetric(vertical: 2),
+                        child: Column(
+                          crossAxisAlignment: .start,
+                          mainAxisAlignment: .center,
+                          spacing: 5,
+                          children: [
+                            Text(name, style: const .new(fontSize: 18)),
+                            const Divider(
+                              size: 10,
+                              style: DividerThemeData(
+                                horizontalMargin: .zero,
+                                verticalMargin: .symmetric(vertical: 10),
+                                decoration: BoxDecoration(color: decoColor),
+                              ),
+                            ),
+                            ?status,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (hovered && isLeader && userId != id)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Row(
+                      children: [
+                        KOutlinedButton(
+                          child: Icon(mt.Icons.close_sharp, size: 25),
+                          onPressed: () {
+                            // TODO: Implement kick from party
+                          },
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

@@ -170,14 +170,28 @@ class _NormalButtonState extends State<NormalButton>
   }
 }
 
-class Button extends StatelessWidget {
-  const Button({required this.child, required this.onPressed, super.key});
+class KOutlinedButton extends StatelessWidget {
+  const KOutlinedButton({
+    required this.child,
+    required this.onPressed,
+    this.padding,
+    super.key,
+  });
 
   final Widget child;
   final VoidCallback onPressed;
+  final EdgeInsets? padding;
+
+  const KOutlinedButton.icon({
+    required this.child,
+    required this.onPressed,
+    super.key,
+  }) : padding = const EdgeInsets.all(8);
 
   @override
   Widget build(BuildContext context) {
+    final buttonPadding =
+        padding ?? const .symmetric(vertical: 6, horizontal: 16);
     return BackgroundBlur(
       borderRadius: const .all(.circular(6)),
       child: ButtonBuilder(
@@ -187,7 +201,7 @@ class Button extends StatelessWidget {
             true => kActiveColor,
             false => const Color(0xFFD9D9D9),
           };
-      
+
           return Container(
             decoration: BoxDecoration(
               color: const Color(0xFFD9D9D9).withOpacity(.1),
@@ -204,7 +218,7 @@ class Button extends StatelessWidget {
               child: DefaultTextStyle(
                 style: .new(color: itemColor),
                 child: Padding(
-                  padding: const .symmetric(vertical: 6, horizontal: 16),
+                  padding: buttonPadding,
                   child: child,
                 ),
               ),

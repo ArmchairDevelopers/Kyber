@@ -271,7 +271,7 @@ class SessionCubit extends Cubit<SessionState> {
             );
           }
 
-          emit(InParty(response.party, joinGameInfo: joinGameInfo));
+          _emitInParty(response.party, joinGameInfo: joinGameInfo);
 
           if (joinGameInfo != null) {
             _checkAndReportModStatus(joinGameInfo.mods);
@@ -561,10 +561,26 @@ class SessionCubit extends Cubit<SessionState> {
   void _emitInParty(PartyState party, {JoinGameInfo? joinGameInfo}) {
     emit(
       InParty(
-        party,
+        _sortMembers(party),
         pendingInvite: _inParty?.pendingInvite,
         joinGameInfo: joinGameInfo ?? _inParty?.joinGameInfo,
       ),
+    );
+  }
+
+  PartyState _sortMembers(PartyState party) {
+    final sorted = party.members.toList()
+      ..sort((a, b) {
+        if (a.player.id == party.leaderId) return -1;
+        if (b.player.id == party.leaderId) return 1;
+        return a.joinedAt.compareTo(b.joinedAt);
+      });
+
+    return PartyState(
+      id: party.id,
+      leaderId: party.leaderId,
+      createdAt: party.createdAt,
+      members: sorted,
     );
   }
 
