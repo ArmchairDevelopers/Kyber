@@ -17,6 +17,7 @@ import 'package:kyber_launcher/features/download_manager/repositories/download_r
 import 'package:kyber_launcher/features/download_manager/services/download_orchestrator.dart';
 import 'package:kyber_launcher/features/download_manager/services/mod_bridge_service.dart';
 import 'package:kyber_launcher/features/kyber/helper/kyber_server_helper.dart';
+import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
@@ -235,7 +236,8 @@ class SessionCubit extends Cubit<SessionState> {
     if (searchResult.failedCount > 0) {
       final count = searchResult.failedCount;
       NotificationService.showNotification(
-        message: 'For $count ${count > 1 ? "mods" : "mod"} no download could be found.',
+        message:
+            'For $count ${count > 1 ? "mods" : "mod"} no download could be found.',
       );
     }
 
@@ -509,6 +511,10 @@ class SessionCubit extends Cubit<SessionState> {
       );
 
       if (statuses.values.every((s) => s.hasMods)) {
+        if (await isAlreadyIngame()) {
+          return;
+        }
+
         NotificationService.info(
           message: 'All players are ready! Joining game...',
         );
@@ -520,6 +526,10 @@ class SessionCubit extends Cubit<SessionState> {
 
       final myStatus = info.memberStatuses[userId];
       if (myStatus?.hasMods ?? false) {
+        if (await isAlreadyIngame()) {
+          return;
+        }
+
         NotificationService.info(message: 'Joining game...');
         await joinServerForParty();
       } else {
@@ -533,6 +543,19 @@ class SessionCubit extends Cubit<SessionState> {
       emit(InParty(party, pendingInvite: _inParty?.pendingInvite));
       NotificationService.info(message: 'Join game was cancelled');
     }
+  }
+
+  Future<bool> isAlreadyIngame() async {
+    if (state is! InParty) return false;
+    final serverId = _inParty?.joinGameInfo?.serverId;
+
+    final instance = sl.maybeGet<MaximaGameInstance>();
+    if (instance == null) return false;
+
+    final server = await instance.clientService.commonClient.getInfo(.new());
+    if (server.server.id != serverId) return false;
+
+    return true;
   }
 
   void _emitInParty(PartyState party, {JoinGameInfo? joinGameInfo}) {
