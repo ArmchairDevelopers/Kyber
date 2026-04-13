@@ -1,0 +1,63 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(UIVehicleHitUpdatedMessage, 0x144545730);
+_KB_DECLARE_TYPEINFO(UISquadStatusChangedMessage, 0x144545780);
+_KB_DECLARE_TYPEINFO(UISoldierHitUpdatedMessage, 0x1445457D0);
+_KB_DECLARE_TYPEINFO(UIPlayerVehicleHealthChangeMessage, 0x144545820);
+_KB_DECLARE_TYPEINFO(UIInputStatusChangedMessage, 0x144545870);
+_KB_DECLARE_TYPEINFO(UIHudUpdateCrosshairMessage, 0x1445458C0);
+_KB_DECLARE_TYPEINFO(UIHudToggleMapZoomMessage, 0x144545910);
+_KB_DECLARE_TYPEINFO(UIHudDebugPauseMessage, 0x144545960);
+_KB_DECLARE_TYPEINFO(UIHasSuppressedEnemyMessage, 0x1445459B0);
+_KB_DECLARE_TYPEINFO(UIDamageGivenToEnemyMessage, 0x144545A00);
+_KB_DECLARE_TYPEINFO(UIMessageEntityMessage, 0x144545A50);
+_KB_DECLARE_TYPEINFO(UIControllerDisconnectedMessage, 0x144545AA0);
+_KB_DECLARE_TYPEINFO(UIControllerConnectedMessage, 0x144545AF0);
+_KB_DECLARE_TYPEINFO(UIUserDisconnectedMessage, 0x144545B40);
+_KB_DECLARE_TYPEINFO(UIUserConnectedMessage, 0x144545B90);
+_KB_DECLARE_TYPEINFO(UIUserNotificationMessage, 0x144545BE0);
+_KB_DECLARE_TYPEINFO(UIUserSkippedLoginMessage, 0x144545C30);
+_KB_DECLARE_TYPEINFO(MemoryCardSavePauseMessage, 0x144545C80);
+_KB_DECLARE_TYPEINFO(MemoryCardBootCheckMessageBase, 0x144545CD0);
+_KB_DECLARE_TYPEINFO(MemoryCardSaveCheckDoneMessageBase, 0x144545D20);
+_KB_DECLARE_TYPEINFO(MemoryCardDeleteCorruptSavesDoneMessageBase, 0x144545D70);
+_KB_DECLARE_TYPEINFO(MemoryCardDeleteCorruptSavesMessageBase, 0x144545DC0);
+_KB_DECLARE_TYPEINFO(MemoryCardDeleteDoneMessageBase, 0x144545E10);
+_KB_DECLARE_TYPEINFO(MemoryCardDeleteMessageBase, 0x144545E60);
+_KB_DECLARE_TYPEINFO(MemoryCardFindEntriesDoneMessageBase, 0x144545EB0);
+_KB_DECLARE_TYPEINFO(MemoryCardFindEntriesMessageBase, 0x144545F00);
+_KB_DECLARE_TYPEINFO(MemoryCardSaveDoneMessageBase, 0x144545F50);
+_KB_DECLARE_TYPEINFO(MemoryCardSaveMessageBase, 0x144545FA0);
+_KB_DECLARE_TYPEINFO(MemoryCardLoadDoneMessageBase, 0x144545FF0);
+_KB_DECLARE_TYPEINFO(MemoryCardLoadMessageBase, 0x144546040);
+_KB_DECLARE_TYPEINFO(MemoryCardDestroyedMessageBase, 0x144546090);
+_KB_DECLARE_TYPEINFO(MemoryCardInitializedMessageBase, 0x1445460E0);
+_KB_DECLARE_TYPEINFO(MemoryCardCreatedMessageBase, 0x144546130);
+_KB_DECLARE_TYPEINFO(MemoryCardPopupHideMessageBase, 0x144546180);
+_KB_DECLARE_TYPEINFO(MemoryCardPopupResponseMessageBase, 0x1445461D0);
+_KB_DECLARE_TYPEINFO(MemoryCardPopupRequestMessageBase, 0x144546220);
+_KB_DECLARE_TYPEINFO(UIInputActionDataAsset, 0x144545230);
+_KB_DECLARE_TYPEINFO(UIAnalogInputMapData, 0x144546270);
+_KB_DECLARE_TYPEINFO(UIInputActionMapData, 0x1445462C0);
+_KB_DECLARE_TYPEINFO(UIInputSettings, 0x1445452B0);
+_KB_DECLARE_TYPEINFO(UILocaleFormatStrings, 0x144545330);
+_KB_DECLARE_TYPEINFO(LocalizedStringBase, 0x1445453B0);
+_KB_DECLARE_TYPEINFO(LocalizationAsset, 0x144545430);
+_KB_DECLARE_TYPEINFO(UITextDatabase, 0x1445454B0);
+_KB_DECLARE_TYPEINFO(UIConsoleKeyboardStatus, 0x144545530);
+_KB_DECLARE_TYPEINFO(UIAnalogInput, 0x1445451B0);
+_KB_DECLARE_TYPEINFO(UIAnalogInputEventType, 0x144545570);
+_KB_DECLARE_TYPEINFO(UIInputAction, 0x1445451F0);
+_KB_DECLARE_TYPEINFO(UITouchEventType, 0x1445455B0);
+_KB_DECLARE_TYPEINFO(UIInputActionEventType, 0x1445455F0);
+_KB_DECLARE_TYPEINFO(UIKeyboardEventType, 0x144545630);
+_KB_DECLARE_TYPEINFO(UIMouseEventType, 0x144545670);
+_KB_DECLARE_TYPEINFO(UIMouseButton, 0x1445456B0);
+_KB_DECLARE_TYPEINFO(UISystemType, 0x1445456F0);
+_KB_DECLARE_TYPEINFO(UserGamerpicBufferReceivedMessage, 0x144546310);
+
+#undef _KB_DECLARE_TYPEINFO
+}

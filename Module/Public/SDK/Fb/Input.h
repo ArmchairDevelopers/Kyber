@@ -1,0 +1,18 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(InputHandle, 0x144588FB0);
+_KB_DECLARE_TYPEINFO(InputSimDynamicState, 0x144589000);
+_KB_DECLARE_TYPEINFO(InputSimStaticState, 0x144589050);
+_KB_DECLARE_TYPEINFO(IInputDevice, 0x144588B20);
+_KB_DECLARE_TYPEINFO(InputManTouch, 0x144588BA0);
+_KB_DECLARE_TYPEINFO(InputManMouse, 0x144588C20);
+_KB_DECLARE_TYPEINFO(InputManKeyboard, 0x144588CA0);
+_KB_DECLARE_TYPEINFO(ITouch, 0x1445886C0);
+_KB_DECLARE_TYPEINFO(IMouse, 0x144588740);
+_KB_DECLARE_TYPEINFO(IKeyboard, 0x1445887C0);
+
+#undef _KB_DECLARE_TYPEINFO
+}

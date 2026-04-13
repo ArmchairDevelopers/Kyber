@@ -38,10 +38,6 @@ TL_DECLARE_FUNC(0x1401EF680, uint64_t, Buffer_readEx, void* inst, void* destinat
 // ECS
 TL_DECLARE_FUNC(0x140CEF870, __int64, GameComponentEntity_externalSetWorldTransform, TypeObject* inst, const LinearTransform& transform, bool external);
 
-// Network
-TL_DECLARE_FUNC(0x146375820, void*, OnlineManager_clientConnection, void* inst);
-TL_DECLARE_FUNC(0x1469F0180, float, ClientConnection_getAverageLatency, void* inst);
-
 // Reflection
 TL_DECLARE_FUNC(0x1453D5AB0, DataContainer*, DataContainerClassInfo_createInstance, const TypeInfo* type, MemoryArena* arena, bool a3, bool hasGuid);
 TL_DECLARE_FUNC(0x1401F54A0, __int64, SettingsManager_add, void* inst, const char* groupName, void* instance, bool exposeToConsole,

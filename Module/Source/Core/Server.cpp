@@ -13,6 +13,7 @@
 #include <Utilities/StringUtils.h>
 #include <Entity/KyberSettings.h>
 
+#include <fstream>
 #include <ws2tcpip.h>
 #include <iomanip>
 #include <iostream>
@@ -129,6 +130,8 @@ Server::Server()
     , m_playerManager(nullptr)
     , m_persistenceManager(new PersistenceManager())
     , m_eventManager(new EventManager())
+    , m_squadManager(nullptr)
+    , m_chatFilter(ChatFilter())
     , m_socketSpawnInfo(SocketSpawnInfo(false, "", "", ""))
     , m_serverInstance(nullptr)
     , m_onlineMode(IsOnlineMode())
@@ -138,6 +141,7 @@ Server::Server()
     , m_levelLoaded(false)
     , m_latestLoadLevelRequest(LoadLevelRequest())
 {
+    m_squadManager = new ServerSquadManager(m_eventManager);
     m_eventManager->RegisterListener<MainLoopInitStartServerEvent>(this);
 
     // Using the dirty sock socket manager makes KYBER servers compatible with non-kyber battlefront clients
@@ -184,7 +188,7 @@ void Server::Start(const ServerCreationInfo& info, bool changeState)
     NetworkSettings* networkSettings = Settings<NetworkSettings>("Network");
     networkSettings->MaxClientCount = info.maxPlayers;
     networkSettings->ServerPort = 25200;
-    // networkSettings->UseFrameManager = false;
+    networkSettings->UseFrameManager = true;
 
     KYBER_LOG(Info, "[Server] Protocol Version " << networkSettings->ProtocolVersion << " TitleId " << networkSettings->TitleId);
 
@@ -238,7 +242,7 @@ void Server::KickPlayer(ServerPlayer* player, const char* reason)
     serverConnection->SafeDisconnect(reason, SecureReason_KickedByAdmin);
 
     SendConsoleMessage(
-        "Kicked " + std::string(player->m_name) + " (" + std::to_string(player->m_onlineId.m_nativeData) + ") from the server");
+        "Kicked " + std::string(player->m_name) + " (" + std::to_string(player->m_onlineId.m_nativeData) + ") from the server for reason: " + std::string(reason));
 }
 
 void Server::LoadNextLevel(
@@ -397,13 +401,16 @@ __int64 SettingsManagerApplyHk(__int64 inst, __int64* a2, char* script, BYTE* a4
     __int64 result = trampoline(inst, a2, script, a4);
 
     Settings<MeshStreamingSettings>("MeshStreaming")->PoolSize = 999999;
-    
+
+    WSGameSettings* wsSettings = Settings<WSGameSettings>("Whiteshark");
+    //wsSettings->NoInteractivityTimeoutTime = 30.f; // Kick after inactive for 120s
+
     // Setting designed for bot balancer to ensure that AutoBalanceTeamsOnNeutral is never true.
     KyberSettings* kyberSettings = Settings<KyberSettings>("Kyber");
     if (kyberSettings != nullptr)
     {
         bool enableTeamBalancing = !kyberSettings->DisableTeamBalancing;
-        Settings<WSGameSettings>("Whiteshark")->AutoBalanceTeamsOnNeutral = enableTeamBalancing;
+        wsSettings->AutoBalanceTeamsOnNeutral = enableTeamBalancing;
     }
 
     GameRenderSettings* renderSettings = Settings<GameRenderSettings>("Render");
@@ -419,7 +426,7 @@ __int64 SettingsManagerApplyHk(__int64 inst, __int64* a2, char* script, BYTE* a4
     renderSettings->DrawHdrCalibrationScreen = false;
 
     GlobalPostProcessSettings* postProcessSettings = Settings<GlobalPostProcessSettings>("PostProcess");
-    if (postProcessSettings)
+    if (postProcessSettings != nullptr)
     {
         postProcessSettings->ScreenSpaceRaytraceQuality = 4;
         postProcessSettings->ScreenSpaceRaytraceFullresEnable = true;
@@ -427,9 +434,15 @@ __int64 SettingsManagerApplyHk(__int64 inst, __int64* a2, char* script, BYTE* a4
     }
 
     BaseDisplaySettings* renderDeviceSettings = Settings<BaseDisplaySettings>("RenderDevice");
-    if (renderDeviceSettings)
+    if (renderDeviceSettings != nullptr)
     {
         renderDeviceSettings->DisplayDynamicRange = 0; // DisplayDynamicRange_SDR
+    }
+
+    NetworkSettings* networkSettings = Settings<NetworkSettings>("Network");
+    if (networkSettings != nullptr)
+    {
+        networkSettings->UseFrameManager = true;
     }
 
     return result;
@@ -466,6 +479,28 @@ void LoadSomethingHk(void* a1, __int64 a2, __int64 a3, __int64 a4, __int64 a5, _
     return trampoline(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, false);
 }
 
+void ServerPlayerExtent2UpdateHk(ServerPlayerExtent2* inst, float deltaTime)
+{
+    static const auto trampoline = HookManager::Call(ServerPlayerExtent2UpdateHk);
+    trampoline(inst, deltaTime);
+    
+    if (!inst->m_enableInactivityTimer)
+    {
+        return;
+    }
+
+    WSGameSettings* wsSettings = Settings<WSGameSettings>("Whiteshark");
+    if (wsSettings->NoInteractivityTimeoutTime > 0 && inst->m_inactivityTime > wsSettings->NoInteractivityTimeoutTime)
+    {
+        ServerPlayer* player = inst->GetPlayer();
+        ServerConnection* serverConnection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+        serverConnection->SafeDisconnect("AFK timeout threshold exceeded.", SecureReason_InteractivityTimeout);
+
+        g_program->m_server->SendConsoleMessage(
+            "Kicked " + std::string(player->m_name) + " (" + std::to_string(player->m_onlineId.m_nativeData) + ") for being inactive.");
+    }
+}
+
 void* CreatePresenceBackendHk(__int64* a1, __int64 a2, int backend, __int64 a4, __int64 a5)
 {
     static const auto trampoline = HookManager::Call(CreatePresenceBackendHk);
@@ -479,6 +514,8 @@ void* CreatePresenceBackendHk(__int64* a1, __int64 a2, int backend, __int64 a4, 
         backend = 0xB8566ABC; // OnlineBackend_Local
         // backend = 0xDEBD4193; // OnlineBackend_Peer
     }
+
+    // Online.IsServerPresenseEnable
 
     // NetObjectSystemSettings* netObjectSettings = Settings<NetObjectSystemSettings>("NetObjectSystem");
     // netObjectSettings->DeltaCompressionSettings.IsEnabled = false;
@@ -601,11 +638,13 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
             static const auto trampoline = HookManager::Call(ServerConnectionOnCreatePlayerMessageHk);
             trampoline(inst, copiedMessage);
 
-            ServerPlayer* player = g_program->m_server->m_playerManager->GetPlayerOrSpectator(copiedMessage->playerName);
+            ServerPlayer* player = inst->GetPlayer();
             if (player != nullptr)
             {
                 player->m_onlineId.m_nativeData = userId;
-                strcpy(player->m_onlineId.m_id, player->m_name);
+                strncpy(player->m_onlineId.m_id, player->m_name, sizeof(OnlineId::m_id));
+
+                g_program->m_server->InitializePlayer(player);
 
                 if (g_program->m_scriptManager != nullptr)
                 {
@@ -613,7 +652,29 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
                 }
 
                 g_program->GetAPI()->GetServerManagement()->SendPlayerList();
-                g_program->m_server->SendConsoleMessage(StringUtils::Format("%s (%llu) joined the server", player->m_name, userId));
+                g_program->m_server->SendConsoleMessage(StringUtils::Format("%s (%llu) has authenticated and joined the server", player->m_name, userId));
+
+                ServerPlayerAuthenticatedEvent* event = new ServerPlayerAuthenticatedEvent();
+                event->connection = inst;
+                if ((*response)->has_groupid())
+                {
+                    event->groupId = (*response)->groupid();
+                }
+                else
+                {
+                    // TEST// TEST// TEST// TEST// TEST// TEST
+                    // TEST// TEST// TEST// TEST// TEST// TEST
+                    // TEST// TEST// TEST// TEST// TEST// TEST
+                    // TEST// TEST// TEST// TEST// TEST// TEST
+                    // TEST// TEST// TEST// TEST// TEST// TEST
+                    event->groupId = 19472;
+                }
+                
+                g_program->m_server->m_eventManager->QueueEvent(event);
+            }
+            else 
+            {
+                KYBER_LOG(Error, "Failed to run " << copiedMessage->playerName << "'s player initialization stage! Weird behavior WILL happen.");
             }
 
             FB_SERVER_ARENA->free(copiedMessage->playerName);
@@ -621,6 +682,12 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
         });
 
     return true;
+}
+
+void Server::InitializePlayer(ServerPlayer* player) 
+{
+    // Set up inactivity timer
+    player->GetServerPlayerExtent2()->m_enableInactivityTimer = true;
 }
 
 void Server::Heartbeat(const UpdateParameters& params)
@@ -711,6 +778,7 @@ HookTemplate clientServerHookOffsets[] = {
     { OFFSET_SERVERLEVEL_UPDATELOAD, ServerLevelUpdateLoadHk },
     { HOOK_OFFSET(0x140BCF350), ServerLoadLevelMessagePostHk },
     { HOOK_OFFSET(0x14193DA20), ServerSendChatMessageHk },
+    { HOOK_OFFSET(0x14843AF70), ServerPlayerExtent2UpdateHk },
 };
 
 HookTemplate dedicatedServerHookOffsets[] = {
@@ -727,6 +795,7 @@ HookTemplate dedicatedServerHookOffsets[] = {
     { OFFSET_SERVER_UPDATEPASSPREFRAME, ServerUpdatePassPreFrameHk },
     { HOOK_OFFSET(0x140BCF350), ServerLoadLevelMessagePostHk },
     { HOOK_OFFSET(0x14193DA20), ServerSendChatMessageHk },
+    { HOOK_OFFSET(0x14843AF70), ServerPlayerExtent2UpdateHk },
 };
 
 void Server::InitializeGameHooks()
@@ -745,6 +814,13 @@ void Server::InitializeGameHooks()
             HookManager::CreateHook(hook.offset, hook.hook);
         }
     }
+
+    if (m_squadManager != nullptr)
+    {
+        m_squadManager->InitializeHooks();
+    }
+
+    ChatFilter::InitializeHooks();
 
     Hook::ApplyQueuedActions();
     KYBER_LOG(Debug, "[Server] Initialized Server Hooks");
@@ -804,6 +880,11 @@ void Server::InitializeGameSettings()
 
     // AutoPlayerSettings* aiSettings = Settings<AutoPlayerSettings>("AutoPlayers");
     // aiSettings->AllowSuicide = false;
+    
+    // Testing chat filter
+    //MutexGuard<ChatFilter> chatFilter = m_chatFilter.Lock();
+    //chatFilter->AddBlockedPhrase("badword");
+    //chatFilter->AddBlockedPhrase("your mom");
 }
 
 void Server::OnClientStartup()

@@ -62,7 +62,7 @@ enum SecureReason
     SecureReason_ConnectionHandshaking,
     SecureReason_DuplicateConnection,
 
-    SecureReason_InteractivityTimeout,
+    SecureReason_InteractivityTimeout = 0x93DAB6DB,
     SecureReason_KickedFromQueue,
     SecureReason_TeamKills = 0xD2156DA5,
     SecureReason_KickedByAdmin = 0xC765936,

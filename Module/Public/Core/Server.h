@@ -8,11 +8,14 @@
 #include <SDK/Types.h>
 #include <Core/Settings.h>
 #include <Persistence/PersistenceManager.h>
+#include <Misc/SquadManager.h>
+#include <Misc/ChatFilter.h>
 #include <Core/EventManager.h>
 
 #include <Windows.h>
 #include <optional>
 #include <string>
+#include <xhash>
 
 #define OFFSET_SERVERGAMECONTEXT_INSTANCE 0x143EC7238
 
@@ -37,10 +40,14 @@ struct ServerCreationInfo
 class ServerPlayerAuthenticatedEvent : public Event
 {
 public:
-    uint64_t userId;
+    ServerConnection* connection;
+    uint64_t groupId;
+};
 
-    void* connection;
-    NetworkCreatePlayerMessage* message;
+class ServerPlayerDisconnectedEvent : public Event
+{
+public:
+    ServerPlayer* player;
 };
 
 class MainLoopInitStartServerEvent : public Event
@@ -70,7 +77,7 @@ class Server : public EventListener
 {
 public:
     Server();
-    ~Server();
+    ~Server() override;
 
     bool IsRunning();
 
@@ -81,7 +88,6 @@ public:
     void InitializeGamePatches();
     void InitializeGameSettings();
     void OnClientStartup();
-    void SendConsoleMessage(const std::string& message);
 
     void Start(const ServerCreationInfo& info, bool changeState = true);
     void Stop();
@@ -94,11 +100,14 @@ public:
     void OnSettingsRegistered();
     void OnLevelLoaded();
 
+    void InitializePlayer(ServerPlayer* player);
+
     ServerGameContext* GetServerGameContext()
     {
         return *reinterpret_cast<ServerGameContext**>(OFFSET_SERVERGAMECONTEXT_INSTANCE);
     }
 
+    void SendConsoleMessage(const std::string& message);
     void KickPlayer(ServerPlayer* player, const char* reason);
     void LoadNextLevel(const char* level, const char* mode, const char* startPoint = "", const char* initialSubLevel = "",
         bool updateServerBrowser = true);
@@ -110,6 +119,8 @@ public:
     ISocket* m_natClient;
     ServerPlayerManager* m_playerManager;
     PersistenceManager* m_persistenceManager;
+    ServerSquadManager* m_squadManager;
+    Mutex<ChatFilter> m_chatFilter; // TODO: Make Mutex<>
     EventManager* m_eventManager;
     SocketSpawnInfo m_socketSpawnInfo;
     MapRotation m_mapRotation;

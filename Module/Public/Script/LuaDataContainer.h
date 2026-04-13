@@ -24,8 +24,6 @@ struct LuaFBArrayData
 
 class LuaDataContainer
 {
-    friend class ScriptManager;
-
 public:
     static const TypeInfo** WrapTypeInfo(lua_State* L, const TypeInfo* info);
     static const DataContainer** WrapDataContainer(lua_State* L, const DataContainer* container);
@@ -42,9 +40,9 @@ public:
 
     static void RegisterTypeConstructors(lua_State* L);
 
-private:
     static void Register(lua_State* lua);
 
+private:
     static lua_State* s_lua;
 };
 } // namespace Kyber

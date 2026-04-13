@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <ToolLib/Func.h>
+
 #include <mutex>
 
 namespace Kyber
@@ -14,6 +16,12 @@ public:
     void* alloc(size_t size, size_t align);
     void* alloc(size_t size);
 
+    template<typename T, typename... Args> 
+    T* create(Args&&... args)
+    {
+        return new (alloc(sizeof(T))) T(std::forward<Args>(args)...);
+    }
+
     void free(void* mem);
 };
 
@@ -22,6 +30,9 @@ public:
 #define FB_CLIENT_ARENA (reinterpret_cast<MemoryArena*>(0x143CF89E0))
 #define FB_SERVER_ARENA (reinterpret_cast<MemoryArena*>(0x143CFA7C0))
 #define FB_FIXUP_ARENA (reinterpret_cast<MemoryArena*>(0x143D23E80))
+
+TL_DECLARE_FUNC(0x140814260, MemoryArena*, ArenaMap_findArenaForObject, void* object);
+TL_DECLARE_FUNC(0x1401C7F90, MemoryArena*, ArenaMap_findArenaForObjectInternal, void* object, bool retGlobalOnFail);
 
 void InitializeEASTL();
 
@@ -59,3 +70,4 @@ private:
     T m_instance;
 };
 } // namespace Kyber
+

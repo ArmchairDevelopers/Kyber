@@ -1,0 +1,39 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(RvmDx12RtSettings, 0x1445C5EC0);
+_KB_DECLARE_TYPEINFO(Dx12RtTlasNullInstructionFactory, 0x1445C6040);
+_KB_DECLARE_TYPEINFO(Dx12RtTlasDynamicInstructionFactory, 0x1445C60C0);
+_KB_DECLARE_TYPEINFO(Dx12RtTlasStaticInstructionFactory, 0x1445C6140);
+_KB_DECLARE_TYPEINFO(Dx12RtShaderTableRecordWriterInstructionFactory, 0x1445C61C0);
+_KB_DECLARE_TYPEINFO(Dx12RtNullHitShaderInstructionFactory, 0x1445C6240);
+_KB_DECLARE_TYPEINFO(Dx12RtHitCollectionInstructionFactory, 0x1445C62C0);
+_KB_DECLARE_TYPEINFO(Dx12RtDynamicBlasBuildInstructionFactory, 0x1445C6340);
+_KB_DECLARE_TYPEINFO(Dx12RtStaticBlasBuildInstructionFactory, 0x1445C63C0);
+_KB_DECLARE_TYPEINFO(Dx12RtHitShaderConstantInstructionFactory, 0x1445C6440);
+_KB_DECLARE_TYPEINFO(Dx12RtIndexBufferInstructionFactory, 0x1445C64C0);
+_KB_DECLARE_TYPEINFO(Dx12RtSortInstructionFactory, 0x1445C6540);
+_KB_DECLARE_TYPEINFO(Dx12RtDispatchInstructionFactory, 0x1445C65C0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtTlasNullData, 0x14405C280);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtTlasDynamicData, 0x14405C180);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtTlasStaticData, 0x14405C0F0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtTlasBaseData, 0x14405BFF0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtShaderTableRecordWriterData, 0x14405BF60);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtNullHitShaderData, 0x14405BE60);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtHitCollectionData, 0x14405BDD0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtStaticBlasBuildData, 0x14405BCD0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtDynamicBlasBuildData, 0x14405BC40);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtBlasBaseData, 0x14405BB40);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtHitShaderConstantData, 0x14405BAB0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtIndexBufferData, 0x14405B9B0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtSortData, 0x14405B920);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtDispatchData, 0x14405B820);
+_KB_DECLARE_TYPEINFO(Dx12RtRvmBackendConfig, 0x1445C5F40);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12RtCollectionPreloadOp, 0x14405B720);
+_KB_DECLARE_TYPEINFO(Dx12RtRvmDatabaseLoader, 0x1445C6640);
+_KB_DECLARE_TYPEINFO(Dx12RtRvmDatabase, 0x1445C5FC0);
+
+#undef _KB_DECLARE_TYPEINFO
+}

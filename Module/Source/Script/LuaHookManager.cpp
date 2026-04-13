@@ -69,6 +69,6 @@ LuaHookManager::LuaHookManager(lua_State* L)
         { NULL, NULL}
     };
 
-    LuaUtils::RegisterFunctionTable(L, "HookManager", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "HookManager", funcs);
 }
 } // namespace Kyber

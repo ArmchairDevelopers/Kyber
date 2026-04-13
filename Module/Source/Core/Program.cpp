@@ -16,6 +16,7 @@
 #include <Utilities/PlatformUtils.h>
 #include <Core/ThreadExecutor.h>
 #include <Entity/KyberSettings.h>
+#include <Network/StreamManager.h>
 
 #include <MinHook.h>
 
@@ -375,7 +376,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
 
         if (g_program->m_server->IsRunning())
         {
-            KYBER_LOG(Info, msg->requestedName << " joined the server");
+            // KYBER_LOG(Info, "[Server] " << msg->requestedName << " is attempting to join the server");
         }
     }
     else if (name == "ServerLevelCompletedMessage")
@@ -411,6 +412,10 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
             g_program->GetAPI()->GetServerManagement()->SendPlayerList();
             g_program->GetAPI()->GetServerManagement()->SendConsoleMessage(
                 StringUtils::Format("%s (%llu) left the server", msg->m_player->m_name, msg->m_player->m_onlineId.m_nativeData));
+
+            ServerPlayerDisconnectedEvent* disconnectedEvent = FB_SERVER_ARENA->create<ServerPlayerDisconnectedEvent>();
+            disconnectedEvent->player = msg->m_player;
+            g_program->m_server->m_eventManager->QueueEvent(disconnectedEvent);
 
             if (g_program->m_scriptManager != nullptr)
             {
@@ -580,8 +585,6 @@ void GameSimulationInitDedicatedServerHk(void* inst, void* createInfo)
     }
 
     g_program->m_server->m_socketSpawnInfo = SocketSpawnInfo(false, "", g_program->m_server->m_serverId, "");
-
-    MapRotationEntry rotation = g_program->m_server->m_mapRotation.GetNextEntry();
 
     LevelSetup levelSetup;
     InitLevelSetup(
@@ -763,6 +766,8 @@ void Program::Initialize()
 {
     InitializeGameHooks();
     InitializeGamePatches();
+
+    StreamManagerKyberEvent::InitializeHooks();
 
     m_server->Initialize();
     m_client->Initialize();

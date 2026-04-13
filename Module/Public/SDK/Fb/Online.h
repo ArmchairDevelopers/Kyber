@@ -1,0 +1,59 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(ServerGameBackend, 0x1445962D0);
+_KB_DECLARE_TYPEINFO(PresenceStrategy, 0x1445963D0);
+_KB_DECLARE_TYPEINFO(PresenceBackend, 0x144596350);
+_KB_DECLARE_TYPEINFO(BlockListEvent, 0x144595A20);
+_KB_DECLARE_TYPEINFO(OnModeChangedEvent, 0x144595AA0);
+_KB_DECLARE_TYPEINFO(OnConnectFailedEvent, 0x144595B20);
+_KB_DECLARE_TYPEINFO(OnDisconnectedEvent, 0x144595BA0);
+_KB_DECLARE_TYPEINFO(OnConnectedEvent, 0x144595C20);
+_KB_DECLARE_TYPEINFO(OnConnectingEvent, 0x144595CA0);
+_KB_DECLARE_TYPEINFO(OnlineStatusEvent, 0x144595D20);
+_KB_DECLARE_TYPEINFO(FirstPartyNetworkStatusEvent, 0x144595DA0);
+_KB_DECLARE_TYPEINFO(FriendUpdatedEvent, 0x144595E20);
+_KB_DECLARE_TYPEINFO(MultiplayerPrivilegeEvent, 0x144595EA0);
+_KB_DECLARE_TYPEINFO(FirstPartyUserEvent, 0x144595F20);
+_KB_DECLARE_TYPEINFO(BackendStateChangeEvent, 0x144595FA0);
+_KB_DECLARE_TYPEINFO(CancelHttpRequestEvent, 0x1445958A0);
+_KB_DECLARE_TYPEINFO(DirtySockPresenceBackend, 0x144595920);
+_KB_DECLARE_TYPEINFO(GameStateStrategy, 0x144596020);
+_KB_DECLARE_TYPEINFO(BlazePresenceBackend, 0x1445959A0);
+_KB_DECLARE_TYPEINFO(ClientBlobService, 0x1445944A0);
+_KB_DECLARE_TYPEINFO(ClientAuthenticationService, 0x144594520);
+_KB_DECLARE_TYPEINFO(PresenceFilterProfanityRequestParameters, 0x1445945A0);
+_KB_DECLARE_TYPEINFO(PresenceAcquireMultiplayerPrivilegeRequestParameters, 0x144594620);
+_KB_DECLARE_TYPEINFO(PresenceCheckPrivilegesRequestParameters, 0x1445946A0);
+_KB_DECLARE_TYPEINFO(PresenceGetUserProfilesRequestParameters, 0x144594720);
+_KB_DECLARE_TYPEINFO(PresenceGetNativeDataByInviteTokenRequestParameters, 0x1445947A0);
+_KB_DECLARE_TYPEINFO(PresenceGetUserIdRequestParameters, 0x144594820);
+_KB_DECLARE_TYPEINFO(PresenceViewInviteRequestParameters, 0x1445948A0);
+_KB_DECLARE_TYPEINFO(PresenceSendInviteRequestParameters, 0x144594920);
+_KB_DECLARE_TYPEINFO(PresenceHttpPostRequestParameters, 0x1445949A0);
+_KB_DECLARE_TYPEINFO(PresenceHttpGetRequestParameters, 0x144594A20);
+_KB_DECLARE_TYPEINFO(PresenceGetBlockListRequestParameters, 0x144594AA0);
+_KB_DECLARE_TYPEINFO(PresenceRemoveFriendRequestParameters, 0x144594B20);
+_KB_DECLARE_TYPEINFO(PresenceAcceptFriendRequestParameters, 0x144594BA0);
+_KB_DECLARE_TYPEINFO(PresenceDownloadBlobRequestParameters, 0x144594C20);
+_KB_DECLARE_TYPEINFO(PresenceGetAuthCodeRequestParameters, 0x144594CA0);
+_KB_DECLARE_TYPEINFO(OriginPresenceBackend, 0x144594420);
+_KB_DECLARE_TYPEINFO(BlazeStateNotificationEvent, 0x1445932B0);
+_KB_DECLARE_TYPEINFO(BlazeGameStrategy, 0x144593330);
+_KB_DECLARE_TYPEINFO(ClientUserProfileService, 0x1445933B0);
+_KB_DECLARE_TYPEINFO(ClientUserIdService, 0x144593430);
+_KB_DECLARE_TYPEINFO(ClientProfanityFilterService, 0x1445934B0);
+_KB_DECLARE_TYPEINFO(ClientPrivilegeService, 0x144593530);
+_KB_DECLARE_TYPEINFO(ClientInviteService, 0x1445935B0);
+_KB_DECLARE_TYPEINFO(ClientFriendsService, 0x144593630);
+_KB_DECLARE_TYPEINFO(ClientConnectionService, 0x1445936B0);
+_KB_DECLARE_TYPEINFO(PresenceService, 0x144592AB0);
+_KB_DECLARE_TYPEINFO(PresenceRequestParameters, 0x144592B30);
+_KB_DECLARE_TYPEINFO(PresenceEvent, 0x144592BB0);
+_KB_DECLARE_TYPEINFO(OnlineInternalCurrentUserChangedMessage, 0x1445927E0);
+_KB_DECLARE_TYPEINFO(OnlineInternalFriendsMessageBase, 0x144592830);
+
+#undef _KB_DECLARE_TYPEINFO
+}

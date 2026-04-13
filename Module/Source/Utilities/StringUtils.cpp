@@ -182,4 +182,20 @@ bool StringUtils::StartsWith(const std::string& str, const std::string& start)
 {
     return str.rfind(start, 0) == 0;
 }
+
+void StringUtils::MakeLower(char* begin, char* end)
+{
+    for (char* p = begin; p < end; ++p)
+    {
+        *p = std::tolower(*p);
+    }
+}
+
+void StringUtils::MakeUpper(char* begin, char* end)
+{
+    for (char* p = begin; p < end; ++p)
+    {
+        *p = std::toupper(*p);
+    }
+}
 } // namespace Kyber

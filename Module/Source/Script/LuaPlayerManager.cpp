@@ -6,6 +6,7 @@
 
 #include <Core/Program.h>
 #include <SDK/Funcs.h>
+#include <SDK/Fb/WS.h>
 
 namespace Kyber
 {
@@ -195,7 +196,7 @@ static int ServerPlayerSetBattlepoints(lua_State* L)
     }
 
     int amount = luaL_checkinteger(L, 2);
-    player->GetServerPlayerExtent4()->SetBattlepoints(amount);
+    player->GetServerWSGameplayExtent()->SetBattlepoints(amount);
     return 1;
 }
 
@@ -208,7 +209,7 @@ static int ServerPlayerGiveBattlepoints(lua_State* L)
     }
 
     int amount = luaL_checkinteger(L, 2);
-    player->GetServerPlayerExtent4()->AddBattlepoints(amount);
+    player->GetServerWSGameplayExtent()->AddBattlepoints(amount);
     return 1;
 }
 
@@ -462,11 +463,11 @@ static int ServerPlayerForceSendChatMessage(lua_State* L)
     }
     int32_t channel = luaL_checkinteger(L, 2);
 
-    if (!lua_isstring(L, 2))
+    if (!lua_isstring(L, 3))
     {
         return 0;
     }
-    const char* message = luaL_checkstring(L, 2);
+    const char* message = luaL_checkstring(L, 3);
 
     player->ForceSendChatMessage((ChatChannel)channel, message);
     return 1;
@@ -640,7 +641,7 @@ static int ServerPlayerIndex(lua_State* L)
     }
     else if (key == "battlepoints")
     {
-        lua_pushinteger(L, player->GetServerPlayerExtent4()->m_battlepoints);
+        lua_pushinteger(L, player->GetServerWSGameplayExtent()->m_battlepoints);
         return 1;
     }
     else if (key == "score")
@@ -696,11 +697,14 @@ static const luaL_Reg s_serverPlayerMeta[] = { { "__index", ServerPlayerIndex },
 
 void LuaPlayerManager::Register(lua_State* L)
 {
+    // TODO: have Lua content registry have a place for hook inits 
+    LuaPlayerManager::InitializeHooks();
+    
     luaL_newmetatable(L, "ServerPlayer");
     luaL_setfuncs(L, s_serverPlayerMeta, 0);
 
     luaL_Reg funcs[] = { { "CreatePlayer", CreatePlayerFunc }, { "GetPlayer", GetPlayerFunc }, { "GetPlayers", GetPlayersFunc }, { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(L, "PlayerManager", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "PlayerManager", funcs);
 }
 
 Asset* GetWSPlayerAbilityFromCustomizationAssetHk(ServerPlayer* player, uint32_t characterId, uint32_t abilityId, bool a4)
@@ -718,4 +722,6 @@ void LuaPlayerManager::InitializeHooks()
     HookManager::CreateHook(HOOK_OFFSET(0x1489639E0), GetWSPlayerAbilityFromCustomizationAssetHk);
 }
 
+KB_REGISTER_LUA_CONTENT_MANAGER(LuaPlayerManager);
+KB_REGISTER_LUA_CONTENT_HOOKS(LuaPlayerManager);
 } // namespace Kyber

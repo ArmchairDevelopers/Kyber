@@ -16,6 +16,7 @@ KB_IMPLEMENT_TYPE(KyberSettings)
     info.AddField("Boolean", "RenderPropertyDebug");
     info.AddField("Boolean", "RenderCameraDebug");
     info.AddField("Boolean", "EnableUnlimitedPowerEvent");
+    info.AddField("Boolean", "LogFilteredChatMessages");
     info.AddField("Float32", "BundleDebugFontSize");
     info.AddField("Int32", "unused1");
     info.AddField("Int32", "unused2");

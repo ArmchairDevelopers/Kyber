@@ -886,6 +886,9 @@ static int ValueTypeCreateFunc(lua_State* L)
 {
     TypeInfo* info = (TypeInfo*)lua_touserdata(L, lua_upvalueindex(1));
     LuaDataContainer::ValueTypeCreate(L, info);
+
+    luaL_getmetatable(L, "ValueType");
+    lua_setmetatable(L, -2);
     return 1;
 }
 
@@ -904,28 +907,20 @@ void LuaDataContainer::RegisterTypeConstructors(lua_State* L)
 
         lua_pop(L, 1);
 
-        lua_pushlightuserdata(L, info);
-
         if (info->getBasicType() == kTypeCode_Class && info->isKindOf(typeInfo_DataContainer))
         {
+            lua_pushlightuserdata(L, info);
             lua_pushcclosure(L, DataContainerCreateFunc, 1);
         }
         else if (info->getBasicType() == kTypeCode_ValueType)
         {
+            lua_pushlightuserdata(L, info);
             lua_pushcclosure(L, ValueTypeCreateFunc, 1);
-
-            luaL_newmetatable(L, name);
-            luaL_setfuncs(L, s_valueTypeMeta, 0);
-
-            luaL_getmetatable(L, "ValueType");
-            lua_setmetatable(L, -2);
-            lua_pop(L, 1);
         }
         else if (info->getBasicType() == kTypeCode_Enum)
         {
-            TypeInfo* info = (TypeInfo*)lua_touserdata(L, -1);
             EnumTypeInfoData* data = (EnumTypeInfoData*)info->typeInfoData;
-        
+            
             lua_newtable(L);
             for (int i = 0; i < data->fieldCount; i++)
             {
@@ -936,11 +931,12 @@ void LuaDataContainer::RegisterTypeConstructors(lua_State* L)
         }
         else
         {
-            lua_pop(L, 1);
             continue;
         }
 
         lua_setglobal(L, name);
     }
 }
+
+KB_REGISTER_LUA_CONTENT_MANAGER(LuaDataContainer);
 } // namespace Kyber

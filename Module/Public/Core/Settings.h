@@ -25,12 +25,27 @@ class MapRotation
 public:
     const MapRotationEntry& GetNextEntry()
     {
+        KYBER_ASSERT(m_entries.size() > 0);
+
         if (m_current + 1 > m_entries.size())
         {
             m_current = 0;
         }
 
         return m_entries[m_current++];
+    }
+
+    const MapRotationEntry& PeekNextEntry() const
+    {
+        KYBER_ASSERT(m_entries.size() > 0);
+
+        uint16_t peakCurrent = m_current;
+        if (peakCurrent + 1 > m_entries.size())
+        {
+            peakCurrent = 0;
+        }
+
+        return m_entries[peakCurrent];
     }
 
     void Reset()
@@ -42,6 +57,28 @@ public:
     void AddEntry(const std::string& level, const std::string& mode)
     {
         m_entries.emplace_back(level, mode);
+    }
+
+    void RemoveNextEntry()
+    {
+        if (m_entries.size() <= 0)
+        {
+            return;
+        }
+
+        uint16_t peakCurrent = m_current;
+        if (peakCurrent + 1 > m_entries.size())
+        {
+            peakCurrent = 0;
+        }
+
+        m_entries.erase(m_entries.begin() + peakCurrent);
+    }
+
+    // Returns a copy of the map rotation
+    std::vector<MapRotationEntry> GetList() const
+    {
+        return m_entries;
     }
 
 private:

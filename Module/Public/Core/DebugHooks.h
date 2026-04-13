@@ -98,7 +98,7 @@ public:
 };
 
 #define KB_REGISTER_GENERIC_UPDATE_LISTENER(name, type) \
-    static GenericUpdateListenerStaticRegistrar _##name##_genericUpdateRegistrar(type, &name);
+    static GenericUpdateListenerStaticRegistrar _##name##_genericUpdateRegistrar(type, &name)
 
 void InitializeDebugHooks();
 

@@ -63,34 +63,20 @@ extern void** g_entityWorld;
 extern GameWorld** g_gameWorld;
 extern void** g_gameContext;
 
-class TypeInfo;
-
-#define KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
-
-KB_DECLARE_TYPEINFO(ReferenceObjectData, 0x1445803E0);
-KB_DECLARE_TYPEINFO(Asset, 0x1443F9370);
-KB_DECLARE_TYPEINFO(CharacterStateOwnerData, 0x144485E30);
-KB_DECLARE_TYPEINFO(PlayerAbilityAsset, 0x144480C50);
-KB_DECLARE_TYPEINFO(DataBusPeer, 0x1443F91F0);
-KB_DECLARE_TYPEINFO(SpatialEntity, 0x14456DB60);
-KB_DECLARE_TYPEINFO(ComponentEntity, 0x144583E80);
-KB_DECLARE_TYPEINFO(Component, 0x144585130);
-KB_DECLARE_TYPEINFO(WSClientSoldierEntity, 0x144664FB0);
-KB_DECLARE_TYPEINFO(WSServerSoldierHealthComponent, 0x144677530);
-KB_DECLARE_TYPEINFO(QueryEntityResult, 0x14446A0A0);
-
 #define STRIP_PARENS(...) __VA_ARGS__
 #define KB_DECLARE_GAMEMEMBERFUNC(ptr, returnType, name, args, ...)                                                                        \
-    returnType name(__VA_ARGS__)                                                                                                           \
+    inline returnType name(__VA_ARGS__)                                                                                                           \
     {                                                                                                                                      \
         return reinterpret_cast<returnType(__fastcall*)(void*, __VA_ARGS__)>(ptr)(this, STRIP_PARENS args);                                \
     }
 
 #define KB_DECLARE_GAMEMEMBERFUNC_NOARGS(ptr, returnType, name)                                                                            \
-    returnType name()                                                                                                                      \
+    inline returnType name()                                                                                                                      \
     {                                                                                                                                      \
         return reinterpret_cast<returnType(__fastcall*)(void*)>(ptr)(this);                                                                \
     }
+
+class TypeInfo;
 
 struct TypeObject
 {
@@ -415,7 +401,8 @@ public:
             reset();
             return;
         }
-        uint64_t headerSize = sizeof(uint32_t) > __alignof(T) ? sizeof(uint32_t) : __alignof(T);
+
+        size_t headerSize = sizeof(uint32_t) > __alignof(T) ? sizeof(uint32_t) : __alignof(T);
         m_data = (T*)(reinterpret_cast<uint8_t*>(FB_GLOBAL_ARENA->alloc(headerSize + size * sizeof(T))) + headerSize);
 
         uint32_t* data = reinterpret_cast<uint32_t*>(reinterpret_cast<char*>(m_data));
@@ -425,14 +412,24 @@ public:
     inline void extend(uint32_t amount)
     {
         uint32_t prevSize = size();
-        uint64_t headerSize = sizeof(uint32_t) > __alignof(T) ? sizeof(uint32_t) : __alignof(T);
+        constexpr size_t headerSize = sizeof(uint32_t) > __alignof(T) ? sizeof(uint32_t) : __alignof(T);
 
         T* dest = (T*)(reinterpret_cast<uint8_t*>(FB_GLOBAL_ARENA->alloc(headerSize + ((prevSize + amount) * sizeof(T)))) + headerSize);
         memcpy(dest, m_data, prevSize * sizeof(T));
-        ZeroMemory(&dest[prevSize], amount * sizeof(T));
+        memset(dest + prevSize, 0, amount * sizeof(T));
 
         // @TODO: free previous array (requires proper padding when alloc-ing tho)
         // FB_GLOBAL_ARENA->free(reinterpret_cast<uint8_t*>(m_data) - headerSize);
+        if (MemoryArena* arena = ArenaMap_findArenaForObjectInternal(this, false))
+        {
+            // cant seem to figure out which ptr its alloc'd to
+            //arena->free(reinterpret_cast<void*>((reinterpret_cast<uintptr_t>(m_data) - headerSize) & ~15ul));
+        }
+        else
+        {
+            KYBER_LOG(Debug, "Failed to free FBArray! This will cause a memory leak!");
+        }
+
         m_data = dest;
 
         uint32_t* data = reinterpret_cast<uint32_t*>(reinterpret_cast<char*>(m_data));
@@ -602,33 +599,79 @@ struct SocketSpawnInfo
 };
 
 enum SecureReason;
+class ServerPlayer;
+
+enum LocalPlayerId
+{
+    LocalPlayerId_0 = 0,          // 0x0000
+    LocalPlayerId_1,              // 0x0001
+    LocalPlayerId_2,              // 0x0002
+    LocalPlayerId_3,              // 0x0003
+    LocalPlayerId_4,              // 0x0004
+    LocalPlayerId_5,              // 0x0005
+    LocalPlayerId_6,              // 0x0006
+    LocalPlayerId_7,              // 0x0007
+    LocalPlayerId_Any,            // 0x0008
+    LocalPlayerId_All,            // 0x0009
+    LocalPlayerId_Invalid = 0xFF, // 0x000A
+};
 
 class EngineConnection
 {
 public:
+    KB_DECLARE_GAMEMEMBERFUNC(0x146C3C790, class IStreamManager*, GetStreamManagerByName, (name), const char* name)
+
+    char pad_0000[0x0588];       // 0x0000
+    void* m_streamManagerEngine; // 0x0588
 };
 
-class ServerConnection : EngineConnection
+class ServerPlayerConnection
+{
+public:
+    char pad_0000[0xF8]; // 0x0000
+    ServerPlayer* m_serverPlayer; // 0x00F8
+    char pad_0060[0x58]; // 0x0100
+    LocalPlayerId m_localPlayerId; // 0x0158
+};
+
+class ServerConnection : public EngineConnection
 {
 public:
     KB_DECLARE_GAMEMEMBERFUNC(
-        0x140BF6460, class ServerPlayer*, GetPlayer, (playerId, allowFail), enum LocalPlayerId playerId, bool allowFail)
-    KB_DECLARE_GAMEMEMBERFUNC(0x140BFA820, void*, ValidateLocalPlayer, (playerId, allowFail), enum LocalPlayerId playerId, bool allowFail)
+        0x140BFA820, ServerPlayerConnection*, ValidateLocalPlayer, (playerId, allowFail), LocalPlayerId playerId, bool allowFail)
     void SafeDisconnect(const char* reasonText, SecureReason reason);
     void SafeDisconnect(const char* reasonText);
+    void SafeDisconnect(SecureReason reason);
+
+    ServerPlayer* GetPlayer(LocalPlayerId localPlayerId = LocalPlayerId_0, bool allowFail = false)
+    {
+        return GetPlayerInternal(localPlayerId, allowFail);
+    }
 
 private:
-    char pad_0000[0x5FAD];       // 0x0000
-    bool m_shouldDisconnect;     // 0x5FAD
-    char pad_5FAD[0x2];          // 0x5FAE
-    uint32_t m_disconnectReason; // 0x5FB0
-    char pad_5FB4[0x4];          // 0x5FB4
-    char* m_disconnectText;      // 0x5FB8
+    KB_DECLARE_GAMEMEMBERFUNC(
+        0x140BF6460, class ServerPlayer*, GetPlayerInternal, (playerId, allowFail), enum LocalPlayerId playerId, bool allowFail)
+
+    char pad_0590[0x230];                                                                      // 0x0590
+    eastl::fixed_vector<ServerPlayerConnection*, LocalPlayerId_Any> m_serverPlayerConnections; // 0x07C0 // size: 0x68
+    char pad_0828[0x5785];                                                                     // 0x0828
+    bool m_shouldDisconnect;                                                                   // 0x5FAD
+    char pad_5FAD[0x2];                                                                        // 0x5FAE
+    uint32_t m_disconnectReason;                                                               // 0x5FB0
+    char pad_5FB4[0x4];                                                                        // 0x5FB4
+    char* m_disconnectText;                                                                    // 0x5FB8
 };
 
-class ClientConnection : EngineConnection
+class ClientConnection : public EngineConnection
 {
 public:
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1469F0180, float, GetAverageLatency);
+};
+
+class OnlineManager
+{
+public:
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x146375820, ClientConnection*, GetClientConnection);
 };
 
 // To allow for SendMessage() in ServerPeer
@@ -641,7 +684,10 @@ class ServerPeer
 public:
     KB_DECLARE_GAMEMEMBERFUNC(0x146888E10, ServerConnection*, GetConnectionForPlayer, (player), const class ServerPlayer* player)
     KB_DECLARE_GAMEMEMBERFUNC(0x146892CC0, void, SendMessage, (message), class Message* message)
-    KB_DECLARE_GAMEMEMBERFUNC(0x140BF03E0, void, ForceDisconnectAll, (message), class Message* message)
+    KB_DECLARE_GAMEMEMBERFUNC(0x140BF03E0, void, ForceDisconnectAll, (reason, message), SecureReason reason, const char* message)
+
+    char pad_0000[0x45A8]; // 0x0000
+    eastl::vector<ServerConnection*> m_connections;
 };
 
 class ServerGameContext
@@ -722,66 +768,20 @@ public:
     LinearTransform m_transform; // 0x0020
 };
 
-class HealthComponent : public TypeObject
-{
-public:
-    char pad_0008[24];          // 0x0008
-    float m_health;             // 0x0020
-    float m_unkLastHealthMaybe; // 0x0020
-
-    KB_DECLARE_GAMEMEMBERFUNC(0x148E65FF0, void, SetHealth, (health), float health)
-
-    float GetHealth()
-    {
-        return m_health;
-    }
-};
-
-class WSServerSoldierHealthComponent : public HealthComponent
-{
-public:
-    char pad_0028[16];           // 0x0028
-    float health2;               // 0x0038
-    char pad_003C[188];          // 0x003C
-    float m_totalTimer;          // 0x00F8
-    char pad_00FC[540];          // 0x00FC
-    float health4;               // 0x0318
-    char pad_031C[596];          // 0x031C
-    uint32_t N0000010D;          // 0x0570
-    char pad_0574[16];           // 0x0574
-    float m_displayHealth;       // 0x0584
-    float m_displayMaxHealth;    // 0x0588
-    char pad_058C[220];          // 0x058C
-    float m_regenTimer;          // 0x0668
-    float m_regenMaxHealth;      // 0x066C
-    float m_calculatedMaxHealth; // 0x0670
-    float m_regenPerSec;         // 0x0674
-    float m_regenDelay;          // 0x0678
-    char pad_067C[372];          // 0x067C
-
-    void SetStateChanged(int index);
-    void SetMaxHealth(float value);
-    void SetRegenerationPerSecond(float value);
-    void SetRegenerationDelay(float value);
-};
-
-class ClientSoldierHealthComponent : public HealthComponent
-{};
-
 class ClientSoldierEntity : public TypeObject
 {
 public:
-    char pad_0000[704];                                         // 0x0000
-    ClientSoldierHealthComponent* clientSoldierHealthComponent; // 0x02C8
-    char pad_02D0[104];                                         // 0x02D0
-    class SoldierBlueprint* soldierBlueprint;                   // 0x0338
-    char pad_0340[632];                                         // 0x0340
-    float N000001AE;                                            // 0x05B8
-    float Yaw;                                                  // 0x05BC
-    float Pitch;                                                // 0x05C0
-    char pad_05C4[404];                                         // 0x05C4
-    ClientSoldierPrediction* clientSoldierPrediction;           // 0x0758
-    char pad_0760[2488];                                        // 0x0760
+    char pad_0000[704];                                               // 0x0000
+    class ClientSoldierHealthComponent* clientSoldierHealthComponent; // 0x02C8
+    char pad_02D0[104];                                               // 0x02D0
+    class SoldierBlueprint* soldierBlueprint;                         // 0x0338
+    char pad_0340[632];                                               // 0x0340
+    float N000001AE;                                                  // 0x05B8
+    float Yaw;                                                        // 0x05BC
+    float Pitch;                                                      // 0x05C0
+    char pad_05C4[404];                                               // 0x05C4
+    ClientSoldierPrediction* clientSoldierPrediction;                 // 0x0758
+    char pad_0760[2488];                                              // 0x0760
 
     SoldierBlueprint* GetSoldierBlueprint()
     {
@@ -832,20 +832,6 @@ public:
     }
 }; // Size: 0x00C8
 
-enum LocalPlayerId
-{
-    LocalPlayerId_0 = 0,          // 0x0000
-    LocalPlayerId_1,              // 0x0001
-    LocalPlayerId_2,              // 0x0002
-    LocalPlayerId_3,              // 0x0003
-    LocalPlayerId_4,              // 0x0004
-    LocalPlayerId_5,              // 0x0005
-    LocalPlayerId_6,              // 0x0006
-    LocalPlayerId_7,              // 0x0007
-    LocalPlayerId_Any,            // 0x0008
-    LocalPlayerId_All,            // 0x0009
-    LocalPlayerId_Invalid = 0xFF, // 0x000A
-};
 
 class OnlineId
 {
@@ -956,15 +942,25 @@ public:
     void* clientLevel;                  // 0x0038
     char pad_0040[24];                  // 0x0040
     ClientPlayerManager* playerManager; // 0x0058
-    void* onlineManager;                // 0x0060
+    OnlineManager* onlineManager;       // 0x0060
     ClientGameView* gameViews[2];       // 0x0068
     char pad_0060[232];                 // 0x0068
 
     ClientPlayerManager* GetPlayerManager()
     {
-        if (this != nullptr && this->playerManager != nullptr)
+        if (this != nullptr)
         {
             return this->playerManager;
+        }
+
+        return nullptr;
+    }
+
+    OnlineManager* GetOnlineManager()
+    {
+        if (this != nullptr)
+        {
+            return this->onlineManager;
         }
 
         return nullptr;
@@ -1134,7 +1130,7 @@ enum Platform
     Win32
 };
 
-typedef int EventId;
+typedef int32_t EventId;
 class EntityEvent : TypeObject
 {
 public:
@@ -1177,8 +1173,6 @@ public:
     {
         return (TypeInfo*)0x1445250B0;
     }
-
-    virtual const void* getPlayer() const;
 };
 
 enum ChatChannel
@@ -1205,16 +1199,38 @@ struct PlayerExtentRegistration
 // We will make due with just numbering the generic ones
 // and describing what is in each.
 
+// There are extent strings in the exe but are completely unreferenced
+// We can make guesses as to which is which
+// Full list:
+//      ServerAutoPlayerExtent
+//      OnlineServerPlayerExtent
+//      ServerSquadCommandPlayerExtent
+//      SpectatorServerPlayerExtent
+//      ServerWSGameplayExtent
+//      WSServerAutoPlayerExtent
+//      ServerPlayerSpawnExtent
+//      ServerPlayerSquadSpawnExtent
+//      PersistenceServerPlayerExtent
+//      ServerPlayerCustomizationExtent
+
 class ServerPlayerExtent : public TypeObject
 {};
+
+#define KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS()                                                                                            \
+    static PlayerExtentRegistration* s_registration;                                                                                       \
+    ServerPlayer* GetPlayer()                                                                                                              \
+    {                                                                                                                                      \
+        return reinterpret_cast<ServerPlayer*>(reinterpret_cast<uint8_t*>(this) - s_registration->offset);                                 \
+    }
 
 class ServerGamePlayerExtent : public ServerPlayerExtent
 {
 public:
-    static PlayerExtentRegistration* s_registration;
+    KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS();
 
     // Research:
     // +0xE60 is unlock bitarray
+    // Contains a ServerGamePlayerInternalExtent
 
     char pad_0008[0xBD0];     // 0x0008
     const Asset* m_activeKit; // 0x0BD8
@@ -1229,10 +1245,11 @@ public:
     KB_DECLARE_GAMEMEMBERFUNC(0x146881840, void*, SetUnlocks, (bitArray), void* bitArray)
 };
 
+// Unnamed extent 3
 class PersistenceServerPlayerExtent : public ServerPlayerExtent
 {
 public:
-    static PlayerExtentRegistration* s_registration;
+    KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS();
 
     KB_DECLARE_GAMEMEMBERFUNC(0x1483F2A60, void, SetScore, (amount), unsigned int amount);
     KB_DECLARE_GAMEMEMBERFUNC(0x1483F26C0, void, SetKills, (amount), unsigned int amount);
@@ -1256,11 +1273,13 @@ public:
 class WSServerPlayerAbilityExtent : public ServerPlayerExtent
 {
 public:
-    static PlayerExtentRegistration* s_registration;
+    KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS();
 
     KB_DECLARE_GAMEMEMBERFUNC(0x14199F370, bool, SetAbility, (abilityId, replacePassive), uint32_t abilityId, bool replacePassive);
 
-    struct ActiveKitAbiityData
+    static const int kMaxAbilityCount = 18;
+
+    struct ActiveKitAbilityData
     {
         void* vtable;
         Asset* ability;
@@ -1270,8 +1289,7 @@ public:
     struct ActiveKitAbilityContainer
     {
         void* vtable;
-        ActiveKitAbiityData** abilityList; // null terminated?
-        void* garbage[3];
+        eastl::fixed_vector<ActiveKitAbilityData, kMaxAbilityCount> m_abilities;
     };
 
     void* vtable2; // idk
@@ -1279,18 +1297,44 @@ public:
     ActiveKitAbilityContainer* m_abilityContainer;
 };
 
-class ServerPlayerExtent4 : public ServerPlayerExtent
+// Unnamed extent 2
+class ServerPlayerExtent2 : public ServerPlayerExtent
 {
 public:
-    static PlayerExtentRegistration* s_registration;
+    KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS();
+
+    // Research:
+    // vtable 10 update(deltaTime) // updates interactivity timer
+
+    void* vtable2;                   // 0x0000
+    float m_inactivityTime;          // 0x0010
+    bool m_enableInactivityTimer;    // 0x0014
+    bool m_unusedChatFilterDisabled; // 0x0015
+    char pad_0016[2];                // 0x0016
+    uint64_t m_playerId;             // 0x0018
+    char pad_0020[2580];             // 0x0020
+    uint32_t m_unkTimerA;            // 0x0A34
+    char pad_0A38[8];                // 0x0A38
+    uint32_t m_unkTimerB;            // 0x0A40
+    char pad_0A44[28];               // 0x0A44
+    uint8_t m_unkTimerC;             // 0x0A60
+    char pad_0A61[15];               // 0x0A61
+};
+
+// Unnamed extent 4
+class ServerWSGameplayExtent : public ServerPlayerExtent
+{
+public:
+    KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS();
 
     KB_DECLARE_GAMEMEMBERFUNC(0x141BCE620, void, SetBattlepoints, (amount), unsigned int amount);
     KB_DECLARE_GAMEMEMBERFUNC(0x148E4EF60, void, AddBattlepoints, (amount), int amount);
     KB_DECLARE_GAMEMEMBERFUNC(0x141BCE400, void, SetActiveKit, (gpId, unk0, vurId, skinInfoId), uint32_t gpId, uint32_t unk0,
         uint32_t vurId, uint32_t skinInfoId);
 
-    char gap0[0x113C];
+    char pad_0008[0x113C];
     uint32_t m_battlepoints;
+    float m_battlepointsMultiplier;
 };
 
 enum WeaponSlot
@@ -1309,9 +1353,10 @@ enum WeaponSlot
     WeaponSlot_NotDefined // 0x000B
 };
 
-struct SoldierServerPlayerExtent : ServerPlayerExtent
+class SoldierServerPlayerExtent : public ServerPlayerExtent
 {
-    static PlayerExtentRegistration* s_registration;
+public:
+    KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS();
 
     struct PlayerWeapon
     {
@@ -1321,12 +1366,12 @@ struct SoldierServerPlayerExtent : ServerPlayerExtent
     KB_DECLARE_GAMEMEMBERFUNC(
         0x1416A7840, bool, OnPlayerSelectedWeaponMessage, (message), struct NetworkPlayerSelectedWeaponMessage* message);
 
-    char gap0[1928];
+    char pad_0008[1928];
     eastl::fixed_vector<PlayerWeapon, WeaponSlot_NumSlots> m_weapons;
 };
 
 #define KB_DECLARE_SERVERPLAYEREXTENT(name)                                                                                                \
-    name* Get##name() const                                                                                                                \
+    inline name* Get##name() const                                                                                                         \
     {                                                                                                                                      \
         return reinterpret_cast<name*>(GetExtent(name::s_registration));                                                                   \
     }
@@ -1335,19 +1380,19 @@ class ServerPlayer
 {
 public:
     virtual void unk1() {};
-    class PlayerData* m_data;         // 0x0008
-    class MemoryArena* m_memoryArena; // 0x0010
-    const char* m_name;               // 0x0018
-    char pad_0020[24];                // 0x0020
-    LocalPlayerId m_localPlayerId;
-    uint32_t m_analogInputEnableMask;
-    uint64_t m_digitalInputEnableMask;
-    char pad_0048[16]; // 0x0048
-    int32_t m_teamId;  // 0x0058
-    char pad_005C[4];  // 0x005C
-    OnlineId m_onlineId;
-    char pad_0078[72];  // 0x0078
-    bool m_isSpectator; // 0x00C0
+    class PlayerData* m_data;          // 0x0008
+    class MemoryArena* m_memoryArena;  // 0x0010
+    const char* m_name;                // 0x0018
+    char pad_0020[24];                 // 0x0020
+    LocalPlayerId m_localPlayerId;     // 0x0038
+    uint32_t m_analogInputEnableMask;  // 0x003C
+    uint64_t m_digitalInputEnableMask; // 0x0040
+    char pad_0048[16];                 // 0x0048
+    int32_t m_teamId;                  // 0x0058
+    char pad_005C[4];                  // 0x005C
+    OnlineId m_onlineId;               // 0x0060
+    char pad_0078[72];                 // 0x0078
+    bool m_isSpectator;                // 0x00C0
 
     void SendChatMessage(ChatChannel channel, const char* message) const;
 
@@ -1392,11 +1437,12 @@ public:
     }
 
     KB_DECLARE_SERVERPLAYEREXTENT(ServerGamePlayerExtent)
-    KB_DECLARE_SERVERPLAYEREXTENT(ServerPlayerExtent4)
+    KB_DECLARE_SERVERPLAYEREXTENT(ServerPlayerExtent2)
+    KB_DECLARE_SERVERPLAYEREXTENT(ServerWSGameplayExtent)
     KB_DECLARE_SERVERPLAYEREXTENT(WSServerPlayerAbilityExtent)
     KB_DECLARE_SERVERPLAYEREXTENT(PersistenceServerPlayerExtent)
     KB_DECLARE_SERVERPLAYEREXTENT(SoldierServerPlayerExtent)
-}; // Size: 0x024C
+}; // Size: 0x0320
 
 class ServerPlayerManager
 {
@@ -1420,6 +1466,71 @@ public:
     ServerPlayer* GetSpectator(uint64_t id);
 }; // Size: 0x07EC
 
+struct WeakToken
+{
+public:
+    inline int addRef() const
+    {
+        return InterlockedIncrement((volatile unsigned __int32*)&m_refCount);
+    }
+
+    inline void release()
+    {
+        if (0 == InterlockedDecrement((volatile unsigned __int32*)&m_refCount))
+        {
+            if (MemoryArena* arena = ArenaMap_findArenaForObjectInternal(this, false))
+            {
+                arena->free(this);
+            }
+        }
+    }
+
+    inline void* get() const 
+    {
+        return m_ptr;
+    }
+
+private:
+    mutable void* m_ptr;
+    mutable int m_refCount;
+};
+
+class WeakPtrBase
+{
+public:
+    
+protected:
+    WeakToken* m_token;
+};
+
+template<typename T>
+class WeakPtr : public WeakPtrBase
+{
+public:
+    T* Get() const
+    {
+        if (m_token != nullptr)
+        {
+            return static_cast<T*>(m_token->get());
+        }
+        return nullptr;
+    }
+
+    bool IsValid() const
+    {
+        return Get() != nullptr;
+    }
+
+    void Release()
+    {
+        if (m_token != nullptr)
+        {
+            m_token->release();
+            m_token = nullptr;
+        }
+    }
+};
+
 class ServerPlayerEvent : public PlayerEventBase
 {
 public:
@@ -1430,10 +1541,11 @@ public:
         return (TypeInfo*)0x1444E6210;
     }
 
-    const void* getPlayer() const override
-    {
-        return m_playerRef; // Invalid! Need to retrieve from the WeakPtr
-    }
+    virtual void unk0();
+    virtual void unk1();
+    virtual void unk2();
+    virtual void unk3();
+    virtual ServerPlayer* getPlayer();
 
     bool m_sendToPlayerOnly;
     bool m_sendToHostOnly;
@@ -1442,9 +1554,50 @@ public:
     bool m_invertTeamFilter;
     bool m_forwardToSpectators;
     uint32_t m_team;
-    void* m_playerRef;
-    char buf[200];
-};
+    WeakPtr<ServerPlayer> m_playerRef;
+}; // Size: 0x28
+
+class ServerDamageGiverEvent : public ServerPlayerEvent
+{
+public:
+    TypeInfo* getType() const override
+    {
+        return (TypeInfo*)0x1444E71B0;
+    }
+
+    // no vtable or func, its inlined :/
+    ServerPlayer* getDamageGiver() const
+    {
+        if (m_damageGiverRef.IsValid())
+        {
+            return m_damageGiverRef.Get() - 1;
+        }
+        return nullptr;
+    }
+
+    WeakPtr<ServerPlayer> m_damageGiverRef;
+}; // Size: 0x30
+
+class ServerDoublePlayerEvent : public ServerPlayerEvent
+{
+public:
+    TypeInfo* getType() const override
+    {
+        return (TypeInfo*)0x1444E6290;
+    }
+
+    // no vtable or func, its inlined :/
+    ServerPlayer* getExtraServerPlayer() const
+    {
+        if (m_extraPlayerRef.IsValid())
+        {
+            return m_extraPlayerRef.Get() - 1;
+        }
+        return nullptr;
+    }
+
+    WeakPtr<ServerPlayer> m_extraPlayerRef;
+}; // Size: 0x30
 
 class Message : public TypeObject
 {
@@ -1463,14 +1616,14 @@ public:
 class NetworkableMessage : public Message
 {
 public:
-    ServerConnection* serverConnection; // 0x30
-    ClientConnection* clientConnection; // 0x38
-    int32_t unk1;                       // 0x40
-    int32_t initiator;                  // 0x44
-    int32_t messageStream;              // 0x48
-    int32_t unk2;                       // 0x4C
-    bool hasNetworkedResources;         // 0x50
-    char pad_0051[0x7];                 // 0x51
+    const ServerConnection* serverConnection; // 0x30
+    const ClientConnection* clientConnection; // 0x38
+    int32_t unk1;                             // 0x40
+    int32_t initiator;                        // 0x44
+    int32_t messageStream;                    // 0x48
+    int32_t unk2;                             // 0x4C
+    bool hasNetworkedResources;               // 0x50
+    char pad_0051[0x7];                       // 0x51
 }; // Size: 0x58
 
 class NetworkPlayerSpawnMessage : public NetworkableMessage
@@ -1750,7 +1903,225 @@ public:
     }
 };
 
-class ServerCharacterEntity : public TypeObject
+class Component : public TypeObject
+{
+    char pad_0008[0x18];
+};
+
+class ComponentEntry
+{
+public:
+    // KEEP AT SIZE 0x20
+
+    uint16_t m_classId;
+    uint16_t unk0;
+    uint32_t unk1;
+    uint16_t m_flagsMaybe;
+    char pad_000A[6];
+    class Component* m_component;
+    uint64_t unk2;
+
+    bool ComponentIs(TypeInfo* typeInfo)
+    {
+        // logic from ComponentEntity::GetComponentByType
+        uint16_t range = typeInfo->m_lastClassId - typeInfo->m_classId;
+        return m_classId - typeInfo->m_classId <= range;
+    }
+}; // Size: 0x20
+
+#define ENTRY_DATA_BEGIN reinterpret_cast<ComponentEntry*>(this + 1)
+#define ENTRY_DATA_BEGIN_CONST const_cast<ComponentEntry*>(reinterpret_cast<const ComponentEntry*>(this + 1))
+
+class ComponentContainer
+{
+public:
+    // It seems this container is allocated along with the array.
+    // I have no idea how they did this magic but we just have to do basic
+    // pointer shenanigans to get data from inside this list
+
+    // Keep objects here at size 0x10 so indexing can work properly
+    class ComponentEntity* m_owner;
+    uint8_t m_componentCount;
+    char pad_0009[7];
+
+    uint8_t size() const
+    {
+        return m_componentCount;
+    }
+
+    ComponentEntry* getEntryAt(int index)
+    {
+        KYBER_ASSERT(index >= 0 && index < m_componentCount);
+
+        return ENTRY_DATA_BEGIN + index;
+    }
+
+    // Don't use, better use the one provided by the game in ComponentEntity::GetComponentByType
+    Component* getFirstOfType(TypeInfo* typeInfo)
+    {
+        for (Iterator it = begin(); it != end(); it++)
+        {
+            if (it->ComponentIs(typeInfo) && it->m_component != nullptr)
+            {
+                return it->m_component;
+            }
+        }
+
+        return nullptr;
+    }
+
+    class Iterator
+    {
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = ComponentEntry;
+        using difference_type = std::ptrdiff_t;
+        using pointer = ComponentEntry*;
+        using reference = ComponentEntry&;
+
+        Iterator(pointer ptr)
+            : ptr(ptr)
+        {}
+
+        reference operator*() const
+        {
+            return *ptr;
+        }
+        pointer operator->()
+        {
+            return ptr;
+        }
+
+        Iterator& operator++()
+        {
+            ptr++;
+            return *this;
+        }
+
+        Iterator operator++(int)
+        {
+            Iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        friend bool operator==(const Iterator& a, const Iterator& b)
+        {
+            return a.ptr == b.ptr;
+        };
+        friend bool operator!=(const Iterator& a, const Iterator& b)
+        {
+            return a.ptr != b.ptr;
+        };
+
+    private:
+        pointer ptr;
+    };
+
+    Iterator begin()
+    {
+        return Iterator(ENTRY_DATA_BEGIN);
+    }
+    Iterator end()
+    {
+        return Iterator(ENTRY_DATA_BEGIN + size());
+    }
+
+    Iterator begin() const
+    {
+        return Iterator(ENTRY_DATA_BEGIN_CONST);
+    }
+    Iterator end() const
+    {
+        return Iterator(ENTRY_DATA_BEGIN_CONST + size());
+    }
+}; // Size: 0x10
+
+#undef ENTRY_DATA_BEGIN
+#undef ENTRY_DATA_BEGIN_CONST
+
+class ComponentEntity : public SpatialEntity
+{
+public:
+    KB_DECLARE_GAMEMEMBERFUNC(0x147ECBEC0, Component*, GetComponentByType, (typeInfo), TypeInfo* typeInfo)
+
+    void DebugLogAllComponents();
+
+    ComponentContainer* m_componentContainer;
+};
+
+class HealthComponent : public Component
+{
+public:
+    float m_health;    // 0x0020
+    float m_maxHealth; // 0x0024
+
+    KB_DECLARE_GAMEMEMBERFUNC(0x148E65FF0, void, SetHealth, (health), float health)
+
+    float GetHealth()
+    {
+        return m_health;
+    }
+};
+
+// WIP
+class NetStateContainer
+{
+private:
+    typedef void(__fastcall* stateChangedFunc_t)(void* gameContext, uint16_t flags);
+    inline static const stateChangedFunc_t IServerNetworkable_stateChanged = reinterpret_cast<stateChangedFunc_t>(0x146C500C0);
+
+    uint32_t m_stateFlags; // 0x00
+    uint32_t unk04;        // 0x04
+    uint32_t m_fieldMask1; // 0x08
+    uint32_t m_fieldMask2; // 0x0C
+
+    const uint32_t kUnkGhostFlag1 = 1 << 17;
+    const uint32_t kUnkGhostFlag2 = 1 << 18;
+
+    inline void SetDirty(int index)
+    {
+        if ((m_stateFlags & 0x20000) != 0 || ((m_stateFlags & 0x40000) != 0 && !m_fieldMask1))
+        {
+            IServerNetworkable_stateChanged(g_gameContext[HIWORD(m_stateFlags) & 1], m_stateFlags);
+            KYBER_LOG(Info, "Sent state changed");
+        }
+        m_fieldMask1 |= 1 << index;
+    }
+}; // Size: 0x10
+
+class WSServerSoldierHealthComponent : public HealthComponent
+{
+public:
+    char pad_0028[16];           // 0x0028
+    float health2;               // 0x0038
+    char pad_003C[188];          // 0x003C
+    float m_totalTimer;          // 0x00F8
+    char pad_00FC[540];          // 0x00FC
+    float health4;               // 0x0318
+    char pad_031C[596];          // 0x031C
+    uint32_t N0000010D;          // 0x0570
+    char pad_0574[16];           // 0x0574
+    float m_displayHealth;       // 0x0584
+    float m_displayMaxHealth;    // 0x0588
+    char pad_058C[220];          // 0x058C
+    float m_regenTimer;          // 0x0668
+    float m_regenMaxHealth;      // 0x066C
+    float m_calculatedMaxHealth; // 0x0670
+    float m_regenPerSec;         // 0x0674
+    float m_regenDelay;          // 0x0678
+    char pad_067C[372];          // 0x067C
+
+    void SetStateChanged(int index);
+    void SetMaxHealth(float value);
+    void SetRegenerationPerSecond(float value);
+    void SetRegenerationDelay(float value);
+};
+
+class ClientSoldierHealthComponent : public HealthComponent
+{};
+
+class ServerCharacterEntity : public ComponentEntity
 {
 public:
     HealthComponent* GetHealthComponent() const
@@ -1768,7 +2139,7 @@ public:
     }
 };
 
-class ServerVehicleEntity : public TypeObject
+class ServerVehicleEntity : public ComponentEntity
 {
 public:
     void Teleport(const LinearTransform& trans);

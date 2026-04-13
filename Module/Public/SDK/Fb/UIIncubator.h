@@ -1,0 +1,41 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(ClientQuitGameEntity, 0x1446046A0);
+_KB_DECLARE_TYPEINFO(TransformInterpolatorEntity, 0x144604770);
+_KB_DECLARE_TYPEINFO(Vec4InterpolatorEntity, 0x144604840);
+_KB_DECLARE_TYPEINFO(Vec3InterpolatorEntity, 0x144604910);
+_KB_DECLARE_TYPEINFO(Vec2InterpolatorEntity, 0x1446049E0);
+_KB_DECLARE_TYPEINFO(FloatInterpolatorEntity, 0x144604AB0);
+_KB_DECLARE_TYPEINFO(ObjectHubEntity, 0x144604B80);
+_KB_DECLARE_TYPEINFO(MathIntOpEntity, 0x144604C50);
+_KB_DECLARE_TYPEINFO(LocalizedStringEntityBase, 0x144604D20);
+_KB_DECLARE_TYPEINFO(LocalizedStringEntity, 0x144604DF0);
+_KB_DECLARE_TYPEINFO(TextureSwitchEntity, 0x144604EC0);
+_KB_DECLARE_TYPEINFO(FBUIStaticTextureElementEntity, 0x144604F90);
+_KB_DECLARE_TYPEINFO(FBUIDynamicTextureElementEntity, 0x144605060);
+_KB_DECLARE_TYPEINFO(FBUISlicedTextureElementEntity, 0x144605130);
+_KB_DECLARE_TYPEINFO(FBUIMovieElementEntity, 0x144605200);
+_KB_DECLARE_TYPEINFO(FBUIListItemWidgetEntity, 0x1446045D0);
+_KB_DECLARE_TYPEINFO(FBUIListElementEntity, 0x1446052D0);
+_KB_DECLARE_TYPEINFO(FBUILabelElementEntity, 0x1446053A0);
+_KB_DECLARE_TYPEINFO(DynamicCastEntity, 0x144605470);
+_KB_DECLARE_TYPEINFO(ConfigEntity, 0x144605540);
+_KB_DECLARE_TYPEINFO(ConditionalStringEntity, 0x144605610);
+_KB_DECLARE_TYPEINFO(ConditionalTransformEntity, 0x1446056E0);
+_KB_DECLARE_TYPEINFO(ConditionalVec4Entity, 0x1446057B0);
+_KB_DECLARE_TYPEINFO(ConditionalVec3Entity, 0x144605880);
+_KB_DECLARE_TYPEINFO(ConditionalVec2Entity, 0x144605950);
+_KB_DECLARE_TYPEINFO(ConditionalFloatEntity, 0x144605A20);
+_KB_DECLARE_TYPEINFO(ConditionalIntEntity, 0x144605AF0);
+_KB_DECLARE_TYPEINFO(ClientUIMaskingWidgetEntity, 0x144602E50);
+_KB_DECLARE_TYPEINFO(StringSwitchCaseEntity, 0x144602F20);
+_KB_DECLARE_TYPEINFO(IntegerSwitchCaseEntity, 0x144602FF0);
+_KB_DECLARE_TYPEINFO(StateNodeEntityBase, 0x144602D80);
+_KB_DECLARE_TYPEINFO(StateNodeEntity, 0x1446030C0);
+_KB_DECLARE_TYPEINFO(SelectObjectEntity, 0x144603190);
+
+#undef _KB_DECLARE_TYPEINFO
+}

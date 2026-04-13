@@ -33,13 +33,13 @@ public:
             return;
         }
 
-        void* connection = OnlineManager_clientConnection(ClientGameContext::Get()->onlineManager);
+        ClientConnection* connection = ClientGameContext::Get()->GetOnlineManager()->GetClientConnection();
         if (connection == nullptr)
         {
             return;
         }
 
-        float latency = ClientConnection_getAverageLatency(connection) * 1000;
+        float latency = connection->GetAverageLatency() * 1000;
 
         char buf[100];
         snprintf(buf, 100, "Latency: %.3fms", latency);

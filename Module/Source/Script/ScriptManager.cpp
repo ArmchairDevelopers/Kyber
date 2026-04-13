@@ -4,15 +4,6 @@
 #include <Core/Program.h>
 #include <Utilities/PlatformUtils.h>
 #include <Script/Lua.h>
-#include <Script/LuaDataContainer.h>
-#include <Script/LuaConsole.h>
-#include <Script/LuaGlobals.h>
-#include <Script/LuaPlayerManager.h>
-#include <Script/LuaSocketManager.h>
-#include <Script/LuaEntityManager.h>
-#include <Script/LuaResourceManager.h>
-#include <Script/LuaUtilFunctions.h>
-#include <Script/LuaClientEvents.h>
 
 namespace Kyber
 {
@@ -123,7 +114,8 @@ ScriptManager::ScriptManager()
 {
     KYBER_LOG(Info, "[Plugin] Initializing script manager with " << LUA_RELEASE);
 
-    LuaPlayerManager::InitializeHooks();
+    // Should only ever be called once.
+    LuaContentRegistry::Get().InitializeHooks();
 }
 
 void ScriptManager::LoadPluginsFromDirectory(PluginRealm realm, const std::filesystem::path& path)
@@ -192,35 +184,9 @@ void ScriptManager::LoadPlugin(PluginBase* script)
             LUA_STRLIBK | LUA_TABLIBK,
         0);
 
-    // Remove certain OS functions
-    lua_getglobal(L, "os");
-    lua_pushnil(L);
-    lua_setfield(L, -2, "execute");
-    lua_pushnil(L);
-    lua_setfield(L, -2, "exit");
-    lua_pushnil(L);
-    lua_setfield(L, -2, "remove");
-    lua_pushnil(L);
-    lua_setfield(L, -2, "rename");
-    lua_pushnil(L);
-    lua_setfield(L, -2, "setlocale");
-    lua_pushnil(L);
-    lua_setfield(L, -2, "tmpname");
-    lua_pop(L, 1);
-
     StorePlugin(L, script);
 
-    LuaEventManager::Register(L);
-    LuaDataContainer::Register(L);
-    LuaEntityManager::Register(L);
-    LuaPlayerManager::Register(L);
-    LuaSocketManager::Register(L);
-
-    Script::RegisterGlobals(L);
-    Script::RegisterConsoleTable(L);
-    Script::RegisterResourceManagerTable(L);
-    Script::RegisterUtilTable(L);
-    Script::RegisterClientEvents(L);
+    LuaContentRegistry::Get().InitializeContent(L);
 
     KYBER_LOG(Info, script->LogPrefix() << " Initialized plugin");
 

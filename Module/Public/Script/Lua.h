@@ -3,6 +3,8 @@
 #pragma once
 
 #include <mutex>
+#include <functional>
+#include <vector>
 
 extern "C" {
 #include <lua.h>
@@ -23,7 +25,7 @@ namespace Kyber
     {                                                                                                                                      \
         type* ptr = (type*)lua_newuserdata(L, sizeof(type*));                                                                              \
         *ptr = value;                                                                                                                      \
-        luaL_getmetatable(L, #name);                                                                                             \
+        luaL_getmetatable(L, #name);                                                                                                       \
         lua_setmetatable(L, -2);                                                                                                           \
         return ptr;                                                                                                                        \
     }                                                                                                                                      \
@@ -67,6 +69,69 @@ namespace Kyber
         luaL_newmetatable(L, #name);                                                                                                       \
         luaL_setfuncs(L, s_##name##Meta, 0);                                                                                               \
     }
+
+class LuaContentStaticRegistrar;
+class LuaContentRegistry
+{
+public:
+    using ContentFunc = std::function<void(lua_State* L)>;
+    using HookFunc = std::function<void()>;
+
+    friend LuaContentStaticRegistrar;
+
+    static LuaContentRegistry& Get()
+    {
+        static LuaContentRegistry instance;
+        return instance;
+    }
+
+    void InitializeContent(lua_State* L) const;
+    void InitializeHooks() const;
+
+private:
+    void RegisterContent(ContentFunc func, std::string&& name)
+    {
+        m_contentRegistry.push_back(func);
+        m_contentNames.push_back(name);
+    }
+
+    void RegisterHooks(HookFunc func)
+    {
+        m_hooksRegistry.push_back(func);
+    }
+
+    std::vector<ContentFunc> m_contentRegistry;
+    // Mainly for debugging but I can't seem to get
+    // the DEBUG preprocessor to work so its in release :P
+    std::vector<std::string> m_contentNames;
+
+    std::vector<HookFunc> m_hooksRegistry;
+};
+
+class LuaContentStaticRegistrar
+{
+public:
+    LuaContentStaticRegistrar(LuaContentRegistry::ContentFunc func, const char* name)
+    {
+        LuaContentRegistry& data = LuaContentRegistry::Get();
+        data.RegisterContent(func, name);
+    }
+
+    LuaContentStaticRegistrar(LuaContentRegistry::HookFunc func)
+    {
+        LuaContentRegistry& data = LuaContentRegistry::Get();
+        data.RegisterHooks(func);
+    }
+};
+
+#define KB_REGISTER_LUA_CONTENT(func) static LuaContentStaticRegistrar _general##func##_luaContentRegistrar(func, #func)
+#define KB_REGISTER_LUA_CONTENT_MANAGER(type) static LuaContentStaticRegistrar _##type##_luaContentRegistrar(type::Register, #type)
+#define KB_REGISTER_LUA_CONTENT_HOOKS(type) static LuaContentStaticRegistrar _##type##_luaContentHooksRegistrar(type::InitializeHooks)
+
+// More efficient alternative to LuaUtils::RegisterFunctionTable since it allows for predetermined allocation
+#define KB_LUA_NEW_GLOBAL_LIB(L, name, funcs)                                                                                              \
+    luaL_newlib(L, funcs);                                                                                                                 \
+    lua_setglobal(L, name)
 
 class LuaUtils
 {

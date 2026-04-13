@@ -37,8 +37,15 @@ public:
     uint32_t flags;
 };                             // Size: 0x0088
 
+enum CacheDataFlags
+{
+    CacheDataFlags_IsValueSetFlag = 1 << 5,
+    CacheDataFlags_IsValueWrittenFlag = 1 << 6,
+};
+
 struct PropertyWriterBase
 {
+
     CacheData* m_cache = nullptr;
 
     bool HasConnection() const
@@ -48,7 +55,8 @@ struct PropertyWriterBase
 
     bool HasConnectionValue() const
     {
-        return m_cache != nullptr ? (m_cache->flags & (1 << 6)) != 0 : false;
+        return m_cache != nullptr ? (m_cache->flags & (CacheDataFlags_IsValueSetFlag | CacheDataFlags_IsValueWrittenFlag)) != 0 : false;
+        //return m_cache != nullptr ? (m_cache->flags & kIsValueWrittenFlag) != 0 : false;
     }
 };
 
@@ -64,7 +72,7 @@ struct PropertyReaderBase
 
     bool HasConnectionValue() const
     {
-        return m_cache != nullptr ? (m_cache->flags & (1 << 6)) != 0 : false;
+        return m_cache != nullptr ? (m_cache->flags & CacheDataFlags_IsValueWrittenFlag) != 0 : false;
     }
 
     const void* Get() const;
@@ -115,7 +123,7 @@ struct PropertyWriter : PropertyWriterBase
 
     void operator=(T& value) const
     {
-        Set(value);
+        Set(&value);
     }
 };
 

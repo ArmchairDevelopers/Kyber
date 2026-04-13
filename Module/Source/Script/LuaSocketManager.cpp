@@ -199,6 +199,8 @@ void LuaSocketManager::Register(lua_State* L)
     luaL_setfuncs(L, s_winSocketMeta, 0);
 
     luaL_Reg funcs[] = { { "Create", WinSocketCreate }, { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(L, "SocketManager", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "SocketManager", funcs);
 }
+
+KB_REGISTER_LUA_CONTENT_MANAGER(LuaSocketManager);
 } // namespace Kyber

@@ -6,6 +6,7 @@
 #include <SDK/Funcs.h>
 #include <Utilities/PlatformUtils.h>
 #include <Core/Program.h>
+#include <SDK/Fb/Entity.h>
 
 namespace Kyber
 {
@@ -14,7 +15,8 @@ GameWorld** g_gameWorld = (GameWorld**)0x143EEC298;
 void** g_gameContext = (void**)0x143EFABD0;
 
 PlayerExtentRegistration* ServerGamePlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143A8C2A0);
-PlayerExtentRegistration* ServerPlayerExtent4::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB7470);
+PlayerExtentRegistration* ServerPlayerExtent2::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB4F30);
+PlayerExtentRegistration* ServerWSGameplayExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB7470);
 PlayerExtentRegistration* WSServerPlayerAbilityExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB5F50);
 PlayerExtentRegistration* PersistenceServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB4900);
 PlayerExtentRegistration* SoldierServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AAD370);
@@ -37,8 +39,6 @@ typedef __int64(__fastcall* SpatialEntity_setTransform_t)(void* inst, const Line
 
 TL_DECLARE_FUNC(0x14116F610, bool, Entity_init, NativeEntity* inst, EntityInitInfo* info);
 TL_DECLARE_FUNC(0x1469DAF40, EntityInitInfo*, EntityInitInfo_ctor, EntityInitInfo* inst, Realm realm, void* context);
-
-TL_DECLARE_FUNC(0x140814260, MemoryArena*, ArenaMap_findArenaForObject, void* object);
 
 TL_DECLARE_FUNC(0x14114C290, void, FullEntityBus_internalFireEvent, EntityBus* inst, const DataContainer* data, EntityEvent* event);
 TL_DECLARE_FUNC(
@@ -70,7 +70,7 @@ void DataContainer::release()
     if (0 == InterlockedDecrement((volatile unsigned __int32*)&m_refCount))
     {
         this->~DataContainer();
-        if (MemoryArena* arena = ArenaMap_findArenaForObject(this))
+        if (MemoryArena* arena = ArenaMap_findArenaForObjectInternal(this, false))
         {
             arena->free(this);
         }
@@ -152,7 +152,6 @@ void ServerVehicleEntity::Teleport(const LinearTransform& transform)
 
 void WSServerSoldierHealthComponent::SetMaxHealth(float value)
 {
-    intptr_t thisptr = reinterpret_cast<intptr_t>(this);
     m_displayMaxHealth = value;
     m_regenMaxHealth = value;
     m_calculatedMaxHealth = value;
@@ -209,6 +208,25 @@ ServerPlayer* ServerPlayerManager::GetPlayerOrSpectator(uint64_t id)
     }
 
     return nullptr;
+}
+
+void ComponentEntity::DebugLogAllComponents()
+{
+    KYBER_ASSERT(IsComponent());
+
+    KYBER_LOG(Info, "----- Debug Components List Begin -----");
+
+    for (ComponentContainer::Iterator it = m_componentContainer->begin(); it != m_componentContainer->end(); it++)
+    {
+        if (it == nullptr || it->m_component == nullptr)
+        {
+            continue;
+        }
+
+        KYBER_LOG(Info, std::hex << it->m_component << " " << it->m_component->getType()->getName());
+    }
+
+    KYBER_LOG(Info, "----- Debug Components List End -----");
 }
 
 ServerPlayer* ServerPlayerManager::GetPlayerOrSpectator(const char* name)
@@ -318,6 +336,11 @@ void ServerConnection::SafeDisconnect(const char* reasonText, SecureReason reaso
 void ServerConnection::SafeDisconnect(const char* reasonText)
 {
     SafeDisconnect(reasonText, SecureReason_KickedViaFairFight);
+}
+
+void ServerConnection::SafeDisconnect(SecureReason reason)
+{
+    SafeDisconnect("", SecureReason_KickedViaFairFight);
 }
 
 bool EntityBase::IsSpatial() const

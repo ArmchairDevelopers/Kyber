@@ -3,6 +3,7 @@
 #include <Core/Console.h>
 #include <Core/Program.h>
 #include <SDK/Funcs.h>
+#include <SDK/Fb/WS.h>
 
 #include <Vxc.h>
 #include <VxcErrors.h>

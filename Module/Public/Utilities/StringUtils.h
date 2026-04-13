@@ -26,6 +26,8 @@ public:
     static std::string WideToAscii(const std::wstring& wstr);
     static std::vector<std::string> Split(const std::string& str, const std::string& delimiter);
     static bool StartsWith(const std::string& str, const std::string& start);
+    static void MakeLower(char* begin, char* end);
+    static void MakeUpper(char* begin, char* end);
 
     // https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
     template<typename... Args>

@@ -122,7 +122,7 @@ static int ConsoleExecuteFunc(lua_State* L)
     return 0;
 }
 
-static int GetSettingsFunc(lua_State* L)
+static int ConsoleGetSettingsFunc(lua_State* L)
 {
     if (!lua_isstring(L, 1))
     {
@@ -144,10 +144,19 @@ static int GetSettingsFunc(lua_State* L)
     return 1;
 }
 
-void RegisterConsoleTable(lua_State* L)
+// clang-format off
+static const luaL_Reg s_consoleTableFuncs[] = { 
+    { "Register", ConsoleRegisterFunc }, 
+    { "Execute", ConsoleExecuteFunc }, 
+    { "GetSettings", ConsoleGetSettingsFunc },
+    { NULL, NULL } 
+};
+// clang-format on
+
+static void RegisterConsoleTable(lua_State* L)
 {
-    luaL_Reg funcs[] = { { "Register", ConsoleRegisterFunc }, { "Execute", ConsoleExecuteFunc }, { "GetSettings", GetSettingsFunc },
-        { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(L, "Console", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "Console", s_consoleTableFuncs);
 }
+
+KB_REGISTER_LUA_CONTENT(RegisterConsoleTable);
 } // namespace Kyber::Script

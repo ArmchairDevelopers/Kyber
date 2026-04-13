@@ -21,6 +21,7 @@ public:
     bool RenderPropertyDebug;
     bool RenderCameraDebug;
     bool EnableUnlimitedPowerEvent;
+    bool LogFilteredChatMessages;
     float BundleDebugFontSize;
     int32_t unused1;
     int32_t unused2;

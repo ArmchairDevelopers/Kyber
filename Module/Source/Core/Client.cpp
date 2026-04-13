@@ -22,6 +22,7 @@ Client::Client()
     , m_voipManager(nullptr)
     , m_socketManager(nullptr)
     , m_eventManager(new EventManager())
+    , m_squadManager(new ClientSquadManager(m_eventManager))
     , m_clientState(ClientState_None)
 {
     m_eventManager->RegisterListener<MainLoopInitJoinServerEvent>(this);
@@ -432,6 +433,8 @@ void Client::InitializeHooks()
     {
         HookManager::CreateHook(hook.offset, hook.hook);
     }
+    
+    m_squadManager->InitializeHooks();
 
     Hook::ApplyQueuedActions();
     KYBER_LOG(Debug, "[Client] Initialized Client Hooks");

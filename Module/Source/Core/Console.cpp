@@ -13,6 +13,7 @@
 #include <Utilities/MemoryUtils.h>
 #include <Utilities/PlatformUtils.h>
 #include <SDK/Funcs.h>
+#include <Network/StreamManager.h>
 
 #include <EASTL/fixed_map.h>
 
@@ -29,9 +30,9 @@ TL_DECLARE_FUNC(0x145478280, void*, AllocatingBuffer_writeEx, void* inst, const 
 TL_DECLARE_FUNC(0x1401B4EB0, void, ConsoleRegistry_registerConsoleMethods, const char* groupName, ConsoleMethod* methods, int count);
 TL_DECLARE_FUNC(0x1453ECF10, SINGLE_ARG(eastl::fixed_vector<InstanceMethod, 128>&), ConsoleRegistry_getInstanceMethods);
 TL_DECLARE_FUNC(0x14BEC6FE0, void*, NetworkSettingsMessage_ctor, void* inst);
-TL_DECLARE_FUNC(0x141BCE400, void, ServerPlayerExtent4_setActiveKit, ServerPlayerExtent* inst, uint32_t gpId, uint32_t unk0,
+TL_DECLARE_FUNC(0x141BCE400, void, ServerWSGameplayExtent_setActiveKit, ServerPlayerExtent* inst, uint32_t gpId, uint32_t unk0,
     uint32_t vurId, uint32_t skinInfoId);
-TL_DECLARE_FUNC(0x141BCFC40, void, ServerPlayerExtent4_updateActiveKit, ServerPlayerExtent* inst, uint32_t gpId, void** selectionInfo, __int64 garbage);
+TL_DECLARE_FUNC(0x141BCFC40, void, ServerWSGameplayExtent_updateActiveKit, ServerPlayerExtent* inst, uint32_t gpId, void** selectionInfo, __int64 garbage);
 TL_DECLARE_FUNC(0x14D8987B0, void, PlayerAbilityPickedUpMessage_ctor, PlayerAbilityPickedUpMessage* inst, LocalPlayerId localPlayerId);
 
 void ConsoleContext::pushOutput(const std::string& out)
@@ -166,8 +167,8 @@ void TestSetPlayerActiveKit(ConsoleContext& cc)
     stream >> playerName >> gp >> maxCount >> vurId >> skinInfo;
 
     ServerPlayer* serverPlayer = g_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
-    ServerPlayerExtent* extent = serverPlayer->GetExtent(ServerPlayerExtent4::s_registration);
-    ServerPlayerExtent4_setActiveKit(extent, gp, maxCount, vurId, skinInfo);
+    ServerPlayerExtent* extent = serverPlayer->GetExtent(ServerWSGameplayExtent::s_registration);
+    ServerWSGameplayExtent_setActiveKit(extent, gp, maxCount, vurId, skinInfo);
     cc << "Done";
 }
 
@@ -179,7 +180,7 @@ void TestUpdateActiveKit(ConsoleContext& cc)
     stream >> playerName >> gp;
 
     ServerPlayer* serverPlayer = g_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
-    ServerPlayerExtent* extent = serverPlayer->GetServerPlayerExtent4();
+    ServerPlayerExtent* extent = serverPlayer->GetServerWSGameplayExtent();
 
     __int64 data1[6];
     __int64 data2[1];
@@ -189,8 +190,8 @@ void TestUpdateActiveKit(ConsoleContext& cc)
     Asset* assets1[3];
     assets1[0] = reinterpret_cast<Asset*>(ResourceManagerLookupDataContainer("Gameplay/Equipment/Abilities/Ability_BattleCommand/SC_Trooper_37"));
 
-    // ServerPlayerExtent4_updateActiveKit(extent, gp, (void**)0x142D6CDE0, (void**)0x142D6CDE0);
-    ServerPlayerExtent4_updateActiveKit(extent, 1605240203, reinterpret_cast<void**>(&assets1), (__int64)0x142D6CDE0);
+    // ServerWSGameplayExtent_updateActiveKit(extent, gp, (void**)0x142D6CDE0, (void**)0x142D6CDE0);
+    ServerWSGameplayExtent_updateActiveKit(extent, 1605240203, reinterpret_cast<void**>(&assets1), (__int64)0x142D6CDE0);
     cc << "Done";
 }
 
@@ -215,6 +216,78 @@ void TestSetAbility(ConsoleContext& cc)
     MessageManager_queueMessage(g_program->m_server->GetServerGameContext()->messageManager, reinterpret_cast<Message*>(message), 0.0f);
 
     cc << "Done";
+}
+
+class TestStreamedEvent : public KyberStreamedEvent
+{
+public:
+    uint32_t data;
+
+    void Write(BitStreamWrite* stream) override
+    {
+        KYBER_LOG(Info, "Writing data: " << data);
+        stream->WriteOctets(&data, 4);
+    }
+
+    void Read(BitStreamRead* stream) override
+    {
+        stream->ReadOctets(&data, 4);
+        KYBER_LOG(Info, "Got data value: " << data);
+    }
+};
+
+KB_REGISTER_STREAMED_EVENT(TestStreamedEvent);
+
+void SendTestStreamedKyberEvent(ConsoleContext& cc)
+{
+    if (!g_program->m_server->IsRunning())
+    {
+        cc << "This is a server command, and you aren't running a server!";
+        return;
+    }
+
+    for (auto& player : g_program->m_server->m_playerManager->m_players)
+    {
+        ServerConnection* connection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+        TestStreamedEvent* event = FB_GLOBAL_ARENA->create<TestStreamedEvent>();
+        event->data = 19472;
+
+        ServerStreamedEventManager::Send(connection, event);
+    }
+}
+
+void DebugLogComponentsInCharacter(ConsoleContext& cc)
+{
+    if (!g_program->m_server->IsRunning())
+    {
+        cc << "This is a server command, and you aren't running a server!";
+        return;
+    }
+
+    ServerPlayer* player = g_program->m_server->m_playerManager->m_players[0];
+    if (player == nullptr)
+    {
+        return;
+    }
+
+    ServerCharacterEntity* character;
+    if ((character = player->GetCharacterEntity()) == nullptr)
+    {
+        return;
+    }
+    KYBER_LOG(Info, "----- Character Components List Begin -----");
+
+    const ComponentContainer& components = *character->m_componentContainer;
+    for (ComponentContainer::Iterator componentIt = components.begin(); componentIt != components.end(); componentIt++)
+    {
+        if (componentIt == nullptr || componentIt->m_component == nullptr)
+        {
+            continue;
+        }
+        KYBER_LOG(Info, std::hex << componentIt->m_component << " " << componentIt->m_component->getType()->getName());
+    }
+
+    KYBER_LOG(Info, "----- Character Components List End -----");
 }
 
 void SaveLocationCommand(ConsoleContext& cc)
@@ -319,8 +392,6 @@ void FullTeamSwapCommand(ConsoleContext& cc)
     cc << "Successfully swapped both teams to the opposite side";
 }
 
-// This function is not extremely optimized, its meant to be readable
-// Logic ported from PluginExamples/BotBalancer
 void ShuffleTeamsCommand(ConsoleContext& cc)
 {
     // Create new vector of purely real players
@@ -334,33 +405,101 @@ void ShuffleTeamsCommand(ConsoleContext& cc)
         {
             continue;
         }
+
         players.push_back(player);
     }
 
-    uint32_t playerCount = players.size();
+    const size_t totalPlayerCount = players.size();
 
-    eastl::vector<int> randomTeamList(playerCount);
-    for (int i = 0; i < playerCount - (playerCount / 2); i++)
+    if (!totalPlayerCount)
     {
-        randomTeamList[i] = 1;
+        return;
     }
 
-    for (int i = playerCount - (playerCount / 2); i < playerCount; i++)
-    {
-        randomTeamList[i] = 2;
-    }
-
-    // Randomize list with Fisher-Yates (https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle)
-    for (int i = playerCount - 1; i >= 0; i--) 
+    // Randomize list with Fisher-Yates shuffle
+    for (int i = totalPlayerCount - 1; i >= 0; i--)
     {
         int j = rand() % (i + 1);
-        eastl::swap(randomTeamList[i], randomTeamList[j]);
+        eastl::swap(players[i], players[j]);
     }
 
-    for (int i = 0; i < playerCount; i++)
+    // Group players by their squads
+    eastl::vector<eastl::vector<ServerPlayer*>> groupedPlayers;
+    eastl::unordered_map<uint64_t, size_t> groupIdToGroupIndex; // index into list above for groups that exist
+    groupedPlayers.reserve(totalPlayerCount);
+
+    bool partyExists = false;
+    for (ServerPlayer* player : players)
     {
-        players[i]->SetTeam(randomTeamList[i]);
-        KYBER_LOG(Debug, "Player " << players[i]->m_name << " set to team " << players[i]->m_teamId);
+        uint64_t playerGroupId = g_program->m_server->m_squadManager->FindPlayerGroup(player);
+        if (playerGroupId != 0)
+        {
+            const auto& it = groupIdToGroupIndex.find(playerGroupId);
+            if (it != groupIdToGroupIndex.end())
+            {
+                auto& groupPlayerList = groupedPlayers[it->second];
+                groupPlayerList.push_back(player);
+            }
+            else
+            {
+                groupIdToGroupIndex[playerGroupId] = groupedPlayers.size();
+                eastl::vector<ServerPlayer*> newGroupPlayerList;
+                newGroupPlayerList.push_back(player);
+                groupedPlayers.push_back(newGroupPlayerList);
+                partyExists = true;
+            }
+        }
+        else 
+        {
+            eastl::vector<ServerPlayer*> soloPlayerList;
+            soloPlayerList.push_back(player);
+            groupedPlayers.push_back(soloPlayerList);
+        }
+    }
+
+    if (!partyExists) // All solo players, use simple assignment
+    {
+        for (int i = 0; i < totalPlayerCount; i++)
+        {
+            players[i]->SetTeam(i < (totalPlayerCount / 2) ? 2 : 1); // Bias towards assigning to team 1
+            KYBER_LOG(Debug, "Player " << players[i]->m_name << " set to team " << players[i]->m_teamId);
+        }
+    }
+    else // Somewhere there is a group so we will 
+    {
+        size_t assignedPlayerCount = 0;
+        size_t team1Count = 0;
+        size_t team2Count = 0;
+        const size_t totalGroupCount = groupedPlayers.size();
+        while (assignedPlayerCount < totalPlayerCount)
+        {
+            // Go through entire list and find the largest group.
+            uint32_t bestCandidate = 0;
+            uint32_t max = 0;
+            for (int i = 0; i < totalGroupCount; i++)
+            {
+                uint32_t groupSize = groupedPlayers[i].size();
+                if (groupSize > max)
+                {
+                    bestCandidate = i;
+                    max = groupSize;
+                }
+            }
+
+            size_t* teamCountAffected = team1Count < team2Count ? &team1Count : &team2Count;
+            TeamId teamToAssign = team1Count < team2Count ? Team1 : Team2;
+
+            const eastl::vector<ServerPlayer*>& groupList = groupedPlayers[bestCandidate];
+            for (int i = 0; i < groupList.size(); i++)
+            {
+                groupList[i]->SetTeam(teamToAssign);
+            }
+
+            *teamCountAffected += groupList.size();
+            groupedPlayers.erase_unsorted(&groupedPlayers[bestCandidate]);
+        }
+
+        KYBER_ASSERT(assignedPlayerCount == team1Count + team2Count);
     }
 
     cc << "Successfully shuffled teams.";
@@ -449,7 +588,7 @@ void SetBattlepointsCommand(ConsoleContext& cc)
         return;
     }
 
-    player->GetServerPlayerExtent4()->SetBattlepoints(amount);
+    player->GetServerWSGameplayExtent()->SetBattlepoints(amount);
     cc << "Set " << playerName << "'s battlepoints to " << amount;
 }
 
@@ -473,8 +612,8 @@ void GiveBattlepointsCommand(ConsoleContext& cc)
         return;
     }
 
-    player->GetServerPlayerExtent4()->AddBattlepoints(amount);
-    cc << "Gave " << playerName << " " << amount << " battlepoints, now has " << player->GetServerPlayerExtent4()->m_battlepoints << " total";
+    player->GetServerWSGameplayExtent()->AddBattlepoints(amount);
+    cc << "Gave " << playerName << " " << amount << " battlepoints, now has " << player->GetServerWSGameplayExtent()->m_battlepoints << " total";
 }
 
 void BroadcastCommand(ConsoleContext& cc)
@@ -592,7 +731,7 @@ Console::Console()
     BYTE ptch[] = { 0xEB };
     MemoryUtils::Patch(HOOK_OFFSET(0x1401D0D03), (void*)ptch, sizeof(ptch));
     MemoryUtils::Patch(HOOK_OFFSET(0x1401D0D5B), (void*)ptch, sizeof(ptch));
-    MemoryUtils::Patch(HOOK_OFFSET(0x141BCE55C), (void*)ptch, sizeof(ptch)); // ServerPlayerExtent4::setActiveKit
+    MemoryUtils::Patch(HOOK_OFFSET(0x141BCE55C), (void*)ptch, sizeof(ptch)); // ServerWSGameplayExtent::setActiveKit
 
     RegisterConsoleCommand(&RestartCommand, "Restart");
     RegisterConsoleCommand(&LoadLevelCommand, "LoadLevel", "<level> <mode>");
@@ -618,6 +757,8 @@ Console::Console()
     RegisterConsoleCommand(&TestSetPlayerActiveKit, "TestSetActive", "<player> <gpId> <unknown> <vurId> <skinInfoId>");
     RegisterConsoleCommand(&TestUpdateActiveKit, "TestUpdateActive", "<player> <gpId>");
     RegisterConsoleCommand(&TestSetAbility, "TestSetAbility", "<player> <abilityId> <slot>");
+    RegisterConsoleCommand(&SendTestStreamedKyberEvent, "SendTestStreamed");
+    RegisterConsoleCommand(&DebugLogComponentsInCharacter, "DebugLogComponentsCharacter");
 
     if (true || !g_program->m_isDedicatedServer)
     {

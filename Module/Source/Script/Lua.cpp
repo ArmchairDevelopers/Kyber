@@ -9,6 +9,23 @@ namespace Kyber
 {
 std::recursive_mutex LuaUtils::s_lock;
 
+void LuaContentRegistry::InitializeContent(lua_State* L) const
+{
+    for (int i = 0; i < m_contentRegistry.size(); i++)
+    {
+        KYBER_LOG(Debug, "Initializing Lua content pack: " << m_contentNames[i]);
+        m_contentRegistry[i](L);
+    }
+}
+
+void LuaContentRegistry::InitializeHooks() const
+{
+    for (auto& func : m_hooksRegistry)
+    {
+        func();
+    }
+}
+
 template<>
 void LuaUtils::Push<int>(lua_State* L, int value)
 {
