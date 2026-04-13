@@ -288,7 +288,7 @@ class _MemberTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(.05),
       ),
-      child: HoverBuilder(
+      child: ButtonBuilder(
         builder: (context, hovered) {
           final partyState = context.select(
             (SessionCubit cubit) => cubit.state,
