@@ -97,7 +97,6 @@ class JoinGameDialog extends StatelessWidget {
               KyberButton(
                 text: 'Cancel Joining',
                 onPressed: () {
-                  Navigator.of(context).pop();
                   context.read<SessionCubit>().cancelJoinGame();
                 },
               ),

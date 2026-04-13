@@ -129,7 +129,7 @@ class SessionCubit extends Cubit<SessionState> {
   }
 
   Future<void> cancelJoinGame() async {
-    //await _service.partyServiceClient.cancelJoinGame(.new());
+    await _service.partyServiceClient.cancelJoinGame(.new());
   }
 
   void readyUp() {
