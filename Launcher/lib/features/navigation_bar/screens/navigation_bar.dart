@@ -25,6 +25,8 @@ import 'package:kyber_launcher/features/navigation_bar/widgets/keyboard_shortcut
 import 'package:kyber_launcher/features/navigation_bar/widgets/navigation_content.dart';
 import 'package:kyber_launcher/features/server_browser/providers/ingame_view_cubit.dart';
 import 'package:kyber_launcher/features/setup/screens/walk_through_setup.dart';
+import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 import 'package:protocol_handler/protocol_handler.dart';
@@ -101,6 +103,10 @@ class _NavigationBarState extends State<NavigationBar>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return KeyboardShortcutsWrapper(
       child: BlocConsumer<StatusCubit, ApplicationStatus>(
         listenWhen: (prev, state) => prev.initialized != state.initialized,
@@ -216,6 +222,7 @@ class _NavigationBarState extends State<NavigationBar>
     KyberStatusState state,
   ) async {
     final viewCubit = context.read<IngameViewCubit>();
+    final l10n = AppLocalizations.of(context)!;
 
     if (state is KyberStatusInitial && viewCubit.state.server != null) {
       viewCubit.unloadServer();
@@ -240,7 +247,7 @@ class _NavigationBarState extends State<NavigationBar>
 
       if (state.server == null) {
         NotificationService.error(
-          message: 'The server you were playing on could not be found.',
+          message: l10n.serverNotFound,
         );
         return;
       }

@@ -8,6 +8,7 @@ import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart';
@@ -29,6 +30,10 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -57,9 +62,9 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'SELECT A BACKGROUND',
+                                  l10n.selectBackground,
                                   style: TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
+                                    fontFamily: currentFont,
                                     fontSize: 28,
                                     height: 1.2,
                                     color: kActiveColor,
@@ -67,10 +72,9 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
                                 ),
                                 Text(
                                   // either 8 already done backgrounds or user can select a custom background
-                                  'Choose from 8 backgrounds or select a custom background'
-                                      .toUpperCase(),
-                                  style: const TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
+                                  l10n.chooseBackgroundDesc.toUpperCase(),
+                                  style: TextStyle(
+                                    fontFamily: currentFont,
                                     fontSize: 19,
                                     height: 1,
                                   ),
@@ -100,30 +104,30 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     KyberButton(
-                                      text: 'CUSTOM BACKGROUND',
+                                      text: l10n.customBackground,
                                       onPressed: () async {
                                         await showKyberDialog(
                                           context: context,
                                           builder: (context) => KyberContentDialog(
-                                            title: const Text(
-                                              'CHANGE BACKGROUND',
+                                            title: Text(
+                                              l10n.changeBackground,
                                             ),
                                             constraints: const BoxConstraints(
                                               maxWidth: 600,
                                               maxHeight: 400,
                                             ),
-                                            content: const Column(
+                                            content: Column(
                                               children: [
                                                 Text(
-                                                  'Select a background image for the launcher',
-                                                  style: TextStyle(
+                                                  l10n.selectImageDesc,
+                                                  style: const TextStyle(
                                                     color: kWhiteColor,
                                                     fontSize: 15,
                                                   ),
                                                 ),
                                                 Text(
-                                                  'The image resolution should be at least 1920x1080',
-                                                  style: TextStyle(
+                                                  l10n.minResolutionDesc,
+                                                  style: const TextStyle(
                                                     color: kWhiteColor,
                                                     fontSize: 15,
                                                   ),
@@ -132,12 +136,12 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
                                             ),
                                             actions: [
                                               KyberButton(
-                                                text: 'CANCEL',
+                                                text: l10n.cancel.toUpperCase(),
                                                 onPressed: () =>
                                                     Navigator.of(context).pop(),
                                               ),
                                               KyberButton(
-                                                text: 'Reset',
+                                                text: l10n.reset,
                                                 onPressed: () async {
                                                   try {
                                                     await File(
@@ -162,7 +166,7 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
                                                 },
                                               ),
                                               KyberButton(
-                                                text: 'Select Image',
+                                                text: l10n.selectImage,
                                                 onPressed: () async {
                                                   final result = await FilePicker
                                                       .platform
@@ -174,7 +178,7 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
                                                           'gif',
                                                         ],
                                                         dialogTitle:
-                                                            'Select a background image',
+                                                            l10n.selectImagePickerTitle,
                                                         type: FileType.custom,
                                                       );
 
@@ -186,7 +190,7 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
                                                       1024 * 1024 * 10) {
                                                     NotificationService.showNotification(
                                                       message:
-                                                          'The file is too large. Please select a file smaller than 10MB',
+                                                          l10n.fileTooLarge,
                                                       severity:
                                                           InfoBarSeverity.error,
                                                     );
@@ -206,7 +210,7 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
                                                       image.height < 1080) {
                                                     NotificationService.showNotification(
                                                       message:
-                                                          'The image resolution is too low. Please select an image with a resolution of at least 1920x1080',
+                                                          l10n.resolutionTooLow,
                                                       severity:
                                                           InfoBarSeverity.error,
                                                     );
@@ -214,7 +218,7 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
                                                   }
 
                                                   NotificationService.info(
-                                                    message: 'Copying image...',
+                                                    message: l10n.copyingImage,
                                                   );
                                                   if (Preferences
                                                       .customization

@@ -5,6 +5,7 @@ import 'package:kyber_launcher/core/services/voip_service.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
 import 'package:kyber_launcher/features/settings/screens/settings.dart';
 import 'package:kyber_launcher/features/settings/widgets/voip_key_picker.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
@@ -15,9 +16,11 @@ class ProximityChat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return SuperListView(
       children: [
-        const SettingsHeader(title: 'INGAME'),
+        SettingsHeader(title: l10n.ingame),
         HiveListener(
           box: box,
           keys: const ['ingameHotkeyEnabled'],
@@ -25,24 +28,24 @@ class ProximityChat extends StatelessWidget {
             return KyberTable(
               items: [
                 KyberTableItem.switchButton(
-                  title: 'Ingame Hotkey (Moderation Menu)',
+                  title: l10n.ingameHotkey,
                   value: Preferences.general.ingameHotkeyEnabled,
                   onChange: (value) async {
                     Preferences.general.ingameHotkeyEnabled = value;
                     if (sl.isRegistered<MaximaGameInstance>()) {
                       NotificationService.showNotification(
-                        message: 'To apply changes, restart the game',
+                        message: l10n.restartGameWarning,
                       );
                     }
                   },
-                  enabledText: 'Enabled',
-                  disabledText: 'Disabled',
+                  enabledText: l10n.enabled,
+                  disabledText: l10n.disabled,
                 ),
               ],
             );
           },
         ),
-        const SettingsHeader(title: 'Proximity Chat'),
+        SettingsHeader(title: l10n.proximityChat),
         ListenableBuilder(
           listenable: sl.get<VoipService>(),
           builder: (_, __) {
@@ -51,20 +54,20 @@ class ProximityChat extends StatelessWidget {
             final child = KyberTable(
               items: [
                 KyberTableItem.switchButton(
-                  title: 'Proximity Chat',
+                  title: l10n.proximityChat,
                   onChange: (value) => service.setVoiceChat(enabled: value),
                   value: service.isEnabled,
                 ),
                 KyberTableItem.switchButton(
-                  title: 'Input Mode',
+                  title: l10n.inputMode,
                   onChange: (value) => service.setPushToTalk(enabled: value),
                   value: service.isPushToTalkEnabled,
-                  disabledText: 'Open Mic',
-                  enabledText: 'Push to Talk',
+                  disabledText: l10n.openMic,
+                  enabledText: l10n.pushToTalk,
                 ),
                 if (service.isPushToTalkEnabled)
                   KyberTableItem.custom(
-                    title: 'Push to Talk Key',
+                    title: l10n.pushToTalkKey,
                     builder: (context) {
                       return CharKeyPicker(
                         value: VoipKeyResponse(
@@ -76,7 +79,7 @@ class ProximityChat extends StatelessWidget {
                     },
                   ),
                 KyberTableItem.slider(
-                  title: 'Input Volume',
+                  title: l10n.inputVolume,
                   value: Preferences.general.defaultInputVolume,
                   onChanged: (value) async {
                     Preferences.general.defaultInputVolume = value;
@@ -86,7 +89,7 @@ class ProximityChat extends StatelessWidget {
                   max: 100,
                 ),
                 KyberTableItem.slider(
-                  title: 'Output Volume',
+                  title: l10n.outputVolume,
                   value: Preferences.general.defaultOutputVolume,
                   onChanged: (value) async {
                     Preferences.general.defaultOutputVolume = value;
@@ -96,11 +99,11 @@ class ProximityChat extends StatelessWidget {
                   max: 100,
                 ),
                 KyberTableItem.selector(
-                  title: 'Input Device',
+                  title: l10n.inputDevice,
                   items: service.inputDevices.isEmpty
                       ? [
-                          const KyberSelectorItem(
-                            title: 'No devices found',
+                          KyberSelectorItem(
+                            title: l10n.noDevicesFound,
                             value: '',
                           ),
                         ]
@@ -122,11 +125,11 @@ class ProximityChat extends StatelessWidget {
                         },
                 ),
                 KyberTableItem.selector(
-                  title: 'Output Device',
+                  title: l10n.outputDevice,
                   items: service.outputDevices.isEmpty
                       ? [
-                          const KyberSelectorItem(
-                            title: 'No devices found',
+                          KyberSelectorItem(
+                            title: l10n.noDevicesFound,
                             value: '',
                           ),
                         ]

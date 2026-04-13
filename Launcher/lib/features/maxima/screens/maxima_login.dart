@@ -11,6 +11,7 @@ import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/patreon/services/patreon_service.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_input.dart';
 import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
@@ -89,9 +90,11 @@ class _MaximaLoginState extends State<MaximaLogin> {
   }
 
   Widget _buildContent(BuildContext context, MaximaState state) {
+    final l10n = AppLocalizations.of(context)!;
+
     if (_loading) {
       return _StatusRow(
-        text: _whitelistPrompt ? 'Loading...' : 'Waiting for response...',
+        text: _whitelistPrompt ? l10n.loading : l10n.waitingForResponse,
       );
     }
 
@@ -107,16 +110,17 @@ class _MaximaLoginState extends State<MaximaLogin> {
     if (errorBlock != null) return errorBlock;
 
     return switch (state.status) {
-      .starting => const _StatusRow(text: 'Maxima is starting...'),
-      .loading => const _StatusRow(text: 'Fetching data...'),
+      MaximaStatus.starting => _StatusRow(text: l10n.maximaStarting),
+      MaximaStatus.loading => _StatusRow(text: l10n.fetchingData),
       _ => _LoginIntro(onLogin: () => _requestLogin(context)),
     };
   }
 
   Widget? _buildErrorBlock(BuildContext context, MaximaState state) {
+    final l10n = AppLocalizations.of(context)!;
     if (state.status != MaximaStatus.error) return null;
 
-    final error = state.error ?? 'An error occurred';
+    final error = state.error ?? l10n.genericError;
 
     if (error.contains('GameNotOwned')) {
       return _GameNotOwned(
@@ -141,6 +145,7 @@ class _MaximaLoginState extends State<MaximaLogin> {
   }
 
   Future<void> _requestLogin(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return context.read<MaximaCubit>().requestLogin().onError((
       error,
       stackTrace,
@@ -151,47 +156,50 @@ class _MaximaLoginState extends State<MaximaLogin> {
           ? error.message
           : (error! as AnyhowException).message;
 
-      final message = _mapLoginError(raw);
+      final message = _mapLoginError(context, raw);
 
       return NotificationService.showNotification(
-        title: 'Login failed',
+        title: l10n.loginFailed,
         message: message,
         severity: InfoBarSeverity.error,
       );
     });
   }
 
-  String _mapLoginError(String err) {
+  String _mapLoginError(BuildContext context, String err) {
+    final l10n = AppLocalizations.of(context)!;
     if (err.contains('unknown variant `NO_SUCH_USER`')) {
-      return 'The specified user does not exist';
+      return l10n.userDoesNotExist;
     }
 
     if (err.contains('InvalidPassword')) {
-      return 'The specified password is incorrect';
+      return l10n.passwordIncorrect;
     }
 
     if (err.contains('failed to find auth code')) {
-      return 'Failed to find auth code. Please try another browser';
+      return l10n.failedToFindAuthCode;
     }
 
     return err;
   }
 
   void _copyPath(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     Clipboard.setData(ClipboardData(text: Directory.current.path));
     NotificationService.success(
-      message: 'The path has been copied to your clipboard',
+      message: l10n.pathCopied,
     );
   }
 
   Future<void> _handleAuthorizePatreon(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       setState(() => _loading = true);
 
       final code = await PatreonService.requestOAuthLogin();
       if (code == null) {
         NotificationService.error(
-          message: 'No authorization code was received',
+          message: l10n.noAuthCodeReceived,
         );
         return;
       }
@@ -205,8 +213,8 @@ class _MaximaLoginState extends State<MaximaLogin> {
       });
 
       NotificationService.success(
-        title: 'Authorization successful',
-        message: 'You have been successfully authorized as a Patreon member',
+        title: l10n.authorizationSuccessful,
+        message: l10n.patreonAuthorizedMessage,
       );
     } catch (e, s) {
       String? message;
@@ -216,7 +224,7 @@ class _MaximaLoginState extends State<MaximaLogin> {
       Logger.root.warning('Failed to authorize Patreon', e, s);
 
       NotificationService.showNotification(
-        title: 'Authorization failed',
+        title: l10n.authorizationFailed,
         message: message ?? e.toString(),
         severity: InfoBarSeverity.error,
       );
@@ -235,7 +243,7 @@ class _MaximaLoginState extends State<MaximaLogin> {
       await context.read<MaximaCubit>().requestLogin(skipMaximaCheck: true);
     } catch (e, s) {
       final message = switch (e) {
-        GrpcError() => e.message ?? 'An error occurred',
+        GrpcError() => e.message ?? AppLocalizations.of(context)!.genericError,
         PatreonException() => e.message,
         _ => e.toString(),
       };
@@ -253,10 +261,14 @@ class _MaximaLoginState extends State<MaximaLogin> {
 class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Text(
-      'EA Login',
+      l10n.eaLogin,
       style: FluentTheme.of(context).typography.subtitle?.copyWith(
-        fontFamily: FontFamily.battlefrontUI,
+        fontFamily: currentFont,
         fontSize: 26,
         color: kActiveColor,
         shadows: [
@@ -278,8 +290,11 @@ class _StatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
-      mainAxisSize: .min,
+      mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 5),
         Row(
@@ -288,8 +303,8 @@ class _StatusRow extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               text,
-              style: const TextStyle(
-                fontFamily: FontFamily.battlefrontUI,
+              style: TextStyle(
+                fontFamily: currentFont,
                 fontSize: 18,
               ),
             ),
@@ -307,19 +322,21 @@ class _LoginIntro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Column(
-      mainAxisSize: .min,
-      crossAxisAlignment: .start,
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'In order to use this launcher, you need to login to Maxima. This is required to launch and interact with Battlefront 2.\nYou will be redirected to the EA login page and after logging in, you will be redirected back to the launcher.',
+          l10n.maximaIntroText,
           style: FluentTheme.of(context).typography.body,
         ),
         const SizedBox(height: 16),
         Row(
           children: [
             KyberButton(
-              text: 'Login with EA',
+              text: l10n.loginWithEa,
               onPressed: onLogin,
             ),
           ],
@@ -342,21 +359,23 @@ class _WhitelistRequired extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Column(
       mainAxisSize: .min,
       crossAxisAlignment: .start,
       children: [
         DefaultTextStyle.merge(
           style: const TextStyle(fontSize: 16),
-          child: Row(children: [Text('EA-ID: $eaId')]),
+          child: Row(children: [Text(l10n.eaIdDisplay(eaId ?? ''))]),
         ),
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: .spaceBetween,
           children: [
-            KyberButton(text: 'Log out', onPressed: onLogout),
+            KyberButton(text: l10n.logout, onPressed: onLogout),
             KyberButton(
-              text: 'Authorize Patreon',
+              text: l10n.authorizePatreon,
               onPressed: onAuthorizePatreon,
             ),
           ],
@@ -379,24 +398,26 @@ class _WhitelistPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return DefaultTextStyle.merge(
       style: const TextStyle(fontSize: 16),
       child: Column(
         mainAxisSize: .min,
         crossAxisAlignment: .start,
         children: [
-          const Text(
-            'Are you sure you want to add your current account to the whitelist?',
+          Text(
+            l10n.whitelistConfirmation,
           ),
           const SizedBox(height: 10),
-          Text('Current account: $displayName'),
+          Text(l10n.currentAccountDisplay(displayName ?? '')),
           const SizedBox(height: 10),
           Row(
-            mainAxisAlignment: .spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              KyberButton(text: 'Log out', onPressed: onLogout),
+              KyberButton(text: l10n.logout, onPressed: onLogout),
               KyberButton(
-                text: 'Add to whitelist',
+                text: l10n.addToWhitelist,
                 onPressed: onAddToWhitelist,
               ),
             ],
@@ -415,22 +436,24 @@ class _GameNotOwned extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 10),
         DefaultTextStyle.merge(
-          style: const .new(fontSize: 16),
-          child: Row(children: [Text('EA-ID: $eaId')]),
+          style: const TextStyle(fontSize: 16),
+          child: Row(children: [Text(l10n.eaIdDisplay(eaId ?? ''))]),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'It seems like you do not own Battlefront 2. Please purchase the game or use another account.',
+        Text(
+          l10n.gameNotOwnedMessage,
         ),
         const SizedBox(height: 10),
         Row(
-          children: [KyberButton(text: 'Log out', onPressed: onLogout)],
+          children: [KyberButton(text: l10n.logout, onPressed: onLogout)],
         ),
       ],
     );
@@ -450,6 +473,7 @@ class _MaximaGenericError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final bodyStyle = FluentTheme.of(
       context,
     ).typography.body?.copyWith(fontSize: 16);
@@ -462,19 +486,19 @@ class _MaximaGenericError extends StatelessWidget {
             builder: (context) {
               switch (error) {
                 case 'MaximaFailedBackgroundService':
-                  return const Text(
-                    'Maxima failed to start the background service. This is usually caused by an antivirus program blocking the service. Please add an exception for the launcher and reinstall it.',
+                  return Text(
+                    l10n.maximaBackgroundServiceError,
                   );
                 case 'MissingMaximaFiles':
                   return Column(
                     crossAxisAlignment: .start,
                     children: [
-                      const Text(
-                        'Some files required to run Maxima are missing. This is usually caused by an antivirus program deleting the files. Please add an exception for the launcher and reinstall it.',
+                      Text(
+                        l10n.maximaMissingFilesError,
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        "Please exclude the following folders from your antivirus' real-time protection:",
+                      Text(
+                        l10n.antivirusExclusionInstruction,
                       ),
                       const SizedBox(height: 5),
                       KyberInput(
@@ -483,9 +507,9 @@ class _MaximaGenericError extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Row(
-                        mainAxisAlignment: .spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          KyberButton(text: 'COPY PATH', onPressed: onCopyPath),
+                          KyberButton(text: l10n.copyPath, onPressed: onCopyPath),
                         ],
                       ),
                     ],
@@ -496,7 +520,7 @@ class _MaximaGenericError extends StatelessWidget {
             },
           ),
           Row(
-            children: [KyberButton(text: 'Log out', onPressed: onLogout)],
+            children: [KyberButton(text: l10n.logout, onPressed: onLogout)],
           ),
         ],
       ),
@@ -511,6 +535,7 @@ class MaximaErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final error = state.error ?? '';
 
     if (error.contains('GameNotOwned')) {
@@ -522,15 +547,15 @@ class MaximaErrorWidget extends StatelessWidget {
 
     if (state.status == MaximaStatus.error && !error.contains('whitelist')) {
       return _MaximaGenericError(
-        error: error.isEmpty ? 'An error occurred' : error,
+        error: error.isEmpty ? l10n.genericError : error,
         onLogout: () => context.read<MaximaCubit>().logout(),
         onCopyPath: () async {
-          await Clipboard.setData(.new(text: Directory.current.path));
+          await Clipboard.setData(ClipboardData(text: Directory.current.path));
 
           if (!context.mounted) return;
 
           NotificationService.success(
-            message: 'The path has been copied to your clipboard',
+            message: l10n.pathCopied,
           );
         },
       );

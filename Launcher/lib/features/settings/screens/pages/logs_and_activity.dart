@@ -7,6 +7,7 @@ import 'package:kyber_launcher/core/services/rich_presence.dart';
 import 'package:kyber_launcher/core/utils/custom_logger.dart';
 import 'package:kyber_launcher/features/settings/dialogs/debug_logging_warning_dialog.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
@@ -20,6 +21,8 @@ class LogsAndActivity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return HiveListener(
       box: box,
       keys: const ['discordRPC'],
@@ -28,7 +31,7 @@ class LogsAndActivity extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(8).copyWith(left: 20),
             child: Text(
-              'ACTIVITY'.toUpperCase(),
+              l10n.activity.toUpperCase(),
               style: FluentTheme.of(context).typography.title!.copyWith(
                 fontWeight: FontWeight.bold,
                 color: kInactiveColor,
@@ -39,7 +42,7 @@ class LogsAndActivity extends StatelessWidget {
           KyberTable(
             items: [
               KyberTableItem.switchButton(
-                title: 'Discord Rich Presence',
+                title: l10n.discordRichPresence,
                 value: Preferences.general.discordRPC,
                 onChange: (value) async {
                   Preferences.general.discordRPC = value;
@@ -54,7 +57,7 @@ class LogsAndActivity extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(8).copyWith(left: 20),
             child: Text(
-              'Logging & Sentry'.toUpperCase(),
+              l10n.loggingAndSentry.toUpperCase(),
               style: FluentTheme.of(context).typography.title!.copyWith(
                 fontWeight: FontWeight.bold,
                 color: kInactiveColor,
@@ -73,18 +76,19 @@ class LogsAndActivity extends StatelessWidget {
             builder: (_) => KyberTable(
               items: [
                 KyberTableItem.button(
-                  title: 'Logs',
-                  text: 'Export Logs',
+                  title: l10n.logs,
+                  text: l10n.exportLogs,
                   onClick: () async {
                     await CustomLogger.requestLogExport();
                   },
                 ),
                 KyberTableItem.button(
-                  title:
-                      "Opt ${Preferences.general.sentryOptedOut ? "In To" : "Out Of"} Sentry",
+                  title: Preferences.general.sentryOptedOut 
+                      ? l10n.optInToSentry 
+                      : l10n.optOutOfSentry,
                   text: Preferences.general.sentryOptedOut
-                      ? 'Opt In'
-                      : 'Opt Out',
+                      ? l10n.optIn
+                      : l10n.optOut,
                   onClick: () async {
                     Preferences.general.sentryOptedOut =
                         !Preferences.general.sentryOptedOut;
@@ -97,7 +101,7 @@ class LogsAndActivity extends StatelessWidget {
                   },
                 ),
                 KyberTableItem.switchButton(
-                  title: 'Launcher Debug Mode',
+                  title: l10n.launcherDebugMode,
                   value: Preferences.debug.frbDebugLogs,
                   onChange: (value) async {
                     if (value) {
@@ -129,7 +133,7 @@ class LogsAndActivity extends StatelessWidget {
                   },
                 ),
                 KyberTableItem.switchButton(
-                  title: 'Module Debug Mode',
+                  title: l10n.moduleDebugMode,
                   value: Preferences.debug.moduleDebugLogs,
                   onChange: (value) async {
                     if (value) {
@@ -146,7 +150,7 @@ class LogsAndActivity extends StatelessWidget {
                   },
                 ),
                 KyberTableItem.switchButton(
-                  title: 'Module RPC Debug Mode',
+                  title: l10n.moduleRpcDebugMode,
                   value: Preferences.debug.grpcDebugLogs,
                   onChange: (value) async {
                     if (value) {

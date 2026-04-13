@@ -1,4 +1,7 @@
+import 'package:fluent_ui/fluent_ui.dart';
 import 'package:kyber_launcher/features/kyber/models/mode.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
+import 'package:kyber/kyber.dart';
 
 final List<Mode> modes = modesFromJson([
   {
@@ -337,3 +340,46 @@ final List<Mode> modes = modesFromJson([
     ],
   },
 ]);
+
+/// Расширение для локализации игровых режимов в UI.
+extension ModeLocalization on Mode {
+  String getLocalizedName(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (mode) {
+      'HeroesVersusVillains' => l10n.modeHeroesVersusVillains,
+      'PlanetaryBattles' => l10n.modeGalacticAssault,
+      'Mode1' => l10n.modeSupremacy,
+      'Mode9' => l10n.modeCoOpAttack,
+      'ModeDefend' => l10n.modeCoOpDefend,
+      'PlanetaryMissions' => l10n.modeStrike,
+      'Mode5' => l10n.modeExtraction,
+      'Blast' => l10n.modeBlast,
+      'Mode3' => l10n.modeEwokHunt,
+      'ModeC' => l10n.modeJetpackCargo,
+      'SpaceBattle' => l10n.modeStarfighterAssault,
+      'Mode7' => l10n.modeHeroStarfighters,
+      'Mode6' => l10n.modeHeroShowdown,
+      _ => name,
+    };
+  }
+}
+
+extension MapLocalization on KyberMap {
+  String getLocalizedName(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (name) {
+      'Tatooine - Mos Eisley' => l10n.mapTatooineMosEisley,
+      "Tatooine - Jabba's Palace" => l10n.mapTatooineJabbasPalace,
+      'Republic Venator' => l10n.mapRepublicVenator,
+      'Separatist Dreadnought' => l10n.mapSeparatistDreadnought,
+      'Resurgent Star Destroyer' => l10n.mapResurgentStarDestroyer,
+      'MC85 Star Cruiser' => l10n.mapMc85StarCruiser,
+      'Naboo - Palace Hangar' => l10n.mapNabooPalaceHangar,
+      'Endor - Research Station 9' => l10n.mapEndorResearchStation9,
+      'Endor - Ewok Village' => l10n.mapEndorEwokVillage,
+      'Naboo - Theed Palace' => l10n.mapNabooTheedPalace,
+      'Crait' => l10n.mapCrait,
+      _ => name,
+    };
+  }
+}

@@ -6,12 +6,16 @@ import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/core/services/windows_utils.dart';
 import 'package:kyber_launcher/features/setup/widgets/nexus_login_screen.dart';
+import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/main.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 import 'package:logging/logging.dart';
 
 Future<bool> showNexusLoginDialog(BuildContext context) async {
+  final l10n = AppLocalizations.of(context)!;
+
   final result = await showDialog<bool>(
     context: context,
     builder: (context) => const NexusmodsLogin(),
@@ -19,7 +23,7 @@ Future<bool> showNexusLoginDialog(BuildContext context) async {
 
   if (result == null || !result) {
     if (result == null) {
-      NotificationService.error(message: 'Aborting NexusMods login');
+      NotificationService.error(message: l10n.abortingNexusLogin);
     }
 
     return false;
@@ -53,7 +57,7 @@ class _NexusmodsLoginState extends State<NexusmodsLogin> {
           }
 
           NotificationService.showNotification(
-            message: 'Please install WebView to use this feature.',
+            message: AppLocalizations.of(context)!.installWebViewError,
             severity: InfoBarSeverity.error,
           );
           return;
@@ -90,8 +94,12 @@ class _NexusmodsLoginState extends State<NexusmodsLogin> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return KyberContentDialog(
-      title: Text('NexusMods Login'.toUpperCase()),
+      title: Text(l10n.nexusModsAuthorization.toUpperCase()),
       constraints: BoxConstraints(
         maxWidth: browserOpen ? 1000 : 600,
         maxHeight: browserOpen ? 857 : 400,
@@ -101,7 +109,7 @@ class _NexusmodsLoginState extends State<NexusmodsLogin> {
       ),
       actions: [
         KyberButton(
-          text: 'Skip',
+          text: l10n.skip,
           onPressed: () {
             Navigator.of(context).pop(false);
           },
@@ -113,23 +121,28 @@ class _NexusmodsLoginState extends State<NexusmodsLogin> {
                 : () async {
                     setState(() => browserOpen = true);
                   },
-            text: !browserOpen ? 'CONTINUE' : 'WAIT',
+            text: !browserOpen ? l10n.continueText : l10n.wait,
           ),
       ],
       content: Builder(
         builder: (context) {
           if (_currentStep == 3) {
-            return const Center(
+            return Center(
               child: Column(
                 children: [
-                  Text('Windows 7 Compatibility Mode detected'),
-                  SizedBox(height: 15),
                   Text(
-                    'To login to NexusMods, please disable Windows 7 Compatibility Mode for Kyber Launcher.',
+                    l10n.win7CompatibilityDetected,
+                    style: TextStyle(fontFamily: currentFont),
                   ),
-                  SizedBox(height: 15),
+                  const SizedBox(height: 15),
                   Text(
-                    'After you have logged in, you need to re-enable Windows 7 Compatibility Mode.',
+                    l10n.disableWin7CompMode,
+                    style: TextStyle(fontFamily: currentFont),
+                  ),
+                  const SizedBox(height: 15),
+                  Text(
+                    l10n.reEnableWin7CompMode,
+                    style: TextStyle(fontFamily: currentFont),
                   ),
                 ],
               ),
@@ -137,12 +150,15 @@ class _NexusmodsLoginState extends State<NexusmodsLogin> {
           }
 
           if (_currentStep == 0) {
-            return const Center(
+            return Center(
               child: Row(
                 children: [
-                  ProgressRing(),
-                  SizedBox(width: 15),
-                  Text('Checking WebView installation...'),
+                  const ProgressRing(),
+                  const SizedBox(width: 15),
+                  Text(
+                    l10n.checkingWebView,
+                    style: TextStyle(fontFamily: currentFont),
+                  ),
                 ],
               ),
             );
@@ -200,17 +216,21 @@ class _NexusmodsLoginState extends State<NexusmodsLogin> {
                       ),
                     ]
                   : [
-                      const Text(
-                        'To continue, you will need to log in with your NexusMods account in the browser that is about to open.',
-                        style: .new(
+                      Text(
+                        l10n.nexusLoginIntro,
+                        style: TextStyle(
                           fontSize: 16,
-                          fontWeight: .bold,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: currentFont,
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'The data is processed locally and will only be sent to Nexusmods.\nYou can also enable/disable this feature later in the settings menu..',
-                        style: .new(fontSize: 14),
+                      Text(
+                        l10n.nexusLoginDataNotice,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontFamily: currentFont,
+                        ),
                       ),
                     ],
             ),

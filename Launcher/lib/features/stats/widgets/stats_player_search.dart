@@ -7,6 +7,7 @@ import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/stats/providers/stats_cubit.dart';
 import 'package:kyber_launcher/features/stats/providers/stats_search_cubit.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_input.dart';
 import 'package:kyber_launcher/shared/ui/elements/list/kyber_list.dart';
 import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
@@ -32,6 +33,8 @@ class StatsPlayerSearchState extends State<StatsPlayerSearch> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return BlocListener<StatsSearchCubit, SearchState>(
       listener: (context, state) {
         if (state is! SearchLoaded &&
@@ -98,7 +101,7 @@ class StatsPlayerSearchState extends State<StatsPlayerSearch> {
                 color: kInactiveColor,
                 size: 19,
               ),
-              placeholder: 'Search...',
+              placeholder: l10n.searchPlaceholder,
               controller: textController,
               onChanged: (value) =>
                   context.read<StatsSearchCubit>().search(value),
@@ -122,6 +125,10 @@ class MenuWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Padding(
       padding: const EdgeInsets.only(top: 3),
       child: BackgroundBlur(
@@ -157,8 +164,8 @@ class MenuWidget extends StatelessWidget {
                 return Center(
                   child: Text(
                     state.error,
-                    style: const TextStyle(
-                      fontFamily: FontFamily.battlefrontUI,
+                    style: TextStyle(
+                      fontFamily: currentFont,
                       fontSize: 18,
                       color: kWhiteColor,
                     ),
@@ -173,9 +180,9 @@ class MenuWidget extends StatelessWidget {
               if (state.result.isEmpty) {
                 return Center(
                   child: Text(
-                    'No players found'.toUpperCase(),
-                    style: const TextStyle(
-                      fontFamily: FontFamily.battlefrontUI,
+                    l10n.noPlayersFound.toUpperCase(),
+                    style: TextStyle(
+                      fontFamily: currentFont,
                       fontSize: 18,
                       color: kWhiteColor,
                     ),
@@ -211,8 +218,8 @@ class MenuWidget extends StatelessWidget {
                         const SizedBox(width: 6),
                         Text(
                           mod.username,
-                          style: const TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
+                          style: TextStyle(
+                            fontFamily: currentFont,
                             fontSize: 18,
                             height: 1,
                           ),

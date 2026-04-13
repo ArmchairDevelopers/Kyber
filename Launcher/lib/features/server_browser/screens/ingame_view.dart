@@ -7,6 +7,7 @@ import 'package:kyber_launcher/features/mod_browser/screens/mod_details.dart';
 import 'package:kyber_launcher/features/reports/dialogs/report_player_dialog.dart';
 import 'package:kyber_launcher/features/server_browser/providers/ingame_view_cubit.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/layout/bordered_content.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
@@ -21,6 +22,10 @@ class IngameView extends StatefulWidget {
 class _IngameViewState extends State<IngameView> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return BlocBuilder<IngameViewCubit, IngameViewState>(
       builder: (context, state) {
         return BorderedContent(
@@ -31,16 +36,16 @@ class _IngameViewState extends State<IngameView> {
                 crossAxisAlignment: .start,
                 children: [
                   Text(
-                    state.server?.name ?? 'Unknown Server',
-                    style: const TextStyle(
-                      fontFamily: FontFamily.battlefrontUI,
+                    state.server?.name ?? l10n.unknownServer,
+                    style: TextStyle(
+                      fontFamily: currentFont,
                       fontSize: 20,
                       height: 1,
                     ),
                   ),
                   if (state.server != null && state.server!.official)
                     Text(
-                      'Hosted by ${state.server?.creator ?? 'Unknown Server'}',
+                      l10n.hostedBy(state.server?.creator ?? l10n.unknownServer),
                       style: const TextStyle(
                         fontSize: 12,
                         color: kWhiteColor,
@@ -50,7 +55,7 @@ class _IngameViewState extends State<IngameView> {
                 ],
               ),
               KyberTooltip(
-                message: 'Back to Server Browser'.toUpperCase(),
+                message: l10n.backToServerBrowser.toUpperCase(),
                 child: KyberIconButton(
                   onPressed: router.pop,
                   iconData: mt.Icons.close,
@@ -64,13 +69,13 @@ class _IngameViewState extends State<IngameView> {
               KyberHeader(
                 sections: [
                   ExpandedHeaderSection(
-                    children: [Text('Event Log'.toUpperCase())],
+                    children: [Text(l10n.eventLog.toUpperCase())],
                   ),
                   ExpandedHeaderSection(
-                    children: [Text('Light Side'.toUpperCase())],
+                    children: [Text(l10n.lightSide.toUpperCase())],
                   ),
                   ExpandedHeaderSection(
-                    children: [Text('Dark Side'.toUpperCase())],
+                    children: [Text(l10n.darkSide.toUpperCase())],
                   ),
                 ],
               ),
@@ -199,6 +204,10 @@ class _TeamContainer extends StatefulWidget {
 class _TeamContainerState extends State<_TeamContainer> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return BlocBuilder<IngameViewCubit, IngameViewState>(
       builder: (context, state) {
         final players = state.players
@@ -233,8 +242,8 @@ class _TeamContainerState extends State<_TeamContainer> {
                       children: [
                         Text(
                           player.name,
-                          style: const TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
+                          style: TextStyle(
+                            fontFamily: currentFont,
                             fontSize: 18,
                           ),
                         ),
@@ -247,7 +256,7 @@ class _TeamContainerState extends State<_TeamContainer> {
                               child: Row(
                                 children: [
                                   KyberTooltip(
-                                    message: 'Report Player'.toUpperCase(),
+                                    message: l10n.reportPlayer.toUpperCase(),
                                     child: CustomIconButton(
                                       onPressed: () => showKyberDialog(
                                         context: context,

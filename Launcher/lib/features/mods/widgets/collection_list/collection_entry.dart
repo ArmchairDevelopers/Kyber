@@ -5,6 +5,7 @@ import 'package:kyber_launcher/features/mod_collections/providers/mod_collection
 import 'package:kyber_launcher/features/mods/widgets/collection_list/collection_icon.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/utils/button_builder.dart';
 
 class CollectionEntry extends StatefulWidget {
@@ -37,6 +38,9 @@ class _CollectionEntryState extends State<CollectionEntry> {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return GestureDetector(
       onTap: widget.onTap,
       child: MouseRegion(
@@ -93,8 +97,8 @@ class _CollectionEntryState extends State<CollectionEntry> {
                     children: [
                       Text(
                         widget.modCollection.title,
-                        style: const TextStyle(
-                          fontFamily: FontFamily.battlefrontUI,
+                        style: TextStyle(
+                          fontFamily: currentFont,
                           fontSize: 18,
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -122,6 +126,10 @@ class CreateCollectionEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return ButtonBuilder(
       onClick: onTap,
       builder: (context, hovered) => AnimatedContainer(
@@ -142,16 +150,16 @@ class CreateCollectionEntry extends StatelessWidget {
               Assets.icons.kblCollection.svg(
                 height: 70,
               ),
-              const Padding(
-                padding: EdgeInsets.all(16),
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'CREATE NEW COLLECTION',
+                      l10n.createNewCollection,
                       style: TextStyle(
-                        fontFamily: FontFamily.battlefrontUI,
+                        fontFamily: currentFont,
                         fontSize: 18,
                         color: Colors.white,
                         fontWeight: FontWeight.bold,

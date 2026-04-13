@@ -9,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_js/flutter_js.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:form_builder_validators/localization/l10n.dart';
 import 'package:grpc/grpc.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
@@ -249,102 +250,122 @@ class _AppState extends State<App> {
       child: HiveListener(
         box: box,
         keys: const ['locale', 'activeColor'],
-        builder: (_) => FluentApp.router(
-          title: 'KYBER Launcher',
-          color: kActiveColor,
-          darkTheme: FluentThemeData(
-            accentColor: kActiveColor.toAccentColor(
-              darkFactor: 0,
-              darkerFactor: 0,
-              darkestFactor: 0,
-              lighterFactor: 0,
-              lightestFactor: 0,
-              lightFactor: 0,
-            ),
-            activeColor: kActiveColor,
-            brightness: Brightness.dark,
-            fontFamily: FontFamily.battlefrontUI,
-            radioButtonTheme: RadioButtonThemeData(
-              foregroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.hovered)) {
-                  return kInactiveColor;
-                }
-                return kActiveColor;
-              }),
-            ),
-            scrollbarTheme: ScrollbarThemeData(
-              thickness: 3,
-              hoveringThickness: 3,
-              scrollbarPressingColor: kActiveColor,
-              trackBorderColor: Colors.transparent,
-              hoveringTrackBorderColor: kWhiteBackgroundColor,
-              hoveringMainAxisMargin: 0,
-              crossAxisMargin: 0,
-              padding: EdgeInsets.zero,
-              hoveringPadding: EdgeInsets.zero,
-              hoveringCrossAxisMargin: 0,
-              mainAxisMargin: 0,
-              backgroundColor: Colors.transparent,
-            ),
-            typography: Typography.fromBrightness(brightness: .dark).apply(
-              fontFamily: FontFamily.battlefrontUI,
-            ),
-          ),
-          backButtonDispatcher: RootBackButtonDispatcher(),
-          themeMode: ThemeMode.dark,
-          locale: AppLocale.getLocale(),
-          localizationsDelegates: const [
-            ...GlobalMaterialLocalizations.delegates,
-            FormBuilderLocalizations.delegate,
-          ],
-          supportedLocales: const [Locale('en')],
-          debugShowCheckedModeBanner: false,
-          builder: (context, child) {
-            child = WindowController(
-              child: GraphqlProvider(
-                child: child!,
-              ),
-            );
+        builder: (_) {
+          final currentLocale = AppLocale.getLocale();
+          final fontFamily = currentLocale.languageCode == 'en'
+              ? FontFamily.battlefrontUI
+              : FontFamily.iBMPlexMono;
 
-            return Builder(
-              builder: (context) {
-                return DisableAcrylic(
-                  child: MultiBlocProvider(
-                    providers: [
-                      BlocProvider(create: (_) => StatusCubit()),
-                      BlocProvider(create: (_) => MaximaCubit()),
-                      BlocProvider(create: (_) => MaximaRtmCubit()),
-                      BlocProvider(create: (_) => MapRotationCubit()),
-                      BlocProvider(create: (_) => TutorialCubit()),
-                      BlocProvider(create: (_) => KyberStatusCubit()),
-                      BlocProvider(create: (_) => ModBrowserCubit()),
-                      BlocProvider(create: (_) => ServerListCubit()),
-                      BlocProvider(create: (_) => ModerationServersCubit()),
-                      BlocProvider(create: (_) => ModerationCubit()),
-                      BlocProvider(create: (_) => ServerBrowserCubit()),
-                      BlocProvider(create: (_) => EventCubit()),
-                      BlocProvider(create: (_) => KyberProxyCubit()),
-                      BlocProvider(create: (_) => ModsListCubit()),
-                      BlocProvider(create: (_) => StatsCubit()),
-                      BlocProvider(create: (_) => IngameViewCubit()),
-                      BlocProvider(create: (_) => DownloadCubit(), lazy: false),
-                      BlocProvider(
-                        create: (_) => LightswitchCubit(),
-                        lazy: false,
+          return FluentApp.router(
+            title: 'KYBER Launcher',
+            color: kActiveColor,
+            darkTheme: FluentThemeData(
+              accentColor: kActiveColor.toAccentColor(
+                darkFactor: 0,
+                darkerFactor: 0,
+                darkestFactor: 0,
+                lighterFactor: 0,
+                lightestFactor: 0,
+                lightFactor: 0,
+              ),
+              activeColor: kActiveColor,
+              brightness: Brightness.dark,
+              fontFamily: fontFamily,
+              radioButtonTheme: RadioButtonThemeData(
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.hovered)) {
+                    return kInactiveColor;
+                  }
+                  return kActiveColor;
+                }),
+              ),
+              scrollbarTheme: ScrollbarThemeData(
+                thickness: 3,
+                hoveringThickness: 3,
+                scrollbarPressingColor: kActiveColor,
+                trackBorderColor: Colors.transparent,
+                hoveringTrackBorderColor: kWhiteBackgroundColor,
+                hoveringMainAxisMargin: 0,
+                crossAxisMargin: 0,
+                padding: EdgeInsets.zero,
+                hoveringPadding: EdgeInsets.zero,
+                hoveringCrossAxisMargin: 0,
+                mainAxisMargin: 0,
+                backgroundColor: Colors.transparent,
+              ),
+              typography: Typography.fromBrightness(brightness: .dark).apply(
+                fontFamily: fontFamily,
+              ),
+            ),
+            backButtonDispatcher: RootBackButtonDispatcher(),
+            themeMode: ThemeMode.dark,
+            locale: currentLocale,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              ...GlobalMaterialLocalizations.delegates,
+              FormBuilderLocalizations.delegate,
+            ],
+            // NOTE: Added all requested languages support here
+            supportedLocales: const [
+              Locale('en'), // English
+              Locale('de'), // German
+              Locale('fr'), // French
+              Locale('es'), // Spanish
+              Locale('pl'), // Polish
+              Locale('ru'), // Russian
+              Locale('pt'), // Portuguese
+              Locale('uk'), // Ukrainian
+              Locale('sv'), // Swedish
+              Locale('nl'), // Dutch
+            ],
+            debugShowCheckedModeBanner: false,
+            builder: (context, child) {
+              child = WindowController(
+                child: GraphqlProvider(
+                  child: child!,
+                ),
+              );
+
+              return Builder(
+                builder: (context) {
+                  return DisableAcrylic(
+                    child: MultiBlocProvider(
+                      providers: [
+                        BlocProvider(create: (_) => StatusCubit()),
+                        BlocProvider(create: (_) => MaximaCubit()),
+                        BlocProvider(create: (_) => MaximaRtmCubit()),
+                        BlocProvider(create: (_) => MapRotationCubit()),
+                        BlocProvider(create: (_) => TutorialCubit()),
+                        BlocProvider(create: (_) => KyberStatusCubit()),
+                        BlocProvider(create: (_) => ModBrowserCubit()),
+                        BlocProvider(create: (_) => ServerListCubit()),
+                        BlocProvider(create: (_) => ModerationServersCubit()),
+                        BlocProvider(create: (_) => ModerationCubit()),
+                        BlocProvider(create: (_) => ServerBrowserCubit()),
+                        BlocProvider(create: (_) => EventCubit()),
+                        BlocProvider(create: (_) => KyberProxyCubit()),
+                        BlocProvider(create: (_) => ModsListCubit()),
+                        BlocProvider(create: (_) => StatsCubit()),
+                        BlocProvider(create: (_) => IngameViewCubit()),
+                        BlocProvider(create: (_) => DownloadCubit(), lazy: false),
+                        BlocProvider(
+                          create: (_) => LightswitchCubit(),
+                          lazy: false,
+                        ),
+                      ],
+                      child: KyberBackground(
+                        child: child ?? const SizedBox.shrink(),
                       ),
-                    ],
-                    child: KyberBackground(
-                      child: child ?? const SizedBox.shrink(),
                     ),
-                  ),
-                );
-              },
-            );
-          },
-          routeInformationParser: router.routeInformationParser,
-          routerDelegate: router.routerDelegate,
-          routeInformationProvider: router.routeInformationProvider,
-        ),
+                  );
+                },
+              );
+            },
+            routeInformationParser: router.routeInformationParser,
+            routerDelegate: router.routerDelegate,
+            routeInformationProvider: router.routeInformationProvider,
+          );
+        },
       ),
     );
   }

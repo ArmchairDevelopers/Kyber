@@ -4,6 +4,7 @@ import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/mod_browser/screens/mod_details.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -369,6 +370,10 @@ class _FilterSelector<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return GridView.builder(
       shrinkWrap: true,
       gridDelegate: mt.SliverGridDelegateWithMaxCrossAxisExtent(
@@ -417,13 +422,13 @@ class _FilterSelector<T> extends StatelessWidget {
                   style: TextStyle(
                     color: hovered || isAllSelected ? Colors.black : Colors.white,
                     fontSize: 14,
-                    fontFamily: FontFamily.battlefrontUI,
+                    fontFamily: currentFont,
                   ),
-                  child: const Text(
-                    'ALL',
+                  child: Text(
+                    l10n.all,
                     style: TextStyle(
                       fontSize: 14,
-                      fontFamily: FontFamily.battlefrontUI,
+                      fontFamily: currentFont,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -476,7 +481,7 @@ class _FilterSelector<T> extends StatelessWidget {
                   style: TextStyle(
                     color: hovered || isSelected ? Colors.black : Colors.white,
                     fontSize: 14,
-                    fontFamily: FontFamily.battlefrontUI,
+                    fontFamily: currentFont,
                   ),
                   child: Text(
                     mode.title.toUpperCase(),
@@ -501,22 +506,26 @@ class _KyberSearchInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return mt.TextFormField(
-      style: const mt.TextStyle(
-        fontFamily: FontFamily.battlefrontUI,
+      style: mt.TextStyle(
+        fontFamily: currentFont,
         fontSize: 15,
         height: 1,
       ),
-      decoration: const mt.InputDecoration(
+      decoration: mt.InputDecoration(
         isDense: true,
         border: mt.InputBorder.none,
         enabledBorder: mt.InputBorder.none,
         focusedBorder: mt.InputBorder.none,
-        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0.5),
-        hintText: 'SEARCH...',
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0.5),
+        hintText: l10n.searchHint,
         hintStyle: TextStyle(
           color: kInactiveColor,
-          fontFamily: FontFamily.battlefrontUI,
+          fontFamily: currentFont,
           fontSize: 15,
           height: 1,
         ),

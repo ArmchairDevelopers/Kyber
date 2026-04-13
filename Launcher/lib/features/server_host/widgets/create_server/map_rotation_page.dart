@@ -22,6 +22,7 @@ import 'package:kyber_launcher/features/server_host/widgets/create_server/map_ro
 import 'package:kyber_launcher/features/server_host/widgets/create_server/map_rotation/mode_list.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
 import 'package:kyber_launcher/shared/ui/buttons/custom_icon_button.dart';
@@ -49,6 +50,10 @@ class _MapRotationPageState extends State<MapRotationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     final cubit = context.read<MapRotationCubit>();
     final kyberState = context.watch<KyberStatusCubit>().state;
 
@@ -60,7 +65,7 @@ class _MapRotationPageState extends State<MapRotationPage> {
             child: Column(
               children: [
                 KyberHeader(
-                  title: 'Active Rotation',
+                  title: l10n.activeRotation,
                   headerLength: 130,
                   headerPadding: const EdgeInsets.only(left: 15, right: 10),
                   sections: [
@@ -86,12 +91,12 @@ class _MapRotationPageState extends State<MapRotationPage> {
                       children: [
                         const SizedBox(width: 10),
                         HeaderButton(
-                          title: 'Reset',
+                          title: l10n.reset,
                           onClick: cubit.clear,
                         ),
                         const HeaderDivider(),
                         HeaderButton(
-                          title: 'Export',
+                          title: l10n.export,
                           onClick: () async {
                             await showKyberDialog(
                               context: context,
@@ -104,12 +109,12 @@ class _MapRotationPageState extends State<MapRotationPage> {
                         ),
                         const HeaderDivider(),
                         HeaderButton(
-                          title: 'Import',
+                          title: l10n.importLabel,
                           onClick: () async {
                             final filePath = await FilePicker.platform
                                 .pickFiles(
                                   allowedExtensions: ['txt', 'json'],
-                                  dialogTitle: 'Import Map Rotation',
+                                  dialogTitle: l10n.importMapRotation,
                                   type: FileType.custom,
                                 );
 
@@ -159,7 +164,7 @@ class _MapRotationPageState extends State<MapRotationPage> {
                             } finally {
                               if (rotation.isEmpty) {
                                 NotificationService.error(
-                                  message: 'Invalid file format',
+                                  message: l10n.invalidFileFormat,
                                 );
                                 return;
                               }
@@ -176,7 +181,7 @@ class _MapRotationPageState extends State<MapRotationPage> {
 
                               context.read<MapRotationCubit>().setMaps(maps);
                               NotificationService.info(
-                                message: 'Map rotation imported',
+                                message: l10n.mapRotationImported,
                               );
                             }
                           },
@@ -195,10 +200,10 @@ class _MapRotationPageState extends State<MapRotationPage> {
                         return Align(
                           alignment: Alignment.topCenter,
                           child: Text(
-                            'No maps active'.toUpperCase(),
-                            style: const TextStyle(
+                            l10n.noMapsActive.toUpperCase(),
+                            style: TextStyle(
                               fontSize: 16,
-                              fontFamily: FontFamily.battlefrontUI,
+                              fontFamily: currentFont,
                               color: kInactiveColor,
                             ),
                           ),
@@ -321,6 +326,10 @@ class _ActiveMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return ReorderableDragStartListener(
       index: index,
       child: SizedBox(
@@ -380,8 +389,7 @@ class _ActiveMap extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(right: 10),
                         child: KyberTooltip(
-                          message:
-                              'Custom map not found, this can happen if the map is not part of the current mod collection.\nThis map will be ignored when starting the server.',
+                          message: l10n.customMapNotFoundTooltip,
                           child: Icon(
                             mt.Icons.warning_rounded,
                             size: 20,
@@ -391,10 +399,10 @@ class _ActiveMap extends StatelessWidget {
                       ),
                     Expanded(
                       child: Text(
-                        map?.name ?? 'Not found',
-                        style: const TextStyle(
+                        map?.name ?? l10n.notFound,
+                        style: TextStyle(
                           fontSize: 16,
-                          fontFamily: FontFamily.battlefrontUI,
+                          fontFamily: currentFont,
                           fontWeight: FontWeight.bold,
                           height: 1,
                         ),
@@ -406,7 +414,7 @@ class _ActiveMap extends StatelessWidget {
                         mode.name,
                         style: TextStyle(
                           fontSize: 16,
-                          fontFamily: FontFamily.battlefrontUI,
+                          fontFamily: currentFont,
                           color: kInactiveColor.darken(30),
                           height: 1.9,
                         ),

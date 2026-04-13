@@ -9,6 +9,7 @@ import 'package:kyber_launcher/features/settings/screens/pages/mod_support.dart'
 import 'package:kyber_launcher/features/settings/screens/pages/proximity_chat.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -34,41 +35,45 @@ class _SettingsListState extends State<SettingsList> {
     super.initState();
   }
 
-  final items = <Map<String, dynamic>>[
-    {
-      'title': 'LANGUAGE & ACCESSIBILITY',
-      'description': 'CHANGE LANGUAGE, PROXY & ACCESSIBILITY SETTINGS',
-      'child': const LanguageAndAccessibility(),
-    },
-    {
-      'title': 'MOD CONFIGURATION',
-      'description': 'CONFIGURE MODS SETTINGS, IMPORT FROM FROSTY & MORE',
-      'child': const ModSupport(),
-    },
-    {
-      'title': 'CREDITS LIST',
-      'description': 'VIEW DEVELOPERS, CONTRIBUTORS & PATREON SUPPORTERS',
-      'child': const Credits(),
-    },
-    {
-      'title': 'INGAME SETTINGS',
-      'description': 'Configure Proximity Chat settings'.toUpperCase(),
-      'child': const ProximityChat(),
-    },
-    {
-      'title': 'LOGS & ACTIVITY',
-      'description': 'VIEW ACTIVITY & DEBUG LOGGING SETTINGS',
-      'child': const LogsAndActivity(),
-    },
-    {
-      'title': 'ACCOUNTS & UPDATES',
-      'description': 'LOGOUT, UPDATE SETTINGS & MORE',
-      'child': const AccountsAndUpdates(),
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
+    final items = <Map<String, dynamic>>[
+      {
+        'title': l10n.langAccTitle,
+        'description': l10n.langAccDesc,
+        'child': const LanguageAndAccessibility(),
+      },
+      {
+        'title': l10n.modConfigTitle,
+        'description': l10n.modConfigDesc,
+        'child': const ModSupport(),
+      },
+      {
+        'title': l10n.creditsTitle,
+        'description': l10n.creditsDesc,
+        'child': const Credits(),
+      },
+      {
+        'title': l10n.ingameSettingsTitle,
+        'description': l10n.proximityChatDesc,
+        'child': const ProximityChat(),
+      },
+      {
+        'title': l10n.logsActivityTitle,
+        'description': l10n.logsActivityDesc,
+        'child': const LogsAndActivity(),
+      },
+      {
+        'title': l10n.accountsUpdatesTitle,
+        'description': l10n.accountsUpdatesDesc,
+        'child': const AccountsAndUpdates(),
+      },
+    ];
+
     if (selectedIndex != null) {
       return _SettingsSubPage(
         title: items.elementAt(selectedIndex!)['title'] as String,
@@ -128,6 +133,7 @@ class _SettingsListState extends State<SettingsList> {
                                       as String,
                               index: i * horizontalLength + j,
                               hoveredRow: hoveredRow,
+                              font: currentFont,
                             ),
                           ),
                         ),
@@ -164,7 +170,7 @@ class _SettingsListState extends State<SettingsList> {
                 }
 
                 return Text(
-                  'VERSION: ${snapshot.data?.version}#CL${snapshot.data?.buildNumber}',
+                  l10n.versionText(snapshot.data!.version, snapshot.data!.buildNumber),
                   style: const TextStyle(
                     fontFamily: FontFamily.iBMPlexMono,
                     fontSize: 13,
@@ -196,6 +202,9 @@ class _SettingsSubPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Row(
       children: [
         ConstrainedBox(
@@ -231,18 +240,18 @@ class _SettingsSubPage extends StatelessWidget {
                                 children: [
                                   Text(
                                     title,
-                                    style: const TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
+                                    style: TextStyle(
+                                      fontFamily: currentFont,
                                       fontSize: 20,
                                       height: 1,
                                     ),
                                   ),
                                   Text(
                                     description,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 15,
                                       color: kWhiteColor,
-                                      fontFamily: FontFamily.battlefrontUI,
+                                      fontFamily: currentFont,
                                       height: 1,
                                     ),
                                   ),
@@ -384,6 +393,7 @@ class _SettingsContainer extends StatelessWidget {
     required this.item,
     required this.index,
     required this.hoveredRow,
+    required this.font,
   });
 
   final int horizontalIndex;
@@ -392,6 +402,7 @@ class _SettingsContainer extends StatelessWidget {
   final int index;
   final int hoveredRow;
   final String item;
+  final String font;
 
   @override
   Widget build(BuildContext context) {
@@ -467,10 +478,10 @@ class _SettingsContainer extends StatelessWidget {
             ),
             child: Text(
               item,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                fontFamily: FontFamily.battlefrontUI,
+                fontFamily: font,
               ),
             ),
           ),

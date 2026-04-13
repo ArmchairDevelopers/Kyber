@@ -2,6 +2,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
+import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/features/server_host/widgets/settings_box/server_settings_box.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
@@ -11,16 +13,20 @@ class ServerSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return SuperListView(
       children: [
         KyberSectionDropdown(
           initialExpanded: true,
-          title: 'SERVER',
+          title: l10n.serverSectionTitle,
           child: KyberTable(
-            itemStyle: const TextStyle(fontSize: 17),
+            itemStyle: TextStyle(fontSize: 17, fontFamily: currentFont),
             items: [
               KyberTableItem.custom(
-                title: 'MAX PLAYERS',
+                title: l10n.maxPlayersLabel,
                 builder: (hovered) {
                   return FormBuilderField<int>(
                     name: 'maxPlayers',
@@ -47,7 +53,7 @@ class ServerSettings extends StatelessWidget {
                 },
               ),
               KyberTableItem.custom(
-                title: 'Max Spectators',
+                title: l10n.maxSpectatorsLabel,
                 builder: (hovered) {
                   return FormBuilderField<int>(
                     name: 'maxSpectators',
@@ -73,7 +79,7 @@ class ServerSettings extends StatelessWidget {
                 },
               ),
               KyberTableItem.switchButton(
-                title: 'Proximity Chat',
+                title: l10n.proximityChat,
                 value: true,
                 onChange: (value) async {
                   NotificationService.notImplemented();
@@ -84,17 +90,17 @@ class ServerSettings extends StatelessWidget {
         ),
         KyberSectionDropdown(
           initialExpanded: true,
-          title: 'Privacy',
+          title: l10n.privacySectionTitle,
           child: KyberTable(
-            itemStyle: const TextStyle(fontSize: 17),
+            itemStyle: TextStyle(fontSize: 17, fontFamily: currentFont),
             items: [
               KyberTableItem.custom(
-                title: 'Password',
+                title: l10n.passwordLabel,
                 builder: (hovered) {
                   return KyberFormInputField(
                     name: 'password',
                     isSensitive: true,
-                    placeholder: 'EXAMPLE',
+                    placeholder: l10n.passwordPlaceholder,
                     validator: FormBuilderValidators.compose(
                       [
                         FormBuilderValidators.maxLength(

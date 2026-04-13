@@ -7,6 +7,7 @@ import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
@@ -51,9 +52,13 @@ class _MoveModsDirectoryDialogState extends State<MoveModsDirectoryDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return KyberContentDialog(
       constraints: const BoxConstraints(maxWidth: 700, maxHeight: 500),
-      title: Text('Move Mods Directory'.toUpperCase()),
+      title: Text(l10n.moveModsDirectory),
       content: Column(
         children: [
           if (widget.isInvalid) ...[
@@ -66,12 +71,12 @@ class _MoveModsDirectoryDialogState extends State<MoveModsDirectoryDialog> {
                   ),
                   border: Border.all(color: kActiveColor, width: 2),
                 ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
                   child: Text(
-                    'The current mods directory is invalid because it contains non-ASCII characters. ',
+                    l10n.invalidDirectoryWarning,
                     style: TextStyle(
-                      fontFamily: FontFamily.battlefrontUI,
+                      fontFamily: currentFont,
                       fontSize: 15,
                     ),
                   ),
@@ -82,7 +87,7 @@ class _MoveModsDirectoryDialogState extends State<MoveModsDirectoryDialog> {
           ],
           Center(
             child: Text(
-              'Please select the new directory where you want to move the mods directory. Mods will not be moved. Only the directory will be changed.',
+              l10n.selectNewDirectoryDesc,
               style: FluentTheme.of(
                 context,
               ).typography.body?.copyWith(color: kWhiteColor),
@@ -92,7 +97,7 @@ class _MoveModsDirectoryDialogState extends State<MoveModsDirectoryDialog> {
           const SizedBox(height: 15),
           Center(
             child: Text(
-              'Non-ASCII characters in the path are not allowed (e.g. Korean, Greek, etc.).',
+              l10n.nonAsciiWarning,
               style: FluentTheme.of(
                 context,
               ).typography.body?.copyWith(color: kWhiteColor),
@@ -122,8 +127,7 @@ class _MoveModsDirectoryDialogState extends State<MoveModsDirectoryDialog> {
                   final requiresAdmin = await requiresAdminPermissions(path);
                   if (requiresAdmin) {
                     NotificationService.error(
-                      message:
-                          "You can't select a directory that requires admin permissions. Please select another directory.",
+                      message: l10n.adminPermissionError,
                     );
                     return;
                   }
@@ -133,15 +137,14 @@ class _MoveModsDirectoryDialogState extends State<MoveModsDirectoryDialog> {
                   );
                   if (containsNonAscii) {
                     NotificationService.error(
-                      message:
-                          'The selected directory contains non-ASCII characters. Please select a different directory.',
+                      message: l10n.selectedDirNonAsciiError,
                     );
                     return;
                   }
 
                   setState(() => controller.text = path!);
                 },
-                text: 'Browse',
+                text: l10n.browse,
               ),
             ],
           ),
@@ -152,10 +155,10 @@ class _MoveModsDirectoryDialogState extends State<MoveModsDirectoryDialog> {
           onPressed: () {
             Navigator.of(context).pop();
           },
-          text: 'Cancel',
+          text: l10n.cancel,
         ),
         KyberButton(
-          text: 'Reset to default',
+          text: l10n.resetToDefault,
           onPressed: () async {
             if (!FileHelper.getModsDirectory().existsSync()) {
               await FileHelper.getModsDirectory().create(recursive: true);
@@ -164,8 +167,7 @@ class _MoveModsDirectoryDialogState extends State<MoveModsDirectoryDialog> {
             final path = FileHelper.getModsDirectory().path;
             if (path.codeUnits.any((element) => element > 127)) {
               NotificationService.error(
-                message:
-                    'The default mods directory contains non-ASCII characters. Please select a different directory.',
+                message: l10n.defaultDirNonAsciiError,
               );
               return;
             }
@@ -182,8 +184,7 @@ class _MoveModsDirectoryDialogState extends State<MoveModsDirectoryDialog> {
           onPressed: () async {
             if (controller.text.codeUnits.any((element) => element > 127)) {
               NotificationService.error(
-                message:
-                    'The default mods directory contains non-ASCII characters. Please select a different directory.',
+                message: l10n.defaultDirNonAsciiError,
               );
               return;
             }
@@ -193,7 +194,7 @@ class _MoveModsDirectoryDialogState extends State<MoveModsDirectoryDialog> {
             sl.registerSingletonAsync<ModService>(ModService.getInstance);
             Navigator.of(context).pop();
           },
-          text: 'Change',
+          text: l10n.change,
         ),
       ],
     );

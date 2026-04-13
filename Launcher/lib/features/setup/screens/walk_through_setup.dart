@@ -20,6 +20,7 @@ import 'package:kyber_launcher/features/navigation_bar/widgets/title_bar.dart' a
 import 'package:kyber_launcher/features/setup/widgets/setup_container.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
@@ -54,6 +55,8 @@ class _WalkThroughSetupState extends State<WalkThroughSetup> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return NavigationView(
       key: const Key('navigation_view'),
       titleBar: const SizedBox(
@@ -77,8 +80,9 @@ class _WalkThroughSetupState extends State<WalkThroughSetup> {
             ): () {
               Preferences.debug.frbDebugLogs = !Preferences.debug.frbDebugLogs;
               NotificationService.info(
-                message:
-                    '${Preferences.debug.frbDebugLogs ? 'Enabled' : 'Disabled'} debug logs',
+                message: l10n.debugLogsToggled(
+                  Preferences.debug.frbDebugLogs ? l10n.enabled : l10n.disabled,
+                ),
               );
             },
           },
@@ -142,7 +146,7 @@ class _WalkThroughSetupState extends State<WalkThroughSetup> {
                                 children: [
                                   ProgressItem(
                                     iconPath: Assets.logos.eaPlay.path,
-                                    text: 'EA Account',
+                                    text: l10n.eaAccount,
                                     done: setupPage > 0,
                                     active: setupPage == 0,
                                   ),
@@ -156,7 +160,7 @@ class _WalkThroughSetupState extends State<WalkThroughSetup> {
                                   const SizedBox(width: 10),
                                   ProgressItem(
                                     iconPath: Assets.logos.nexusMods.path,
-                                    text: 'Nexus Mods',
+                                    text: l10n.nexusMods,
                                     done: setupPage > 1,
                                     active: setupPage == 1,
                                   ),
@@ -164,7 +168,7 @@ class _WalkThroughSetupState extends State<WalkThroughSetup> {
                               ),
                               const SizedBox(width: 60),
                               KyberButton(
-                                text: setupPage == 1 ? 'FINISH' : 'SKIP',
+                                text: setupPage == 1 ? l10n.finish : l10n.skip,
                                 icon: const Icon(FluentIcons.game),
                                 onPressed: _finishSetup,
                               ),
@@ -217,6 +221,9 @@ class ProgressItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     final color = active
         ? kWhiteColor
         : done
@@ -253,7 +260,7 @@ class ProgressItem extends StatelessWidget {
                       Text(
                         text.toUpperCase(),
                         style: TextStyle(
-                          fontFamily: FontFamily.battlefrontUI,
+                          fontFamily: currentFont,
                           color: color,
                         ),
                         textAlign: TextAlign.center,

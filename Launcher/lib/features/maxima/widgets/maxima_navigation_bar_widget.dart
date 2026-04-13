@@ -12,6 +12,7 @@ import 'package:kyber_launcher/features/navigation_bar/widgets/reports.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 import 'package:kyber_launcher/shared/ui/utils/button_builder.dart';
 
@@ -28,6 +29,10 @@ class _MaximaNavigationBarWidgetState extends State<MaximaNavigationBarWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return BlocBuilder<MaximaCubit, MaximaState>(
       buildWhen: (previous, current) {
         return previous.status != current.status;
@@ -87,7 +92,7 @@ class _MaximaNavigationBarWidgetState extends State<MaximaNavigationBarWidget> {
                                           milliseconds: 150,
                                         ),
                                         style: TextStyle(
-                                          fontFamily: FontFamily.battlefrontUI,
+                                          fontFamily: currentFont,
                                           color: hovered
                                               ? kActiveColor
                                               : Colors.white,
@@ -97,7 +102,7 @@ class _MaximaNavigationBarWidgetState extends State<MaximaNavigationBarWidget> {
                                           children: [
                                             const Icon(FluentIcons.game),
                                             // when a user clicks on it a page opens with a list of all ingame users and an event chat
-                                            Text('INGAME PANEL'),
+                                            Text(l10n.ingamePanel),
                                           ],
                                         ),
                                       ),
@@ -154,7 +159,7 @@ class _MaximaNavigationBarWidgetState extends State<MaximaNavigationBarWidget> {
                                     milliseconds: 150,
                                   ),
                                   style: TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
+                                    fontFamily: currentFont,
                                     color: hovered
                                         ? kActiveColor
                                         : Colors.white,
@@ -270,15 +275,15 @@ class _MaximaNavigationBarWidgetState extends State<MaximaNavigationBarWidget> {
                                       milliseconds: 150,
                                     ),
                                     style: TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
+                                      fontFamily: currentFont,
                                       color: hovered
                                           ? kActiveColor
                                           : Colors.white,
                                     ),
                                     child: Text(
                                       '${context.read<MaximaCubit>().state.servicePlayer?.displayName}',
-                                      style: const TextStyle(
-                                        fontFamily: FontFamily.battlefrontUI,
+                                      style: TextStyle(
+                                        fontFamily: currentFont,
                                         fontSize: 15,
                                       ),
                                     ),
@@ -323,6 +328,10 @@ class _DownloadItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return BlocBuilder<DownloadCubit, DownloadState>(
       builder: (context, state) {
         final currentDownload = state is DownloadLoaded
@@ -367,7 +376,7 @@ class _DownloadItem extends StatelessWidget {
                   child: AnimatedDefaultTextStyle(
                     duration: const Duration(milliseconds: 150),
                     style: TextStyle(
-                      fontFamily: FontFamily.battlefrontUI,
+                      fontFamily: currentFont,
                       color: hovered ? kActiveColor : Colors.white,
                     ),
                     child: RepaintBoundary(
@@ -388,13 +397,18 @@ class _DownloadItem extends StatelessWidget {
                                     ? (extractingProgress.extracted /
                                           extractingProgress.total)
                                     : 1.0;
-                                displayText =
-                                    'EXTRACTING FILE (${extractingProgress?.extracted ?? '?'}/${extractingProgress?.total ?? '?'})';
+                                displayText = l10n.extractingFileWithProgress(
+                                  extractingProgress.extracted.toString(),
+                                  extractingProgress.total.toString(),
+                                );
                               } else if (xProgress >= 1) {
-                                displayText = 'EXTRACTING FILE';
+                                displayText = l10n.extractingFile;
                               } else {
-                                displayText =
-                                    'DOWNLOADING (${(progress * 100).toInt()}% ${formatBytes((expectedFileSize * progress).toInt(), 1)}/${formatBytes(expectedFileSize, 1)})';
+                                displayText = l10n.downloadingWithProgress(
+                                  (progress * 100).toInt().toString(),
+                                  formatBytes((expectedFileSize * progress).toInt(), 1),
+                                  formatBytes(expectedFileSize, 1),
+                                );
                               }
                               return Stack(
                                 children: [
@@ -424,9 +438,8 @@ class _DownloadItem extends StatelessWidget {
                                             ),
                                           Text(
                                             displayText,
-                                            style: const TextStyle(
-                                              fontFamily:
-                                                  FontFamily.battlefrontUI,
+                                            style: TextStyle(
+                                              fontFamily: currentFont,
                                               fontSize: 14,
                                             ),
                                           ),
@@ -458,19 +471,19 @@ class _DownloadItem extends StatelessWidget {
                               );
                             }
 
-                            return const Row(
+                            return Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               spacing: 6,
                               children: [
-                                Icon(
+                                const Icon(
                                   FluentIcons.download,
                                   color: kWhiteColor,
                                   size: 15,
                                 ),
                                 Text(
-                                  'DOWNLOAD MANAGER',
+                                  l10n.downloadManager,
                                   style: TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
+                                    fontFamily: currentFont,
                                     fontSize: 14,
                                   ),
                                 ),

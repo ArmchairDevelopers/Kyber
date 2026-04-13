@@ -12,6 +12,7 @@ import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dar
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/buttons/custom_icon_button.dart';
 import 'package:kyber_launcher/shared/ui/cards/kyber_container.dart';
@@ -120,16 +121,20 @@ class _DownloadManagerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Padding(
       padding: const EdgeInsets.all(15),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: .start,
               children: [
-                Text(
-                  'DOWNLOAD MANAGER',
+                const Text(
+                  'DOWNLOAD MANAGER', 
                   style: TextStyle(
                     fontFamily: FontFamily.aurebesh,
                     fontSize: 14,
@@ -138,9 +143,9 @@ class _DownloadManagerHeader extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'DOWNLOAD MANAGER',
+                  l10n.downloadManager.toUpperCase(),
                   style: TextStyle(
-                    fontFamily: FontFamily.battlefrontUI,
+                    fontFamily: currentFont, 
                     fontSize: 24,
                     height: 1,
                   ),
@@ -196,15 +201,19 @@ class _PausedDownloadsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       crossAxisAlignment: .start,
       children: [
-        const Padding(
-          padding: .symmetric(horizontal: 15, vertical: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
           child: Text(
-            'PAUSED DOWNLOADS',
+            l10n.pausedDownloads.toUpperCase(),
             style: TextStyle(
-              fontFamily: FontFamily.battlefrontUI,
+              fontFamily: currentFont,
               fontSize: 20,
               color: kWhiteColor,
             ),
@@ -251,7 +260,7 @@ class _DownloadTaskItem extends StatelessWidget {
             children: [
               _buildLeadingIcon(),
               const VCardSection(),
-              Expanded(child: _buildTaskInfo()),
+              Expanded(child: _buildTaskInfo(context)),
               if (task.status.isNotFinalState) ...[
                 const VCardSection(),
                 _buildCancelButton(),
@@ -301,7 +310,10 @@ class _DownloadTaskItem extends StatelessWidget {
     );
   }
 
-  Widget _buildTaskInfo() {
+  Widget _buildTaskInfo(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Stack(
       children: [
         Positioned.fill(
@@ -312,8 +324,8 @@ class _DownloadTaskItem extends StatelessWidget {
               children: [
                 Text(
                   task.task.displayName,
-                  style: const TextStyle(
-                    fontFamily: FontFamily.battlefrontUI,
+                  style: TextStyle(
+                    fontFamily: currentFont,
                     fontSize: 18,
                     height: 1,
                     color: kWhiteColor,
@@ -426,25 +438,29 @@ class _NexusPremiumBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Center(
       child: Container(
         padding: const EdgeInsets.all(15),
         child: RichText(
           text: TextSpan(
             children: [
-              const TextSpan(
-                text: 'UN-CAP DOWNLOAD SPEEDS WITH ',
+              TextSpan(
+                text: l10n.unCapSpeedPrefix,
                 style: TextStyle(
                   color: kGrayColor,
-                  fontFamily: FontFamily.battlefrontUI,
+                  fontFamily: currentFont,
                   fontSize: 16,
                 ),
               ),
               TextSpan(
-                text: 'NEXUS MODS PREMIUM',
+                text: l10n.nexusModsPremium,
                 style: TextStyle(
                   color: kActiveColor,
-                  fontFamily: FontFamily.battlefrontUI,
+                  fontFamily: currentFont,
                   fontSize: 16,
                 ),
                 recognizer: TapGestureRecognizer()

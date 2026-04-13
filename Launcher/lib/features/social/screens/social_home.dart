@@ -13,6 +13,7 @@ import 'package:kyber_launcher/features/reports/dialogs/report_player_dialog.dar
 import 'package:kyber_launcher/features/server_browser/widgets/server_list/server_list_header.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/buttons/custom_icon_button.dart';
@@ -39,6 +40,9 @@ class _SocialHomeState extends State<SocialHome> {
     _searchQuery.debounceTime(const Duration(milliseconds: 100)).listen((
       query,
     ) async {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+
       if (query.isEmpty) {
         setState(() {
           searchResults = null;
@@ -58,10 +62,10 @@ class _SocialHomeState extends State<SocialHome> {
         });
       } on GrpcError catch (e) {
         NotificationService.error(
-          message: 'Failed to search players: ${e.message}',
+          message: l10n.searchFailed(e.message ?? ''),
         );
       } catch (e) {
-        NotificationService.error(message: 'An unexpected error occurred: $e');
+        NotificationService.error(message: l10n.unexpectedError(e.toString()));
       }
     });
     super.initState();
@@ -75,6 +79,10 @@ class _SocialHomeState extends State<SocialHome> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Row(
       spacing: 15,
       children: [
@@ -126,15 +134,15 @@ class _SocialHomeState extends State<SocialHome> {
                                   .state
                                   .servicePlayer!
                                   .displayName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
-                                fontFamily: FontFamily.battlefrontUI,
+                                fontFamily: currentFont,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Expanded(
                               child: KyberInput(
-                                placeholder: 'Search for a kyber user',
+                                placeholder: l10n.searchKyberUser,
                                 onChanged: _searchQuery.add,
                               ),
                             ),
@@ -177,7 +185,7 @@ class _SocialHomeState extends State<SocialHome> {
                               child: AnimatedDefaultTextStyle(
                                 duration: const Duration(milliseconds: 150),
                                 style: TextStyle(
-                                  fontFamily: FontFamily.battlefrontUI,
+                                  fontFamily: currentFont,
                                   color: hovered ? kActiveColor : kWhiteColor,
                                 ),
                                 child: Container(
@@ -190,10 +198,9 @@ class _SocialHomeState extends State<SocialHome> {
                                       Expanded(
                                         child: Text(
                                           searchResults![index].name,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 15,
-                                            fontFamily:
-                                                FontFamily.battlefrontUI,
+                                            fontFamily: currentFont,
                                           ),
                                         ),
                                       ),
@@ -226,10 +233,10 @@ class _SocialHomeState extends State<SocialHome> {
                   Padding(
                     padding: const EdgeInsets.all(20),
                     child: Text(
-                      'No results found for "${_searchQuery.value}".',
-                      style: const TextStyle(
+                      l10n.noResultsFound(_searchQuery.value),
+                      style: TextStyle(
                         fontSize: 16,
-                        fontFamily: FontFamily.battlefrontUI,
+                        fontFamily: currentFont,
                         color: kInactiveColor,
                       ),
                     ),
@@ -243,8 +250,9 @@ class _SocialHomeState extends State<SocialHome> {
                           _Expandable(
                             initialExpanded: true,
                             logo: Assets.logos.eaPlay.svg(),
-                            title:
-                                'FRIENDS (${context.read<MaximaRtmCubit>().state.friends.length})',
+                            title: l10n.friendsCount(
+                              context.read<MaximaRtmCubit>().state.friends.length,
+                            ),
                             players: context
                                 .read<MaximaRtmCubit>()
                                 .state
@@ -258,7 +266,7 @@ class _SocialHomeState extends State<SocialHome> {
             ),
           ),
         ),
-        const SizedBox(
+        SizedBox(
           width: 400,
           child: KyberCard(
             padding: EdgeInsets.zero,
@@ -267,7 +275,7 @@ class _SocialHomeState extends State<SocialHome> {
                 SizedBox(
                   height: 65,
                   child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: SizedBox(
@@ -276,19 +284,19 @@ class _SocialHomeState extends State<SocialHome> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'RECENTLY VIEWED',
+                              l10n.recentlyViewed,
                               style: TextStyle(
                                 fontSize: 20,
-                                fontFamily: FontFamily.battlefrontUI,
+                                fontFamily: currentFont,
                                 fontWeight: FontWeight.bold,
                                 height: 1,
                               ),
                             ),
                             Text(
-                              'USER SEARCH HISTORY',
+                              l10n.userSearchHistory,
                               style: TextStyle(
                                 fontSize: 15,
-                                fontFamily: FontFamily.battlefrontUI,
+                                fontFamily: currentFont,
                                 color: kInactiveColor,
                                 height: 1,
                               ),
@@ -299,7 +307,7 @@ class _SocialHomeState extends State<SocialHome> {
                     ),
                   ),
                 ),
-                CardSection(),
+                const CardSection(),
               ],
             ),
           ),
@@ -337,6 +345,10 @@ class _ExpandableState extends State<_Expandable> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Column(
       children: [
         ColoredBox(
@@ -383,8 +395,8 @@ class _ExpandableState extends State<_Expandable> {
                             ),
                             child: Text(
                               widget.title.toUpperCase(),
-                              style: const TextStyle(
-                                fontFamily: FontFamily.battlefrontUI,
+                              style: TextStyle(
+                                fontFamily: currentFont,
                                 fontSize: 15,
                               ),
                             ),
@@ -429,12 +441,12 @@ class _ExpandableState extends State<_Expandable> {
                   isOnline = true;
                 }
 
-                var text = '';
+                var statusText = '';
                 if (isOnline) {
                   if (presence!.status.isEmpty) {
-                    text = 'Online';
+                    statusText = l10n.online;
                   } else {
-                    text = 'Playing ${presence.status}';
+                    statusText = l10n.playingStatus(presence.status);
                   }
                 }
 
@@ -447,7 +459,7 @@ class _ExpandableState extends State<_Expandable> {
                       child: AnimatedDefaultTextStyle(
                         duration: const Duration(milliseconds: 150),
                         style: TextStyle(
-                          fontFamily: FontFamily.battlefrontUI,
+                          fontFamily: currentFont,
                           color: hovered ? kActiveColor : kWhiteColor,
                         ),
                         child: SizedBox(
@@ -468,7 +480,7 @@ class _ExpandableState extends State<_Expandable> {
                                 player.displayName,
                                 style: TextStyle(
                                   fontSize: 15,
-                                  fontFamily: FontFamily.battlefrontUI,
+                                  fontFamily: currentFont,
                                   color:
                                       presence?.basic ==
                                               BasicPresence.offline ||
@@ -479,7 +491,7 @@ class _ExpandableState extends State<_Expandable> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Text(text),
+                              Text(statusText),
                             ],
                           ),
                         ),

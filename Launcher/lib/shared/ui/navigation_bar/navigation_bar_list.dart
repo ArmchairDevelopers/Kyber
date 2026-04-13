@@ -6,6 +6,8 @@ import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/routing/app_router.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
+import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/gen/l10n/app_localizations.dart';
 import 'package:kyber_launcher/shared/ui/navigation_bar/navigation_bar_seperator.dart';
 import 'package:kyber_launcher/shared/ui/navigation_bar/widgets/navigation_bar_item.dart';
 import 'package:kyber_launcher/shared/ui/navigation_bar/widgets/navigation_bar_sub_item.dart';
@@ -36,18 +38,19 @@ class _NavigationBarListState extends State<NavigationBarList> {
   bool _showPositioned = false;
   int? _hoveringIndex;
 
-  List<NavigationBarEntry> getItems() => [
-    NavigationBarEntry('HOME', 'home'),
-    NavigationBarEntry('HOST', 'server_host'),
-    NavigationBarEntry('STATS', 'stats'),
-    NavigationBarEntry('MODS', 'mods'),
-    NavigationBarEntry('SETTINGS', 'settings'),
-  ];
+  List<NavigationBarEntry> getItems(AppLocalizations l10n) => [
+        NavigationBarEntry(l10n.home, 'home'),
+        NavigationBarEntry(l10n.host, 'server_host'),
+        NavigationBarEntry(l10n.stats, 'stats'),
+        NavigationBarEntry(l10n.mods, 'mods'),
+        NavigationBarEntry(l10n.settings, 'settings'),
+      ];
 
   @override
   void didUpdateWidget(covariant NavigationBarList oldWidget) {
     if (oldWidget.route != widget.route) {
-      final items = getItems();
+      final l10n = AppLocalizations.of(context)!;
+      final items = getItems(l10n);
       final index = items.indexWhere(
         (element) =>
             element.route == widget.route.split('/').last.split('?').first,
@@ -64,6 +67,10 @@ class _NavigationBarListState extends State<NavigationBarList> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final currentFont = isEn ? FontFamily.battlefrontUI : 'BattlefrontGlobal';
+
     return Container(
       height: 50,
       padding: const EdgeInsets.only(left: 20, top: 10),
@@ -104,15 +111,15 @@ class _NavigationBarListState extends State<NavigationBarList> {
                           scrollDirection: Axis.horizontal,
                           separatorBuilder: (context, index) =>
                               Transform.rotate(
-                                angle: 18 * 3.14 / 180,
-                                child: UnconstrainedBox(
-                                  child: Container(
-                                    height: 20,
-                                    width: 2,
-                                    color: kGrayColor,
-                                  ),
-                                ),
+                            angle: 18 * 3.14 / 180,
+                            child: UnconstrainedBox(
+                              child: Container(
+                                height: 20,
+                                width: 2,
+                                color: kGrayColor,
                               ),
+                            ),
+                          ),
                           itemBuilder: (context, index) => NavigationBarSubItem(
                             isLast: index == routes.length - 1,
                             route: routes.elementAt(index),
@@ -152,7 +159,7 @@ class _NavigationBarListState extends State<NavigationBarList> {
               );
             }
 
-            final items = getItems();
+            final items = getItems(l10n);
 
             return Stack(
               clipBehavior: Clip.none,
@@ -172,7 +179,7 @@ class _NavigationBarListState extends State<NavigationBarList> {
                             index == _activeItem || index == _activeItem + 1;
                         final hover =
                             _hoveringIndex == index - 1 ||
-                            _hoveringIndex == index;
+                                _hoveringIndex == index;
                         return NavigationBarSeperator(
                           active: active,
                           hover: _hovering && hover,
