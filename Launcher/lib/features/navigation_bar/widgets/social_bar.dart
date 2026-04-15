@@ -22,7 +22,7 @@ class _SocialBarState extends State<SocialBar> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 45,
+      height: 50,
       child: Container(
         decoration: BoxDecoration(
           border: .fromLTRB(right: kDefaultBorder),
@@ -33,44 +33,18 @@ class _SocialBarState extends State<SocialBar> {
           mainAxisAlignment: .end,
           spacing: 15,
           children: [
-            const Expanded(flex: 4, child: SizedBox.shrink()),
+            const Expanded(flex: 3, child: SizedBox.shrink()),
+            const VCardSection(),
+            const _UserBar(),
+            const SizedBox(width: 0),
             Flexible(
-              flex: 2,
-              child: ConstrainedBox(
+              child: Container(
                 constraints: const .new(
                   maxWidth: 300,
+                  minWidth: 100,
                 ),
-                child: const Padding(
-                  padding: const .symmetric(vertical: 4),
-                  child: _FriendsBar(),
-                ),
+                child: const _FriendsBar(),
               ),
-            ),
-            const VCardSection(),
-            Builder(
-              builder: (context) {
-                final currentUser = context
-                    .watch<MaximaCubit>()
-                    .state
-                    .servicePlayer;
-                return Row(
-                  spacing: 8,
-                  children: [
-                    MaximaAvatar(
-                      pd: currentUser!.pd,
-                      height: 28,
-                      width: 28,
-                    ),
-                    Text(
-                      currentUser!.displayName,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontFamily: FontFamily.battlefrontUI,
-                      ),
-                    ),
-                  ],
-                );
-              },
             ),
             const VCardSection(),
             CustomIconButton(
@@ -79,6 +53,48 @@ class _SocialBarState extends State<SocialBar> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _UserBar extends StatelessWidget {
+  const _UserBar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUser = context.watch<MaximaCubit>().state.servicePlayer;
+
+    if (currentUser == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const .symmetric(vertical: 7),
+      decoration: BoxDecoration(
+        border: const .fromBorderSide(.new(color: decoColor, width: 1)),
+        borderRadius: const .all(.circular(6)),
+        color: Colors.black.withOpacity(0.5),
+      ),
+      padding: const .symmetric(horizontal: 3, vertical: 3),
+      child: Row(
+        spacing: 10,
+        children: [
+          MaximaAvatar(
+            pd: currentUser.pd,
+            height: 24,
+            width: 24,
+          ),
+          Text(
+            currentUser.displayName,
+            style: const TextStyle(
+              fontSize: 16,
+              fontFamily: FontFamily.battlefrontUI,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox.shrink(),
+        ],
       ),
     );
   }
@@ -165,62 +181,60 @@ class _DownloadManagerButton extends StatelessWidget {
           false => const Color(0xFFD9D9D9),
         };
 
-        return Container(
-          child: Stack(
-            clipBehavior: .antiAliasWithSaveLayer,
-            children: [
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: AnimatedFractionallySizedBox(
-                        duration: const .new(milliseconds: 200),
-                        widthFactor: progress >= 0.0 ? progress : 0.01,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: kActiveColor,
-                          ),
-                          height: 3,
+        return Stack(
+          clipBehavior: .antiAliasWithSaveLayer,
+          children: [
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Row(
+                children: [
+                  Flexible(
+                    child: AnimatedFractionallySizedBox(
+                      duration: const .new(milliseconds: 200),
+                      widthFactor: progress >= 0.0 ? progress : 0.01,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: kActiveColor,
                         ),
+                        height: 3,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              IconTheme(
-                data: .new(
+            ),
+            IconTheme(
+              data: .new(
+                color: itemColor,
+              ),
+              child: DefaultTextStyle(
+                style: .new(
                   color: itemColor,
+                  fontFamily: FontFamily.battlefrontUI,
                 ),
-                child: DefaultTextStyle(
-                  style: .new(
-                    color: itemColor,
-                    fontFamily: FontFamily.battlefrontUI,
-                  ),
-                  child: Padding(
-                    padding: const .symmetric(vertical: 4, horizontal: 16),
-                    child: Row(
-                      spacing: 5,
-                      mainAxisAlignment: .center,
-                      children: [
-                        const Icon(mt.Icons.download),
-                        Text(
-                          '$progressText ($currentSizeText / $expectedSizeText)',
-                          style: const .new(
-                            fontSize: 15,
-                            fontFamily: FontFamily.battlefrontUI,
-                            fontFeatures: [.tabularFigures()],
-                          ),
+                child: Padding(
+                  padding: const .symmetric(vertical: 4, horizontal: 16),
+                  child: Row(
+                    spacing: 5,
+                    mainAxisAlignment: .center,
+                    children: [
+                      const Icon(mt.Icons.download),
+                      Text(
+                        '$progressText ($currentSizeText / $expectedSizeText)',
+                        style: const .new(
+                          fontSize: 15,
+                          fontFamily: FontFamily.battlefrontUI,
+                          fontFeatures: [.tabularFigures()],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -242,18 +256,11 @@ class _FriendsBar extends StatelessWidget {
             final displayedFriends = friends.take(maxItems).toList();
 
             return Row(
+              mainAxisSize: .min,
               spacing: 10,
-              mainAxisAlignment: .end,
               children: [
                 for (final friend in displayedFriends)
-                  Container(
-                    decoration: const BoxDecoration(
-                      border: kDefaultAllBorder,
-                      borderRadius: .all(.circular(3)),
-                    ),
-                    alignment: .center,
-                    child: MaximaAvatar(pd: friend.pd, height: 33, width: 30),
-                  ),
+                  MaximaAvatar(pd: friend.pd, height: 28, width: 28),
                 if (friends.length > maxItems)
                   Text(
                     '+${friends.length - maxItems}',

@@ -2,7 +2,6 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/navigation_bar/navigation_bar_list.dart';
-import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
 
 class NavigationBarItem extends StatelessWidget {
   const NavigationBarItem({
@@ -26,7 +25,7 @@ class NavigationBarItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 160,
-      height: 48,
+      height: 50,
       child: GestureDetector(
         onTap: onTap,
         child: MouseRegion(
@@ -45,7 +44,7 @@ class NavigationBarItem extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontFamily: FontFamily.battlefrontUI,
-                      fontSize: 20,
+                      fontSize: 21,
                       color: hover
                           ? kActiveColor
                           : active
@@ -61,7 +60,6 @@ class NavigationBarItem extends StatelessWidget {
                           : null,
                     ),
                   ),
-                  if (child != null) const SizedBox(width: 15),
                 ],
               ),
             ),

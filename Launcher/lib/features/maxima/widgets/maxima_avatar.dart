@@ -9,12 +9,14 @@ class MaximaAvatar extends StatefulWidget {
     required this.pd,
     this.height = 64,
     this.width = 64,
+    this.borderRadius = 3,
     super.key,
   });
 
   final String pd;
   final double width;
   final double height;
+  final double borderRadius;
 
   @override
   State<MaximaAvatar> createState() => _MaximaAvatarState();
@@ -62,28 +64,46 @@ class _MaximaAvatarState extends State<MaximaAvatar> {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(widget.borderRadius);
+
     if (!loaded) {
-      return Container(
-        width: widget.width,
-        height: widget.height,
-        alignment: .center,
-        child: const ProgressRing(),
+      return ClipRRect(
+        borderRadius: radius,
+        child: Container(
+          width: widget.width,
+          height: widget.height,
+          alignment: .center,
+          child: const ProgressRing(),
+        ),
       );
     }
 
     if (path == null) {
-      return Assets.images.usericonTmp.image(
-        width: widget.width,
-        height: widget.height,
-        fit: .cover,
+      return ClipRRect(
+        borderRadius: radius,
+        child: Assets.images.usericonTmp.image(
+          width: widget.width,
+          height: widget.height,
+        ),
       );
     }
 
-    return Image.file(
-      File(path ?? ''),
+    ImageProvider imageProvider = switch (path) {
+      final String p when p.startsWith('http') => NetworkImage(p),
+      final String p => FileImage(File(p)),
+      _ => Assets.images.usericonTmp.provider(),
+    };
+
+    return Container(
       width: widget.width,
       height: widget.height,
-      fit: .cover,
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: imageProvider,
+          fit: .cover,
+        ),
+        borderRadius: radius,
+      ),
     );
   }
 }

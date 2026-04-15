@@ -67,7 +67,8 @@ class _NavigationBarListState extends State<NavigationBarList> {
   Widget build(BuildContext context) {
     return Container(
       height: 50,
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 10),
+      margin: const .only(top: 5),
+      padding: const EdgeInsets.only(left: 20, right: 20),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         transitionBuilder: (child, animation) => FadeTransition(
@@ -78,7 +79,7 @@ class _NavigationBarListState extends State<NavigationBarList> {
           alignment: Alignment.centerLeft,
           children: <Widget>[
             ...previousChildren,
-            if (currentChild != null) currentChild,
+            ?currentChild,
           ],
         ),
         child: Builder(
@@ -87,12 +88,12 @@ class _NavigationBarListState extends State<NavigationBarList> {
               final routes = widget.route.split('/').skip(1);
 
               return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: .spaceBetween,
                 children: [
                   BackgroundBlur(
                     key: const ValueKey('subNavBarList'),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: .min,
                       children: [
                         Container(
                           height: 41,
@@ -165,8 +166,8 @@ class _NavigationBarListState extends State<NavigationBarList> {
                     shrinkWrap: true,
                     itemCount: items.length + 2,
                     physics: const NeverScrollableScrollPhysics(),
-                    scrollDirection: Axis.horizontal,
-                    padding: EdgeInsets.zero,
+                    scrollDirection: .horizontal,
+                    padding: .zero,
                     separatorBuilder: (context, index) {
                       final active =
                           index == _activeItem || index == _activeItem + 1;

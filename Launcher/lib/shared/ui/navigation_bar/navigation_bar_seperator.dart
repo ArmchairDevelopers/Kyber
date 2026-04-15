@@ -24,27 +24,11 @@ class NavigationBarSeperator extends StatelessWidget {
       color = kWhiteBackgroundColor;
     }
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 50),
-          height: 41,
-          width: 2,
-          color: color,
-        ),
-        AnimatedPositioned(
-          bottom: active && showPositioned ? -6 : 0,
-          duration: Duration(milliseconds: showPositioned ? 100 : 0),
-          curve: Curves.easeOut,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 50),
-            height: 3,
-            width: 2,
-            color: color,
-          ),
-        ),
-      ],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 50),
+      height: 50,
+      width: 2,
+      color: color,
     );
   }
 }
