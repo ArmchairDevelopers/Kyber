@@ -86,7 +86,7 @@ class _ModsPageState extends State<ModsPage> {
       _handleShiftModSelection(mod, currentIndex, state, cubit);
     }
 
-    if (state.selectedMods.isEmpty) {
+    if (cubit.state.selectedMods.isEmpty) {
       _lastSelectedIndex = -1;
     }
 
@@ -142,7 +142,7 @@ class _ModsPageState extends State<ModsPage> {
     final isDeselecting = state.selectedMods.contains(mod.filename);
 
     for (var i = start; i <= end; i++) {
-      final selectedMods = Set<String>.from(state.selectedMods);
+      final selectedMods = Set<String>.from(cubit.state.selectedMods);
       if (isDeselecting) {
         selectedMods.remove(state.mods[i].filename);
       } else {

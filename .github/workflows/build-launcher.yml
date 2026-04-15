@@ -26,6 +26,9 @@ jobs:
         id: branch-names
         uses: tj-actions/branch-names@v8
 
+      - name: Enable long paths
+        run: git config --system core.longpaths true
+
       - name: Check out code
         uses: actions/checkout@v4
         with:
