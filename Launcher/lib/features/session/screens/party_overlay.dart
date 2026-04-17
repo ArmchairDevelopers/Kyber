@@ -1,11 +1,15 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
 import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
+import 'package:kyber_launcher/features/session/widgets/invite_overlay.dart';
+import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/shared/ui/buttons/normal_button.dart';
 import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
 
 class PartyOverlay extends StatelessWidget {
@@ -107,14 +111,15 @@ class _InviteBannerState extends State<_InviteBanner>
       return;
     }
 
-    _progressController = AnimationController(
-      vsync: this,
-      duration: remaining,
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
-          _clear();
-        }
-      });
+    _progressController =
+        AnimationController(
+          vsync: this,
+          duration: remaining,
+        )..addStatusListener((status) {
+          if (status == AnimationStatus.completed) {
+            _clear();
+          }
+        });
     _progressController!.forward();
   }
 
@@ -171,7 +176,7 @@ class _InviteBannerState extends State<_InviteBanner>
   Widget build(BuildContext context) {
     return Positioned(
       bottom: 75,
-      right: 0,
+      right: -2,
       child: SlideTransition(
         position: _slideAnimation,
         child: FadeTransition(
@@ -186,98 +191,120 @@ class _InviteBannerState extends State<_InviteBanner>
     final invite = widget.invite;
     if (invite == null) return const SizedBox.shrink();
 
-    return BackgroundBlur(
-      borderRadius: const .horizontal(
-        left: .circular(kDefaultInnerBorderRadius),
-      ),
+    return InviteOverlay(
+      width: 350,
       blurColorOpacity: 0.6,
-      blurIntensity: 8,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 340, minWidth: 300),
-        decoration: BoxDecoration(
-          border: const Border(
-            left: BorderSide(color: decoColor, width: 2),
-            top: BorderSide(color: decoColor, width: 2),
-            bottom: BorderSide(color: decoColor, width: 2),
+      child: Stack(
+        clipBehavior: .antiAliasWithSaveLayer,
+        children: [
+          Positioned(
+            top: 10,
+            left: 10,
+            child: Assets.images.party.greebles.svg(),
           ),
-          borderRadius: .horizontal(
-            left: const .circular(kDefaultInnerBorderRadius),
+          Padding(
+            padding: const .symmetric(horizontal: 25, vertical: 20),
+            child: Column(
+              spacing: 5,
+              mainAxisAlignment: .spaceBetween,
+              children: [
+                Row(
+                  spacing: 10,
+                  children: [
+                    Text(
+                      'PARTY INVITE',
+                      style: TextStyle(
+                        fontFamily: FontFamily.battlefrontUI,
+                        fontSize: 18,
+                        color: kActiveColor,
+                        height: 1,
+                      ),
+                    ),
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        borderRadius: .all(.circular(100)),
+                        color: kGrayColor,
+                      ),
+                    ),
+                    _UserContainer(player: invite.inviter),
+                  ],
+                ),
+                Row(
+                  spacing: 10,
+                  children: [
+                    Expanded(
+                      child: KOutlinedButton(
+                        onPressed: () {},
+                        child: const Text('ACCEPT', textAlign: .center),
+                      ),
+                    ),
+                    KOutlinedButton(
+                      onPressed: () {},
+                      child: const Icon(mt.Icons.backspace_rounded, size: 18),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Stack(
-          clipBehavior: .antiAliasWithSaveLayer,
-          children: [
-            Padding(
-              padding: const .symmetric(horizontal: 14, vertical: 10),
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  MaximaAvatar(pd: invite.inviter.id, height: 36, width: 36),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: .start,
-                      mainAxisSize: .min,
-                      children: [
-                        Text(
-                          invite.inviter.name.toUpperCase(),
-                          style: const TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
-                            fontSize: 14,
-                            color: kWhiteColor,
-                            height: 1,
-                          ),
-                          overflow: .ellipsis,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Party Invite'.toUpperCase(),
-                          style: const TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
-                            fontSize: 11,
-                            color: kButtonBorder,
-                            height: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  _BannerAction(
-                    icon: FluentIcons.cancel,
-                    color: Colors.red.light,
-                    onPressed: _loading ? null : _decline,
-                  ),
-                  const SizedBox(width: 6),
-                  _BannerAction(
-                    icon: mt.Icons.check,
-                    color: Colors.green.light,
-                    onPressed: _loading ? null : _accept,
-                  ),
-                ],
-              ),
+          //Positioned(
+          //  left: 0,
+          //  right: 0,
+          //  bottom: 0,
+          //  child: AnimatedBuilder(
+          //    animation: _progressController ?? kAlwaysDismissedAnimation,
+          //    builder: (context, _) {
+          //      final value = _progressController?.value ?? 0;
+          //      return FractionallySizedBox(
+          //        alignment: .centerLeft,
+          //        widthFactor: (1.0 - value).clamp(0.0, 1.0),
+          //        child: ColoredBox(
+          //          color: kActiveColor,
+          //          child: const SizedBox(height: 3),
+          //        ),
+          //      );
+          //    },
+          //  ),
+          //),
+        ],
+      ),
+    );
+  }
+}
+
+class _UserContainer extends StatelessWidget {
+  const _UserContainer({required this.player, super.key});
+
+  final KyberPlayer player;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: const .all(.circular(6)),
+        color: Colors.white.withOpacity(0.1),
+      ),
+      padding: const .symmetric(horizontal: 3, vertical: 3),
+      child: Row(
+        spacing: 10,
+        children: [
+          MaximaAvatar(
+            pd: player.id,
+            height: 24,
+            width: 24,
+          ),
+          Text(
+            player.name,
+            style: const TextStyle(
+              fontSize: 16,
+              fontFamily: FontFamily.battlefrontUI,
+              height: 1.1,
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: AnimatedBuilder(
-                animation: _progressController ?? kAlwaysDismissedAnimation,
-                builder: (context, _) {
-                  final value = _progressController?.value ?? 0;
-                  return FractionallySizedBox(
-                    alignment: .centerLeft,
-                    widthFactor: (1.0 - value).clamp(0.0, 1.0),
-                    child: ColoredBox(
-                      color: kActiveColor,
-                      child: const SizedBox(height: 3),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox.shrink(),
+        ],
       ),
     );
   }
