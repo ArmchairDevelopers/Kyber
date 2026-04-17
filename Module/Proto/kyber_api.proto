@@ -217,6 +217,7 @@ message InviteReceivedEvent {
   kyber_common.KyberPlayer inviter = 2;
   string inviteToken = 3;
   int64 expiresAt = 4;
+  uint32 partySize = 5;
 }
 
 message InviteAcceptedEvent {

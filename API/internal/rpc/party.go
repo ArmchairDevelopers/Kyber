@@ -288,6 +288,12 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		return nil, status.Error(codes.Internal, "Failed to add invite to party")
 	}
 
+	partyMembers, err := s.store.Sessions.GetByPartyID(ctx, party.ID)
+	if err != nil {
+		logger.L().Error("Failed to get party members", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get party members")
+	}
+
 	s.partyPub.Publish(party.ID, []string{req.UserId}, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_InviteReceived{
 			InviteReceived: &pbapi.InviteReceivedEvent{
@@ -295,6 +301,7 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 				Inviter:     user.Proto(),
 				InviteToken: invite.ID,
 				ExpiresAt:   invite.ExpiresAt.Unix(),
+				PartySize:   uint32(len(partyMembers)),
 			},
 		},
 	})
