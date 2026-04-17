@@ -214,7 +214,7 @@ class _InviteBannerState extends State<_InviteBanner>
             child: Assets.images.party.greebles.svg(
               theme: .new(
                 currentColor: kActiveColor,
-              )
+              ),
             ),
           ),
           Padding(
@@ -244,6 +244,7 @@ class _InviteBannerState extends State<_InviteBanner>
                       ),
                     ),
                     _UserContainer(player: invite.inviter),
+                    buildPartySize(),
                   ],
                 ),
                 Row(
@@ -284,6 +285,23 @@ class _InviteBannerState extends State<_InviteBanner>
           //  ),
           //),
         ],
+      ),
+    );
+  }
+
+  Widget buildPartySize() {
+    return Container(
+      padding: const .symmetric(horizontal: 5),
+      decoration: const BoxDecoration(
+        border: .symmetric(
+          vertical: .new(
+            color: decoColor,
+            width: 2,
+          ),
+        ),
+      ),
+      child: Text(
+        '+${widget.invite?.size.toString()}',
       ),
     );
   }

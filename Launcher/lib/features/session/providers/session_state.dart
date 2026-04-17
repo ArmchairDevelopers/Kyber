@@ -123,13 +123,15 @@ class PendingInvite extends Equatable {
     required this.inviter,
     required this.inviteToken,
     required this.expiresAt,
+    required this.size,
   });
 
   final Int64 partyId;
   final KyberPlayer inviter;
   final String inviteToken;
   final Int64 expiresAt;
+  final int size;
 
   @override
-  List<Object?> get props => [partyId, inviter, inviteToken, expiresAt];
+  List<Object?> get props => [partyId, inviter, inviteToken, expiresAt, size];
 }

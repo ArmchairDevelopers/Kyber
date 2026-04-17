@@ -371,6 +371,7 @@ class SessionCubit extends Cubit<SessionState> {
         inviter: invite.inviter,
         inviteToken: invite.inviteToken,
         expiresAt: invite.expiresAt,
+        size: invite.partySize,
       );
 
       if (state is InParty) {
