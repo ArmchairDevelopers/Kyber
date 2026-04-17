@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -59,6 +60,7 @@ class _InviteBannerState extends State<_InviteBanner>
   late final AnimationController _controller;
   late final Animation<Offset> _slideAnimation;
   late final Animation<double> _fadeAnimation;
+  final AudioPlayer _audioPlayer = AudioPlayer();
   AnimationController? _progressController;
   bool _loading = false;
 
@@ -81,7 +83,14 @@ class _InviteBannerState extends State<_InviteBanner>
     if (widget.invite != null) {
       _controller.forward();
       _startProgress(widget.invite!);
+      _playInviteSound();
     }
+  }
+
+  void _playInviteSound() {
+    _audioPlayer.play(
+      AssetSource('sounds/party/invitation.wav'),
+    );
   }
 
   @override
@@ -91,6 +100,7 @@ class _InviteBannerState extends State<_InviteBanner>
       _loading = false;
       _controller.forward();
       _startProgress(widget.invite!);
+      _playInviteSound();
     } else if (widget.invite == null && oldWidget.invite != null) {
       _controller.reverse();
       _progressController?.stop();
@@ -127,6 +137,7 @@ class _InviteBannerState extends State<_InviteBanner>
   void dispose() {
     _controller.dispose();
     _progressController?.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 

@@ -200,6 +200,7 @@ flutter:
     - assets/logos/
     - assets/fonts/
     - assets/sounds/
+    - assets/sounds/party/
     - assets/images/
     - assets/images/maps/
     - assets/images/announcements/
