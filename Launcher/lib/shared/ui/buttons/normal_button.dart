@@ -216,7 +216,11 @@ class KOutlinedButton extends StatelessWidget {
                 color: itemColor,
               ),
               child: DefaultTextStyle(
-                style: .new(color: itemColor),
+                style: .new(
+                  color: itemColor,
+                  fontFamily: FontFamily.battlefrontUI,
+                  fontWeight: .w700,
+                ),
                 child: Padding(
                   padding: buttonPadding,
                   child: child,
