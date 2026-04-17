@@ -8,6 +8,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type StatsRepository interface {
@@ -52,7 +53,7 @@ func (r *mongoStatsRepo) Upsert(ctx context.Context, ownerID string, userID stri
 	}
 
 	id := r.getDBKey(ownerID, userID, source)
-	_, err := r.col.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": model}, bson.D{{Key: "upsert", Value: true}})
+	_, err := r.col.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": model}, options.UpdateOne().SetUpsert(true))
 
 	return err
 }
