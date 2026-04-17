@@ -7,7 +7,7 @@ import 'package:kyber/kyber.dart';
 import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
-import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
+  import 'package:kyber_launcher/features/mod_collections/extensions/mod_collection_extension.dart';
 import 'package:kyber_launcher/features/mods/widgets/collection_list/collection_icon.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';

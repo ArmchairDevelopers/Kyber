@@ -10,7 +10,7 @@ import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/maxima/helper/maxima_helper.dart';
 import 'package:kyber_launcher/features/mod_browser/dialogs/export_collection_dialog.dart';
 import 'package:kyber_launcher/features/mod_collections/dialogs/delete_collection_dialog.dart';
-import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
+import 'package:kyber_launcher/features/mod_collections/extensions/mod_collection_extension.dart';
 import 'package:kyber_launcher/features/mods/dialogs/collection_export_dialog.dart';
 import 'package:kyber_launcher/features/mods/dialogs/image_crop_dialog.dart';
 import 'package:kyber_launcher/features/mods/providers/collection_editor_cubit.dart';
