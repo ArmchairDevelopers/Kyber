@@ -211,7 +211,11 @@ class _InviteBannerState extends State<_InviteBanner>
           Positioned(
             top: 10,
             left: 10,
-            child: Assets.images.party.greebles.svg(),
+            child: Assets.images.party.greebles.svg(
+              theme: .new(
+                currentColor: kActiveColor,
+              )
+            ),
           ),
           Padding(
             padding: const .symmetric(horizontal: 25, vertical: 20),
