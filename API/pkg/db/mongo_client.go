@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 var (
@@ -26,10 +26,9 @@ func Connect(uri string) (*mongo.Client, error) {
 			SetMinPoolSize(0).
 			SetMaxConnIdleTime(30 * time.Second).
 			SetConnectTimeout(2 * time.Second).
-			SetServerSelectionTimeout(3 * time.Second).
-			SetSocketTimeout(10 * time.Second)
+			SetServerSelectionTimeout(3 * time.Second)
 
-		clientSingleton, err = mongo.Connect(ctx, clientOpts)
+		clientSingleton, err = mongo.Connect(clientOpts)
 		if err != nil {
 			return
 		}

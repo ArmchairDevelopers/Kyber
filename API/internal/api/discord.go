@@ -15,7 +15,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/discord"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/bwmarrin/discordgo"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 )
