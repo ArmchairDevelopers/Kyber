@@ -252,12 +252,12 @@ class _InviteBannerState extends State<_InviteBanner>
                   children: [
                     Expanded(
                       child: KOutlinedButton(
-                        onPressed: () {},
+                        onPressed: _accept,
                         child: const Text('ACCEPT', textAlign: .center),
                       ),
                     ),
                     KOutlinedButton(
-                      onPressed: () {},
+                      onPressed: _decline,
                       child: const Icon(mt.Icons.backspace_rounded, size: 18),
                     ),
                   ],
