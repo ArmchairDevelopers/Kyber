@@ -114,7 +114,7 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
           modService?.mods
               .firstWhereOrNull((element) => element.filename == file)
               ?.size ??
-              0;
+          0;
       size += fileSize;
     }
 
@@ -256,7 +256,7 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
                                       ),
                                       child: RadioGroup<int>(
                                         groupValue:
-                                        selectedPacks.contains(index)
+                                            selectedPacks.contains(index)
                                             ? index
                                             : null,
                                         onChanged: (value) {
@@ -273,26 +273,26 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
                                           value: index,
                                           style: RadioButtonThemeData(
                                             checkedDecoration:
-                                            WidgetStateProperty.resolveWith((
-                                                states,
+                                                WidgetStateProperty.resolveWith((
+                                                  states,
                                                 ) {
-                                              return BoxDecoration(
-                                                color: Colors.transparent,
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: (states.isHovered)
-                                                      ? kActiveColor
-                                                      : kWhiteColor,
-                                                  width: !states.isDisabled
-                                                      ? states.isHovered &&
-                                                      !states
-                                                          .isPressed
-                                                      ? 3.4
-                                                      : 5.0
-                                                      : 4.0,
-                                                ),
-                                              );
-                                            }),
+                                                  return BoxDecoration(
+                                                    color: Colors.transparent,
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                      color: (states.isHovered)
+                                                          ? kActiveColor
+                                                          : kWhiteColor,
+                                                      width: !states.isDisabled
+                                                          ? states.isHovered &&
+                                                                    !states
+                                                                        .isPressed
+                                                                ? 3.4
+                                                                : 5.0
+                                                          : 4.0,
+                                                    ),
+                                                  );
+                                                }),
                                           ),
                                           content: Row(
                                             children: [
@@ -305,26 +305,26 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
                                                   ),
                                                   child: Column(
                                                     crossAxisAlignment:
-                                                    CrossAxisAlignment
-                                                        .start,
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       Row(
                                                         children: [
                                                           Icon(
                                                             !invalidPacks.keys
-                                                                .contains(
-                                                              pack.packName,
-                                                            )
+                                                                    .contains(
+                                                                      pack.packName,
+                                                                    )
                                                                 ? mt.Icons.check
                                                                 : mt
-                                                                .Icons
-                                                                .warning,
+                                                                      .Icons
+                                                                      .warning,
                                                             color:
-                                                            !invalidPacks
-                                                                .keys
-                                                                .contains(
-                                                              pack.packName,
-                                                            )
+                                                                !invalidPacks
+                                                                    .keys
+                                                                    .contains(
+                                                                      pack.packName,
+                                                                    )
                                                                 ? Colors.green
                                                                 : Colors.red,
                                                           ),
@@ -338,21 +338,21 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
                                                                   .battlefrontUI,
                                                               fontSize: 20,
                                                               color:
-                                                              Colors.white,
+                                                                  Colors.white,
                                                             ),
                                                           ),
                                                         ],
                                                       ),
                                                       if (invalidPacks.keys
                                                           .contains(
-                                                        pack.packName,
-                                                      ))
+                                                            pack.packName,
+                                                          ))
                                                         Expanded(
                                                           child: Text(
                                                             'Missing files: ${invalidPacks[pack.packName]!.join(', ')}',
                                                             overflow:
-                                                            TextOverflow
-                                                                .ellipsis,
+                                                                TextOverflow
+                                                                    .ellipsis,
                                                           ),
                                                         )
                                                       else
@@ -427,7 +427,7 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
                     !modsDirectory.existsSync()) {
                   NotificationService.showNotification(
                     message:
-                    'No Star Wars Battlefront II game found in Frosty config',
+                        'No Star Wars Battlefront II game found in Frosty config',
                     severity: InfoBarSeverity.error,
                   );
                   return;
@@ -450,12 +450,12 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
                       .map((e) => e.split(':').first);
 
                   final packMods = files.map(
-                        (e) => allMods.firstWhereOrNull((m) => m.filename == e),
+                    (e) => allMods.firstWhereOrNull((m) => m.filename == e),
                   );
                   if (packMods.any((element) => element == null)) {
                     final missingMods = files.where(
-                          (e) =>
-                      allMods.firstWhereOrNull((m) => m.filename == e) ==
+                      (e) =>
+                          allMods.firstWhereOrNull((m) => m.filename == e) ==
                           null,
                     );
                     invalidPacks[pack.key] = missingMods.toList();
@@ -467,29 +467,29 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
                       .where(
                         (t) => t.mods!.any(
                           (e) =>
-                      allMods.firstWhereOrNull(
-                            (m) => m.filename == e,
-                      ) ==
-                          null,
-                    ),
-                  )
+                              allMods.firstWhereOrNull(
+                                (m) => m.filename == e,
+                              ) ==
+                              null,
+                        ),
+                      )
                       .isNotEmpty) {
                     final missingMods = validMods
                         .where((t) => t.isCollection)
                         .expand((element) => element.mods!)
                         .where(
                           (e) =>
-                      allMods.firstWhereOrNull(
-                            (m) => m.filename == e,
-                      ) ==
-                          null,
-                    );
+                              allMods.firstWhereOrNull(
+                                (m) => m.filename == e,
+                              ) ==
+                              null,
+                        );
                     invalidPacks[pack.key] = missingMods.toList();
                   }
 
                   final size = validMods.fold(
                     0,
-                        (value, element) => value += element.size,
+                    (value, element) => value += element.size,
                   );
                   packs.add(
                     FrostyPack(
@@ -503,15 +503,15 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
                 final invalidIndexes = invalidPacks.keys
                     .map(
                       (e) =>
-                      packs.indexWhere((element) => element.packName == e),
-                )
+                          packs.indexWhere((element) => element.packName == e),
+                    )
                     .toList();
 
                 setState(() {
                   this.packs = packs;
                   selectedPacks = List.generate(
                     packs.length,
-                        (index) => index,
+                    (index) => index,
                   ).toSet()..removeAll(invalidIndexes);
                   updateModsToImport();
                   page = 2;
