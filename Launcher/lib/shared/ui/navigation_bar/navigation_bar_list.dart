@@ -58,6 +58,10 @@ class _NavigationBarListState extends State<NavigationBarList> {
         setState(() {
           _activeItem = index;
         });
+      } else {
+        setState(() {
+          _activeItem = -2;
+        });
       }
     }
     super.didUpdateWidget(oldWidget);
