@@ -13,23 +13,45 @@ import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/buttons/normal_button.dart';
 import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
 
-class PartyOverlay extends StatelessWidget {
+class PartyOverlay extends StatefulWidget {
   const PartyOverlay({required this.child, super.key});
 
   final Widget child;
 
   @override
+  State<PartyOverlay> createState() => _PartyOverlayState();
+}
+
+class _PartyOverlayState extends State<PartyOverlay> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  void initState() {
+    _audioPlayer
+      ..setSource(AssetSource('sounds/party/invitation.wav'))
+      ..setPlayerMode(.lowLatency)
+      ..setReleaseMode(.stop)
+      ..setVolume(.1);
+
+    _audioPlayer.onPlayerComplete.listen((_) async {
+      await _audioPlayer.seek(Duration.zero);
+    });
+
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        child,
+        widget.child,
         BlocSelector<SessionCubit, SessionState, PendingInvite?>(
           selector: (state) => switch (state) {
             PartyInitial(:final pendingInvite) => pendingInvite,
             InParty(:final pendingInvite) => pendingInvite,
           },
           builder: (context, invite) {
-            return _InviteBanner(invite: invite);
+            return _InviteBanner(invite: invite, audioPlayer: _audioPlayer);
           },
         ),
         BlocSelector<SessionCubit, SessionState, JoinGameInfo?>(
@@ -47,9 +69,10 @@ class PartyOverlay extends StatelessWidget {
 }
 
 class _InviteBanner extends StatefulWidget {
-  const _InviteBanner({required this.invite});
+  const _InviteBanner({required this.invite, required this.audioPlayer});
 
   final PendingInvite? invite;
+  final AudioPlayer audioPlayer;
 
   @override
   State<_InviteBanner> createState() => _InviteBannerState();
@@ -60,7 +83,6 @@ class _InviteBannerState extends State<_InviteBanner>
   late final AnimationController _controller;
   late final Animation<Offset> _slideAnimation;
   late final Animation<double> _fadeAnimation;
-  final AudioPlayer _audioPlayer = AudioPlayer();
   AnimationController? _progressController;
   bool _loading = false;
 
@@ -88,9 +110,7 @@ class _InviteBannerState extends State<_InviteBanner>
   }
 
   void _playInviteSound() {
-    _audioPlayer.play(
-      AssetSource('sounds/party/invitation.wav'),
-    );
+    widget.audioPlayer.resume();
   }
 
   @override
@@ -137,7 +157,6 @@ class _InviteBannerState extends State<_InviteBanner>
   void dispose() {
     _controller.dispose();
     _progressController?.dispose();
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -209,6 +228,15 @@ class _InviteBannerState extends State<_InviteBanner>
         clipBehavior: .antiAliasWithSaveLayer,
         children: [
           Positioned(
+            bottom: 0,
+            right: 0,
+            left: 0,
+            child: AnimatedBuilder(
+              animation: _progressController ?? kAlwaysDismissedAnimation,
+              builder: (context, _) => buildProgressBar(),
+            ),
+          ),
+          Positioned(
             top: 10,
             left: 10,
             child: Assets.images.party.greebles.svg(
@@ -265,25 +293,30 @@ class _InviteBannerState extends State<_InviteBanner>
               ],
             ),
           ),
-          //Positioned(
-          //  left: 0,
-          //  right: 0,
-          //  bottom: 0,
-          //  child: AnimatedBuilder(
-          //    animation: _progressController ?? kAlwaysDismissedAnimation,
-          //    builder: (context, _) {
-          //      final value = _progressController?.value ?? 0;
-          //      return FractionallySizedBox(
-          //        alignment: .centerLeft,
-          //        widthFactor: (1.0 - value).clamp(0.0, 1.0),
-          //        child: ColoredBox(
-          //          color: kActiveColor,
-          //          child: const SizedBox(height: 3),
-          //        ),
-          //      );
-          //    },
-          //  ),
-          //),
+        ],
+      ),
+    );
+  }
+
+  Widget buildProgressBar() {
+    const totalBoxes = 49;
+    final progress = _progressController?.value ?? 0.0;
+    final remainingBoxes = ((1.0 - progress) * totalBoxes).floor();
+
+    return Container(
+      padding: const .only(bottom: 8, right: 25, left: 30),
+      child: Row(
+        spacing: 3,
+        crossAxisAlignment: .end,
+        children: [
+          for (int i = 0; i < totalBoxes; i++)
+            Container(
+              width: 3,
+              height: 2,
+              decoration: BoxDecoration(
+                color: i < remainingBoxes ? kActiveColor : kGrayColor,
+              ),
+            ),
         ],
       ),
     );
@@ -301,7 +334,7 @@ class _InviteBannerState extends State<_InviteBanner>
         ),
       ),
       child: Text(
-        '+${widget.invite?.size.toString()}',
+        '+${widget.invite?.size}',
       ),
     );
   }
