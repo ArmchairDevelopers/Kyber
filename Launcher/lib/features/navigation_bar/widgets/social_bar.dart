@@ -27,7 +27,7 @@ class _SocialBarState extends State<SocialBar> {
         decoration: BoxDecoration(
           border: .fromLTRB(right: kDefaultBorder),
         ),
-        padding: const .symmetric(horizontal: 15),
+        padding: const .only(left: 15),
         alignment: .center,
         child: Row(
           mainAxisAlignment: .end,
@@ -46,14 +46,68 @@ class _SocialBarState extends State<SocialBar> {
                 child: const _FriendsBar(),
               ),
             ),
-            const VCardSection(),
-            CustomIconButton(
-              iconData: mt.Icons.settings,
-              onPressed: () => null,
+            Row(
+              children: [
+                const VCardSection(),
+                _NavigationBarItem(
+                  icon: const _DownloadManagerButton(),
+                  onClick: () => router.push('/downloads/overview'),
+                ),
+                const VCardSection(),
+                _NavigationBarItem(
+                  icon: const Icon(mt.Icons.settings),
+                  onClick: () => router.go('/settings'),
+                ),
+              ],
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _NavigationBarItem extends StatelessWidget {
+  const _NavigationBarItem({
+    required this.icon,
+    required this.onClick,
+    super.key,
+  });
+
+  final Widget icon;
+  final VoidCallback onClick;
+
+  @override
+  Widget build(BuildContext context) {
+    return ButtonBuilder(
+      onClick: onClick,
+      builder: (context, hovered) {
+        final itemColor = switch (hovered) {
+          true => kActiveColor,
+          false => const Color(0xFFD9D9D9),
+        };
+
+        return Container(
+          width: 50,
+          height: 50,
+          alignment: .center,
+          decoration: const BoxDecoration(
+            color: Colors.transparent,
+          ),
+          child: IconTheme(
+            data: .new(
+              color: itemColor,
+            ),
+            child: DefaultTextStyle(
+              style: .new(
+                color: itemColor,
+                fontFamily: FontFamily.battlefrontUI,
+              ),
+              child: icon,
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -119,42 +173,7 @@ class _DownloadManagerButton extends StatelessWidget {
   }
 
   Widget buildDownloadButton() {
-    return ButtonBuilder(
-      onClick: () => router.push('/downloads/overview'),
-      builder: (context, hovered) {
-        final itemColor = switch (hovered) {
-          true => kActiveColor,
-          false => const Color(0xFFD9D9D9),
-        };
-
-        return Container(
-          child: IconTheme(
-            data: .new(
-              color: itemColor,
-            ),
-            child: DefaultTextStyle(
-              style: .new(
-                color: itemColor,
-                fontFamily: FontFamily.battlefrontUI,
-              ),
-              child: const Padding(
-                padding: .symmetric(vertical: 4, horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: .center,
-                  children: [
-                    Icon(mt.Icons.download),
-                    Padding(
-                      padding: .symmetric(horizontal: 6),
-                      child: Text('DOWNLOADS'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
+    return const Icon(mt.Icons.download);
   }
 
   Widget buildActiveDownloadButton({required DownloadLoaded state}) {
@@ -168,75 +187,67 @@ class _DownloadManagerButton extends StatelessWidget {
       null => state.currentDownload?.expectedFileSize ?? 0,
       final update => update.expectedFileSize,
     };
-    final expectedSizeText = formatBytes(expectedSize, 1);
+    final remaining = expectedSize - (expectedSize * progress).toInt();
+    final remainingSizeText = formatBytes(remaining, 1);
 
-    final currentSize = (expectedSize * progress).toInt();
-    final currentSizeText = formatBytes(currentSize, 1);
-
-    return ButtonBuilder(
-      onClick: () => router.push('/downloads/overview'),
-      builder: (context, hovered) {
-        final itemColor = switch (hovered) {
-          true => kActiveColor,
-          false => const Color(0xFFD9D9D9),
-        };
-
-        return Stack(
-          clipBehavior: .antiAliasWithSaveLayer,
-          children: [
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Row(
-                children: [
-                  Flexible(
-                    child: AnimatedFractionallySizedBox(
-                      duration: const .new(milliseconds: 200),
-                      widthFactor: progress >= 0.0 ? progress : 0.01,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: kActiveColor,
-                        ),
-                        height: 3,
+    return SizedBox(
+      width: 50,
+      child: Stack(
+        clipBehavior: .antiAliasWithSaveLayer,
+        children: [
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Row(
+              children: [
+                Flexible(
+                  child: AnimatedFractionallySizedBox(
+                    duration: const .new(milliseconds: 200),
+                    widthFactor: progress >= 0.0 ? progress : 0.01,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: kActiveColor,
                       ),
+                      height: 3,
                     ),
                   ),
-                ],
-              ),
-            ),
-            IconTheme(
-              data: .new(
-                color: itemColor,
-              ),
-              child: DefaultTextStyle(
-                style: .new(
-                  color: itemColor,
-                  fontFamily: FontFamily.battlefrontUI,
                 ),
-                child: Padding(
-                  padding: const .symmetric(vertical: 4, horizontal: 16),
-                  child: Row(
-                    spacing: 5,
-                    mainAxisAlignment: .center,
-                    children: [
-                      const Icon(mt.Icons.download),
-                      Text(
-                        '$progressText ($currentSizeText / $expectedSizeText)',
-                        style: const .new(
-                          fontSize: 15,
-                          fontFamily: FontFamily.battlefrontUI,
-                          fontFeatures: [.tabularFigures()],
-                        ),
-                      ),
-                    ],
+              ],
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            top: 0,
+            child: Column(
+              spacing: 5,
+              mainAxisAlignment: .center,
+              children: [
+                Text(
+                  progressText,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    height: 1,
+                    fontFeatures: [.tabularFigures()],
                   ),
+                  textAlign: .center,
                 ),
-              ),
+                Text(
+                  remainingSizeText,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1,
+                    fontFeatures: [.tabularFigures()],
+                  ),
+                  textAlign: .center,
+                ),
+              ],
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 }
