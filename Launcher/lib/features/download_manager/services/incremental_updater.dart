@@ -92,10 +92,6 @@ class IncrementalUpdater {
             installed.add(installedMod);
           }
         }
-
-        entries = entries
-            .where((entry) => extension(entry.name).endsWith('.fbmod'))
-            .toList();
       } finally {
         if (d != null) await downloaderDispose(d: d);
         if (tempCollectionPath != null) {
@@ -105,7 +101,7 @@ class IncrementalUpdater {
         }
       }
 
-      if (missing.length == entries.length) {
+      if (missing.length == collection.mods?.length) {
         return false;
       }
 
