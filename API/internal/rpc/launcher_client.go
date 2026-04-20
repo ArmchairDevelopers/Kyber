@@ -70,7 +70,8 @@ type Post struct {
 }
 
 type WhitelistedChannels struct {
-	Channels map[string][]string `yaml:"whitelistedChannels"`
+	Channels         map[string][]string `yaml:"whitelistedChannels"`
+	AllowAllChannels bool                `default:"false" yaml:"allowAllChannels"`
 }
 
 type LauncherServer struct {
@@ -250,14 +251,7 @@ func (s *LauncherServer) DownloadUrl(ctx context.Context, req *pbapi.ServiceVers
 	val := ctx.Value("user")
 	user, _ := val.(*models.UserModel)
 
-	if req.GetChannel() != "stable" && user == nil {
-		return nil, status.Error(codes.Unauthenticated, "Invalid token")
-	}
-
-	params := url.Values{}
-	params.Add("versionId", req.GetVersion())
-
-	if user != nil && !user.Entitled(models.EntitlementAdmin) {
+	if !s.wc.AllowAllChannels && (user == nil || !user.Entitled(models.EntitlementAdmin)) {
 		channels := s.wc.Channels[req.GetId()]
 		if channels == nil || len(channels) == 0 {
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Object '%s' is not found", req.GetId()))
@@ -267,6 +261,9 @@ func (s *LauncherServer) DownloadUrl(ctx context.Context, req *pbapi.ServiceVers
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Branch '%s' is not allowed", req.GetChannel()))
 		}
 	}
+
+	params := url.Values{}
+	params.Add("versionId", req.GetVersion())
 
 	resp, err := s.minio.PresignedGetObject(ctx, "releases", fmt.Sprintf("%s/%s.zip", req.GetChannel(), req.GetId()), time.Hour*24, params)
 	if err != nil {

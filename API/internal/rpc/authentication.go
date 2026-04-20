@@ -493,6 +493,7 @@ func (s *AuthenticationServer) Login(ctx context.Context, req *pbapi.LoginReques
 
 	whitelisted := user.Entitled(models.EntitlementWhitelisted) ||
 		user.IsPatron() ||
+		containsIgnoreCase(s.whitelist.UsernameWhitelist, user.Name) ||
 		containsIgnoreCase(s.whitelist.PersonaWhitelist, user.EAData.PersonaID)
 
 	if !whitelisted && s.whitelistEnabled {
