@@ -19,19 +19,18 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/ws"
 	"github.com/getsentry/sentry-go"
 	sentryhttp "github.com/getsentry/sentry-go/http"
-	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	"github.com/ArmchairDevelopers/Kyber/API/internal/rpc"
 	"github.com/gorilla/mux"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
-	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
-	grpc_sentry "github.com/johnbellone/grpc-middleware-sentry"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapgrpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -148,26 +147,23 @@ func main() {
 	}
 
 	zapLogger := logger.L()
-	grpc_zap.ReplaceGrpcLoggerV2(zapLogger)
+	grpclog.SetLoggerV2(zapgrpc.NewLogger(zapLogger))
+
+	sentryOpts := rpc.DefaultSentryOptions()
+	grpcLogger := zapInterceptorLogger(zapLogger)
 
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			grpc_sentry.UnaryServerInterceptor(),
-			grpc_ctxtags.UnaryServerInterceptor(
-				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor),
-			),
-			grpc_zap.UnaryServerInterceptor(zapLogger),
-			grpc_recovery.UnaryServerInterceptor(),
+		grpc.ChainUnaryInterceptor(
+			rpc.SentryUnaryServerInterceptor(sentryOpts),
+			logging.UnaryServerInterceptor(grpcLogger),
+			recovery.UnaryServerInterceptor(),
 			rpc.NewAuthHandler(store).NewAuthInterceptor(),
-		)),
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-			grpc_sentry.StreamServerInterceptor(),
-			grpc_ctxtags.StreamServerInterceptor(
-				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor),
-			),
-			grpc_zap.StreamServerInterceptor(zapLogger),
-			grpc_recovery.StreamServerInterceptor(),
-		)),
+		),
+		grpc.ChainStreamInterceptor(
+			rpc.SentryStreamServerInterceptor(sentryOpts),
+			logging.StreamServerInterceptor(grpcLogger),
+			recovery.StreamServerInterceptor(),
+		),
 	)
 
 	mqClient, err := mq.NewClient(amqpURL)
@@ -224,6 +220,33 @@ func main() {
 	if err := eg.Wait(); err != nil {
 		logger.L().Panic("failed to serve", zap.Error(err))
 	}
+}
+
+func zapInterceptorLogger(l *zap.Logger) logging.Logger {
+	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
+		f := make([]zap.Field, 0, len(fields)/2)
+		it := logging.Fields(fields).Iterator()
+
+		for it.Next() {
+			k, v := it.At()
+			f = append(f, zap.Any(k, v))
+		}
+
+		lg := l.WithOptions(zap.AddCallerSkip(1)).With(f...)
+
+		switch lvl {
+		case logging.LevelDebug:
+			lg.Debug(msg)
+		case logging.LevelInfo:
+			lg.Info(msg)
+		case logging.LevelWarn:
+			lg.Warn(msg)
+		case logging.LevelError:
+			lg.Error(msg)
+		default:
+			lg.Info(msg)
+		}
+	})
 }
 
 func wrapWS(wsHandler func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
