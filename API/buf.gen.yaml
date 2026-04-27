@@ -1,0 +1,22 @@
+version: v2
+inputs:
+  - directory: ../Module
+    paths:
+      - ../Module/Proto/kyber_common.proto
+      - ../Module/Proto/kyber_api.proto
+      - ../Module/Proto/kyber_ea_bridge.proto
+      - ../Module/Proto/mod_bridge.proto
+plugins:
+  - local: protoc-gen-go
+    out: .
+    opt:
+      - module=github.com/ArmchairDevelopers/Kyber/API
+  - local: protoc-gen-go-grpc
+    out: .
+    opt:
+      - module=github.com/ArmchairDevelopers/Kyber/API
+  - local: protoc-gen-grpc-gateway
+    out: .
+    opt:
+      - module=github.com/ArmchairDevelopers/Kyber/API
+      - generate_unbound_methods=true

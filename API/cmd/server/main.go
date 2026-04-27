@@ -28,6 +28,7 @@ import (
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	grpc_sentry "github.com/johnbellone/grpc-middleware-sentry"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -190,15 +191,31 @@ func main() {
 	}
 
 	reflection.Register(grpcServer)
-	pbapi.RegisterAuthenticationServer(grpcServer, rpc.NewAuthenticationServer(ctx, store, *mqClient))
-	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, sm, *mqClient, jwtService))
-	pbapi.RegisterClientServerServer(grpcServer, rpc.NewClientServer(store, jwtService))
-	pbapi.RegisterLauncherServer(grpcServer, rpc.NewLauncherServer(store, minioClient, patronsCache))
-	pbapi.RegisterServerManagementServer(grpcServer, rpc.NewServerManagementServer(store, sm))
-	pbapi.RegisterStatisticsServer(grpcServer, rpc.NewStatisticsServer(ctx, store, statsCache))
-	pbapi.RegisterVoipServer(grpcServer, rpc.NewVoipServer(store))
-	pbapi.RegisterProxyServer(grpcServer, rpc.NewProxyServer())
-	pbapi.RegisterReportServiceServer(grpcServer, rpc.NewReportServer(store, sm, *mqClient))
+
+	authServer := rpc.NewAuthenticationServer(ctx, store, *mqClient)
+	serverBrowser := rpc.NewServerBrowserServer(store, sm, *mqClient, jwtService)
+	clientServer := rpc.NewClientServer(store, jwtService)
+	launcherServer := rpc.NewLauncherServer(store, minioClient, patronsCache)
+	serverManagement := rpc.NewServerManagementServer(store, sm)
+	statisticsServer := rpc.NewStatisticsServer(ctx, store, statsCache)
+	voipServer := rpc.NewVoipServer(store)
+	proxyServer := rpc.NewProxyServer()
+	reportServer := rpc.NewReportServer(store, sm, *mqClient)
+
+	pbapi.RegisterAuthenticationServer(grpcServer, authServer)
+	pbapi.RegisterServerBrowserServer(grpcServer, serverBrowser)
+	pbapi.RegisterClientServerServer(grpcServer, clientServer)
+	pbapi.RegisterLauncherServer(grpcServer, launcherServer)
+	pbapi.RegisterServerManagementServer(grpcServer, serverManagement)
+	pbapi.RegisterStatisticsServer(grpcServer, statisticsServer)
+	pbapi.RegisterVoipServer(grpcServer, voipServer)
+	pbapi.RegisterProxyServer(grpcServer, proxyServer)
+	pbapi.RegisterReportServiceServer(grpcServer, reportServer)
+
+	gwMux := runtime.NewServeMux()
+	pbapi.RegisterServerBrowserHandlerServer(ctx, gwMux, serverBrowser)
+
+	httpRouter.PathPrefix("/kyber_api.").Handler(gwMux)
 
 	eg, _ := errgroup.WithContext(ctx)
 
