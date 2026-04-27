@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ArmchairDevelopers/Kyber/API/api/v1/pbapi"
@@ -30,6 +31,7 @@ import (
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	grpc_sentry "github.com/johnbellone/grpc-middleware-sentry"
+	"github.com/rs/cors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -130,7 +132,23 @@ func main() {
 
 	downloadManager := api.NewDownloadManager(minioClient)
 	imageManager := api.NewImageManager(store)
-	httpHandler := sentryHandler.Handle(httpRouter)
+
+	allowedOrigins := strings.Split(os.Getenv("CORS_ORIGINS"), ",")
+
+	for i, o := range allowedOrigins {
+		allowedOrigins[i] = strings.TrimSpace(o)
+	}
+
+	corsMW := cors.New(cors.Options{
+		AllowedOrigins:   allowedOrigins,
+		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "X-Grpc-Web", "Grpc-Timeout", "X-User-Agent"},
+		ExposedHeaders:   []string{"Grpc-Status", "Grpc-Message", "Grpc-Status-Details-Bin"},
+		AllowCredentials: true,
+		MaxAge:           600,
+	})
+
+	httpHandler := corsMW.Handler(sentryHandler.Handle(httpRouter))
 
 	httpRouter.HandleFunc("/docker/auth", dockerAuth.AuthHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/discord/auth", discordAuth.AuthHandler).Methods(http.MethodGet)
