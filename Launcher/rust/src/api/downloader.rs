@@ -1,4 +1,7 @@
+use std::sync::Mutex;
+
 use flutter_rust_bridge::frb;
+use tokio_util::sync::CancellationToken;
 
 use crate::frb_generated::{RustAutoOpaque, StreamSink};
 
@@ -8,7 +11,10 @@ use maxima::content::{
 };
 
 #[frb(opaque)]
-pub struct DownloaderHandle(ZipDownloader);
+pub struct DownloaderHandle {
+    inner: ZipDownloader,
+    cancel: Mutex<CancellationToken>,
+}
 
 #[frb(non_opaque)]
 #[derive(Clone, Debug)]
@@ -45,15 +51,18 @@ pub async fn downloader_create(
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(RustAutoOpaque::new(DownloaderHandle(dl)))
+    Ok(RustAutoOpaque::new(DownloaderHandle {
+        inner: dl,
+        cancel: Mutex::new(CancellationToken::new()),
+    }))
 }
 
 pub async fn downloader_get_id(d: RustAutoOpaque<DownloaderHandle>) -> String {
-    d.read().await.0.id().to_string()
+    d.read().await.inner.id().to_string()
 }
 
 pub async fn downloader_list_entries(d: RustAutoOpaque<DownloaderHandle>) -> Vec<ZipEntryInfo> {
-    d.read().await.0.manifest()
+    d.read().await.inner.manifest()
         .entries()
         .iter()
         .map(entry_to_info)
@@ -73,9 +82,16 @@ pub async fn downloader_download_entry_by_name(
     entry_name: String,
     progress: Option<StreamSink<i32>>,
 ) -> Result<i32, String> {
-    let inner: &ZipDownloader = &d.read().await.0;
+    let handle = d.read().await;
+    let inner: &ZipDownloader = &handle.inner;
 
     let entry = find_entry(inner, &entry_name)?;
+
+    let token = {
+        let mut guard = handle.cancel.lock().unwrap();
+        *guard = CancellationToken::new();
+        guard.clone()
+    };
 
     let callback = progress.map(|sink| {
         Box::new(move |n: usize| {
@@ -83,12 +99,19 @@ pub async fn downloader_download_entry_by_name(
         }) as Box<dyn Fn(usize) + Send + Sync>
     });
 
-    let written = inner
-        .download_single_file(entry, callback)
-        .await
-        .map_err(|e| e.to_string())?;
+    tokio::select! {
+        res = inner.download_single_file(entry, callback) => {
+            let written = res.map_err(|e| e.to_string())?;
+            Ok(written as i32)
+        }
+        _ = token.cancelled() => {
+            Err("cancelled".to_string())
+        }
+    }
+}
 
-    Ok(written as i32)
+pub async fn downloader_cancel(d: RustAutoOpaque<DownloaderHandle>) {
+    d.read().await.cancel.lock().unwrap().cancel();
 }
 
 pub async fn downloader_read_entry_bytes(
@@ -96,7 +119,7 @@ pub async fn downloader_read_entry_bytes(
     entry_name: String,
     length: i64,
 ) -> Result<Vec<u8>, String> {
-    let inner: &ZipDownloader = &d.read().await.0;
+    let inner: &ZipDownloader = &d.read().await.inner;
     let entry = find_entry(inner, &entry_name)?;
 
     let bytes = inner

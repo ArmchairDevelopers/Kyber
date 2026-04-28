@@ -41,7 +41,9 @@ class IncrementalUpdater {
 
       DownloaderHandle? d;
       try {
-        _logger.fine('Checking incremental update eligibility for $downloadUrl');
+        _logger.fine(
+          'Checking incremental update eligibility for $downloadUrl',
+        );
 
         d = await downloaderCreate(
           id: 'check-${DateTime.now().millisecondsSinceEpoch}',
@@ -130,7 +132,17 @@ class IncrementalUpdater {
 
     await sl.isReady<ModService>();
 
-    final tmpDir = await getTemporaryDirectory();
+    final rndStr = String.fromCharCodes(
+      List.generate(8, (index) => Random().nextInt(26) + 97),
+    );
+    final tmpDir = Directory(join(ModService.getBasePath(), '_tmp_$rndStr'));
+
+    if (tmpDir.existsSync()) {
+      await tmpDir.delete(recursive: true);
+    }
+
+    await tmpDir.create(recursive: true);
+
     String? newDir;
 
     try {
@@ -244,7 +256,7 @@ class IncrementalUpdater {
       d = await downloaderCreate(
         id: '1',
         zipUrl: downloadUrl,
-        outputDir: join(ModService.getBasePath(), ''),
+        outputDir: tmpDir.path,
       );
 
       final total = missingSize;
@@ -266,14 +278,18 @@ class IncrementalUpdater {
           );
           final streamSink = RustStreamSink<int>();
 
-          // TODO: use frb cancel token to allow cancelling mid-download
           final future = downloaderDownloadEntryByName(
             d: d,
             entryName: mod.$1,
             progress: streamSink,
           );
 
-          streamSink.stream.listen((bytes) {
+          streamSink.stream.listen((bytes) async {
+            if (controller?.isCancelled ?? false) {
+              await downloaderCancel(d: d);
+              return;
+            }
+
             current += bytes;
             onDownloadProgress?.call(current, total);
           });
@@ -281,18 +297,25 @@ class IncrementalUpdater {
           await future;
 
           final downloadedPath = join(
-            ModService.getBasePath(),
+            tmpDir.path,
             basename(mod.$1),
           );
           final destPath = join(newDir, basename(mod.$1));
           await File(downloadedPath).rename(destPath);
+        }
+      } catch (e, s) {
+        if (e == 'cancelled') {
+          throw const CancelledException();
+        } else {
+          _logger.severe('Failed to download missing mods', e, s);
+          rethrow;
         }
       } finally {
         await downloaderDispose(d: d);
       }
 
       onDownloadProgress?.call(total, total);
-      
+
       _logger.info('All missing mods downloaded, copying existing mods');
 
       for (var i = 0; i < installed.length; i++) {
@@ -319,10 +342,6 @@ class IncrementalUpdater {
         join(tmpDir.path, collectionEntry.name),
       );
       await tempCollectionFile.copy(collectionFilePath);
-
-      try {
-        await tempCollectionFile.delete();
-      } catch (_) {}
 
       return true;
     } on CancelledException {
@@ -353,6 +372,10 @@ class IncrementalUpdater {
       }
 
       return false;
+    } finally {
+      try {
+        tmpDir.delete(recursive: true);
+      } catch (_) {}
     }
   }
 
