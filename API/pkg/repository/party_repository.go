@@ -3,11 +3,11 @@ package repository
 import (
 	"context"
 	"errors"
+	"math/rand"
 
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type PartyRepository interface {
@@ -54,15 +54,16 @@ func (r *mongoPartyRepo) Delete(ctx context.Context, partyID uint64) error {
 }
 
 func (r *mongoPartyRepo) GetNextID(ctx context.Context) (uint64, error) {
-	opts := options.FindOne().SetSort(bson.M{"_id": -1})
-	var result models.PartyModel
-	err := r.col.FindOne(ctx, bson.M{}, opts).Decode(&result)
-	if err != nil {
+	for i := 0; i < 10; i++ {
+		id := uint64(rand.Int63n(1<<62-1000)) + 1000
+		err := r.col.FindOne(ctx, bson.M{"_id": id}).Err()
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return 1000, nil
+			return id, nil
 		}
-
-		return 0, err
+		if err != nil {
+			return 0, err
+		}
 	}
-	return result.ID + 1, nil
+
+	return 0, errors.New("failed to find unused party id after 10 attempts")
 }

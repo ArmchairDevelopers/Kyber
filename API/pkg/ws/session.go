@@ -123,12 +123,20 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 		return
 	}
 
-	if len(remainingSessions) == 0 {
+	if len(remainingSessions) < 2 {
 		delCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := s.store.Parties.Delete(delCtx, partyID); err != nil {
 			logger.L().Error("Failed to delete empty party", zap.Error(err))
 		}
 		cancel()
+
+		for _, sess := range remainingSessions {
+			clearCtx, clearCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := s.store.Sessions.SetPartyID(clearCtx, sess.UserID, nil); err != nil {
+				logger.L().Error("Failed to clear party ID on remaining session", zap.Error(err))
+			}
+			clearCancel()
+		}
 	}
 
 	memberIDs := make([]string, len(remainingSessions))

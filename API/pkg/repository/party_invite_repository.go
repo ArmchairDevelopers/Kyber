@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -49,11 +50,15 @@ func (r *mongoPartyInviteRepo) Delete(ctx context.Context, id string) error {
 }
 
 func (r *mongoPartyInviteRepo) GetByInvitee(ctx context.Context, partyID uint64, inviteeID string) (*models.PartyInviteModel, error) {
-	var invite *models.PartyInviteModel
+	var invite models.PartyInviteModel
 	err := r.col.FindOne(ctx, bson.M{"invitee_id": inviteeID, "party_id": partyID}).Decode(&invite)
 	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
-	return invite, nil
+	return &invite, nil
 }

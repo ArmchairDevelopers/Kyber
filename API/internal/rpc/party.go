@@ -115,19 +115,31 @@ func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbco
 	remainingSessions, err := s.store.Sessions.GetByPartyID(ctx, partyID)
 	if err != nil {
 		logger.L().Error("Failed to get remaining sessions", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to leave party")
 	}
 
-	if len(remainingSessions) <= 1 {
+	if len(remainingSessions) < 2 {
 		if err = s.store.Parties.Delete(ctx, partyID); err != nil {
 			logger.L().Error("Failed to delete empty party", zap.Error(err))
 		}
 
-		if len(remainingSessions) > 0 {
-			if err := s.store.Sessions.SetPartyID(ctx, remainingSessions[0].UserID, nil); err != nil {
+		for _, sess := range remainingSessions {
+			if err := s.store.Sessions.SetPartyID(ctx, sess.UserID, nil); err != nil {
 				logger.L().Error("Failed to clear party ID on remaining session", zap.Error(err))
 			}
 		}
-	} else if len(remainingSessions) > 1 {
+
+		if len(remainingSessions) > 0 {
+			memberIDs := []string{remainingSessions[0].UserID}
+			s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+				Body: &pbapi.PartyEvent_MemberLeft{
+					MemberLeft: &pbapi.MemberLeftEvent{
+						UserId: user.ID,
+					},
+				},
+			})
+		}
+	} else {
 		memberIDs := make([]string, len(remainingSessions))
 		for i, sess := range remainingSessions {
 			memberIDs[i] = sess.UserID
@@ -225,7 +237,11 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		}
 
 		if len(inviteePartyMembers) > 1 {
-			return nil, status.Error(codes.AlreadyExists, "Player is already in a party")
+			return nil, status.Error(codes.FailedPrecondition, "Player is already in a party")
+		}
+
+		if len(inviteePartyMembers) == 1 && inviteePartyMembers[0].UserID != inviteeSession.UserID {
+			return nil, status.Error(codes.FailedPrecondition, "Player is already in a party")
 		}
 
 		openInvites, err := s.store.PartyInvites.GetInvites(ctx, *inviteeSession.PartyID)
@@ -235,7 +251,7 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		}
 
 		if len(openInvites) > 0 {
-			return nil, status.Error(codes.AlreadyExists, "Player is already in a party")
+			return nil, status.Error(codes.FailedPrecondition, "Player is already in a party")
 		}
 
 		// TODO: maybe do a transaction here so that the sessions party id gets cleared if the party delete fails
@@ -256,12 +272,20 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		return nil, status.Error(codes.Internal, "Failed to check existing invite")
 	}
 
-	if s.getInvite(invites, req.GetUserId()) != nil {
+	now := time.Now()
+	activeInvites := make([]*models.PartyInviteModel, 0, len(invites))
+	for _, inv := range invites {
+		if now.Before(inv.ExpiresAt) {
+			activeInvites = append(activeInvites, inv)
+		}
+	}
+
+	if s.getInvite(activeInvites, req.GetUserId()) != nil {
 		return nil, status.Error(codes.AlreadyExists, "Invite already sent to this player")
 	}
 
-	if len(invites) >= 10 {
-		return nil, status.Error(codes.AlreadyExists, "Reached the maximum number of invites")
+	if len(activeInvites) >= 10 {
+		return nil, status.Error(codes.ResourceExhausted, "Reached the maximum number of invites")
 	}
 
 	invitee, err := s.store.Users.GetByID(ctx, req.UserId)
@@ -547,21 +571,18 @@ func (s *PartyService) StartJoinGame(ctx context.Context, req *pbapi.StartJoinGa
 		memberIDs[i] = sess.UserID
 	}
 
-	if party.JoinGameState != nil {
-		s.partyPub.Publish(party.ID, memberIDs, &pbapi.PartyEvent{
-			Body: &pbapi.PartyEvent_JoinGameCancelled{
-				JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
-			},
-		})
-	}
-
-	mods := make([]models.ServerModModel, len(server.Mods))
-	copy(mods, server.Mods)
+	// if party.JoinGameState != nil {
+	// 	s.partyPub.Publish(party.ID, memberIDs, &pbapi.PartyEvent{
+	// 		Body: &pbapi.PartyEvent_JoinGameCancelled{
+	// 			JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
+	// 		},
+	// 	})
+	// }
 
 	joinGameState := &models.PartyJoinGameState{
 		ServerID:   server.ID,
 		ServerName: server.Name,
-		Mods:       mods,
+		Mods:       server.Mods,
 		// TODO: automatically share server passwords?
 	}
 
@@ -626,22 +647,32 @@ func (s *PartyService) createParty(ctx context.Context, user models.UserModel) (
 }
 
 func (s *PartyService) consumePartyEvents() {
+	for {
+		if !s.runPartyEventConsumer() {
+			return
+		}
+		logger.L().Warn("Party event consumer disconnected, retrying in 5s")
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func (s *PartyService) runPartyEventConsumer() bool {
 	q, err := s.mq.Channel.QueueDeclare("", false, true, true, false, nil)
 	if err != nil {
 		logger.L().Error("Failed to declare party events queue", zap.Error(err))
-		return
+		return true
 	}
 
 	err = s.mq.Channel.QueueBind(q.Name, "", "party_events", false, nil)
 	if err != nil {
 		logger.L().Error("Failed to bind party events queue", zap.Error(err))
-		return
+		return true
 	}
 
 	msgs, err := s.mq.Channel.Consume(q.Name, "", true, false, false, false, nil)
 	if err != nil {
 		logger.L().Error("Failed to consume party events", zap.Error(err))
-		return
+		return true
 	}
 
 	for msg := range msgs {
@@ -663,6 +694,8 @@ func (s *PartyService) consumePartyEvents() {
 			},
 		})
 	}
+
+	return true
 }
 
 func (s *PartyService) getInvite(invites []*models.PartyInviteModel, inviteeID string) *models.PartyInviteModel {
