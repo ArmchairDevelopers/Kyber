@@ -196,8 +196,12 @@ class DownloadOrchestrator with ChangeNotifier {
         return false;
       }
 
-      final updater = IncrementalUpdater();
-      if (resolved.filename.endsWith('.zip')) {
+      final isZipFile = extension(resolved.filename) == '.zip';
+      final useIncrementalUpdate =
+          Preferences.general.incrementalDownloadsEnabled;
+
+      if (useIncrementalUpdate && isZipFile) {
+        final updater = IncrementalUpdater();
         final isEligible = await updater.checkEligibility(resolved.url);
         if (isEligible) {
           _logger.info('Using incremental update for ${request.displayName}');
