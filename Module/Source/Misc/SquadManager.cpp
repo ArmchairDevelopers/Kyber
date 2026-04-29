@@ -106,7 +106,7 @@ void ServerSquadManager::SetPlayerGroup(const ServerPlayer* player, GroupId grou
 {
     if (s_squadEventSystem == nullptr)
     {
-        KYBER_LOG(Warning, "error igher0pogjer");
+        KYBER_LOG(Warning, "SquadEventSystem uninitialized!");
         return;
     }
 
@@ -205,12 +205,15 @@ void ServerSquadManager::SendGroupUpdatedEvent(const ServerPlayer* player)
     GroupId groupId = FindPlayerGroup(player);
     if (!groupId)
     {
+        KYBER_LOG(Info, "Failed to send group update to someone who is not in a group: " << player->m_name);
         // Not in a group
         return;
     }
 
+    KYBER_LOG(Info, "Sent group update to: " << player->m_name);
+
     ServerConnection* connection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
-    KyberSetGroupMembersEvent* groupAssignedEvent = FB_GLOBAL_ARENA->create<KyberSetGroupMembersEvent>();
+    KyberSetGroupMembersEvent* groupAssignedEvent = new (FB_GLOBAL_ARENA) KyberSetGroupMembersEvent();
     groupAssignedEvent->m_groupMembers = m_activeGroups[groupId];
     ServerStreamedEventManager::Send(connection, groupAssignedEvent);
 }
@@ -261,6 +264,7 @@ void ServerAutoTeamEntityEventHk(void* inst, ServerPlayerEvent* event)
 
     ServerSquadManager* manager = g_program->m_server->m_squadManager;
     GroupId playerGroupId = manager->FindPlayerGroup(player);
+    KYBER_LOG(Info, "Player group id: " << playerGroupId);
     if (playerGroupId == 0)
     {
         return trampoline(inst, event);
@@ -274,6 +278,7 @@ void ServerAutoTeamEntityEventHk(void* inst, ServerPlayerEvent* event)
         {
             continue;
         }
+        KYBER_LOG(Info, "Successfully got group mate (playerid): " << groupMateId);
 
         // Successfully found a group member to change teams to
         ServerPlayer* groupMate = g_program->m_server->m_playerManager->GetPlayer(groupMateId);
@@ -281,10 +286,11 @@ void ServerAutoTeamEntityEventHk(void* inst, ServerPlayerEvent* event)
         {
             continue;
         }
+        KYBER_LOG(Info, "Successfully got group mate (player ptr): " << groupMate->m_name);
 
         player->SetTeam(groupMate->m_teamId);
         successfullySetTeam = true;
-        KYBER_LOG(Debug, "Set " << player->m_name << "'s team to " << groupMate->m_name << "'s team of " << groupMate->m_teamId);
+        KYBER_LOG(Info, "Set " << player->m_name << "'s team to " << groupMate->m_name << "'s team of " << groupMate->m_teamId);
         break;
     }
 

@@ -445,7 +445,7 @@ char BundleManifestLoadHk(void* inst, uint8_t* buffer, uint64_t manifestSize, in
 
     KYBER_LOG(Debug, "Loading bundle manifest size " << manifestSize);
 
-    BundleManifest* manifest = new BundleManifest();
+    BundleManifest* manifest = new (FB_STATIC_ARENA) BundleManifest();
     manifest->Load(buffer, manifestSize);
     g_bundleMerger->Merge(*manifest);
 
@@ -457,7 +457,7 @@ char BundleManifestLoadHk(void* inst, uint8_t* buffer, uint64_t manifestSize, in
 
     buffer = modifiedBuffer;
 
-    delete manifest;
+    FB_STATIC_ARENA->del(manifest);
 
     KYBER_LOG(Debug, "Loading modified bundle manifest size " << manifestSize);
     return trampoline(inst, buffer, manifestSize, magicSalt);

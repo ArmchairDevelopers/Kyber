@@ -608,7 +608,7 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
     KYBER_LOG(Info, "[Server] Got player join request (Spectator: " << message->isSpectator << ")");
 
     std::string playerName = message->playerName;
-    std::string prefix = "KyberAuthentication:";
+    static const std::string prefix = "KyberAuthentication:";
 
     if (playerName.rfind(prefix, 0) != 0)
     {

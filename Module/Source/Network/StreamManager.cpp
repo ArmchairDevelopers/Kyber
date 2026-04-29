@@ -17,11 +17,48 @@ uint32_t GetRequiredBits(int32_t value)
     return amount;
 }
 
+uint64_t BitStreamRead::ReadUnsignedLimit64(uint64_t lowerBound, uint64_t upperBound)
+{
+    const int neededBits = GetRequiredBits(upperBound - lowerBound);
+    if (!neededBits)
+    {
+        return 0;
+    }
+
+    uint64_t out = ReadStream(neededBits > 32 ? 32 : neededBits);
+    if (neededBits > 32)
+    {
+        out |= uint64_t(ReadStream(neededBits - 32)) << 32;
+    }
+
+    return lowerBound + out;
+}
+
+void BitStreamWrite::WriteUnsignedLimit64(uint64_t value, uint64_t lowerBound, uint64_t upperBound)
+{
+    KYBER_ASSERT(upperBound >= lowerBound);
+
+    const int neededBits = GetRequiredBits(upperBound - lowerBound);
+    if (!neededBits)
+    {
+        return;
+    }
+
+    uint64_t outValue = value - lowerBound;
+    uint32_t loValue = uint32_t(outValue & UINT32_MAX);
+    uint32_t hiValue = (outValue & loValue) >> 32;
+    WriteStream(loValue, neededBits > 32 ? 32 : neededBits);
+    if (neededBits > 32)
+    {
+        WriteStream(hiValue, neededBits - 32);
+    }
+}
+
 void ServerConnectionOnInitManagersHk(ServerConnection* connection, __int64 a2, __int64 a3)
 {
     static const auto trampoline = HookManager::Call(ServerConnectionOnInitManagersHk);
 
-    StreamManagerKyberEvent* manager = FB_SERVER_ARENA->create<StreamManagerKyberEvent>(g_program->m_server->m_eventManager);
+    StreamManagerKyberEvent* manager = new (FB_SERVER_ARENA) StreamManagerKyberEvent(g_program->m_server->m_eventManager);
     StreamManagerEngine_addManager(&connection->m_streamManagerEngine, manager);
 
     trampoline(connection, a2, a3);
@@ -31,7 +68,7 @@ void ClientConnectionOnInitManagersHk(ClientConnection* connection)
 {
     static const auto trampoline = HookManager::Call(ClientConnectionOnInitManagersHk);
 
-    StreamManagerKyberEvent* manager = FB_GLOBAL_ARENA->create<StreamManagerKyberEvent>(g_program->m_client->m_eventManager);
+    StreamManagerKyberEvent* manager = new (FB_CLIENT_ARENA) StreamManagerKyberEvent(g_program->m_client->m_eventManager);
     StreamManagerEngine_addManager(&connection->m_streamManagerEngine, manager);
 
     trampoline(connection);
@@ -63,10 +100,10 @@ void ServerStreamedEventManager::BroadcastInternal(std::type_index typeId, Kyber
         SendInternal(connection, typeId, event);
     }
 
-    //for (auto& connection : g_program->m_server->GetServerGameContext()->serverPeer->m_connections)
+    // for (auto& connection : g_program->m_server->GetServerGameContext()->serverPeer->m_connections)
     //{
-    //    SendInternal(connection, typeId, event);
-    //}
+    //     SendInternal(connection, typeId, event);
+    // }
 }
 
 void ClientStreamedEventManager::SendInternal(std::type_index typeId, KyberStreamedEvent* event)
@@ -107,7 +144,7 @@ StreamManagerKyberEvent::StreamManagerKyberEvent(EventManager* eventManager)
     , m_statusAcknowledged(true)
 {}
 
-void StreamManagerKyberEvent::AddEvent(std::type_index index, KyberStreamedEvent* event) 
+void StreamManagerKyberEvent::AddEvent(std::type_index index, KyberStreamedEvent* event)
 {
     m_eventQueue.push_back(EventRecord(index, event));
 }
@@ -134,7 +171,7 @@ void StreamManagerKyberEvent::HandlePacketStatus(PacketDeliveryStatus status, Tr
     }
 
     m_statusAcknowledged = true;
-    
+
     if (status == PacketDeliveryStatus_Failed)
     {
         return;
@@ -163,7 +200,7 @@ TransmitResult StreamManagerKyberEvent::TransmitPacket(BitStreamWrite* stream, T
     uint32_t hashCode = StringUtils::HashQuick(eventRecord.typeId.name());
     stream->WriteUnsigned(hashCode, 32);
     eventRecord.event->Write(stream);
-    
+
     *record = &eventRecord;
     m_statusAcknowledged = false;
 

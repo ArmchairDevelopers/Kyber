@@ -168,7 +168,7 @@ bool StreamManagerMessageAddMessageHk(void* inst, Message* message)
 {
     static const auto trampoline = HookManager::Call(StreamManagerMessageAddMessageHk);
     KYBER_LOG(Info,
-        "Adding networkable message " << message->getType()->getName() << ": " << getNetworkableClassId(message->category, message->type));
+        "Adding networkable message " << message->getType()->getName() << ": " << getNetworkableClassId(message->m_category, message->m_type));
     return trampoline(inst, message);
 }
 

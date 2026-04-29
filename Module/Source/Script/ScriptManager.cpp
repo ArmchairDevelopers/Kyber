@@ -10,7 +10,8 @@ namespace Kyber
 PluginManifest::PluginManifest(std::string source)
 {
     auto json = nlohmann::json::parse(source);
-    name = json["name"].get<std::string>();
+    name = json.contains("name") ? json["name"].get<std::string>() : "Undefined";
+    minVersion = json.contains("minVersion") ? json["minVersion"].get<std::string>() : "Undefined";
 }
 
 PluginBase::PluginBase(PluginRealm realm)

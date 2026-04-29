@@ -413,7 +413,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
             g_program->GetAPI()->GetServerManagement()->SendConsoleMessage(
                 StringUtils::Format("%s (%llu) left the server", msg->m_player->m_name, msg->m_player->m_onlineId.m_nativeData));
 
-            ServerPlayerDisconnectedEvent* disconnectedEvent = FB_SERVER_ARENA->create<ServerPlayerDisconnectedEvent>();
+            ServerPlayerDisconnectedEvent* disconnectedEvent = new (FB_SERVER_ARENA) ServerPlayerDisconnectedEvent();
             disconnectedEvent->player = msg->m_player;
             g_program->m_server->m_eventManager->QueueEvent(disconnectedEvent);
 

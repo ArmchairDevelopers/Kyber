@@ -23,9 +23,9 @@ void EventManager::ProcessEventQueue()
         Event* e = const_cast<Event*>(m_eventQueue.front());
         DispatchEvent(*e);
 
-        if (MemoryArena* arena = ArenaMap_findArenaForObjectInternal(e, false))
+        if (MemoryArena* arena = ArenaMap::FindArenaForObject(e, false))
         {
-            arena->free(e);
+            arena->del(e);
         }
         else
         {

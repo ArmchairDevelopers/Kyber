@@ -70,9 +70,13 @@ void DataContainer::release()
     if (0 == InterlockedDecrement((volatile unsigned __int32*)&m_refCount))
     {
         this->~DataContainer();
-        if (MemoryArena* arena = ArenaMap_findArenaForObjectInternal(this, false))
+        if (MemoryArena* arena = ArenaMap::FindArenaForObject(this, false))
         {
             arena->free(this);
+        }
+        else
+        {
+            MemoryLeakDb::AddEntry((getType() != nullptr) ? getType()->typeInfoData->totalSize : 0, "DataContainer release");
         }
     }
 }
@@ -89,6 +93,11 @@ DataContainer* ResourceManagerLookupDataContainer(const char* name)
     }
 
     return nullptr;
+}
+
+FBBitArray::FBBitArray()
+{
+    KYBER_ASSERT(this == Ctor());
 }
 
 bool TypeInfo::isKindOf(const TypeInfo* other) const

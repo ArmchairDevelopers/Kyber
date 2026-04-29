@@ -17,7 +17,10 @@ namespace Kyber
 TL_DECLARE_FUNC(0x1483EFEB0, __int64, ReplicatePersistence, void* inst, ServerPlayer* player);
 TL_DECLARE_FUNC(0x1483EA700, int32_t, ServerPersistenceUnlocksGetBitIndex, intptr_t inst, const Guid& guid);
 
-static const PlayerExtentRegistration* PersistentServerPlayerExtent_extentRegistration = (PlayerExtentRegistration*)0x143AB4900;
+enum
+{
+    kPlayerUnlockArraySize = 1217
+};
 
 void LogPlayerStats(ConsoleContext& cc)
 {
@@ -43,11 +46,10 @@ void ServerPlayerSetUnlock(ServerPlayer* player, const Guid& guid, bool value)
 {
     ServerGamePlayerExtent* extent = player->GetServerGamePlayerExtent();
 
-    extent->InitUnlockArray(1217);
-    FbBitArray* bitArray = reinterpret_cast<FbBitArray*>(FB_SERVER_ARENA->alloc(sizeof(FbBitArray)));
-    bitArray->Ctor();
-    bitArray->Init(1217, nullptr);
-    memcpy(bitArray->m_bits, reinterpret_cast<void*>(extent + 0xE60), 4 * bitArray->m_size);
+    extent->InitUnlockArray(kPlayerUnlockArraySize);
+    FBBitArray* bitArray = new (FB_SERVER_ARENA) FBBitArray();
+    bitArray->Init(kPlayerUnlockArraySize, nullptr);
+    memcpy(bitArray->m_bits, reinterpret_cast<void*>(extent + 0xE60), 4 * bitArray->m_byteCount);
 
     uint32_t index = ServerPersistenceUnlocksGetBitIndex(*reinterpret_cast<__int64*>(0x143ED4480), guid);
 
@@ -59,7 +61,7 @@ void ServerPlayerSetUnlock(ServerPlayer* player, const Guid& guid, bool value)
     extent->SetUnlocks(bitArray);
 
     bitArray->Destroy(nullptr);
-    FB_SERVER_ARENA->free(bitArray);
+    FB_SERVER_ARENA->del(bitArray);
 }
 
 __int64 InitUnlockArrayHk(__int64 a1, ServerPlayer* player)
@@ -77,12 +79,11 @@ __int64 InitUnlockArrayHk(__int64 a1, ServerPlayer* player)
     KYBER_LOG(Debug, "[Persistence] Initialized unlock array " << player->m_name << " " << std::hex << extent);
     //__int64 result = trampoline(a1, serverPlayer);
 
-    extent->InitUnlockArray(1217);
-    
-    FbBitArray* bitArray = reinterpret_cast<FbBitArray*>(FB_SERVER_ARENA->alloc(sizeof(FbBitArray)));
-    bitArray->Ctor();
-    bitArray->Init(1217, nullptr);
-    memset(bitArray->m_bits, 0xFFFFFFFF, 4 * bitArray->m_size);
+    extent->InitUnlockArray(kPlayerUnlockArraySize);
+
+    FBBitArray* bitArray = new (FB_SERVER_ARENA) FBBitArray();
+    bitArray->Init(kPlayerUnlockArraySize, nullptr);
+    memset(bitArray->m_bits, 0xFFFFFFFF, 4 * bitArray->m_byteCount);
 
     extent->SetUnlocks(bitArray);
 

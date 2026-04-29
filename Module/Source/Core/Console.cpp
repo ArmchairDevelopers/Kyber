@@ -213,7 +213,7 @@ void TestSetAbility(ConsoleContext& cc)
     message->playerAbilityCategory = slot;
 
     g_program->m_server->GetServerGameContext()->serverPeer->SendMessage(message);
-    MessageManager_queueMessage(g_program->m_server->GetServerGameContext()->messageManager, reinterpret_cast<Message*>(message), 0.0f);
+    g_program->m_server->GetServerGameContext()->messageManager->QueueMessage(reinterpret_cast<Message*>(message), 0.0f);
 
     cc << "Done";
 }
@@ -249,7 +249,7 @@ void SendTestStreamedKyberEvent(ConsoleContext& cc)
     for (auto& player : g_program->m_server->m_playerManager->m_players)
     {
         ServerConnection* connection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
-        TestStreamedEvent* event = FB_GLOBAL_ARENA->create<TestStreamedEvent>();
+        TestStreamedEvent* event = new (FB_GLOBAL_ARENA) TestStreamedEvent();
         event->data = 19472;
 
         ServerStreamedEventManager::Send(connection, event);
@@ -288,6 +288,11 @@ void DebugLogComponentsInCharacter(ConsoleContext& cc)
     }
 
     KYBER_LOG(Info, "----- Character Components List End -----");
+}
+
+void LogMemoryLeakCommand(ConsoleContext& cc)
+{
+    cc << "Memory leaked: " << MemoryLeakDb::GetTotalLeaked() << " bytes";
 }
 
 void SaveLocationCommand(ConsoleContext& cc)
@@ -759,6 +764,7 @@ Console::Console()
     RegisterConsoleCommand(&TestSetAbility, "TestSetAbility", "<player> <abilityId> <slot>");
     RegisterConsoleCommand(&SendTestStreamedKyberEvent, "SendTestStreamed");
     RegisterConsoleCommand(&DebugLogComponentsInCharacter, "DebugLogComponentsCharacter");
+    RegisterConsoleCommand(&LogMemoryLeakCommand, "LogMemoryLeak");
 
     if (true || !g_program->m_isDedicatedServer)
     {

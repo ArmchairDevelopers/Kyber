@@ -19,6 +19,20 @@ TL_DECLARE_FUNC(0x145477800, void, BitStream_write, void* stream, uint32_t value
 
 uint32_t GetRequiredBits(int32_t value);
 
+class InBitStream
+{
+public:
+    bool HasOverflown() const
+    {
+        return m_overflown;
+    }
+
+    char* m_buffer;           // 0x00
+    uint32_t m_bufferBitSize; // 0x08
+    char pad_00[0x38];        // 0x0C
+    bool m_overflown;         // 0x44
+};
+
 class BitStreamRead
 {
 public:
@@ -32,29 +46,20 @@ public:
     template<int32_t Capacity>
     eastl::string ReadString()
     {
-        const int neededBits = GetRequiredBits(Capacity);
+        constexpr int neededBits = GetRequiredBits(Capacity);
 
-        uint32_t size = ReadUnsigned(Capacity);
+        uint32_t size = ReadUnsigned(neededBits);
         eastl::string str(size, ' ');
         ReadOctets(const_cast<char*>(str.data()), size);
 
         return str;
     }
 
-    uint64_t ReadUnsignedLimit64(uint32_t lowerBound, uint32_t upperBound)
-    {
-        const int neededBits = GetRequiredBits(upperBound - lowerBound);
-        if (!neededBits)
-        {
-            return 0;
-        }
+    uint64_t ReadUnsignedLimit64(uint64_t lowerBound, uint64_t upperBound);
 
-        uint64_t out = ReadStream(neededBits > 32 ? 32 : neededBits);
-        if (neededBits > 32)
-        {
-            out |= uint64_t(ReadStream(neededBits - 32)) << 32;
-        }
-        return lowerBound + out;
+    bool HasOverflown() const
+    {
+        return m_stream->HasOverflown();
     }
 
 private:
@@ -63,8 +68,27 @@ private:
         return BitStream_read(m_stream, bitCount);
     }
 
-    char pad_00[0x18];
-    void* m_stream;
+    char pad_00[0x18];     // 0x00
+    InBitStream* m_stream; // 0x18;
+};
+
+class OutBitStream
+{
+public:
+    bool HasOverflown() const
+    {
+        return m_bufferBitSize < m_position;
+    }
+
+    bool WouldOverflowWith(uint32_t additionalBits) const
+    {
+        return m_position + additionalBits > m_bufferBitSize;
+    }
+
+    char* m_buffer;
+    uint32_t m_bufferBitSize;
+    uint32_t m_position;
+    char pad_10[0x20];
 };
 
 class BitStreamWrite
@@ -88,24 +112,11 @@ public:
         WriteOctets(const_cast<char*>(str.data()), str.size());
     }
 
-    void WriteUnsignedLimit64(uint64_t value, uint64_t lowerBound, uint64_t upperBound)
-    {
-        KYBER_ASSERT(upperBound >= lowerBound);
-        
-        const int neededBits = GetRequiredBits(upperBound - lowerBound);
-        if (!neededBits)
-        {
-            return;
-        }
+    void WriteUnsignedLimit64(uint64_t value, uint64_t lowerBound, uint64_t upperBound);
 
-        uint64_t outValue = value - lowerBound;
-        uint32_t loValue = uint32_t(outValue & UINT32_MAX);
-        uint32_t hiValue = (outValue & loValue) >> 32;
-        WriteStream(loValue, neededBits > 32 ? 32 : neededBits);
-        if (neededBits > 32)
-        {
-            WriteStream(hiValue, neededBits - 32);
-        }
+    bool HasOverflown() const
+    {
+        return m_stream->HasOverflown();
     }
 
 private:
@@ -114,8 +125,8 @@ private:
         BitStream_write(m_stream, value, bitCount);
     }
 
-    char pad_00[0x18];
-    void* m_stream;
+    char pad_00[0x18];      // 0x00
+    OutBitStream* m_stream; // 0x18
 };
 
 struct TransmissionRecord
@@ -211,22 +222,24 @@ public:
 
 #define KB_REGISTER_STREAMED_EVENT(type)                                                                                                   \
     static KyberStreamedEventStaticRegistrar _##type##_streamedEventRegistrar(                                                             \
-        StringUtils::HashQuick(std::type_index(typeid(type)).name()), [](MemoryArena* arena) { return arena->create<type>(); })
+        StringUtils::HashQuick(std::type_index(typeid(type)).name()), [](MemoryArena* arena) { return new (arena) type(); })
 
 class ServerStreamedEventManager
 {
 public:
-    template<typename T> requires std::is_base_of_v<KyberStreamedEvent, T>
+    template<typename T>
+        requires std::is_base_of_v<KyberStreamedEvent, T>
     static void Send(ServerConnection* connection, T* event)
     {
         SendInternal(connection, typeid(T), event);
     }
 
-    template<typename T> requires std::is_base_of_v<KyberStreamedEvent, T>
+    template<typename T>
+        requires std::is_base_of_v<KyberStreamedEvent, T>
     static void Broadcast(T* event)
     {
         BroadcastInternal(typeid(T), event);
-    }   
+    }
 
 private:
     static void SendInternal(ServerConnection* connection, std::type_index typeId, KyberStreamedEvent* event);
@@ -236,7 +249,8 @@ private:
 class ClientStreamedEventManager
 {
 public:
-    template<typename T> requires std::is_base_of_v<KyberStreamedEvent, T>
+    template<typename T>
+        requires std::is_base_of_v<KyberStreamedEvent, T>
     static void Send(T* event)
     {
         SendInternal(typeid(T), event);

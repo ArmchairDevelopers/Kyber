@@ -27,7 +27,6 @@ namespace Kyber
 extern void* s_mainLoop;
 
 TL_DECLARE_FUNC(0x1401F7BD0, DataContainer*, SettingsManager_getSettingsObject, void* inst, const char* identifier);
-TL_DECLARE_FUNC(0x1401F83F0, void, MessageManager_queueMessage, void* pMessageManagerImpl, Message* pMessage, float delayTime);
 
 const char* GetHostIdHk(__int64 inst);
 void MessageManagerDispatchMessageHk(void* pMessageManagerImpl, Message* pMessage);

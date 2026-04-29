@@ -308,7 +308,7 @@ void LayoutManifest::PrintAudit(uint32_t bundleHash)
 
 void ProcessManifestHk(CasFileMap* fileMap, uint8_t* manifestBuf)
 {
-    static auto trampoline = HookManager::Call(ProcessManifestHk);
+    static const auto trampoline = HookManager::Call(ProcessManifestHk);
     if (!g_manifestMerger->HasMerger())
     {
         trampoline(fileMap, manifestBuf);
@@ -320,13 +320,12 @@ void ProcessManifestHk(CasFileMap* fileMap, uint8_t* manifestBuf)
 
     KYBER_LOG(Info, "[ModLoader] Loading layout manifest size " << size);
 
-    LayoutManifest* manifest = new LayoutManifest();
+    LayoutManifest* manifest = new (FB_STATIC_ARENA) LayoutManifest();
     manifest->Load(*data, *size);
     g_manifestMerger->Merge(*manifest);
     std::vector<uint8_t> modified = manifest->Save();
-    
-    // Don't delete the manifest. I'm not sure why, but it causes
-    // everything to crash and burn.
+
+    FB_STATIC_ARENA->del(manifest);
 
     uint8_t* modifiedBuffer = (uint8_t*)FB_STATIC_ARENA->alloc(modified.size());
     memcpy(modifiedBuffer, modified.data(), modified.size());
@@ -341,6 +340,8 @@ void ProcessManifestHk(CasFileMap* fileMap, uint8_t* manifestBuf)
 
     *data = originalData;
     *size = originalSize;
+
+    FB_STATIC_ARENA->free(modifiedBuffer);
 
     KYBER_LOG(Info, "[ModLoader] Loaded modified layout manifest size " << modified.size());
 }

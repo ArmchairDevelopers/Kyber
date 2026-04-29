@@ -65,13 +65,13 @@ extern void** g_gameContext;
 
 #define STRIP_PARENS(...) __VA_ARGS__
 #define KB_DECLARE_GAMEMEMBERFUNC(ptr, returnType, name, args, ...)                                                                        \
-    inline returnType name(__VA_ARGS__)                                                                                                           \
+    inline returnType name(__VA_ARGS__)                                                                                                    \
     {                                                                                                                                      \
         return reinterpret_cast<returnType(__fastcall*)(void*, __VA_ARGS__)>(ptr)(this, STRIP_PARENS args);                                \
     }
 
 #define KB_DECLARE_GAMEMEMBERFUNC_NOARGS(ptr, returnType, name)                                                                            \
-    inline returnType name()                                                                                                                      \
+    inline returnType name()                                                                                                               \
     {                                                                                                                                      \
         return reinterpret_cast<returnType(__fastcall*)(void*)>(ptr)(this);                                                                \
     }
@@ -420,14 +420,16 @@ public:
 
         // @TODO: free previous array (requires proper padding when alloc-ing tho)
         // FB_GLOBAL_ARENA->free(reinterpret_cast<uint8_t*>(m_data) - headerSize);
-        if (MemoryArena* arena = ArenaMap_findArenaForObjectInternal(this, false))
+        if (MemoryArena* arena = ArenaMap::FindArenaForObject(this, false))
         {
             // cant seem to figure out which ptr its alloc'd to
             //arena->free(reinterpret_cast<void*>((reinterpret_cast<uintptr_t>(m_data) - headerSize) & ~15ul));
+            MemoryLeakDb::AddEntry(prevSize * sizeof(T), "FBArray::extend original free fail");
         }
         else
         {
-            KYBER_LOG(Debug, "Failed to free FBArray! This will cause a memory leak!");
+            // Leak!
+            MemoryLeakDb::AddEntry(prevSize * sizeof(T), "FBArray::extend original free fail");
         }
 
         m_data = dest;
@@ -524,6 +526,26 @@ public:
     }
 };
 #pragma pack(pop)
+
+class FBBitArray
+{
+public:
+    FBBitArray();
+    virtual ~FBBitArray() = default; // Gets set in Ctor()
+
+    KB_DECLARE_GAMEMEMBERFUNC(0x1454600C0, void*, Init, (bitCount, arena), uint32_t bitCount, MemoryArena* arena)
+    KB_DECLARE_GAMEMEMBERFUNC(0x1401E71B0, void*, Destroy, (arena), MemoryArena* arena)
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1401EA294, void, Reset)
+
+    uint32_t* m_bits;       // 0x08
+    uint32_t m_defaultBits; // 0x10
+    uint32_t m_bitCount;    // 0x14
+    int32_t m_byteCount;    // 0x18
+    __int64 pad_0020[2];    // 0x20
+
+private:
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x14545A710, void*, Ctor)
+}; // Size: 0x30
 
 struct LevelSetupOption
 {
@@ -674,6 +696,12 @@ public:
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x146375820, ClientConnection*, GetClientConnection);
 };
 
+class MessageManager
+{
+public:
+    KB_DECLARE_GAMEMEMBERFUNC(0x1401F83F0, void, QueueMessage, (message, delayTime), class Message* message, float delayTime);
+};
+
 // To allow for SendMessage() in ServerPeer
 #ifdef SendMessage
     #undef SendMessage
@@ -694,7 +722,7 @@ class ServerGameContext
 {
 public:
     char pad_0000[16];                        // 0x0000
-    void* messageManager;                     // 0x0010
+    MessageManager* messageManager;           // 0x0010
     char pad_0018[64];                        // 0x0018
     ServerPlayerManager* serverPlayerManager; // 0x0058
     ServerPeer* serverPeer;                   // 0x0060
@@ -1242,7 +1270,7 @@ public:
     KB_DECLARE_GAMEMEMBERFUNC(0x140BDDFE0, bool, EnterVehicle, (vehicle, seatIndex), void* vehicle, unsigned int seatIndex)
     KB_DECLARE_GAMEMEMBERFUNC(0x146881270, void*, SetSelectedCustomizationAsset, (asset), DataContainer* asset)
     KB_DECLARE_GAMEMEMBERFUNC(0x146872DF0, void*, InitUnlockArray, (bitCount), uint32_t bitCount)
-    KB_DECLARE_GAMEMEMBERFUNC(0x146881840, void*, SetUnlocks, (bitArray), void* bitArray)
+    KB_DECLARE_GAMEMEMBERFUNC(0x146881840, void*, SetUnlocks, (bitArray), FBBitArray* bitArray)
 };
 
 // Unnamed extent 3
@@ -1277,7 +1305,10 @@ public:
 
     KB_DECLARE_GAMEMEMBERFUNC(0x14199F370, bool, SetAbility, (abilityId, replacePassive), uint32_t abilityId, bool replacePassive);
 
-    static const int kMaxAbilityCount = 18;
+    enum
+    {
+        MaxAbilityCount = 18
+    };
 
     struct ActiveKitAbilityData
     {
@@ -1289,7 +1320,7 @@ public:
     struct ActiveKitAbilityContainer
     {
         void* vtable;
-        eastl::fixed_vector<ActiveKitAbilityData, kMaxAbilityCount> m_abilities;
+        eastl::fixed_vector<ActiveKitAbilityData, MaxAbilityCount> m_abilities;
     };
 
     void* vtable2; // idk
@@ -1454,7 +1485,7 @@ public:
     uint32_t m_playerIdBitCount;                         // 0x0018
     char pad_001C[172];                                  // 0x001C
     eastl::fixed_vector<ServerPlayer*, 64> m_players;    // 0x00C8
-    eastl::fixed_vector<ServerPlayer*, 64> m_spectators; // 0x00C8
+    eastl::fixed_vector<ServerPlayer*, 64> m_spectators; // 0x02F0
 
     ServerPlayer* GetPlayerOrSpectator(uint64_t id);
     ServerPlayer* GetPlayerOrSpectator(const char* name);
@@ -1478,7 +1509,7 @@ public:
     {
         if (0 == InterlockedDecrement((volatile unsigned __int32*)&m_refCount))
         {
-            if (MemoryArena* arena = ArenaMap_findArenaForObjectInternal(this, false))
+            if (MemoryArena* arena = ArenaMap::FindArenaForObject(this, false))
             {
                 arena->free(this);
             }
@@ -1602,28 +1633,28 @@ public:
 class Message : public TypeObject
 {
 public:
-    const int category;          // 0x08
-    const int type;              // 0x0C
-    LocalPlayerId localPlayerId; // 0x10
-    char pad_0014[0x1C];         // 0x14
+    const int m_category;          // 0x08
+    const int m_type;              // 0x0C
+    LocalPlayerId m_localPlayerId; // 0x10
+    char pad_0014[0x1C];           // 0x14
 
     bool Is(const char* messageType) const
     {
-        return type == StringUtils::HashQuick(messageType);
+        return m_type == StringUtils::HashQuick(messageType);
     }
 }; // Size: 0x30
 
 class NetworkableMessage : public Message
 {
 public:
-    const ServerConnection* serverConnection; // 0x30
-    const ClientConnection* clientConnection; // 0x38
-    int32_t unk1;                             // 0x40
-    int32_t initiator;                        // 0x44
-    int32_t messageStream;                    // 0x48
-    int32_t unk2;                             // 0x4C
-    bool hasNetworkedResources;               // 0x50
-    char pad_0051[0x7];                       // 0x51
+    const ServerConnection* m_serverConnection; // 0x30
+    const ClientConnection* m_clientConnection; // 0x38
+    int32_t unk1;                               // 0x40
+    int32_t m_initiator;                        // 0x44
+    int32_t m_messageStream;                    // 0x48
+    int32_t unk2;                               // 0x4C
+    bool m_hasNetworkedResources;               // 0x50
+    char pad_0051[0x7];                         // 0x51
 }; // Size: 0x58
 
 class NetworkPlayerSpawnMessage : public NetworkableMessage
@@ -1911,8 +1942,6 @@ class Component : public TypeObject
 class ComponentEntry
 {
 public:
-    // KEEP AT SIZE 0x20
-
     uint16_t m_classId;
     uint16_t unk0;
     uint32_t unk1;
@@ -1928,6 +1957,7 @@ public:
         return m_classId - typeInfo->m_classId <= range;
     }
 }; // Size: 0x20
+static_assert(sizeof(ComponentEntry) == 0x20);
 
 #define ENTRY_DATA_BEGIN reinterpret_cast<ComponentEntry*>(this + 1)
 #define ENTRY_DATA_BEGIN_CONST const_cast<ComponentEntry*>(reinterpret_cast<const ComponentEntry*>(this + 1))
@@ -2036,6 +2066,7 @@ public:
         return Iterator(ENTRY_DATA_BEGIN_CONST + size());
     }
 }; // Size: 0x10
+static_assert(sizeof(ComponentContainer) == 0x10);
 
 #undef ENTRY_DATA_BEGIN
 #undef ENTRY_DATA_BEGIN_CONST
@@ -2076,8 +2107,11 @@ private:
     uint32_t m_fieldMask1; // 0x08
     uint32_t m_fieldMask2; // 0x0C
 
-    const uint32_t kUnkGhostFlag1 = 1 << 17;
-    const uint32_t kUnkGhostFlag2 = 1 << 18;
+    enum
+    {
+        UnkGhostFlag1 = 1 << 17,
+        UnkGhostFlag2 = 1 << 18,
+    };
 
     inline void SetDirty(int index)
     {
