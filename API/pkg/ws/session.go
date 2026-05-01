@@ -12,6 +12,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
 	"github.com/gorilla/websocket"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
@@ -124,11 +125,11 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 	}
 
 	if len(remainingSessions) < 2 {
-		delCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		delCtx, delCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := s.store.Parties.Delete(delCtx, partyID); err != nil {
 			logger.L().Error("Failed to delete empty party", zap.Error(err))
 		}
-		cancel()
+		delCancel()
 
 		for _, sess := range remainingSessions {
 			clearCtx, clearCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -137,6 +138,17 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 			}
 			clearCancel()
 		}
+
+		if len(remainingSessions) > 0 {
+			s.partyPub.Publish(partyID, []string{remainingSessions[0].UserID}, &pbapi.PartyEvent{
+				Body: &pbapi.PartyEvent_MemberLeft{
+					MemberLeft: &pbapi.MemberLeftEvent{
+						UserId: session.UserID,
+					},
+				},
+			})
+		}
+		return
 	}
 
 	memberIDs := make([]string, len(remainingSessions))
@@ -144,15 +156,54 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 		memberIDs[i] = sess.UserID
 	}
 
-	event := &pbapi.PartyEvent{
+	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_MemberLeft{
 			MemberLeft: &pbapi.MemberLeftEvent{
 				UserId: session.UserID,
 			},
 		},
+	})
+
+	partyCtx, partyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer partyCancel()
+
+	party, err := s.store.Parties.GetByID(partyCtx, partyID)
+	if err != nil || party == nil {
+		if err != nil {
+			logger.L().Error("Failed to get party after session ended", zap.Error(err))
+		}
+		return
 	}
 
-	s.partyPub.Publish(partyID, memberIDs, event)
+	if party.LeaderID != session.UserID {
+		return
+	}
+
+	if party.JoinGameState != nil {
+		if err := s.store.Parties.Update(partyCtx, partyID, bson.M{"$unset": bson.M{"join_game_state": ""}}); err != nil {
+			logger.L().Error("Failed to clear join game state", zap.Error(err))
+		}
+
+		s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+			Body: &pbapi.PartyEvent_JoinGameCancelled{
+				JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
+			},
+		})
+	}
+
+	newLeaderID := remainingSessions[0].UserID
+	if err := s.store.Parties.Update(partyCtx, partyID, bson.M{"$set": bson.M{"leader_id": newLeaderID}}); err != nil {
+		logger.L().Error("Failed to update party leader", zap.Error(err))
+		return
+	}
+
+	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+		Body: &pbapi.PartyEvent_NewLeader{
+			NewLeader: &pbapi.NewLeaderEvent{
+				NewLeaderId: newLeaderID,
+			},
+		},
+	})
 }
 
 func (s *SessionManager) BroadcastUpdateCheck() {
@@ -305,6 +356,8 @@ func (s *SessionManager) handleClientMessage(userID string, msg []byte) {
 	switch evt := clientEvent.Body.(type) {
 	case *pbapi.SessionClientEvent_UpdateJoinGameStatus:
 		s.handleJoinGameStatusUpdate(userID, evt.UpdateJoinGameStatus)
+	case *pbapi.SessionClientEvent_JoinGameReady:
+		s.handleJoinGameReady(userID)
 	}
 }
 
@@ -326,6 +379,31 @@ func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.Up
 		return
 	}
 
+	statuses := party.JoinGameState.MemberStatuses
+	updated := false
+	for i, st := range statuses {
+		if st.UserID == userID {
+			statuses[i] = models.PartyJoinGameMemberStatus{
+				UserID:                userID,
+				HasMods:               evt.HasMods,
+				ModDownloadPercentage: evt.ModDownloadPercentage,
+			}
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		statuses = append(statuses, models.PartyJoinGameMemberStatus{
+			UserID:                userID,
+			HasMods:               evt.HasMods,
+			ModDownloadPercentage: evt.ModDownloadPercentage,
+		})
+	}
+
+	if err := s.store.Parties.Update(ctx, partyID, bson.M{"$set": bson.M{"join_game_state.member_statuses": statuses}}); err != nil {
+		logger.L().Error("Failed to persist join game status", zap.Error(err))
+	}
+
 	sessions, err := s.store.Sessions.GetByPartyID(ctx, partyID)
 	if err != nil {
 		logger.L().Error("Failed to get party sessions", zap.Error(err))
@@ -344,6 +422,44 @@ func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.Up
 				HasMods:               evt.HasMods,
 				ModDownloadPercentage: evt.ModDownloadPercentage,
 			},
+		},
+	})
+}
+
+func (s *SessionManager) handleJoinGameReady(userID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	session, err := s.store.Sessions.GetByUserID(ctx, userID)
+	if err != nil || session == nil || session.PartyID == nil {
+		return
+	}
+
+	partyID := *session.PartyID
+
+	party, err := s.store.Parties.GetByID(ctx, partyID)
+	if err != nil || party == nil || party.JoinGameState == nil {
+		return
+	}
+
+	if party.LeaderID != userID {
+		return
+	}
+
+	sessions, err := s.store.Sessions.GetByPartyID(ctx, partyID)
+	if err != nil {
+		logger.L().Error("Failed to get party sessions", zap.Error(err))
+		return
+	}
+
+	memberIDs := make([]string, len(sessions))
+	for i, sess := range sessions {
+		memberIDs[i] = sess.UserID
+	}
+
+	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+		Body: &pbapi.PartyEvent_JoinGameReady{
+			JoinGameReady: &pbapi.JoinGameReadyEvent{},
 		},
 	})
 }

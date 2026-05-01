@@ -7,10 +7,17 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/api/v1/pbcommon"
 )
 
+type PartyJoinGameMemberStatus struct {
+	UserID                string  `json:"user_id" bson:"user_id"`
+	HasMods               bool    `json:"has_mods" bson:"has_mods"`
+	ModDownloadPercentage *uint32 `json:"mod_download_percentage,omitempty" bson:"mod_download_percentage,omitempty"`
+}
+
 type PartyJoinGameState struct {
-	ServerID   string           `json:"server_id" bson:"server_id"`
-	ServerName string           `json:"server_name" bson:"server_name"`
-	Mods       []ServerModModel `json:"mods" bson:"mods"`
+	ServerID       string                      `json:"server_id" bson:"server_id"`
+	ServerName     string                      `json:"server_name" bson:"server_name"`
+	Mods           []ServerModModel            `json:"mods" bson:"mods"`
+	MemberStatuses []PartyJoinGameMemberStatus `json:"member_statuses,omitempty" bson:"member_statuses,omitempty"`
 }
 
 type PartyModel struct {
@@ -52,10 +59,20 @@ func (p *PartyModel) Proto(sessions []SessionModel, users map[string]*UserModel)
 			}
 		}
 
+		statuses := make([]*pbapi.JoinGameMemberStatus, len(p.JoinGameState.MemberStatuses))
+		for i, st := range p.JoinGameState.MemberStatuses {
+			statuses[i] = &pbapi.JoinGameMemberStatus{
+				UserId:                st.UserID,
+				HasMods:               st.HasMods,
+				ModDownloadPercentage: st.ModDownloadPercentage,
+			}
+		}
+
 		state.JoinGameState = &pbapi.JoinGameState{
-			ServerId:   p.JoinGameState.ServerID,
-			ServerName: p.JoinGameState.ServerName,
-			Mods:       mods,
+			ServerId:       p.JoinGameState.ServerID,
+			ServerName:     p.JoinGameState.ServerName,
+			Mods:           mods,
+			MemberStatuses: statuses,
 		}
 	}
 

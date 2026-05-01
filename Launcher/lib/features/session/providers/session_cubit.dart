@@ -382,6 +382,14 @@ class SessionCubit extends Cubit<SessionState> {
       return;
     }
 
+    if (event.hasKicked()) {
+      _partyDownloadChecker?.cancel();
+      _partyDownloadChecker = null;
+      NotificationService.warning(message: 'You were kicked from the party');
+      emit(PartyInitial());
+      return;
+    }
+
     if (_inParty == null) {
       final resp = await _service.partyServiceClient.getParty(.new());
       if (isClosed || !resp.hasParty()) return;

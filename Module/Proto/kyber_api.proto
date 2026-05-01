@@ -109,6 +109,9 @@ service Party {
   rpc AcceptInvite(AcceptInviteRequest) returns (kyber_common.Empty);
   rpc DeclineInvite(DeclineInviteRequest) returns (kyber_common.Empty);
 
+  rpc KickMember(KickMemberRequest) returns (kyber_common.Empty);
+  rpc TransferLeader(TransferLeaderRequest) returns (kyber_common.Empty);
+
   rpc GetParty(kyber_common.Empty) returns (GetPartyResponse);
 
   rpc StartJoinGame(StartJoinGameRequest) returns (kyber_common.Empty);
@@ -175,6 +178,14 @@ message PartyState {
   optional JoinGameState joinGameState = 5;
 }
 
+message KickMemberRequest {
+  string userId = 1;
+}
+
+message TransferLeaderRequest {
+  string userId = 1;
+}
+
 message JoinGameState {
   string serverId = 1;
   string serverName = 2;
@@ -205,7 +216,12 @@ message PartyEvent {
     JoinGameReadyEvent joinGameReady = 8;
     JoinGameCancelledEvent joinGameCancelled = 9;
     NewLeaderEvent newLeader = 10;
+    KickedEvent kicked = 11;
   }
+}
+
+message KickedEvent {
+  string userId = 1;
 }
 
 message NewLeaderEvent {
