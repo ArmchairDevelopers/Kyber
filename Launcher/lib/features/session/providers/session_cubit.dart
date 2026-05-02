@@ -44,6 +44,7 @@ class SessionCubit extends Cubit<SessionState> {
   IOWebSocketChannel? _channel;
   Timer? _keepAliveTimer;
   Timer? _partyDownloadChecker;
+  bool _gameStarted = false;
   int _reconnectAttempts = 0;
 
   InParty? get _inParty => state is InParty ? state as InParty : null;
@@ -119,6 +120,7 @@ class SessionCubit extends Cubit<SessionState> {
 
   Future<void> leaveParty() async {
     try {
+      _gameStarted = false;
       _partyDownloadChecker?.cancel();
       _partyDownloadChecker = null;
       await _service.partyServiceClient.leaveParty(.new());
@@ -173,6 +175,8 @@ class SessionCubit extends Cubit<SessionState> {
   Future<void> joinServerForParty() async {
     final info = _inParty?.joinGameInfo;
     if (info == null) return;
+
+    _gameStarted = true;
 
     if (_partyDownloadChecker != null) {
       NotificationService.info(
@@ -391,6 +395,7 @@ class SessionCubit extends Cubit<SessionState> {
     }
 
     if (event.hasKicked()) {
+      _gameStarted = false;
       _partyDownloadChecker?.cancel();
       _partyDownloadChecker = null;
       NotificationService.warning(message: 'You were kicked from the party');
@@ -528,7 +533,7 @@ class SessionCubit extends Cubit<SessionState> {
       );
 
       if (statuses.values.every((s) => s.hasMods)) {
-        if (await isAlreadyIngame()) {
+        if (_gameStarted) {
           return;
         }
 
@@ -543,7 +548,7 @@ class SessionCubit extends Cubit<SessionState> {
 
       final myStatus = info.memberStatuses[userId];
       if (myStatus?.hasMods ?? false) {
-        if (await isAlreadyIngame()) {
+        if (_gameStarted) {
           return;
         }
 

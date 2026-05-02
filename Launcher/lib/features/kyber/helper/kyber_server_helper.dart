@@ -55,8 +55,9 @@ class KyberServerHelper {
     final tmpCollection = ModCollectionMetaData(
       title: server.name,
       mods: [
-        if (selectedCollection != null &&
-            !selectedCollection.containsGameplayMods())
+        if ((selectedCollection != null &&
+                !selectedCollection.containsGameplayMods()) ||
+            selectedCollection == null)
           ...collectionMods,
         if (selectedCollection != null) ...selectedCollection.mods,
       ],
