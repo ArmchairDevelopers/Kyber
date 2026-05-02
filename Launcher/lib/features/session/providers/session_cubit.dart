@@ -63,6 +63,14 @@ class SessionCubit extends Cubit<SessionState> {
     return _service.partyServiceClient.invitePlayer(.new(userId: userId));
   }
 
+  Future<void> kickFromParty(String userId) {
+    return _service.partyServiceClient.kickMember(.new(userId: userId));
+  }
+
+  Future<void> transferLeader(String userId) {
+    return _service.partyServiceClient.transferLeader(.new(userId: userId));
+  }
+
   Future<void> acceptInvite(Int64 partyId) async {
     await _service.partyServiceClient.acceptInvite(.new(partyId: partyId));
 

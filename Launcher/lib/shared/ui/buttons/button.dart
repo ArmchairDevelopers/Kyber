@@ -260,22 +260,23 @@ class _KyberButtonState extends State<KyberButton>
 class CurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    final path_0 = Path();
-    path_0.moveTo(5, 0);
-    path_0.lineTo(size.width - 12.5, 0);
-    path_0.lineTo(size.width, 12.5);
-    path_0.lineTo(size.width, size.height - 5);
-    path_0.quadraticBezierTo(
-      size.width,
-      size.height,
-      size.width - 5,
-      size.height,
-    );
-    path_0.lineTo(5, size.height);
-    path_0.quadraticBezierTo(0, size.height, 0, size.height - 5);
-    path_0.lineTo(0, 5);
-    path_0.quadraticBezierTo(0, 0, 5, 0);
-    path_0.close();
+    final path_0 = Path()
+      ..moveTo(7, 0)
+      ..lineTo(size.width - 12.5, 0)
+      ..lineTo(size.width, 12.5)
+      ..lineTo(size.width, size.height - 7)
+      ..quadraticBezierTo(
+        size.width,
+        size.height,
+        size.width - 7,
+        size.height,
+      )
+      ..lineTo(7, size.height)
+      ..quadraticBezierTo(0, size.height, 0, size.height - 7)
+      ..lineTo(0, 7)
+      ..quadraticBezierTo(0, 0, 7, 0)
+      ..close();
+
     return path_0;
   }
 
@@ -299,27 +300,27 @@ class CurvePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path_0 = Path();
-    path_0.moveTo(5, 0);
-    path_0.lineTo(size.width - 12.5, 0);
-    path_0.lineTo(size.width, 12.5);
-    path_0.lineTo(size.width, size.height - 5);
-    path_0.quadraticBezierTo(
-      size.width,
-      size.height,
-      size.width - 5,
-      size.height,
-    );
-    path_0.lineTo(5, size.height);
-    path_0.quadraticBezierTo(0, size.height, 0, size.height - 5);
-    path_0.lineTo(0, 5);
-    path_0.quadraticBezierTo(0, 0, 5, 0);
-    path_0.close();
+    final path_0 = Path()
+      ..moveTo(7, 0)
+      ..lineTo(size.width - 12.5, 0)
+      ..lineTo(size.width, 12.5)
+      ..lineTo(size.width, size.height - 7)
+      ..quadraticBezierTo(
+        size.width,
+        size.height,
+        size.width - 7,
+        size.height,
+      )
+      ..lineTo(7, size.height)
+      ..quadraticBezierTo(0, size.height, 0, size.height - 7)
+      ..lineTo(0, 7)
+      ..quadraticBezierTo(0, 0, 7, 0)
+      ..close();
 
-    final path_1 = Path();
-    path_1.moveTo(33, 0);
-    path_1.lineTo(33, size.height);
-    path_1.close();
+    final path_1 = Path()
+      ..moveTo(33, 0)
+      ..lineTo(33, size.height)
+      ..close();
 
     late Color color;
     if (!highlighted) {
@@ -330,7 +331,6 @@ class CurvePainter extends CustomPainter {
           begin: kButtonBorder,
           end: kActiveColor,
         ).evaluate(animation)!;
-        //color = kButtonBorder;
       }
     } else {
       color = kActiveColor;
@@ -338,12 +338,12 @@ class CurvePainter extends CustomPainter {
 
     final paintStroke0 = Paint()
       ..color = color
-      ..style = PaintingStyle.stroke
+      ..style = .stroke
       ..strokeWidth = highlighted
           ? Tween<double>(begin: 3, end: 5).evaluate(animation)
           : 4
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+      ..strokeCap = .round
+      ..strokeJoin = .round;
 
     canvas.drawPath(path_0, paintStroke0);
     if (hasIcon) {

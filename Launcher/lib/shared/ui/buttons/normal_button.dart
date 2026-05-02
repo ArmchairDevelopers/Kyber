@@ -203,6 +203,7 @@ class KOutlinedButton extends StatelessWidget {
           };
 
           return Container(
+            padding: buttonPadding,
             decoration: BoxDecoration(
               color: const Color(0xFFD9D9D9).withOpacity(.1),
               border: .all(
@@ -221,10 +222,7 @@ class KOutlinedButton extends StatelessWidget {
                   fontFamily: FontFamily.battlefrontUI,
                   fontWeight: .w700,
                 ),
-                child: Padding(
-                  padding: buttonPadding,
-                  child: child,
-                ),
+                child: child,
               ),
             ),
           );

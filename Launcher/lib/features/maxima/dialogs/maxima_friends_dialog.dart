@@ -11,7 +11,6 @@ import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
 import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
-import 'package:kyber_launcher/shared/ui/buttons/normal_button.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
@@ -347,15 +346,41 @@ class _MemberTile extends StatelessWidget {
                     right: 0,
                     top: 0,
                     bottom: 0,
-                    child: Row(
-                      children: [
-                        KOutlinedButton(
-                          child: Icon(mt.Icons.close_sharp, size: 25),
-                          onPressed: () {
-                            // TODO: Implement kick from party
-                          },
-                        ),
-                      ],
+                    child: SizedBox(
+                      height: 35,
+                      child: Row(
+                        spacing: 15,
+                        children: [
+                          SizedBox(
+                            child: KOutlinedButton(
+                              child: const Text('MAKE LEADER'),
+                              onPressed: () {
+                                try {
+                                  context.read<SessionCubit>().transferLeader(id);
+                                } on GrpcError catch (e) {
+                                  NotificationService.error(
+                                    message:
+                                        'Failed to transfer leadership: ${e.message}',
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                          KOutlinedButton(
+                            padding: const .symmetric(horizontal: 20, vertical: 5),
+                            child: const Icon(mt.Icons.close_sharp, size: 22),
+                            onPressed: () {
+                              try {
+                                context.read<SessionCubit>().kickFromParty(id);
+                              } on GrpcError catch (e) {
+                                NotificationService.error(
+                                  message: 'Failed to kick member: ${e.message}',
+                                );
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
               ],

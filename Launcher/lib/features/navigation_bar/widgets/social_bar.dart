@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
+import 'package:kyber_launcher/features/maxima/dialogs/maxima_friends_dialog.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
@@ -123,33 +124,46 @@ class _UserBar extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Container(
-      margin: const .symmetric(vertical: 7),
-      decoration: BoxDecoration(
-        border: const .fromBorderSide(.new(color: decoColor, width: 1)),
-        borderRadius: const .all(.circular(6)),
-        color: Colors.black.withOpacity(0.5),
+    return ButtonBuilder(
+      onClick: () => showKyberDialog(
+        context: context,
+        builder: (_) => const MaximaFriendsDialog(),
       ),
-      padding: const .symmetric(horizontal: 3, vertical: 3),
-      child: Row(
-        spacing: 10,
-        children: [
-          MaximaAvatar(
-            pd: currentUser.pd,
-            height: 24,
-            width: 24,
+      builder: (context, hovered) {
+        final color = switch (hovered) {
+          true => kActiveColor,
+          false => decoColor,
+        };
+
+        return Container(
+          margin: const .symmetric(vertical: 7),
+          decoration: BoxDecoration(
+            border: .fromBorderSide(.new(color: color, width: 1)),
+            borderRadius: const .all(.circular(6)),
+            color: Colors.black.withOpacity(0.5),
           ),
-          Text(
-            currentUser.displayName,
-            style: const TextStyle(
-              fontSize: 16,
-              fontFamily: FontFamily.battlefrontUI,
-              height: 1.1,
-            ),
+          padding: const .symmetric(horizontal: 3, vertical: 3),
+          child: Row(
+            spacing: 10,
+            children: [
+              MaximaAvatar(
+                pd: currentUser.pd,
+                height: 24,
+                width: 24,
+              ),
+              Text(
+                currentUser.displayName,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontFamily: FontFamily.battlefrontUI,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox.shrink(),
+            ],
           ),
-          const SizedBox.shrink(),
-        ],
-      ),
+        );
+      },
     );
   }
 }
