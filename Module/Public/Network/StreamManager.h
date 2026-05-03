@@ -17,7 +17,8 @@ namespace Kyber
 TL_DECLARE_FUNC(0x14546EB60, uint32_t, BitStream_read, void* stream, uint32_t bitCount);
 TL_DECLARE_FUNC(0x145477800, void, BitStream_write, void* stream, uint32_t value, uint32_t bitCount);
 
-uint32_t GetRequiredBits(int32_t value);
+uint32_t GetRequiredBits(uint32_t value);
+uint32_t GetRequiredBits(uint64_t value);
 
 class InBitStream
 {

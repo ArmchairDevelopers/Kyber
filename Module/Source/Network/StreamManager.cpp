@@ -6,15 +6,20 @@
 #include <Core/Program.h>
 #include <Hook/HookManager.h>
 
+#include <bit>
+
 namespace Kyber
 {
 TL_DECLARE_FUNC(0x146C38B40, void, StreamManagerEngine_addManager, void* engine, void* manager)
 
-uint32_t GetRequiredBits(int32_t value)
+uint32_t GetRequiredBits(uint32_t value)
 {
-    unsigned long amount;
-    _BitScanReverse(&amount, value); // maybe use _bit_scan_reverse(A) but import is sketchy
-    return amount;
+    return 31 - std::countl_zero(value);
+}
+
+uint32_t GetRequiredBits(uint64_t value)
+{
+    return 63 - std::countl_zero(value);
 }
 
 uint64_t BitStreamRead::ReadUnsignedLimit64(uint64_t lowerBound, uint64_t upperBound)
