@@ -52,10 +52,30 @@ class LauncherService extends LauncherCommonServiceBase {
   }
 
   @override
-  Future<Empty> onServerJoined(ServiceCall call, Empty request) {
+  Future<Empty> onServerJoined(ServiceCall call, Empty request) async {
     navigatorKey.currentContext!.read<KyberStatusCubit>()
       ..joined = true
       ..onTick();
+
+    final context = navigatorKey.currentContext!;
+    final sessionCubit = context.read<SessionCubit>();
+    final kyberCubit = context.read<KyberStatusCubit>().state;
+    String? serverId;
+
+    if (kyberCubit is KyberStatusPlaying) {
+      serverId = kyberCubit.server?.id;
+    } else if (kyberCubit is KyberStatusHosting) {
+      serverId = kyberCubit.server?.id;
+    }
+
+    if (serverId != null) {
+      await sessionCubit.onJoined(serverId: serverId);
+    } else {
+      Logger.root.warning(
+        'Server joined notification received but server ID is null',
+      );
+    }
+
     Logger.root.info('Server joined notification received');
     return Future.value(Empty());
   }

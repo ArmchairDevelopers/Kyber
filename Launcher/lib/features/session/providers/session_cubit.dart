@@ -142,6 +142,14 @@ class SessionCubit extends Cubit<SessionState> {
     );
   }
 
+  Future<void> onJoined({required String serverId}) async {
+    _channel?.sink.add(
+      SessionClientEvent(
+        gameJoined: .new(serverId: serverId),
+      ).writeToBuffer(),
+    );
+  }
+
   Future<void> cancelJoinGame() async {
     await _service.partyServiceClient.cancelJoinGame(.new());
   }
