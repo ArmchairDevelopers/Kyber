@@ -358,7 +358,57 @@ func (s *SessionManager) handleClientMessage(userID string, msg []byte) {
 		s.handleJoinGameStatusUpdate(userID, evt.UpdateJoinGameStatus)
 	case *pbapi.SessionClientEvent_JoinGameReady:
 		s.handleJoinGameReady(userID)
+	case *pbapi.SessionClientEvent_GameJoined:
+		s.handleJoinedGame(userID, evt.GameJoined.ServerId)
 	}
+}
+
+func (s *SessionManager) handleJoinedGame(userID string, serverID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	session, err := s.store.Sessions.GetByUserID(ctx, userID)
+	if err != nil || session == nil || session.PartyID == nil {
+		return
+	}
+
+	partyID := *session.PartyID
+
+	party, err := s.store.Parties.GetByID(ctx, partyID)
+	if err != nil || party == nil || party.JoinGameState == nil {
+		return
+	}
+
+	if party.JoinGameState.ServerID != serverID {
+		return
+	}
+
+	statuses := party.JoinGameState.MemberStatuses
+	updated := false
+	var userStatus models.PartyJoinGameMemberStatus
+	for i, status := range statuses {
+		if status.UserID == userID {
+			if !status.HasMods {
+				logger.L().Warn("User joined game without mods status", zap.String("user_id", userID))
+			}
+
+			statuses[i] = models.PartyJoinGameMemberStatus{
+				UserID:                userID,
+				HasMods:               true,
+				ModDownloadPercentage: status.ModDownloadPercentage,
+				Joined:                true,
+			}
+			userStatus = statuses[i]
+			updated = true
+			break
+		}
+	}
+
+	if !updated {
+		return
+	}
+
+	s.updateJoinStatus(ctx, partyID, statuses, &userStatus)
 }
 
 func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.UpdateJoinGameStatusEvent) {
@@ -379,6 +429,7 @@ func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.Up
 		return
 	}
 
+	var userStatus *models.PartyJoinGameMemberStatus
 	statuses := party.JoinGameState.MemberStatuses
 	updated := false
 	for i, st := range statuses {
@@ -388,18 +439,25 @@ func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.Up
 				HasMods:               evt.HasMods,
 				ModDownloadPercentage: evt.ModDownloadPercentage,
 			}
+			userStatus = &statuses[i]
 			updated = true
 			break
 		}
 	}
+
 	if !updated {
-		statuses = append(statuses, models.PartyJoinGameMemberStatus{
+		userStatus = &models.PartyJoinGameMemberStatus{
 			UserID:                userID,
 			HasMods:               evt.HasMods,
 			ModDownloadPercentage: evt.ModDownloadPercentage,
-		})
+		}
+		statuses = append(statuses, *userStatus)
 	}
 
+	s.updateJoinStatus(ctx, partyID, statuses, userStatus)
+}
+
+func (s *SessionManager) updateJoinStatus(ctx context.Context, partyID uint64, statuses []models.PartyJoinGameMemberStatus, updatedStatus *models.PartyJoinGameMemberStatus) {
 	if err := s.store.Parties.Update(ctx, partyID, bson.M{"$set": bson.M{"join_game_state.member_statuses": statuses}}); err != nil {
 		logger.L().Error("Failed to persist join game status", zap.Error(err))
 	}
@@ -418,9 +476,10 @@ func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.Up
 	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_JoinGameStatus{
 			JoinGameStatus: &pbapi.JoinGameStatusEvent{
-				UserId:                userID,
-				HasMods:               evt.HasMods,
-				ModDownloadPercentage: evt.ModDownloadPercentage,
+				UserId:                updatedStatus.UserID,
+				HasMods:               updatedStatus.HasMods,
+				ModDownloadPercentage: updatedStatus.ModDownloadPercentage,
+				Joined:                updatedStatus.Joined,
 			},
 		},
 	})

@@ -11,6 +11,7 @@ type PartyJoinGameMemberStatus struct {
 	UserID                string  `json:"user_id" bson:"user_id"`
 	HasMods               bool    `json:"has_mods" bson:"has_mods"`
 	ModDownloadPercentage *uint32 `json:"mod_download_percentage,omitempty" bson:"mod_download_percentage,omitempty"`
+	Joined                bool    `json:"joined" bson:"joined"`
 }
 
 type PartyJoinGameState struct {
