@@ -66,6 +66,7 @@ func (p *PartyModel) Proto(sessions []SessionModel, users map[string]*UserModel)
 				UserId:                st.UserID,
 				HasMods:               st.HasMods,
 				ModDownloadPercentage: st.ModDownloadPercentage,
+				Joined:                st.Joined,
 			}
 		}
 

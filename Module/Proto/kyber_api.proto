@@ -202,6 +202,7 @@ message JoinGameMemberStatus {
   string userId = 1;
   bool hasMods = 2;
   optional uint32 modDownloadPercentage = 3;
+  bool joined = 4;
 }
 
 message PartyMember {
