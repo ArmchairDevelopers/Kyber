@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
+import 'package:kyber_launcher/features/kyber/providers/kyber_status_cubit.dart';
 import 'package:kyber_launcher/features/maxima/dialogs/maxima_friends_dialog.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
@@ -22,6 +23,9 @@ class SocialBar extends StatefulWidget {
 class _SocialBarState extends State<SocialBar> {
   @override
   Widget build(BuildContext context) {
+    final kyberState = context.watch<KyberStatusCubit>().state;
+    final maximaState = context.watch<MaximaCubit>().state;
+
     return SizedBox(
       height: 50,
       child: Container(
@@ -49,6 +53,20 @@ class _SocialBarState extends State<SocialBar> {
             ),
             Row(
               children: [
+                if (kyberState is KyberStatusPlaying) ...[
+                  const VCardSection(),
+                  _NavigationBarItem(
+                    icon: const Icon(mt.Icons.games_outlined),
+                    onClick: () => router.push('/ingame'),
+                  ),
+                ],
+                if (maximaState.isEntitled(.staff)) ...[
+                  const VCardSection(),
+                  _NavigationBarItem(
+                    icon: const Icon(mt.Icons.shield),
+                    onClick: () => router.push('/ingame'),
+                  ),
+                ],
                 const VCardSection(),
                 _NavigationBarItem(
                   icon: const _DownloadManagerButton(),
