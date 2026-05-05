@@ -1,6 +1,9 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/core/services/hotkey_manager.dart';
 import 'package:kyber_launcher/core/services/voip_service.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
+import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:logging/logging.dart';
@@ -16,6 +19,11 @@ class MaximaInstanceService {
     _instances.removeWhere((e) => e.pid == instance.pid);
     if (sl.isRegistered<MaximaGameInstance>(instance: instance)) {
       sl.unregister<MaximaGameInstance>(instance: instance);
+      final context = navigatorKey.currentContext!;
+      final stateCubit = context.read<SessionCubit>();
+      if (stateCubit.gameJoined) {
+        stateCubit.leaveGame();
+      }
     }
 
     _logger.info('Instance ${instance.pid} stopped');

@@ -62,10 +62,12 @@ class JoinGameMemberStatusInfo extends Equatable {
   const JoinGameMemberStatusInfo({
     required this.hasMods,
     this.modDownloadPercentage,
+    this.joined = false,
   });
 
   final bool hasMods;
   final int? modDownloadPercentage;
+  final bool joined;
 
   @override
   List<Object?> get props => [hasMods, modDownloadPercentage];

@@ -8,6 +8,7 @@ import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_status_cubit.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
 import 'package:kyber_launcher/features/mods/services/level_declaration_service.dart';
+import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:logging/logging.dart';
 
@@ -64,6 +65,13 @@ class LauncherService extends LauncherCommonServiceBase {
     navigatorKey.currentContext!.read<KyberStatusCubit>()
       ..joined = false
       ..onTick();
+
+    final context = navigatorKey.currentContext!;
+    final stateCubit = context.read<SessionCubit>();
+    if (stateCubit.gameJoined) {
+      stateCubit.leaveGame();
+    }
+
     Logger.root.info('Server left notification received');
     return Future.value(Empty());
   }

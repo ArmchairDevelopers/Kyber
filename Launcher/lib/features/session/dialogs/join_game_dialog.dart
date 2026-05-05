@@ -37,6 +37,8 @@ class JoinGameDialog extends StatelessWidget {
         final hasMods = myStatus?.hasMods ?? false;
         final isDownloading =
             myStatus?.modDownloadPercentage != null && !hasMods;
+        final leaderIsInGame =
+            info.memberStatuses[info.leaderId]?.joined ?? false;
 
         return KyberContentDialog(
           title: Text('Join Game'.toUpperCase()),
@@ -96,25 +98,22 @@ class JoinGameDialog extends StatelessWidget {
             if (isLeader)
               KyberButton(
                 text: 'Cancel Joining',
-                onPressed: () {
-                  context.read<SessionCubit>().cancelJoinGame();
-                },
+                onPressed: () => context.read<SessionCubit>().cancelJoinGame(),
               ),
             if (!hasMods && !isDownloading)
               KyberButton(
                 text: 'Download Mods',
-                onPressed: () {
-                  context.read<SessionCubit>().startModDownloads();
-                },
+                onPressed: () =>
+                    context.read<SessionCubit>().startModDownloads(),
               ),
-            /*if (hasMods && !isLeader)
+            if (hasMods && !isLeader && leaderIsInGame)
               KyberButton(
                 text: 'Join Game',
                 onPressed: () {
                   Navigator.of(context).pop();
                   context.read<SessionCubit>().joinGameLate();
                 },
-              ),*/
+              ),
             if (isLeader && hasMods)
               KyberButton(
                 text: 'Join All Ready',
@@ -145,11 +144,19 @@ class _MemberRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasMods = status?.hasMods ?? false;
     final progress = status?.modDownloadPercentage;
+    final isInGame = status?.joined ?? false;
 
     final String statusText;
     final Widget statusIcon;
 
-    if (hasMods) {
+    if (isInGame) {
+      statusText = 'IN GAME';
+      statusIcon = Icon(
+        FluentIcons.game,
+        size: 20,
+        color: kActiveColor,
+      );
+    } else if (hasMods) {
       statusText = 'READY';
       statusIcon = Icon(
         FluentIcons.check_mark,

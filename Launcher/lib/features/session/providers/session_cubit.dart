@@ -44,7 +44,7 @@ class SessionCubit extends Cubit<SessionState> {
   IOWebSocketChannel? _channel;
   Timer? _keepAliveTimer;
   Timer? _partyDownloadChecker;
-  bool _gameStarted = false;
+  bool gameJoined = false;
   int _reconnectAttempts = 0;
 
   InParty? get _inParty => state is InParty ? state as InParty : null;
@@ -70,6 +70,10 @@ class SessionCubit extends Cubit<SessionState> {
 
   Future<void> transferLeader(String userId) {
     return _service.partyServiceClient.transferLeader(.new(userId: userId));
+  }
+
+  void leaveGame() {
+    gameJoined = false;
   }
 
   Future<void> acceptInvite(Int64 partyId) async {
@@ -120,7 +124,7 @@ class SessionCubit extends Cubit<SessionState> {
 
   Future<void> leaveParty() async {
     try {
-      _gameStarted = false;
+      gameJoined = false;
       _partyDownloadChecker?.cancel();
       _partyDownloadChecker = null;
       await _service.partyServiceClient.leaveParty(.new());
@@ -176,7 +180,7 @@ class SessionCubit extends Cubit<SessionState> {
     final info = _inParty?.joinGameInfo;
     if (info == null) return;
 
-    _gameStarted = true;
+    gameJoined = true;
 
     if (_partyDownloadChecker != null) {
       NotificationService.info(
@@ -265,6 +269,13 @@ class SessionCubit extends Cubit<SessionState> {
 
     _keepAliveTimer?.cancel();
     await _channel?.sink.close();
+
+    if (!sl.isReadySync<ModService>()) {
+      _logger.warning(
+        'ModService not ready, waiting before connecting to session stream',
+      );
+      await sl.isReady<ModService>();
+    }
 
     _service.partyServiceClient
         .getParty(.new())
@@ -395,7 +406,7 @@ class SessionCubit extends Cubit<SessionState> {
     }
 
     if (event.hasKicked()) {
-      _gameStarted = false;
+      gameJoined = false;
       _partyDownloadChecker?.cancel();
       _partyDownloadChecker = null;
       NotificationService.warning(message: 'You were kicked from the party');
@@ -525,6 +536,7 @@ class SessionCubit extends Cubit<SessionState> {
         modDownloadPercentage: status.hasModDownloadPercentage()
             ? status.modDownloadPercentage
             : null,
+        joined: status.joined,
       );
 
       _emitInParty(
@@ -532,8 +544,10 @@ class SessionCubit extends Cubit<SessionState> {
         joinGameInfo: info.copyWith(memberStatuses: statuses),
       );
 
-      if (statuses.values.every((s) => s.hasMods)) {
-        if (_gameStarted) {
+      final everyoneHasMods = statuses.values.every((s) => s.hasMods);
+      final everyoneReady = !statuses.values.every((s) => s.joined);
+      if (everyoneHasMods && everyoneReady) {
+        if (gameJoined) {
           return;
         }
 
@@ -548,7 +562,7 @@ class SessionCubit extends Cubit<SessionState> {
 
       final myStatus = info.memberStatuses[userId];
       if (myStatus?.hasMods ?? false) {
-        if (_gameStarted) {
+        if (gameJoined) {
           return;
         }
 
@@ -640,6 +654,7 @@ class SessionCubit extends Cubit<SessionState> {
             modDownloadPercentage: s.hasModDownloadPercentage()
                 ? s.modDownloadPercentage
                 : null,
+            joined: s.joined,
           ),
       },
     );
