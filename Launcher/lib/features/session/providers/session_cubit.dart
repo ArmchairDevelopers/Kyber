@@ -473,7 +473,7 @@ class SessionCubit extends Cubit<SessionState> {
         ...party.members,
         PartyMember(
           player: event.memberJoined.user,
-          joinedAt: Int64(DateTime.now().millisecondsSinceEpoch),
+          joinedAt: Int64(DateTime.now().millisecondsSinceEpoch ~/ 1000),
         ),
       ]);
     } else if (event.hasMemberLeft()) {
@@ -515,9 +515,14 @@ class SessionCubit extends Cubit<SessionState> {
       }
     } else if (event.hasJoinGame()) {
       final jg = event.joinGame;
-      final initialStatuses = {
+      final existing = _inParty?.joinGameInfo;
+      final isSameServer = existing?.serverId == jg.serverId;
+
+      final memberStatuses = <String, JoinGameMemberStatusInfo>{
         for (final m in party.members)
-          m.player.id: const JoinGameMemberStatusInfo(hasMods: false),
+          m.player.id:
+              (isSameServer ? existing!.memberStatuses[m.player.id] : null) ??
+              const JoinGameMemberStatusInfo(hasMods: false),
       };
 
       final joinGameInfo = JoinGameInfo(
@@ -525,12 +530,14 @@ class SessionCubit extends Cubit<SessionState> {
         serverName: jg.serverName,
         mods: jg.mods.toList(),
         leaderId: jg.leaderId,
-        memberStatuses: initialStatuses,
+        memberStatuses: memberStatuses,
       );
 
       _emitInParty(party, joinGameInfo: joinGameInfo);
       _checkAndReportModStatus(jg.mods.toList());
-      showJoinGameDialog();
+      if (!isSameServer) {
+        showJoinGameDialog();
+      }
     } else if (event.hasJoinGameStatus()) {
       final status = event.joinGameStatus;
       final info = _inParty?.joinGameInfo;
@@ -825,6 +832,12 @@ class SessionCubit extends Cubit<SessionState> {
     _partyDownloadChecker = Timer.periodic(
       const Duration(seconds: 1),
       (timer) async {
+        if (_inParty?.joinGameInfo == null) {
+          timer.cancel();
+          _partyDownloadChecker = null;
+          return;
+        }
+
         await sl<ModService>().refreshCompleter.future;
 
         final allInstalled = mods.every(
