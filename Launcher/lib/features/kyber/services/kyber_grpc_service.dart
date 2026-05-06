@@ -76,7 +76,6 @@ class LauncherService extends LauncherCommonServiceBase {
       return Future.value(Empty());
     }
 
-
     final sessionState = sessionCubit.state;
     if (kyberStatus is KyberStatusHosting &&
         sessionState is InParty &&
