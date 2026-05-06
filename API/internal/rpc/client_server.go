@@ -239,7 +239,7 @@ func (s *ClientServer) ConsumeJoinToken(ctx context.Context, req *pbapi.ConsumeJ
 		groupId = session.PartyID
 	}
 
-	logger.L().Info(fmt.Sprintf("Consumed join token for user (id: %s) on server (id: %s)", user.ID, server.ID))
+	logger.L().Info(fmt.Sprintf("Consumed join token for user (id: %s) on server (id: %s) (partyId: %d)", user.ID, server.ID, groupId))
 	return &pbapi.ConsumeJoinTokenResponse{
 		Id:      user.ID,
 		Name:    user.Name,
