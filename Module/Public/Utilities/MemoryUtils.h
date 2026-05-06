@@ -10,9 +10,9 @@ class MemoryUtils
 {
 public:
     template<typename T>
-    static T* Copy(T* src, unsigned int size);
+    static T* Copy(T* src, unsigned int size = sizeof(T));
     template<typename T>
-    static T* Copy(MemoryArena* arena, T* src, unsigned int size);
+    static T* Copy(MemoryArena* arena, T* src, unsigned int size = sizeof(T));
 
     static void Patch(void* dst, void* src, unsigned int size);
     static void Nop(void* dst, unsigned int size);

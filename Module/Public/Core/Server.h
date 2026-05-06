@@ -17,8 +17,6 @@
 #include <string>
 #include <xhash>
 
-#define OFFSET_SERVERGAMECONTEXT_INSTANCE 0x143EC7238
-
 namespace Kyber
 {
 void InitLevelSetup(LevelSetup* levelSetup, const char* level, const char* mode, const char* startPoint, const char* initialSubLevel);
@@ -104,7 +102,7 @@ public:
 
     ServerGameContext* GetServerGameContext()
     {
-        return *reinterpret_cast<ServerGameContext**>(OFFSET_SERVERGAMECONTEXT_INSTANCE);
+        return ServerGameContext::Get();
     }
 
     void SendConsoleMessage(const std::string& message);
@@ -112,6 +110,7 @@ public:
     void LoadNextLevel(const char* level, const char* mode, const char* startPoint = "", const char* initialSubLevel = "",
         bool updateServerBrowser = true);
     void BroadcastMessage(const std::string& message, const std::string& username = "ADMIN", ChatChannel channel = ChatChannel_All);
+    void SendChatMessage(ServerPlayer* player, const std::string& message);
 
     void SetDedicatedCreationInfo(const ServerCreationInfo& info);
 

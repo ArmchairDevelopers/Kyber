@@ -110,6 +110,11 @@ void ServerSquadManager::SetPlayerGroup(const ServerPlayer* player, GroupId grou
         return;
     }
 
+    if (groupId == 0)
+    {
+        return;
+    }
+
     GameEventSquadChange event;
     event.eventType = 4;
     event.groupId = groupId;
@@ -119,9 +124,13 @@ void ServerSquadManager::SetPlayerGroup(const ServerPlayer* player, GroupId grou
     GroupManager_addEvent(s_squadEventSystem, event);
 
     GroupId existingGroupId = FindPlayerGroup(player);
-    if (existingGroupId != 0 && existingGroupId != groupId)
+    if (existingGroupId != groupId)
     {
-        RemovePlayerFromGroup(player, existingGroupId);
+        if (existingGroupId != 0)
+        {
+            RemovePlayerFromGroup(player, existingGroupId);
+        }
+        
         m_activeGroups[groupId].push_back(player->m_onlineId.m_nativeData);
     }
 
@@ -278,7 +287,7 @@ void ServerAutoTeamEntityEventHk(void* inst, ServerPlayerEvent* event)
         {
             continue;
         }
-        KYBER_LOG(Info, "Successfully got group mate (playerid): " << groupMateId);
+        KYBER_LOG(Info, "Successfully got group mate (player id): " << groupMateId);
 
         // Successfully found a group member to change teams to
         ServerPlayer* groupMate = g_program->m_server->m_playerManager->GetPlayer(groupMateId);
@@ -286,7 +295,12 @@ void ServerAutoTeamEntityEventHk(void* inst, ServerPlayerEvent* event)
         {
             continue;
         }
-        KYBER_LOG(Info, "Successfully got group mate (player ptr): " << groupMate->m_name);
+        KYBER_LOG(Info, "Successfully got group mate (player name): " << groupMate->m_name);
+
+        if (groupMate->m_teamId == 0)
+        {
+            continue;
+        }
 
         player->SetTeam(groupMate->m_teamId);
         successfullySetTeam = true;

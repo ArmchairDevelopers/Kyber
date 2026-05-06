@@ -323,6 +323,16 @@ void Server::BroadcastMessage(const std::string& message, const std::string& use
     FB_SERVER_ARENA->free(dummyName);
 }
 
+void Server::SendChatMessage(ServerPlayer* player, const std::string& message)
+{
+    ServerPlayer dummyPlayer;
+    dummyPlayer.m_name = "";
+    dummyPlayer.m_teamId = kServerTeamAdminMarker;
+
+    ServerConnection* serverConnection = GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+    serverConnection->SendChatMessage(ChatChannel_Admin, message.c_str(), dummyPlayer.m_onlineId);
+}
+
 void Server::SetDedicatedCreationInfo(const ServerCreationInfo& info)
 {
     if (!g_program->m_isDedicatedServer)
@@ -618,7 +628,7 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
     }
 
     std::string authToken = playerName.substr(prefix.size());
-    NetworkCreatePlayerMessage* copiedMessage = MemoryUtils::Copy(FB_SERVER_ARENA, message, 0x68);
+    NetworkCreatePlayerMessage* copiedMessage = MemoryUtils::Copy(FB_SERVER_ARENA, message);
 
     g_program->GetAPI()->GetClientServer()->ConsumeJoinToken(g_program->m_server->m_serverId, authToken,
         [inst, playerName, copiedMessage](std::optional<const ConsumeJoinTokenResponse*> response) {
@@ -669,7 +679,8 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
                     // TEST// TEST// TEST// TEST// TEST// TEST
                     event->groupId = 19472;
                 }
-                
+                event->groupId = 19472;
+
                 g_program->m_server->m_eventManager->QueueEvent(event);
             }
             else 

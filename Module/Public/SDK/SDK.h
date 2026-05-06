@@ -423,7 +423,7 @@ public:
         if (MemoryArena* arena = ArenaMap::FindArenaForObject(this, false))
         {
             // cant seem to figure out which ptr its alloc'd to
-            //arena->free(reinterpret_cast<void*>((reinterpret_cast<uintptr_t>(m_data) - headerSize) & ~15ul));
+            // arena->free(reinterpret_cast<void*>((reinterpret_cast<uintptr_t>(m_data) - headerSize) & ~15ul));
             MemoryLeakDb::AddEntry(prevSize * sizeof(T), "FBArray::extend original free fail");
         }
         else
@@ -638,6 +638,21 @@ enum LocalPlayerId
     LocalPlayerId_Invalid = 0xFF, // 0x000A
 };
 
+enum ChatChannel
+{
+    ChatChannel_All,
+    ChatChannel_Group,
+    ChatChannel_Team,
+    ChatChannel_Admin
+};
+
+class OnlineId
+{
+public:
+    uint64_t m_nativeData; // 0x0000
+    char m_id[16];         // 0x0008
+}; // Size: 0x0018
+
 class EngineConnection
 {
 public:
@@ -650,9 +665,9 @@ public:
 class ServerPlayerConnection
 {
 public:
-    char pad_0000[0xF8]; // 0x0000
-    ServerPlayer* m_serverPlayer; // 0x00F8
-    char pad_0060[0x58]; // 0x0100
+    char pad_0000[0xF8];           // 0x0000
+    ServerPlayer* m_serverPlayer;  // 0x00F8
+    char pad_0060[0x58];           // 0x0100
     LocalPlayerId m_localPlayerId; // 0x0158
 };
 
@@ -661,6 +676,7 @@ class ServerConnection : public EngineConnection
 public:
     KB_DECLARE_GAMEMEMBERFUNC(
         0x140BFA820, ServerPlayerConnection*, ValidateLocalPlayer, (playerId, allowFail), LocalPlayerId playerId, bool allowFail)
+
     void SafeDisconnect(const char* reasonText, SecureReason reason);
     void SafeDisconnect(const char* reasonText);
     void SafeDisconnect(SecureReason reason);
@@ -670,9 +686,17 @@ public:
         return GetPlayerInternal(localPlayerId, allowFail);
     }
 
+    void SendChatMessage(
+        ChatChannel channel, const char* message, OnlineId& senderOnlineId, LocalPlayerId recipientLocalPlayerId = LocalPlayerId_0)
+    {
+        SendChatMessageInternal(channel, message, senderOnlineId, recipientLocalPlayerId);
+    }
+
 private:
     KB_DECLARE_GAMEMEMBERFUNC(
         0x140BF6460, class ServerPlayer*, GetPlayerInternal, (playerId, allowFail), enum LocalPlayerId playerId, bool allowFail)
+    KB_DECLARE_GAMEMEMBERFUNC(0x14189EFB0, void, SendChatMessageInternal, (channel, message, senderOnlineId, recipientLocalPlayerId),
+        ChatChannel channel, const char* message, OnlineId& senderOnlineId, LocalPlayerId recipientLocalPlayerId)
 
     char pad_0590[0x230];                                                                      // 0x0590
     eastl::fixed_vector<ServerPlayerConnection*, LocalPlayerId_Any> m_serverPlayerConnections; // 0x07C0 // size: 0x68
@@ -714,8 +738,8 @@ public:
     KB_DECLARE_GAMEMEMBERFUNC(0x146892CC0, void, SendMessage, (message), class Message* message)
     KB_DECLARE_GAMEMEMBERFUNC(0x140BF03E0, void, ForceDisconnectAll, (reason, message), SecureReason reason, const char* message)
 
-    char pad_0000[0x45A8]; // 0x0000
-    eastl::vector<ServerConnection*> m_connections;
+    char pad_0000[0x45A8];                          // 0x0000
+    eastl::vector<ServerConnection*> m_connections; // 0x45A8
 };
 
 class ServerGameContext
@@ -726,6 +750,11 @@ public:
     char pad_0018[64];                        // 0x0018
     ServerPlayerManager* serverPlayerManager; // 0x0058
     ServerPeer* serverPeer;                   // 0x0060
+
+    static ServerGameContext* Get()
+    {
+        return *reinterpret_cast<ServerGameContext**>(0x143EC7238);
+    }
 }; // Size: 0x0890
 
 class VehicleEntityData
@@ -860,14 +889,6 @@ public:
     }
 }; // Size: 0x00C8
 
-
-class OnlineId
-{
-public:
-    uint64_t m_nativeData; // 0x0000
-    char m_id[16];         // 0x0008
-}; // Size: 0x0018
-
 class ClientPlayer
 {
 public:
@@ -996,7 +1017,7 @@ public:
 
     static ClientGameContext* Get()
     {
-        return *(ClientGameContext**)0x143EE7858;
+        return *reinterpret_cast<ClientGameContext**>(0x143EE7858);
     }
 };
 
@@ -1201,14 +1222,6 @@ public:
     {
         return (TypeInfo*)0x1445250B0;
     }
-};
-
-enum ChatChannel
-{
-    ChatChannel_All,
-    ChatChannel_Group,
-    ChatChannel_Team,
-    ChatChannel_Admin
 };
 
 class ServerCharacterEntity;
@@ -1516,7 +1529,7 @@ public:
         }
     }
 
-    inline void* get() const 
+    inline void* get() const
     {
         return m_ptr;
     }
@@ -1529,7 +1542,6 @@ private:
 class WeakPtrBase
 {
 public:
-    
 protected:
     WeakToken* m_token;
 };
@@ -2246,6 +2258,22 @@ struct NetworkPlayerSelectedWeaponMessage
     FBArray<DataContainer*> m_unlockAssets;
     char gap70;
     bool m_isFirstWeapon;
+};
+
+class CoreGameTimerMessage : public Message
+{
+public:
+    double m_totalTime;
+    double unk1;
+    uint64_t unk2;
+    double m_timeElapsed;
+    uint64_t unk3;
+    double m_worstTickTime;
+    double m_avgTickTime;
+    FBArray<int32_t> unk4;
+    uint32_t m_ticks;
+    uint32_t unk5;
+    uint64_t unk6;
 };
 
 // note to all those who attempt to look into it: NetworkChangeGameSettingMessage is a scam.

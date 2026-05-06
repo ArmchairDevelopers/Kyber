@@ -479,11 +479,11 @@ void ShuffleTeamsCommand(ConsoleContext& cc)
         while (assignedPlayerCount < totalPlayerCount)
         {
             // Go through entire list and find the largest group.
-            uint32_t bestCandidate = 0;
-            uint32_t max = 0;
+            size_t bestCandidate = 0;
+            size_t max = 0;
             for (int i = 0; i < totalGroupCount; i++)
             {
-                uint32_t groupSize = groupedPlayers[i].size();
+                size_t groupSize = groupedPlayers[i].size();
                 if (groupSize > max)
                 {
                     bestCandidate = i;
@@ -491,8 +491,9 @@ void ShuffleTeamsCommand(ConsoleContext& cc)
                 }
             }
 
-            size_t* teamCountAffected = team1Count < team2Count ? &team1Count : &team2Count;
-            TeamId teamToAssign = team1Count < team2Count ? Team1 : Team2;
+            // Prefer team1
+            size_t* teamCountAffected = team1Count > team2Count ? &team2Count : &team1Count;
+            TeamId teamToAssign = team1Count > team2Count ? Team2 : Team1;
 
             const eastl::vector<ServerPlayer*>& groupList = groupedPlayers[bestCandidate];
             for (int i = 0; i < groupList.size(); i++)
@@ -501,6 +502,7 @@ void ShuffleTeamsCommand(ConsoleContext& cc)
             }
 
             *teamCountAffected += groupList.size();
+            assignedPlayerCount += groupList.size();
             groupedPlayers.erase_unsorted(&groupedPlayers[bestCandidate]);
         }
 

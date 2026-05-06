@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <functional>
 #include <typeindex>
-#include <winnt.h>
 
 namespace Kyber
 {
@@ -44,7 +43,7 @@ public:
     KB_DECLARE_GAMEMEMBERFUNC(0x1454722A0, uint32_t, ReadUnsignedLimit, (lowerBound, upperBound), int32_t lowerBound, int32_t upperBound)
     KB_DECLARE_GAMEMEMBERFUNC(0x145472420, void, ReadOctets, (data, size), void* data, uint32_t size)
 
-    template<int32_t Capacity>
+    template<uint32_t Capacity>
     eastl::string ReadString()
     {
         constexpr int neededBits = GetRequiredBits(Capacity);
@@ -103,7 +102,7 @@ public:
         0x145478E50, void, WriteUnsignedLimit, (value, lowerBound, upperBound), uint32_t value, uint32_t lowerBound, uint32_t upperBound)
     KB_DECLARE_GAMEMEMBERFUNC(0x145479360, void, WriteOctets, (data, size), void* data, uint32_t size)
 
-    template<int32_t Capacity>
+    template<uint32_t Capacity>
     void WriteString(const eastl::string& str)
     {
         KYBER_ASSERT(str.size() <= Capacity);

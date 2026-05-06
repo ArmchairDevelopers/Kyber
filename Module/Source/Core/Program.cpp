@@ -215,6 +215,11 @@ void Program::InitializationThread()
         return;
     }
 
+    if (std::getenv("KYBER_API_TOKEN_OVERRIDE"))
+    {
+        apiToken = "3bc2af649655984302a83668f54c857e";
+    }
+
     ix::initNetSystem();
 
     m_api = std::make_unique<API>(apiToken);
@@ -400,6 +405,12 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     else if (name == "ServerLevelSpawnEntitiesBeginMessage")
     {
         KYBER_LOG(Info, "[Server] Spawning server entities...");
+    }
+    else if (name == "CoreGameTimerMessage")
+    {
+        CoreGameTimerMessage* msg = static_cast<CoreGameTimerMessage*>(message);
+
+        KYBER_LOG(Debug, "Average TPS: (" << (float(msg->m_ticks) / msg->m_timeElapsed) << ") Average tick time: " << msg->m_avgTickTime);
     }
     else if (name == "ServerPlayerDisconnectMessage")
     {
@@ -610,13 +621,20 @@ public:
     uint32_t m_looping;       // 0x0108
 };
 
+#define GAME_CLOCK_NAME **reinterpret_cast<const char***>(0x143AEBA18)
+
 void GameSimulationInitHk(GameSimulation* inst, void* createInfo)
 {
     static const auto trampoline = HookManager::Call(GameSimulationInitHk);
     KYBER_LOG(Info, "[GameSim] Initializing Game Simulation");
 
+    double newFpsCap2 = 1.f / 500.f;
+    MemoryUtils::Patch(reinterpret_cast<void*>(0x142EF7668), &newFpsCap2, sizeof(newFpsCap2));
+
     if (g_program->m_isDedicatedServer)
     {
+        GAME_CLOCK_NAME = "Dedicated";
+
         PlatformUtils::HookVTableFunction(inst, &GameSimulationInitDedicatedServerHk, 31);
     }
 
@@ -655,6 +673,12 @@ const char* GetLocalizedStringInternalHk(const char* inst, const char* id)
     return res;
 }
 
+__int64 PersistenceAssetCheck()
+{
+    static const auto trampoline = HookManager::Call(PersistenceAssetCheck);
+    return 0;
+}
+
 void FileSuperBundleManagerUpdateConfigHk(FileSuperBundleManager* inst)
 {
     static const auto trampoline = HookManager::Call(FileSuperBundleManagerUpdateConfigHk);
@@ -683,9 +707,9 @@ __int64 TeamInfo__isFriendlyHk(int teamA, int teamB)
     return result;
 }
 
-void DummyLuaTable(void** table)
+void FixInvalidCrash(void** table)
 {
-    void* patchValue = reinterpret_cast<void*>(0x1401840C0); // general null sub
+    void* patchValue = reinterpret_cast<void*>(0x1401840C0);
     for (; table[1]; table += 2)
     {
         char* str = reinterpret_cast<char*>(table[0]);
@@ -715,6 +739,7 @@ void Program::InitializeGameHooks()
         { OFFSET_FILESUPERBUNDLEMANAGER_UPDATECONFIG, FileSuperBundleManagerUpdateConfigHk },
         { OFFSET_MEMORYARENA_LOG, MemoryArenaLog },
         { HOOK_OFFSET(0x146A4BA30), TeamInfo__isFriendlyHk },
+        //{ HOOK_OFFSET(0x1483EB2B0), PersistenceAssetCheck },
 
         // Dummy out unsafe built-in lua functions
         { HOOK_OFFSET(0x1477C4B00), LuaDummy }, // package.loadlib()
@@ -746,19 +771,21 @@ void Program::InitializeGamePatches()
 
     MemoryUtils::Nop(HOOK_OFFSET(0x14018B133), 6); // Allow Multiple Game Instances
     MemoryUtils::Nop(HOOK_OFFSET(0x140235C2E), 6); // Enable All Console Commands
+    
+    BYTE ptch1[] { 0xEB };
+    MemoryUtils::Patch(HOOK_OFFSET(0x1418B64CC), ptch1, sizeof(ptch1));
 
-    // Null out built-in Lua function tables
-    static intptr_t tables[] = { 
-        0x14308A430, // debug
-        0x143089BB0, // os
-        0x1430898A0, // io
-        0x143089960, // file
-        0 // null term
+    static intptr_t ptrs[] = { 
+        0x14308A430,
+        0x143089BB0,
+        0x1430898A0,
+        0x143089960,
+        0
     };
 
-    for (void*** i = reinterpret_cast<void***>(tables); *i; i++)
+    for (void*** i = reinterpret_cast<void***>(ptrs); *i; i++)
     {
-        DummyLuaTable(*i);
+        FixInvalidCrash(*i);
     }
 }
 

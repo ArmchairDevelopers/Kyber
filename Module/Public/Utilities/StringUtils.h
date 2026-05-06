@@ -48,4 +48,16 @@ public:
 private:
     static std::string Base64EncodeChar(int encoded_char);
 };
+
+consteval uint32_t operator""_hash(const char* str, size_t len)
+{
+    uint32_t hash = 5381;
+
+    for (size_t i = 0; i < len; ++i)
+    {
+        hash = hash * 33 ^ uint32_t(str[i]);
+    }
+
+    return hash;
+}
 } // namespace Kyber

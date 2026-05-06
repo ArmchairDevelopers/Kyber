@@ -23,13 +23,13 @@ void EventManager::ProcessEventQueue()
         Event* e = const_cast<Event*>(m_eventQueue.front());
         DispatchEvent(*e);
 
-        if (MemoryArena* arena = ArenaMap::FindArenaForObject(e, false))
+        if (MemoryArena* arena = ArenaMap::FindArenaForObject(e))
         {
             arena->del(e);
         }
         else
         {
-            delete e;
+            MemoryLeakDb::AddEntry(sizeof(*e), "Failed to deconstruct event");
         }
 
         m_eventQueue.pop();

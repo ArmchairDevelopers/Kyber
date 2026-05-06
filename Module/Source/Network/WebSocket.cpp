@@ -9,6 +9,7 @@
 #include <Utilities/PlatformUtils.h>
 #include <Utilities/StringUtils.h>
 
+#include <winnt.h>
 #include <winsock.h>
 #include <ws2tcpip.h>
 
@@ -25,6 +26,7 @@ WebSocket::WebSocket(std::string id, uint32_t index, std::shared_ptr<ReceiveQueu
     : m_id(id)
     , m_index(index)
     , m_receiveQueue(queue)
+    , m_failedAttempts(0)
 {
     m_socket = std::make_shared<ix::WebSocket>();
 }
@@ -80,6 +82,12 @@ void WebSocket::Receive(const ix::WebSocketMessagePtr& msg)
     switch (msg->type)
     {
     case ix::WebSocketMessageType::Message: {
+        // Reset closes
+        if (InterlockedCompareExchange(&m_failedAttempts, 0, 0))
+        {
+            InterlockedExchange(&m_failedAttempts, 0);
+        }
+
         WebSocketMessage message;
         message.socketId = m_index;
         message.size = msg->str.size();
@@ -96,9 +104,14 @@ void WebSocket::Receive(const ix::WebSocketMessagePtr& msg)
     case ix::WebSocketMessageType::Open:
         KYBER_LOG(Info, "[Network] Proxy Connection '" << m_id << "' Opened");
         break;
-    case ix::WebSocketMessageType::Close:
+    case ix::WebSocketMessageType::Close: {
         KYBER_LOG(Info, "[Network] Proxy Connection '" << m_id << "' Closed: " << msg->closeInfo.code << " " << msg->closeInfo.reason);
+
+        // Count how many closes we get
+        uint32_t failedAttempts = _InterlockedExchangeAdd(&m_failedAttempts, 1);
+        m_socket->setMinWaitBetweenReconnectionRetries((1 << failedAttempts) * 100);
         break;
+    }
     case ix::WebSocketMessageType::Error:
         KYBER_LOG(Info, "[Network] Proxy Connection '" << m_id << "' Error: " << msg->errorInfo.http_status << " " << msg->errorInfo.reason);
         break;

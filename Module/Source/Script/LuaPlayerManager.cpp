@@ -457,20 +457,25 @@ static int ServerPlayerForceSendChatMessage(lua_State* L)
         return 0;
     }
 
-    if (!lua_isinteger(L, 2))
-    {
-        return 0;
-    }
     int32_t channel = luaL_checkinteger(L, 2);
-
-    if (!lua_isstring(L, 3))
-    {
-        return 0;
-    }
     const char* message = luaL_checkstring(L, 3);
 
     player->ForceSendChatMessage((ChatChannel)channel, message);
-    return 1;
+    return 0;
+}
+
+static int ServerPlayerSendChatMessage(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    const char* message = luaL_checkstring(L, 3);
+
+    g_program->m_server->SendChatMessage(player, message);
+    return 0;
 }
 
 static int ServerPlayerSetInputEnabled(lua_State* L)

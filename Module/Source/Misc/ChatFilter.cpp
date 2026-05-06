@@ -166,8 +166,26 @@ void ChatSystemProcessAndSendChatMessageHk(
     trampoline(inst, channel, message, filteredMessage, sender);
 }
 
+void ChatSystemProcessIncomingMessageHk(ChatChannel channel, const char* message, OnlineId& senderOnlineId, LocalPlayerId localPlayerId)
+{
+    static const auto trampoline = HookManager::Call(ChatSystemProcessIncomingMessageHk);
+
+    // Reverse channel switch done in ChatSystemProcessAndSendChatMessageHk so it displays properly
+    if (channel == ChatChannel_Group)
+    {
+        channel = ChatChannel_Team;
+    }
+    else if (channel == ChatChannel_Team)
+    {
+        channel = ChatChannel_Group;
+    }
+
+    return trampoline(channel, message, senderOnlineId, localPlayerId);
+}
+
 void ChatFilter::InitializeHooks()
 {
     HookManager::CreateHook(HOOK_OFFSET(0x1484AB3E0), ChatSystemProcessAndSendChatMessageHk);
+    HookManager::CreateHook(HOOK_OFFSET(0x1484A9250), ChatSystemProcessIncomingMessageHk);
 }
 } // namespace Kyber
