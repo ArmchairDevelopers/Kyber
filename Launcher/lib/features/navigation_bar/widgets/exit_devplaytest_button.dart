@@ -62,6 +62,7 @@ class _ExitButtonState extends State<_ExitButton> {
 
       final updateAvailable = await ModuleVersionService().updateAvailable(
         module: .installer,
+        service: service,
       );
       if (!updateAvailable) {
         NotificationService.warning(
