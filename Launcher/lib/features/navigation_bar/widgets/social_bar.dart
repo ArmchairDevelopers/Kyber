@@ -64,7 +64,7 @@ class _SocialBarState extends State<SocialBar> {
                   const VCardSection(),
                   _NavigationBarItem(
                     icon: const Icon(mt.Icons.shield),
-                    onClick: () => router.push('/ingame'),
+                    onClick: () => router.push('/staff/reports'),
                   ),
                 ],
                 const VCardSection(),

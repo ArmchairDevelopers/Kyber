@@ -38,10 +38,10 @@ class _MaximaFriendListState extends State<MaximaFriendList> {
             }
 
             return ButtonBuilder(
-              onDoubleClick: () {
-                final friend = friends[index];
-                widget.onFriendSelected?.call(friend);
-              },
+              // onDoubleClick: () {
+              //   final friend = friends[index];
+              //   widget.onFriendSelected?.call(friend);
+              // },
               builder: (context, hovered) {
                 final friend = friends[index];
                 final presence = state.presences[friend.id];

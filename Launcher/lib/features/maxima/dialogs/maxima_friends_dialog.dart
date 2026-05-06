@@ -354,9 +354,9 @@ class _MemberTile extends StatelessWidget {
                           SizedBox(
                             child: KOutlinedButton(
                               child: const Text('MAKE LEADER'),
-                              onPressed: () {
+                              onPressed: () async {
                                 try {
-                                  context.read<SessionCubit>().transferLeader(id);
+                                  await context.read<SessionCubit>().transferLeader(id);
                                 } on GrpcError catch (e) {
                                   NotificationService.error(
                                     message:
@@ -369,9 +369,9 @@ class _MemberTile extends StatelessWidget {
                           KOutlinedButton(
                             padding: const .symmetric(horizontal: 20, vertical: 5),
                             child: const Icon(mt.Icons.close_sharp, size: 22),
-                            onPressed: () {
+                            onPressed: () async {
                               try {
-                                context.read<SessionCubit>().kickFromParty(id);
+                                await context.read<SessionCubit>().kickFromParty(id);
                               } on GrpcError catch (e) {
                                 NotificationService.error(
                                   message: 'Failed to kick member: ${e.message}',
