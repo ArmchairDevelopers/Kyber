@@ -552,13 +552,22 @@ class SessionCubit extends Cubit<SessionState> {
         joinGameInfo: info.copyWith(memberStatuses: statuses),
       );
 
+      if (gameJoined) return;
+
+      final myStatus = statuses[userId];
+      final leaderStatus = statuses[info.leaderId];
+      final isLeader = userId == info.leaderId;
+      if (!isLeader &&
+          (leaderStatus?.joined ?? false) &&
+          (myStatus?.hasMods ?? false)) {
+        NotificationService.info(message: 'Host is in game! Joining...');
+        await joinServerForParty();
+        return;
+      }
+
       final everyoneHasMods = statuses.values.every((s) => s.hasMods);
       final everyoneReady = !statuses.values.every((s) => s.joined);
       if (everyoneHasMods && everyoneReady) {
-        if (gameJoined) {
-          return;
-        }
-
         NotificationService.info(
           message: 'All players are ready! Joining game...',
         );
