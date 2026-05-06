@@ -405,7 +405,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     {
         CoreGameTimerMessage* msg = static_cast<CoreGameTimerMessage*>(message);
 
-        KYBER_LOG(Debug, "Average TPS: (" << (float(msg->m_ticks) / msg->m_timeElapsed) << ") Average tick time: " << msg->m_avgTickTime);
+        KYBER_LOG(Info, "Average TPS: (" << (float(msg->m_ticks) / msg->m_timeElapsed) << ") Average tick time: " << msg->m_avgTickTime);
     }
     else if (name == "ServerPlayerDisconnectMessage")
     {

@@ -8,26 +8,6 @@
 
 namespace Kyber
 {
-
-class KyberServerPerformanceEvent : public KyberStreamedEvent
-{
-    KyberServerPerformanceEvent(float tps)
-        : m_tps(tps)
-    {}
-
-    void Write(BitStreamWrite* stream) override
-    {
-        stream->WriteFloat(m_tps);
-    }
-
-    void Read(BitStreamRead* stream) override
-    {
-        m_tps = stream->ReadFloat();
-    }
-
-    float m_tps;
-};
-
 class ServerPerformanceDisplay : public GenericUpdateListener
 {
 public:

@@ -670,6 +670,10 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
                 {
                     event->groupId = (*response)->groupid();
                 }
+                else
+                {
+                    event->groupId = 0;
+                }
 
                 g_program->m_server->m_eventManager->QueueEvent(event);
             }
