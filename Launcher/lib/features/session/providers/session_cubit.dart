@@ -17,6 +17,7 @@ import 'package:kyber_launcher/features/download_manager/repositories/download_r
 import 'package:kyber_launcher/features/download_manager/services/download_orchestrator.dart';
 import 'package:kyber_launcher/features/download_manager/services/mod_bridge_service.dart';
 import 'package:kyber_launcher/features/kyber/helper/kyber_server_helper.dart';
+import 'package:kyber_launcher/features/kyber/providers/kyber_status_cubit.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
@@ -187,6 +188,15 @@ class SessionCubit extends Cubit<SessionState> {
   Future<void> joinServerForParty() async {
     final info = _inParty?.joinGameInfo;
     if (info == null) return;
+
+    final kyberStatus = navigatorKey.currentContext
+        ?.read<KyberStatusCubit>()
+        .state;
+    if (kyberStatus is KyberStatusHosting &&
+        kyberStatus.server?.id == info.serverId) {
+      gameJoined = true;
+      return;
+    }
 
     gameJoined = true;
 
