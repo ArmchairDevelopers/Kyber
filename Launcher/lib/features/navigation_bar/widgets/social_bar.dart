@@ -9,6 +9,7 @@ import 'package:kyber_launcher/features/maxima/dialogs/maxima_friends_dialog.dar
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
+import 'package:kyber_launcher/features/navigation_bar/widgets/exit_devplaytest_button.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
@@ -39,6 +40,7 @@ class _SocialBarState extends State<SocialBar> {
           spacing: 15,
           children: [
             const Expanded(flex: 3, child: SizedBox.shrink()),
+            const ExitDevPlaytestButton(),
             const VCardSection(),
             const _UserBar(),
             const SizedBox(width: 0),
