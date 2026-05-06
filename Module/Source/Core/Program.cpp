@@ -215,11 +215,6 @@ void Program::InitializationThread()
         return;
     }
 
-    if (std::getenv("KYBER_API_TOKEN_OVERRIDE"))
-    {
-        apiToken = "3bc2af649655984302a83668f54c857e";
-    }
-
     ix::initNetSystem();
 
     m_api = std::make_unique<API>(apiToken);
