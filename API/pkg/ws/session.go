@@ -438,6 +438,7 @@ func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.Up
 				UserID:                userID,
 				HasMods:               evt.HasMods,
 				ModDownloadPercentage: evt.ModDownloadPercentage,
+				Joined:                statuses[i].Joined,
 			}
 			userStatus = &statuses[i]
 			updated = true
@@ -450,6 +451,7 @@ func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.Up
 			UserID:                userID,
 			HasMods:               evt.HasMods,
 			ModDownloadPercentage: evt.ModDownloadPercentage,
+			Joined:                false,
 		}
 		statuses = append(statuses, *userStatus)
 	}
