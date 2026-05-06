@@ -390,12 +390,13 @@ class SessionCubit extends Cubit<SessionState> {
           ) ??
           false;
 
-      if (!isFriend) {
-        _logger.warning(
-          'Ignoring invite from non-friend ${invite.inviter.name}',
-        );
-        return;
-      }
+      // TODO: re-enable
+      // if (!isFriend) {
+      //   _logger.warning(
+      //     'Ignoring invite from non-friend ${invite.inviter.name}',
+      //   );
+      //   return;
+      // }
 
       final pending = PendingInvite(
         partyId: Int64(invite.partyId.toInt()),
