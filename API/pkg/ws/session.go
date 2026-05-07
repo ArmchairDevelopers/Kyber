@@ -359,11 +359,13 @@ func (s *SessionManager) handleClientMessage(userID string, msg []byte) {
 	case *pbapi.SessionClientEvent_JoinGameReady:
 		s.handleJoinGameReady(userID)
 	case *pbapi.SessionClientEvent_GameJoined:
-		s.handleJoinedGame(userID, evt.GameJoined.ServerId)
+		s.handleGameEvent(userID, &evt.GameJoined.ServerId, true)
+	case *pbapi.SessionClientEvent_GameLeft:
+		s.handleGameEvent(userID, nil, false)
 	}
 }
 
-func (s *SessionManager) handleJoinedGame(userID string, serverID string) {
+func (s *SessionManager) handleGameEvent(userID string, serverID *string, joined bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -373,7 +375,7 @@ func (s *SessionManager) handleJoinedGame(userID string, serverID string) {
 	}
 	partyID := *session.PartyID
 
-	status, err := s.store.Parties.MarkMemberJoined(ctx, partyID, userID, serverID)
+	status, err := s.store.Parties.SetMemberJoinState(ctx, partyID, userID, serverID, joined)
 	if err != nil {
 		logger.L().Error("Failed to mark member joined", zap.Error(err))
 		return

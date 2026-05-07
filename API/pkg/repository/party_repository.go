@@ -17,7 +17,7 @@ type PartyRepository interface {
 	Update(ctx context.Context, partyID uint64, update interface{}) error
 	Delete(ctx context.Context, partyID uint64) error
 	GetNextID(ctx context.Context) (uint64, error)
-	MarkMemberJoined(ctx context.Context, partyID uint64, userID, serverID string) (*models.PartyJoinGameMemberStatus, error)
+	SetMemberJoinState(ctx context.Context, partyID uint64, userID string, serverID *string, joined bool) (*models.PartyJoinGameMemberStatus, error)
 	UpdateMemberModStatus(ctx context.Context, partyID uint64, userID string, hasMods bool, modDownloadPercentage *uint32) (*models.PartyJoinGameMemberStatus, error)
 }
 
@@ -71,10 +71,29 @@ func (r *mongoPartyRepo) GetNextID(ctx context.Context) (uint64, error) {
 	return 0, errors.New("failed to find unused party id after 10 attempts")
 }
 
-func (r *mongoPartyRepo) MarkMemberJoined(ctx context.Context, partyID uint64, userID, serverID string) (*models.PartyJoinGameMemberStatus, error) {
+func (r *mongoPartyRepo) SetMemberJoinState(ctx context.Context, partyID uint64, userID string, serverID *string, joined bool) (*models.PartyJoinGameMemberStatus, error) {
 	filter := bson.M{
-		"_id":                       partyID,
-		"join_game_state.server_id": serverID,
+		"_id": partyID,
+	}
+
+	if serverID != nil {
+		filter["join_game_state.server_id"] = *serverID
+	}
+
+	existingStatuses := bson.M{"$ifNull": bson.A{"$join_game_state.member_statuses", bson.A{}}}
+
+	var elseBranch interface{}
+	if joined {
+		elseBranch = bson.M{"$concatArrays": bson.A{
+			existingStatuses,
+			bson.A{bson.M{
+				"user_id":  userID,
+				"has_mods": true,
+				"joined":   true,
+			}},
+		}}
+	} else {
+		elseBranch = existingStatuses
 	}
 
 	pipeline := bson.A{
@@ -91,19 +110,12 @@ func (r *mongoPartyRepo) MarkMemberJoined(ctx context.Context, partyID uint64, u
 						"if": bson.M{"$eq": bson.A{"$$s.user_id", userID}},
 						"then": bson.M{"$mergeObjects": bson.A{
 							"$$s",
-							bson.M{"has_mods": true, "joined": true},
+							bson.M{"has_mods": true, "joined": joined},
 						}},
 						"else": "$$s",
 					}},
 				}},
-				"else": bson.M{"$concatArrays": bson.A{
-					bson.M{"$ifNull": bson.A{"$join_game_state.member_statuses", bson.A{}}},
-					bson.A{bson.M{
-						"user_id":  userID,
-						"has_mods": true,
-						"joined":   true,
-					}},
-				}},
+				"else": elseBranch,
 			}},
 		}},
 	}

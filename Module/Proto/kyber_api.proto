@@ -139,12 +139,15 @@ message SessionClientEvent {
     UpdateJoinGameStatusEvent updateJoinGameStatus = 1;
     JoinGameReadyEvent joinGameReady = 2;
     GameJoinedEvent gameJoined = 3;
+    GameLeftEvent gameLeft = 4;
   }
 }
 
 message GameJoinedEvent {
   string serverId = 1;
 }
+
+message GameLeftEvent {}
 
 message UpdateJoinGameStatusEvent {
   bool hasMods = 1;
