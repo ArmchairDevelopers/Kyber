@@ -99,7 +99,7 @@ class LauncherService extends LauncherCommonServiceBase {
   }
 
   @override
-  Future<Empty> onServerLeft(ServiceCall call, Empty request) {
+  Future<Empty> onServerLeft(ServiceCall call, Empty request) async {
     navigatorKey.currentContext!.read<KyberStatusCubit>()
       ..joined = false
       ..onTick();
@@ -108,6 +108,11 @@ class LauncherService extends LauncherCommonServiceBase {
     final stateCubit = context.read<SessionCubit>();
     if (stateCubit.gameJoined) {
       stateCubit.leaveGame();
+    }
+
+    final kyberStatus = context.read<KyberStatusCubit>().state;
+    if (kyberStatus is KyberStatusHosting) {
+      await stateCubit.cancelJoinGame();
     }
 
     Logger.root.info('Server left notification received');

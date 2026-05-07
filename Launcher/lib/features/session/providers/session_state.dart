@@ -70,7 +70,7 @@ class JoinGameMemberStatusInfo extends Equatable {
   final bool joined;
 
   @override
-  List<Object?> get props => [hasMods, modDownloadPercentage];
+  List<Object?> get props => [hasMods, modDownloadPercentage, joined];
 }
 
 class JoinGameInfo extends Equatable {
