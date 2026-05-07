@@ -371,99 +371,44 @@ func (s *SessionManager) handleJoinedGame(userID string, serverID string) {
 	if err != nil || session == nil || session.PartyID == nil {
 		return
 	}
-
 	partyID := *session.PartyID
 
-	party, err := s.store.Parties.GetByID(ctx, partyID)
-	if err != nil || party == nil || party.JoinGameState == nil {
+	status, err := s.store.Parties.MarkMemberJoined(ctx, partyID, userID, serverID)
+	if err != nil {
+		logger.L().Error("Failed to mark member joined", zap.Error(err))
+		return
+	}
+	if status == nil {
 		return
 	}
 
-	if party.JoinGameState.ServerID != serverID {
-		return
-	}
-
-	statuses := party.JoinGameState.MemberStatuses
-	updated := false
-	var userStatus models.PartyJoinGameMemberStatus
-	for i, status := range statuses {
-		if status.UserID == userID {
-			if !status.HasMods {
-				logger.L().Warn("User joined game without mods status", zap.String("user_id", userID))
-			}
-
-			statuses[i] = models.PartyJoinGameMemberStatus{
-				UserID:                userID,
-				HasMods:               true,
-				ModDownloadPercentage: status.ModDownloadPercentage,
-				Joined:                true,
-			}
-			userStatus = statuses[i]
-			updated = true
-			break
-		}
-	}
-
-	if !updated {
-		return
-	}
-
-	s.updateJoinStatus(ctx, partyID, statuses, &userStatus)
+	s.broadcastMemberStatus(ctx, partyID, status)
 }
 
 func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.UpdateJoinGameStatusEvent) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// only temporarily
 	// TODO: find a way to avoid hitting the database on every update, maybee by caching party memberships in memory?
 	session, err := s.store.Sessions.GetByUserID(ctx, userID)
 	if err != nil || session == nil || session.PartyID == nil {
 		return
 	}
-
 	partyID := *session.PartyID
 
-	party, err := s.store.Parties.GetByID(ctx, partyID)
-	if err != nil || party == nil || party.JoinGameState == nil {
+	status, err := s.store.Parties.UpdateMemberModStatus(ctx, partyID, userID, evt.HasMods, evt.ModDownloadPercentage)
+	if err != nil {
+		logger.L().Error("Failed to update member mod status", zap.Error(err))
+		return
+	}
+	if status == nil {
 		return
 	}
 
-	var userStatus *models.PartyJoinGameMemberStatus
-	statuses := party.JoinGameState.MemberStatuses
-	updated := false
-	for i, st := range statuses {
-		if st.UserID == userID {
-			statuses[i] = models.PartyJoinGameMemberStatus{
-				UserID:                userID,
-				HasMods:               evt.HasMods,
-				ModDownloadPercentage: evt.ModDownloadPercentage,
-				Joined:                statuses[i].Joined,
-			}
-			userStatus = &statuses[i]
-			updated = true
-			break
-		}
-	}
-
-	if !updated {
-		userStatus = &models.PartyJoinGameMemberStatus{
-			UserID:                userID,
-			HasMods:               evt.HasMods,
-			ModDownloadPercentage: evt.ModDownloadPercentage,
-			Joined:                true,
-		}
-		statuses = append(statuses, *userStatus)
-	}
-
-	s.updateJoinStatus(ctx, partyID, statuses, userStatus)
+	s.broadcastMemberStatus(ctx, partyID, status)
 }
 
-func (s *SessionManager) updateJoinStatus(ctx context.Context, partyID uint64, statuses []models.PartyJoinGameMemberStatus, updatedStatus *models.PartyJoinGameMemberStatus) {
-	if err := s.store.Parties.Update(ctx, partyID, bson.M{"$set": bson.M{"join_game_state.member_statuses": statuses}}); err != nil {
-		logger.L().Error("Failed to persist join game status", zap.Error(err))
-	}
-
+func (s *SessionManager) broadcastMemberStatus(ctx context.Context, partyID uint64, status *models.PartyJoinGameMemberStatus) {
 	sessions, err := s.store.Sessions.GetByPartyID(ctx, partyID)
 	if err != nil {
 		logger.L().Error("Failed to get party sessions", zap.Error(err))
@@ -478,10 +423,10 @@ func (s *SessionManager) updateJoinStatus(ctx context.Context, partyID uint64, s
 	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_JoinGameStatus{
 			JoinGameStatus: &pbapi.JoinGameStatusEvent{
-				UserId:                updatedStatus.UserID,
-				HasMods:               updatedStatus.HasMods,
-				ModDownloadPercentage: updatedStatus.ModDownloadPercentage,
-				Joined:                updatedStatus.Joined,
+				UserId:                status.UserID,
+				HasMods:               status.HasMods,
+				ModDownloadPercentage: status.ModDownloadPercentage,
+				Joined:                status.Joined,
 			},
 		},
 	})
