@@ -451,7 +451,7 @@ func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.Up
 			UserID:                userID,
 			HasMods:               evt.HasMods,
 			ModDownloadPercentage: evt.ModDownloadPercentage,
-			Joined:                false,
+			Joined:                true,
 		}
 		statuses = append(statuses, *userStatus)
 	}
