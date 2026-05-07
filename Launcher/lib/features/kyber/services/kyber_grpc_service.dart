@@ -68,11 +68,12 @@ class LauncherService extends LauncherCommonServiceBase {
       serverId = kyberStatus.server?.id;
     }
 
+    Logger.root.info('Server joined notification received');
+
     if (serverId == null) {
       Logger.root.warning(
         'Server joined notification received but server ID is null',
       );
-      Logger.root.info('Server joined notification received');
       return Future.value(Empty());
     }
 
@@ -105,10 +106,7 @@ class LauncherService extends LauncherCommonServiceBase {
       ..onTick();
 
     final context = navigatorKey.currentContext!;
-    final stateCubit = context.read<SessionCubit>();
-    if (stateCubit.gameJoined) {
-      stateCubit.leaveGame();
-    }
+    final stateCubit = context.read<SessionCubit>()..leaveGame();
 
     final kyberStatus = context.read<KyberStatusCubit>().state;
     if (kyberStatus is KyberStatusHosting) {

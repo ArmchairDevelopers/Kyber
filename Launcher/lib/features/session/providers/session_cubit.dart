@@ -75,6 +75,11 @@ class SessionCubit extends Cubit<SessionState> {
 
   void leaveGame() {
     gameJoined = false;
+    _channel?.sink.add(
+      SessionClientEvent(
+        gameLeft: .new(),
+      ).writeToBuffer(),
+    );
   }
 
   Future<void> acceptInvite(Int64 partyId) async {
@@ -209,7 +214,7 @@ class SessionCubit extends Cubit<SessionState> {
 
     try {
       final server = await _service.serverBrowserClient.getServer(
-        ServerRequest(id: info.serverId),
+        .new(id: info.serverId),
       );
       await KyberServerHelper.joinServer(server, password: info.password);
     } on GrpcError catch (e) {
