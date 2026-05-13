@@ -6,7 +6,6 @@ import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/background_image.dart';
-import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/download_progress.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_page_selector.dart';
@@ -142,7 +141,10 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                       ),
                     ),
                     _PlayButton(
-                      onPressed: () => null,
+                      // TODO: add disabled state
+                      onPressed:
+                          widget.onServerSelected ??
+                          context.read<ServerBrowserCubit>().joinServer,
                       text: 'PLAY',
                     ),
                     Expanded(
@@ -193,9 +195,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                             _InstanceSelector(
                               selectedServer: serverInfo,
                               serverGroup: widget.server as ServerGroup,
-                              onSwitched: (index) {
-
-                              },
+                              onSwitched: (index) {},
                             ),
                           ],
                           const SizedBox(height: 20),
