@@ -119,7 +119,7 @@ public:
     ServerPlayerManager* m_playerManager;
     PersistenceManager* m_persistenceManager;
     ServerSquadManager* m_squadManager;
-    Mutex<ChatFilter> m_chatFilter; // TODO: Make Mutex<>
+    Mutex<ChatFilter> m_chatFilter;
     EventManager* m_eventManager;
     SocketSpawnInfo m_socketSpawnInfo;
     MapRotation m_mapRotation;

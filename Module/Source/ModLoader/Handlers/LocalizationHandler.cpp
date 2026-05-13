@@ -40,12 +40,13 @@ bool LocalizationHandler::Modify(CustomAssetHandlerContext& ctx, DataContainer* 
 {
     UITextDatabase* db = static_cast<UITextDatabase*>(container);
 
-    uint8_t* histogramData = new uint8_t[db->HistogramChunkSize];
+    uint8_t* histogramData = new (FB_GLOBAL_ARENA) uint8_t[db->HistogramChunkSize];
+    uint8_t* histogramDataOrigin = histogramData;
     ModLoader::ReadChunkSync(db->HistogramChunk, histogramData, db->HistogramChunkSize);
 
     std::vector<wchar_t> values = ModifyHistogram(&histogramData);
 
-    uint8_t* chunkData = new uint8_t[db->BinaryChunkSize];
+    uint8_t* chunkData = new (FB_GLOBAL_ARENA) uint8_t[db->BinaryChunkSize];
     ModLoader::ReadChunkSync(db->BinaryChunk, chunkData, db->BinaryChunkSize);
 
     std::vector<uint8_t> chunk = ModifyChunk(chunkData, db->BinaryChunkSize, data, values);
@@ -53,12 +54,14 @@ bool LocalizationHandler::Modify(CustomAssetHandlerContext& ctx, DataContainer* 
     KYBER_LOG(Info, "[ModLoader] Wrote Localization chunk (Sz: " << chunk.size() << ", " << db->BinaryChunkSize << ")");
     db->BinaryChunkSize = chunk.size();
 
-    uint8_t* newData = new uint8_t[chunk.size()];
+    uint8_t* newData = new (FB_GLOBAL_ARENA) uint8_t[chunk.size()];
     memcpy(newData, chunk.data(), chunk.size());
 
     ModLoader::ModifyChunk(db->BinaryChunk, newData, chunk.size());
 
-    delete[] chunkData;
+    FB_GLOBAL_ARENA->free(histogramDataOrigin);
+    FB_GLOBAL_ARENA->free(chunkData);
+
     return true;
 }
 

@@ -557,7 +557,7 @@ struct LevelSetupOption
 class LevelSetup
 {
 public:
-    KB_DECLARE_GAMEMEMBERFUNC(0x14C53D220, void, Init, (a2, a3, a4), __int64 a2, __int64 a3, __int64 a4)
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x14C53D220, void, Init)
     KB_DECLARE_GAMEMEMBERFUNC(0x141136820, void, SetInclusionOptions, (inclusionOptions), const char* inclusionOptions)
     KB_DECLARE_GAMEMEMBERFUNC(0x141136690, void, SetInclusionOption, (key, value), const char* key, const char* value)
     KB_DECLARE_GAMEMEMBERFUNC(0x1470C3010, const char*, GetInclusionOption, (key), const char* key)
@@ -625,17 +625,18 @@ class ServerPlayer;
 
 enum LocalPlayerId
 {
-    LocalPlayerId_0 = 0,          // 0x0000
-    LocalPlayerId_1,              // 0x0001
-    LocalPlayerId_2,              // 0x0002
-    LocalPlayerId_3,              // 0x0003
-    LocalPlayerId_4,              // 0x0004
-    LocalPlayerId_5,              // 0x0005
-    LocalPlayerId_6,              // 0x0006
-    LocalPlayerId_7,              // 0x0007
-    LocalPlayerId_Any,            // 0x0008
-    LocalPlayerId_All,            // 0x0009
-    LocalPlayerId_Invalid = 0xFF, // 0x000A
+    LocalPlayerId_0 = 0, // 0x0000
+    LocalPlayerId_1,     // 0x0001
+    LocalPlayerId_2,     // 0x0002
+    LocalPlayerId_3,     // 0x0003
+    LocalPlayerId_4,     // 0x0004
+    LocalPlayerId_5,     // 0x0005
+    LocalPlayerId_6,     // 0x0006
+    LocalPlayerId_7,     // 0x0007
+    LocalPlayerId_Any,   // 0x0008
+    LocalPlayerId_All,   // 0x0009
+    LocalPlayerId_Count = LocalPlayerId_Any,
+    LocalPlayerId_Invalid = 0xFF
 };
 
 enum ChatChannel
@@ -698,14 +699,14 @@ private:
     KB_DECLARE_GAMEMEMBERFUNC(0x14189EFB0, void, SendChatMessageInternal, (channel, message, senderOnlineId, recipientLocalPlayerId),
         ChatChannel channel, const char* message, OnlineId& senderOnlineId, LocalPlayerId recipientLocalPlayerId)
 
-    char pad_0590[0x230];                                                                      // 0x0590
-    eastl::fixed_vector<ServerPlayerConnection*, LocalPlayerId_Any> m_serverPlayerConnections; // 0x07C0 // size: 0x68
-    char pad_0828[0x5785];                                                                     // 0x0828
-    bool m_shouldDisconnect;                                                                   // 0x5FAD
-    char pad_5FAD[0x2];                                                                        // 0x5FAE
-    uint32_t m_disconnectReason;                                                               // 0x5FB0
-    char pad_5FB4[0x4];                                                                        // 0x5FB4
-    char* m_disconnectText;                                                                    // 0x5FB8
+    char pad_0590[0x230];                                                                        // 0x0590
+    eastl::fixed_vector<ServerPlayerConnection*, LocalPlayerId_Count> m_serverPlayerConnections; // 0x07C0 // size: 0x68
+    char pad_0828[0x5785];                                                                       // 0x0828
+    bool m_shouldDisconnect;                                                                     // 0x5FAD
+    char pad_5FAD[0x2];                                                                          // 0x5FAE
+    uint32_t m_disconnectReason;                                                                 // 0x5FB0
+    char pad_5FB4[0x4];                                                                          // 0x5FB4
+    char* m_disconnectText;                                                                      // 0x5FB8
 };
 
 class ClientConnection : public EngineConnection
@@ -1745,9 +1746,11 @@ public:
 
 struct StringBuilder
 {
-    uint64_t a1;
-    uint64_t a2;
-    uint64_t a3;
+    char* m_base;
+    char* m_begin;
+    char* m_end;
+
+    KB_DECLARE_GAMEMEMBERFUNC(0x145456E80, __int64, Ctor, (buffer, size), char* buffer, uint64_t size);
 };
 
 std::string ToString(Realm realm);

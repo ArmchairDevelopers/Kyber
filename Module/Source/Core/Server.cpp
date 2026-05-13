@@ -14,6 +14,7 @@
 #include <Entity/KyberSettings.h>
 
 #include <fstream>
+#include <stdlib.h>
 #include <ws2tcpip.h>
 #include <iomanip>
 #include <iostream>
@@ -98,7 +99,7 @@ void InitLevelSetup(LevelSetup* levelSetup, const char* level, const char* mode,
     g_program->m_server->m_currentLevel = level;
     g_program->m_server->m_currentMode = mode != nullptr ? mode : "";
 
-    levelSetup->Init(0, 0, 0);
+    levelSetup->Init();
     levelSetup->Name = StringUtils::CopyWithArena(level);
 
     if (mode != nullptr)
@@ -211,12 +212,6 @@ void Server::Start(const ServerCreationInfo& info, bool changeState)
 
     g_program->m_server->Register(true);
 
-
-    if (m_serverId.empty())
-    {
-        m_onlineMode = false;
-    }
-
     m_socketSpawnInfo = SocketSpawnInfo(false, "", m_serverId, "");
 
     if (m_runningHosted)
@@ -263,14 +258,16 @@ void Server::LoadNextLevel(
 void Server::OnLevelLoaded()
 {
     m_levelLoaded = true;
-    MutexGuard<LoadLevelRequest> requestGuard = m_latestLoadLevelRequest.Lock();
-
-    if (!requestGuard->level.empty())
     {
-        LoadNextLevel(requestGuard->level.c_str(), requestGuard->mode.c_str());
+        MutexGuard<LoadLevelRequest> requestGuard = m_latestLoadLevelRequest.Lock();
 
-        requestGuard->level = "";
-        requestGuard->mode = "";
+        if (!requestGuard->level.empty())
+        {
+            LoadNextLevel(requestGuard->level.c_str(), requestGuard->mode.c_str());
+
+            requestGuard->level = "";
+            requestGuard->mode = "";
+        }
     }
 
     KyberSettings* kyberSettings = Settings<KyberSettings>("Kyber");
@@ -482,13 +479,6 @@ void PresenceBackendManagerAddBackendHk(void* inst, TypeObject* backend)
     trampoline(inst, backend);
 }
 
-void LoadSomethingHk(void* a1, __int64 a2, __int64 a3, __int64 a4, __int64 a5, __int64 a6, void(__fastcall*** a7)(__int64), __int64 a8,
-    __int64 a9, __int64 a10, char a11)
-{
-    static const auto trampoline = HookManager::Call(LoadSomethingHk);
-    return trampoline(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, false);
-}
-
 void ServerPlayerExtent2UpdateHk(ServerPlayerExtent2* inst, float deltaTime)
 {
     static const auto trampoline = HookManager::Call(ServerPlayerExtent2UpdateHk);
@@ -549,6 +539,7 @@ bool MessageStreamAddMessageHk(void* inst, TypeObject* message)
 void ServerUpdatePassPreFrameHk(void* inst, const UpdateParameters& params)
 {
     static const auto trampoline = HookManager::Call(ServerUpdatePassPreFrameHk);
+    trampoline(inst, params);
 
     if (g_program->m_entityManager != nullptr)
     {
@@ -570,7 +561,6 @@ void ServerUpdatePassPreFrameHk(void* inst, const UpdateParameters& params)
     }
 
     GenericUpdateManager::Get().Call(UpdateType_Server_PreFrame, params);
-    return trampoline(inst, params);
 }
 
 // Only for in-proc servers.
@@ -724,12 +714,7 @@ void Server::Heartbeat(const UpdateParameters& params)
 
 void Server::Register(bool force)
 {
-    if (!force && (!IsRunning() || !m_creationInfo))
-    {
-        return;
-    }
-
-    if (!m_onlineMode)
+    if (!force && (!IsRunning() || !m_creationInfo || !m_onlineMode))
     {
         return;
     }
@@ -739,9 +724,9 @@ void Server::Register(bool force)
     std::optional<std::string> response = g_program->GetAPI()->GetServerBrowser()->RegisterServer(m_creationInfo.value());
     if (!response)
     {
-        KYBER_LOG(Error, "[Server] Failed to register server! Connecting to dummy for automatic reconnection.");
-        // Connect to server management with a dummy server id so automatic reconnection occurs.
-        g_program->GetAPI()->GetServerManagement()->Connect("DUMMY");
+        KYBER_LOG(Error, "[Server] Failed to register server! Retrying...");
+        m_onlineMode = false;
+        g_threadExecutor->QueueDelaySecs(GameThread_Server, 0.5, [this, force]() { Register(force); });
         return;
     }
 
@@ -772,7 +757,7 @@ HookTemplate clientServerHookOffsets[] = {
     { OFFSET_SERVERPLAYER_SETTEAMID, ServerPlayerSetTeamIdHk },
     { OFFSET_APPLY_SETTINGS, SettingsManagerApplyHk },
     { HOOK_OFFSET(0x1478F8440), PresenceBackendManagerAddBackendHk },
-    { HOOK_OFFSET(0x1418CA790), LoadSomethingHk },
+    //{ HOOK_OFFSET(0x1418CA790), LoadSomethingHk },
     //{ HOOK_OFFSET(0x145FE09E0), ProtoHttpControlHk },
     //{ HOOK_OFFSET(0x145FE1920), ProtoHttpPostHk },
     //{ HOOK_OFFSET(0x145FE2990), ProtoHttpUpdateHk },
@@ -791,7 +776,7 @@ HookTemplate dedicatedServerHookOffsets[] = {
     { OFFSET_SERVERPLAYER_SETTEAMID, ServerPlayerSetTeamIdHk },
     { HOOK_OFFSET(0x1484213F0), GetSocketManagerHk },
     { HOOK_OFFSET(0x1478F8440), PresenceBackendManagerAddBackendHk },
-    { HOOK_OFFSET(0x1418CA790), LoadSomethingHk },
+    //{ HOOK_OFFSET(0x1418CA790), LoadSomethingHk },
     //{ OFFSET_SERVERCONNECTION_KICKPLAYER, ServerConnectionKickPlayerHk },
     { HOOK_OFFSET(0x140D4E1D0), MessageStreamAddMessageHk },
     { HOOK_OFFSET(0x1418D3380), CreatePresenceBackendHk },

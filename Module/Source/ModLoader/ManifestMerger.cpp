@@ -325,7 +325,8 @@ void ProcessManifestHk(CasFileMap* fileMap, uint8_t* manifestBuf)
     g_manifestMerger->Merge(*manifest);
     std::vector<uint8_t> modified = manifest->Save();
 
-    FB_STATIC_ARENA->del(manifest);
+    // Don't delete the manifest. I'm not sure why, but it causes
+    // everything to crash and burn.
 
     uint8_t* modifiedBuffer = (uint8_t*)FB_STATIC_ARENA->alloc(modified.size());
     memcpy(modifiedBuffer, modified.data(), modified.size());

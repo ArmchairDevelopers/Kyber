@@ -15,7 +15,7 @@ void AsyncRPCManager::Update() const
     {
         GenericAsyncClientCall* call = static_cast<GenericAsyncClientCall*>(tag);
         call->Process(ok);
-        FB_GLOBAL_ARENA->free(call);
+        FB_GLOBAL_ARENA->del(call);
     }
 }
 } // namespace Kyber

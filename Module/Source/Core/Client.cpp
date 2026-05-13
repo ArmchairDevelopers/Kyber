@@ -320,7 +320,7 @@ void** OnlineManagerConnectHk(void* inst, const SocketAddr& address)
     StringBuilder builder;
     char buf[256];
 
-    StringBuilder_ctor(&builder, buf, 256);
+    builder.Ctor(buf, sizeof(buf));
     networkAddressToString(&address, builder);
 
     KYBER_LOG(Info, "[Client] Connecting to server (2) " << buf);

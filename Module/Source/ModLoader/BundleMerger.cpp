@@ -437,7 +437,7 @@ void BundleManifest::PushAudit(const eastl::string& log)
 
 char BundleManifestLoadHk(void* inst, uint8_t* buffer, uint64_t manifestSize, int magicSalt)
 {
-    static auto trampoline = HookManager::Call(BundleManifestLoadHk);
+    static const auto trampoline = HookManager::Call(BundleManifestLoadHk);
     if (!g_bundleMerger->HasMerger())
     {
         return trampoline(inst, buffer, manifestSize, magicSalt);
@@ -646,6 +646,8 @@ void BundleMerger::LoadVanillaEntries()
 
         m_vanillaChunkEntries[name] = vanillaEntry;
     }
+
+    delete data;
 
     KYBER_LOG(Info, "[ModLoader] Loaded chunk entries");
 

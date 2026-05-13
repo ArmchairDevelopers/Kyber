@@ -14,6 +14,11 @@ void ThreadExecutor::QueueDelayTicks(GameThread thread, uint32_t delayTicks, Fun
     dataGuard->delayedFuncs.push_back({dataGuard->tickCount + delayTicks, func});
 }
 
+void ThreadExecutor::QueueDelaySecs(GameThread thread, float delaySeconds, Func func)
+{
+    QueueDelayTicks(thread, static_cast<uint32_t>(delaySeconds * 30.0f), func);
+}
+
 void ThreadExecutor::Process(GameThread thread)
 {
     auto dataGuard = m_threadData[thread].Lock();

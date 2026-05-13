@@ -14,6 +14,11 @@ void* operator new(size_t size, Kyber::MemoryArena* arena)
     return arena->alloc(size);
 }
 
+void* operator new[](size_t size, Kyber::MemoryArena* arena)
+{
+    return arena->alloc(size);
+}
+
 void operator delete(void* ptr, Kyber::MemoryArena* arena)
 {
     return arena->free(ptr);
