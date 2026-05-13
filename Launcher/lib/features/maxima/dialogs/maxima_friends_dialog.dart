@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_fadein/flutter_fadein.dart';
 import 'package:grpc/grpc.dart';
+import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
@@ -11,7 +14,9 @@ import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
 import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
+import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
 class MaximaFriendsDialog extends StatelessWidget {
@@ -108,7 +113,87 @@ class _PartyPanel extends StatelessWidget {
   }
 }
 
-class _FriendsPanel extends StatelessWidget {
+class _FriendsPanel extends StatefulWidget {
+  @override
+  State<_FriendsPanel> createState() => _FriendsPanelState();
+}
+
+class _FriendsPanelState extends State<_FriendsPanel> {
+  final _searchInput = BehaviorSubject<String>();
+  StreamSubscription<String>? _searchSub;
+
+  String _query = '';
+  List<EAUser>? _results;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchSub = _searchInput
+        .debounceTime(const Duration(milliseconds: 200))
+        .listen(_runSearch);
+  }
+
+  @override
+  void dispose() {
+    _searchSub?.cancel();
+    _searchInput.close();
+    super.dispose();
+  }
+
+  Future<void> _runSearch(String raw) async {
+    final query = raw.trim();
+    if (query.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _query = '';
+        _results = null;
+        _loading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _query = query;
+      _loading = true;
+    });
+
+    try {
+      final result = await sl.get<KyberGRPCService>().statsClient.searchUser(
+        StatsSearchRequest(query: query),
+      );
+      if (!mounted || _query != query) return;
+
+      final selfId = context.read<MaximaCubit>().state.servicePlayer?.id;
+
+      setState(() {
+        _results = result.users
+            .where((e) => e.isKyberUser && e.id != selfId)
+            .toList(growable: false);
+        _loading = false;
+      });
+    } on GrpcError catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      NotificationService.error(
+        message: 'Failed to search players: ${e.message}',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      NotificationService.error(message: 'An unexpected error occurred: $e');
+    }
+  }
+
+  Future<void> _invite(String userId, String name) async {
+    try {
+      await context.read<SessionCubit>().inviteToParty(userId);
+      NotificationService.info(message: 'Invited $name to the party');
+    } on GrpcError catch (e) {
+      NotificationService.error(message: 'Failed to invite: ${e.message}');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -122,45 +207,120 @@ class _FriendsPanel extends StatelessWidget {
                 _SectionHeader(title: 'Friends Online: $count'),
           ),
           const SizedBox(height: 1, child: ColoredBox(color: decoColor)),
-          //_FriendsSearchField(),
-          Expanded(child: _FriendsList()),
+          Padding(
+            padding: const .fromLTRB(15, 10, 15, 10),
+            child: KyberInput(
+              placeholder: 'Search Kyber Users',
+              onChanged: _searchInput.add,
+            ),
+          ),
+          Expanded(child: _buildBody()),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_query.isEmpty) {
+      return _FriendsList();
+    }
+    if (_loading && _results == null) {
+      return const Center(child: ProgressRing());
+    }
+    if (_results == null || _results!.isEmpty) {
+      return Center(
+        child: Text(
+          'No results for "$_query"',
+          style: const .new(
+            fontFamily: FontFamily.battlefrontUI,
+            fontSize: 17,
+            color: kButtonBorder,
+            height: 1,
+          ),
+        ),
+      );
+    }
+    return FadeIn(
+      child: _SearchResultList(
+        results: _results!,
+        onInvite: _invite,
       ),
     );
   }
 }
 
-class _FriendsSearchField extends StatelessWidget {
+class _SearchResultList extends StatelessWidget {
+  const _SearchResultList({required this.results, required this.onInvite});
+
+  final List<EAUser> results;
+  final Future<void> Function(String userId, String name) onInvite;
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 35,
-      child: mt.TextField(
-        style: const .new(
-          fontFamily: FontFamily.battlefrontUI,
-          fontSize: 16,
-          height: 1,
-        ),
-        decoration: .new(
-          filled: false,
-          fillColor: kInactiveColor.withOpacity(.05),
-          isDense: true,
-          enabledBorder: .none,
-          focusedBorder: .none,
-          contentPadding: const .symmetric(
-            horizontal: 15,
-            vertical: 12.5,
-          ),
-          hintText: 'Search for Friends'.toUpperCase(),
-          hintStyle: .new(
-            color: kInactiveColor.withOpacity(.75),
-            fontFamily: FontFamily.battlefrontUI,
-            fontSize: 16,
-            height: 1,
-          ),
-          hintMaxLines: 1,
-        ),
-      ),
+    final partyMemberIds = switch (context.watch<SessionCubit>().state) {
+      final InParty inParty =>
+        inParty.party.members.map((m) => m.player.id).toSet(),
+      _ => <String>{},
+    };
+
+    return SuperListView.separated(
+      itemCount: results.length + 1,
+      itemBuilder: (_, index) {
+        if (index == results.length) return const SizedBox.shrink();
+        final player = results[index];
+        final inParty = partyMemberIds.contains(player.id);
+
+        return ButtonBuilder(
+          builder: (context, hovered) {
+            return Padding(
+              padding: const .symmetric(horizontal: 15, vertical: 5),
+              child: SizedBox(
+                height: 40,
+                child: Row(
+                  crossAxisAlignment: .center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        player.username,
+                        style: const .new(
+                          fontFamily: FontFamily.battlefrontUI,
+                          fontSize: 18,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                    if (inParty)
+                      const Padding(
+                        padding: .symmetric(horizontal: 10),
+                        child: Text(
+                          'IN PARTY',
+                          style: TextStyle(
+                            fontFamily: FontFamily.battlefrontUI,
+                            fontSize: 14,
+                            color: kInactiveColor,
+                          ),
+                        ),
+                      )
+                    else if (hovered)
+                      FadeIn(
+                        duration: const .new(milliseconds: 150),
+                        child: SizedBox(
+                          height: 33,
+                          child: KyberButton(
+                            text: 'INVITE',
+                            onPressed: () =>
+                                onInvite(player.id, player.username),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+      separatorBuilder: (_, _) => Container(height: 1, color: decoColor),
     );
   }
 }

@@ -155,6 +155,13 @@ class General {
           as String;
 
   set locale(String value) => box.put('locale', value);
+
+  // TODO: remove dummy from key name
+  bool get allowPartyInvitesFromAnyone =>
+      box.get('allowPartyInvitesFromAnyoneDUMMY', defaultValue: true) as bool;
+
+  set allowPartyInvitesFromAnyone(bool value) =>
+      box.put('allowPartyInvitesFromAnyoneDUMMY', value);
 }
 
 class Patreon {

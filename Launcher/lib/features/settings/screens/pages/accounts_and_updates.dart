@@ -222,6 +222,23 @@ class AccountsAndUpdates extends StatelessWidget {
             ],
           ),
         ),
+        const SettingsHeader(title: 'PRIVACY'),
+        HiveListener(
+          box: box,
+          // TODO: remove dummy from key name
+          keys: const ['allowPartyInvitesFromAnyoneDUMMY'],
+          builder: (_) => KyberTable(
+            items: [
+              KyberTableItem.switchButton(
+                title: 'Allow Party Invites From Anyone',
+                value: Preferences.general.allowPartyInvitesFromAnyone,
+                onChange: (value) {
+                  Preferences.general.allowPartyInvitesFromAnyone = value;
+                },
+              ),
+            ],
+          ),
+        ),
         const SettingsHeader(title: 'UPDATES'),
         KyberTable(
           items: [

@@ -56,6 +56,9 @@ class _MaximaAvatarState extends State<MaximaAvatar> {
       width: 208,
       height: 208,
     );
+
+    if (!mounted) return;
+
     setState(() {
       loaded = true;
       path = result;
