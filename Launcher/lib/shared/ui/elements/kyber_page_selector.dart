@@ -1,0 +1,111 @@
+import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' as mt;
+import 'package:kyber_launcher/core/config/colors.dart';
+import 'package:kyber_launcher/gen/assets.gen.dart';
+import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/shared/ui/utils/button_builder.dart';
+
+class KyberPageSelector extends StatelessWidget {
+  const KyberPageSelector({
+    required this.current,
+    required this.total,
+    required this.onPrevious,
+    required this.onNext,
+    super.key,
+  });
+
+  final int current;
+  final int total;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: .hardEdge,
+      decoration: BoxDecoration(
+        border: kDefaultAllBorder,
+        borderRadius: .circular(kDefaultInnerBorderRadius),
+      ),
+      child: ClipRRect(
+        borderRadius: .circular(kDefaultInnerBorderRadius - 2),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _Arrow(
+                isFirst: true,
+                onPressed: onPrevious,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$current/$total',
+                  style: const TextStyle(
+                    fontFamily: FontFamily.battlefrontUI,
+                    fontSize: 13,
+                    color: kWhiteColor,
+                  ),
+                ),
+              ),
+              _Arrow(
+                isFirst: false,
+                onPressed: onNext,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Arrow extends StatelessWidget {
+  const _Arrow({required this.isFirst, required this.onPressed});
+
+  final bool isFirst;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+
+    return ButtonBuilder(
+      onClick: onPressed,
+      builder: (context, hovered) {
+        return Container(
+          color: const Color(0xFFD9D9D9).withOpacity(
+            !enabled
+                ? 0.4
+                : hovered
+                ? 0.2
+                : 0.1,
+          ),
+          padding: const .symmetric(horizontal: 8, vertical: 3),
+          child: Transform.rotate(
+            angle: !isFirst ? 0 : 3.14,
+            child: Assets.icons.kblPlay.svg(
+              height: 12,
+              width: 12,
+              colorFilter: .mode(
+                !enabled
+                    ? kWhiteColor1.withOpacity(0.4)
+                    : hovered
+                    ? kActiveColor
+                    : kWhiteColor,
+                .srcIn,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

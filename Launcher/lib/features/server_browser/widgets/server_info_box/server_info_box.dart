@@ -1,26 +1,17 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as mt;
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
-import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
-import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
-import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
-import 'package:kyber_launcher/features/mods/services/mod_service.dart';
-import 'package:kyber_launcher/features/reports/dialogs/report_player_dialog.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/background_image.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/download_progress.dart';
-import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/header.dart';
-import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/required_mods.dart';
-import 'package:kyber_launcher/features/tutorial/models/tutorials/server_browser_tutorial.dart';
+import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
-import 'package:kyber_launcher/injection_container.dart';
+import 'package:kyber_launcher/shared/ui/elements/kyber_page_selector.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
+import 'package:vector_graphics/vector_graphics.dart';
 
 class ServerInfoBox extends StatefulWidget {
   const ServerInfoBox({
@@ -75,780 +66,446 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
     final selectedServer =
         context.read<ServerBrowserCubit>().state.selectedServer ??
         widget.server;
-    return FutureBuilder(
-      future: sl.isReady<ModService>(),
-      builder: (context, snapshot) {
-        return SizedBox(
-          key: ServerBrowserTutorial.serverInfoBoxKey,
-          child: Column(
-            children: [
-              SizedBox(
-                height:
-                    context.read<MaximaCubit>().state.isEntitled(
-                      UserEntitlement.admin,
-                    )
-                    ? 235
-                    : 210,
-                child: CustomBorder(
-                  expand: true,
-                  background: ServerBackgroundImage(
-                    map: map?.map ?? '',
-                    fade: false,
-                    imageId: serverInfo.mapImageHash.isNotEmpty
-                        ? serverInfo.mapImageHash
-                        : null,
-                  ),
-                  clipper: _KyberContainerClipper(),
-                  painter: _KyberContainerCustomPainter(),
-                  blur: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 30,
-                          top: 36,
-                          right: 30,
+
+    final modeName = serverInfo.levelSetup.modeName.isNotEmpty
+        ? serverInfo.levelSetup.modeName
+        : MapHelper.getMode(serverInfo.levelSetup.mode)?.name ??
+              serverInfo.levelSetup.mode;
+
+    final mapName = serverInfo.levelSetup.mapName.isNotEmpty
+        ? serverInfo.levelSetup.mapName
+        : MapHelper.getMap(
+                serverInfo.levelSetup.mode,
+                serverInfo.levelSetup.map,
+              )?.name ??
+              serverInfo.levelSetup.map;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: .circular(kDefaultOuterBorderRadius),
+        border: kDefaultAllBorder,
+      ),
+      child: BackgroundBlur(
+        borderRadius: .circular(kDefaultOuterBorderRadius - 2),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ColoredBox(color: Colors.black.withOpacity(0.5)),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: ServerBackgroundImage(map: map?.map ?? ''),
+            ),
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 25),
+                child: Column(
+                  spacing: 15,
+                  children: [
+                    Padding(
+                      padding: const .symmetric(horizontal: 25),
+                      child: DefaultTextStyle(
+                        style: const TextStyle(
+                          fontFamily: FontFamily.battlefrontUI,
+                          fontSize: 24,
+                          color: Colors.white,
+                          shadows: [
+                            .new(
+                              color: Colors.black,
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    serverInfo.name,
-                                    style: const TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 26,
-                                      height: 1,
-                                    ),
-                                  ),
-                                ),
-                                if (!serverInfo.official)
-                                  CustomIconButton(
-                                    iconData: mt.Icons.report,
-                                    onPressed: () => showKyberDialog(
-                                      context: context,
-                                      builder: (_) => ReportPlayerDialog(
-                                        targetPlayer: ServerPlayer(
-                                          id: serverInfo.creatorId,
-                                          name: serverInfo.creator,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                const SizedBox(width: 10),
-                                CustomIconButton(
-                                  iconData: mt.Icons.copy,
-                                  size: 18,
-                                  onPressed: () {
-                                    final uri = Uri(
-                                      scheme: 'https',
-                                      host: 'api.prod.kyber.gg',
-                                      path: 'redirect',
-                                      queryParameters: {
-                                        'target':
-                                            'join_server?server_id=${serverInfo?.id}',
-                                      },
-                                    );
-                                    Clipboard.setData(
-                                      .new(text: uri.toString()),
-                                    );
-                                    NotificationService.info(
-                                      message: 'Copied to clipboard!',
-                                    );
-                                  },
-                                ),
-                                const SizedBox(width: 10),
-                                CustomIconButton(
-                                  iconData: mt.Icons.close,
-                                  onPressed:
-                                      widget.onClose ??
-                                      () => context
-                                          .read<ServerBrowserCubit>()
-                                          .clearServer(),
-                                ),
-                              ],
-                            ),
-                            if (context.read<MaximaCubit>().state.isEntitled(
-                              UserEntitlement.admin,
-                            )) ...[
-                              MouseRegion(
-                                cursor: SystemMouseCursors.click,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    Clipboard.setData(
-                                      ClipboardData(text: serverInfo.id),
-                                    );
-                                    NotificationService.showNotification(
-                                      message: 'Server ID copied to clipboard',
-                                    );
-                                  },
-                                  child: Row(
-                                    spacing: 5,
-                                    children: [
-                                      SizedBox(
-                                        width: 70,
-                                        child: Text(
-                                          serverInfo.id,
-                                          style: TextStyle(
-                                            color: kWhiteColor.withOpacity(.5),
-                                            fontFamily:
-                                                FontFamily.battlefrontUI,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      Icon(
-                                        mt.Icons.copy_rounded,
-                                        size: 15,
-                                        color: kWhiteColor.withOpacity(.5),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                            Text(
+                              serverInfo.levelSetup.mode,
+                              style: const .new(
+                                fontSize: 12,
+                                color: Color(0xFFD9D9D9),
+                                fontFamily: FontFamily.aurebesh,
                               ),
-                            ],
-                            const SizedBox(
-                              height: 15,
                             ),
-                            Row(
-                              children: [
-                                Text(
-                                  serverInfo.levelSetup.modeName.isNotEmpty
-                                      ? serverInfo.levelSetup.modeName
-                                      : MapHelper.getMode(
-                                              serverInfo.levelSetup.mode,
-                                            )?.name ??
-                                            serverInfo.levelSetup.mode,
-                                  style: const TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                Text(
-                                  ' - ${serverInfo.levelSetup.mapName.isNotEmpty ? serverInfo.levelSetup.mapName : map?.name ?? serverInfo.levelSetup.map}',
-                                  style: const TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
-                                    fontSize: 16,
-                                    color: kInactiveColor,
-                                  ),
-                                ),
-                              ],
+                            Text(
+                              serverInfo.name,
                             ),
-                            Row(
-                              children: [
-                                /*const Text(
-                                  'US',
-                                  style: TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
-                                    fontSize: 15,
-                                  ),
-                                ),*/
-                                if (!serverInfo.official)
-                                  Text(
-                                    serverInfo.creator,
-                                    style: const TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
-                                      fontSize: 15,
-                                      color: kInactiveColor,
-                                    ),
-                                  ),
-                                if (serverInfo.official)
-                                  const Text(
-                                    'Official',
-                                    style: TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
-                                      fontSize: 15,
-                                      color: kInactiveColor,
-                                    ),
-                                  ),
-                                Text(
-                                  ' - ${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
-                                  style: const TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
-                                    fontSize: 15,
-                                    color: kInactiveColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(
-                              height: 15,
-                            ),
-                            if (!snapshot.hasData)
-                              const SizedBox.shrink()
-                            else
-                              ServerButtonRow(
-                                hasModsInstalled: serverInfo.mods
-                                    .map(
-                                      (e) => ModHelper.isInstalled(
-                                        e.name,
-                                        e.version,
-                                      ),
-                                    )
-                                    .every((e) => e),
-                                server: serverInfo,
-                                onServerSelected: widget.onServerSelected,
-                                onClose: widget.onClose,
-                                selectedIndex: selectedIndex,
-                                onPageChanged: (index) =>
-                                    setState(() => selectedIndex = index),
+                            Text(
+                              '$modeName - $mapName',
+                              style: const .new(
+                                fontSize: 18,
                               ),
+                            ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    _PlayButton(
+                      onPressed: () => null,
+                      text: 'PLAY',
+                    ),
+                    Expanded(
+                      child: ListView(
+                        padding: const .only(left: 25, right: 25, top: 15),
+                        children: [
+                          _Dropdown(
+                            title: Row(
+                              spacing: 8,
+                              children: [
+                                const Text('INFO'),
+                                if (serverInfo.official)
+                                  _Badge(
+                                    icon: Assets.icons.greyKyberLogo.svg(
+                                      height: 12,
+                                      width: 12,
+                                    ),
+                                  ),
+                                _Badge(
+                                  text:
+                                      '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
+                                ),
+                                _Badge(text: serverInfo.region),
+                              ],
+                            ),
+                            emptyContent: serverInfo.description.isEmpty,
+                            child: Builder(
+                              builder: (context) {
+                                final serverDescription =
+                                    serverInfo.description;
+                                if (serverDescription.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                return Text(
+                                  serverDescription,
+                                  style: const TextStyle(
+                                    fontFamily: FontFamily.battlefrontUI,
+                                    fontSize: 14,
+                                    color: kWhiteColor1,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          if (widget.server is ServerGroup) ...[
+                            const SizedBox(height: 20),
+                            _InstanceSelector(
+                              selectedServer: serverInfo,
+                              serverGroup: widget.server as ServerGroup,
+                              onSwitched: (index) {
+
+                              },
+                            ),
+                          ],
+                          const SizedBox(height: 20),
+                          _Dropdown(
+                            title: const Row(
+                              spacing: 8,
+                              children: [
+                                Text('MODS - 1/1'),
+                              ],
+                            ),
+                            child: Builder(
+                              builder: (context) {
+                                return Column(
+                                  children: [
+                                    const Text(
+                                      'Required Mods:',
+                                      style: TextStyle(
+                                        fontFamily: FontFamily.battlefrontUI,
+                                        fontSize: 14,
+                                        color: kWhiteColor1,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    for (final mod in serverInfo.mods)
+                                      Text(
+                                        mod.name,
+                                        style: TextStyle(
+                                          fontFamily: FontFamily.battlefrontUI,
+                                          fontSize: 12,
+                                          color: kWhiteColor1.withOpacity(0.7),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (selectedIndex == 0 && snapshot.hasData) ...[
-                Container(
-                  decoration: const BoxDecoration(
-                    border: Border.symmetric(
-                      vertical: kDefaultBorder,
-                    ),
-                  ),
-                  child: BackgroundBlur(
-                    blurColorOpacity: .8,
-                    child: Container(
-                      height: 22,
-                      padding: const EdgeInsets.all(4),
-                      child:
-                          BlocBuilder<ServerBrowserCubit, ServerBrowserState>(
-                            buildWhen: (previous, current) =>
-                                previous.selectedServer !=
-                                    current.selectedServer ||
-                                previous.joiningServer != current.joiningServer,
-                            builder: (context, state) {
-                              final hasRequiredMods = serverInfo.mods
-                                  .map(
-                                    (e) => ModHelper.isInstalled(
-                                      e.name,
-                                      e.version,
-                                    ),
-                                  )
-                                  .every((element) => element);
-                              return Stack(
-                                children: [
-                                  if (state.joiningServer != serverInfo) ...[
-                                    Positioned.fill(
-                                      child: ListenableBuilder(
-                                        listenable: sl<ModService>(),
-                                        builder: (_, _) => Container(
-                                          color: hasRequiredMods
-                                              ? Colors.green
-                                              : Colors.red,
-                                        ),
-                                      ),
-                                    ),
-                                  ] else ...[
-                                    const Positioned(
-                                      child: ServerDownloadProgress(),
-                                    ),
-                                  ],
-                                ],
-                              );
-                            },
-                          ),
-                    ),
-                  ),
-                ),
-                Flexible(
-                  child: ServerRequiredMods(
-                    server: serverInfo,
-                  ),
-                ),
-              ] else if (selectedIndex == 0 && !snapshot.hasData) ...[
-                Expanded(
-                  child: BackgroundBlur(
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(kDefaultOuterBorderRadius),
-                    ),
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(kDefaultOuterBorderRadius),
-                        ),
-                        border: Border(
-                          left: kDefaultBorder,
-                          right: kDefaultBorder,
-                          bottom: kDefaultBorder,
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        spacing: 15,
-                        children: [
-                          SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: ProgressRing(),
-                          ),
-                          Text(
-                            'LOADING LOCAL MODS...',
-                            style: TextStyle(
-                              fontFamily: FontFamily.battlefrontUI,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ] else if (serverInfo.description.isNotEmpty &&
-                  selectedIndex == (selectedServer is ServerGroup ? 2 : 1)) ...[
-                Expanded(
-                  child: BackgroundBlur(
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(kDefaultOuterBorderRadius),
-                    ),
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(kDefaultOuterBorderRadius),
-                        ),
-                        border: Border(
-                          left: kDefaultBorder,
-                          right: kDefaultBorder,
-                          bottom: kDefaultBorder,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          ColoredBox(
-                            color: Colors.black.withValues(alpha: .5),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              child: Text(
-                                'DESCRIPTION',
-                                style: TextStyle(
-                                  fontFamily: FontFamily.battlefrontUI,
-                                  fontSize: 16,
-                                  color: kWhiteColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const CardSection(),
-                          Expanded(
-                            child: SelectionArea(
-                              child: SingleChildScrollView(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  child: Text(
-                                    serverInfo.description,
-                                    style: const TextStyle(
-                                      fontFamily: FontFamily.battlefrontUI,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ] else if (selectedIndex == 1 &&
-                  selectedServer is ServerGroup) ...[
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(kDefaultOuterBorderRadius),
-                  ),
-                  child: BackgroundBlur(
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: IgnorePointer(
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                borderRadius: BorderRadius.vertical(
-                                  bottom: Radius.circular(
-                                    kDefaultOuterBorderRadius,
-                                  ),
-                                ),
-                                border: Border(
-                                  bottom: kDefaultBorder,
-                                  left: kDefaultBorder,
-                                  right: kDefaultBorder,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        ColoredBox(
-                          color: Colors.black.withValues(alpha: .5),
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(
-                                kDefaultOuterBorderRadius + 4,
-                              ),
-                            ),
-                            child: RepaintBoundary(
-                              key: Key('server_list'),
-                              child: KyberList(
-                                colorOpacity: 0,
-                                shrinkWrap: true,
-                                blur: false,
-                                activeIndex:
-                                    selectedServer.getInstanceId(
-                                      selectedServer.getPreferredServer().id,
-                                    ) -
-                                    1,
-                                roundedEnd: false,
-                                //itemPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 13),
-                                itemPadding: EdgeInsets.zero,
-                                physics: const ScrollPhysics(),
-                                itemBuilder: (context, index) {
-                                  final item = selectedServer
-                                      .getSorted()[index];
-                                  final serverInfo = item;
-                                  return Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 75,
-                                        height: 50,
-                                        child: Builder(
-                                          builder: (context) {
-                                            if (serverInfo
-                                                .mapImageHash
-                                                .isNotEmpty) {
-                                              return CachedNetworkImage(
-                                                imageUrl:
-                                                    'https://${sl.get<KyberGRPCService>().httpHostname}/images/${serverInfo.mapImageHash}.jpeg',
-                                                fit: BoxFit.cover,
-                                                alignment: Alignment.centerLeft,
-                                                colorBlendMode:
-                                                    BlendMode.darken,
-                                                color: Colors.black.withOpacity(
-                                                  .12,
-                                                ),
-                                              );
-                                            }
-
-                                            return MapHelper.getImageForMap(
-                                              serverInfo.levelSetup.map,
-                                            )!.image(
-                                              fit: BoxFit.cover,
-                                              alignment: Alignment.centerLeft,
-                                              colorBlendMode: BlendMode.darken,
-                                              color: Colors.black.withOpacity(
-                                                .12,
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                      Container(
-                                        width: 2,
-                                        height: 50,
-                                        color: decoColor,
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                  ).copyWith(top: 5),
-                                              child: Text(
-                                                'INSTANCE #${index + 1}',
-                                                style: const TextStyle(
-                                                  fontFamily:
-                                                      FontFamily.battlefrontUI,
-                                                  fontSize: 16,
-                                                  height: 1,
-                                                ),
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                  ),
-                                              child: Row(
-                                                children: [
-                                                  RichText(
-                                                    text: TextSpan(
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                        color: kWhiteColor1,
-                                                        fontFamily: FontFamily
-                                                            .battlefrontUI,
-                                                      ),
-                                                      children: [
-                                                        TextSpan(
-                                                          text:
-                                                              serverInfo
-                                                                  .levelSetup
-                                                                  .modeName
-                                                                  .isNotEmpty
-                                                              ? serverInfo
-                                                                    .levelSetup
-                                                                    .modeName
-                                                              : MapHelper.getMode(
-                                                                      serverInfo
-                                                                          .levelSetup
-                                                                          .mode,
-                                                                    )?.name ??
-                                                                    'UNKNOWN MODE',
-                                                        ),
-                                                        const TextSpan(
-                                                          text: ' | ',
-                                                          style: TextStyle(
-                                                            color: decoColor,
-                                                          ),
-                                                        ),
-                                                        TextSpan(
-                                                          text:
-                                                              serverInfo
-                                                                  .levelSetup
-                                                                  .mapName
-                                                                  .isNotEmpty
-                                                              ? serverInfo
-                                                                    .levelSetup
-                                                                    .mapName
-                                                              : MapHelper.getMap(
-                                                                      serverInfo
-                                                                          .levelSetup
-                                                                          .mode,
-                                                                      serverInfo
-                                                                          .levelSetup
-                                                                          .map,
-                                                                    )?.name ??
-                                                                    'UNKNOWN MAP',
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                        ),
-                                        child: Text(
-                                          '${item.playerCount}/${item.maxPlayerCount}',
-                                          style: const TextStyle(
-                                            fontFamily:
-                                                FontFamily.battlefrontUI,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                                itemCount: selectedServer.servers.length,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned.fill(
-                          child: IgnorePointer(
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                borderRadius: BorderRadius.vertical(
-                                  bottom: Radius.circular(
-                                    kDefaultOuterBorderRadius,
-                                  ),
-                                ),
-                                border: Border(bottom: kDefaultBorder),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class CustomPainterDownload extends CustomPainter {
-  CustomPainterDownload();
+class _InstanceSelector extends StatelessWidget {
+  const _InstanceSelector({
+    required this.selectedServer,
+    required this.serverGroup,
+    required this.onSwitched,
+    super.key,
+  });
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color =
-          kButtonBorder // Set your desired color here
-      ..strokeWidth =
-          7 // Set the height of the line (7 pixels)
-      ..style = PaintingStyle.stroke;
+  final Server selectedServer;
+  final ServerGroup serverGroup;
+  final ValueChanged<int> onSwitched;
 
-    double startX = 0;
-    const dashWidth = 2.5; // Width of each dash (2 pixels)
-    const double dashGap = 13; // Gap between each dash (13 pixels)
-
-    while (startX < size.width) {
-      // Draw the horizontal dashed line segment (2 px width)
-      canvas.drawLine(
-        Offset(startX, 0), // Starting point
-        Offset(
-          startX + dashWidth,
-          0,
-        ), // Ending point (2 px to the right of the start)
-        paint,
-      );
-      startX += dashWidth + dashGap; // Move the startX by dashWidth + dashGap
-    }
+  Widget _buildServerItem(
+    BuildContext context,
+    Server server,
+    bool isSelected,
+  ) {
+    return Container(
+      padding: const .symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: isSelected ? kActiveColor : Colors.transparent,
+        borderRadius: .circular(4),
+      ),
+      child: Row(
+        spacing: 10,
+        children: [
+          Text(server.name),
+          const Spacer(),
+          Text('${server.playerCount}/${server.maxPlayerCount}'),
+        ],
+      ),
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
-}
+  Widget _buildServerIndicator({required bool active}) {
+    const defaultColor = Color(0xFFD9D9D9);
 
-Path _generateContainerPath(Size size) {
-  final path_0 = Path();
-  path_0.moveTo(5, 0);
-  path_0.lineTo((size.width * 0.50) - 5, 0);
-  path_0.quadraticBezierTo(size.width * 0.50, 0, (size.width * 0.50) + 5, 5);
-  path_0.quadraticBezierTo(
-    (size.width * 0.50) + 10,
-    10,
-    (size.width * 0.50) + 20,
-    10,
-  );
-
-  path_0.lineTo(size.width * 0.87 - 5, 10);
-
-  path_0.quadraticBezierTo(
-    size.width * 0.87,
-    10,
-    (size.width * 0.87) + 5,
-    5,
-  );
-  path_0.quadraticBezierTo(
-    (size.width * 0.87) + 10,
-    0,
-    (size.width * 0.87) + 20,
-    0,
-  );
-
-  path_0.lineTo(size.width - kDefaultOuterBorderRadius, 0);
-
-  path_0.quadraticBezierTo(
-    size.width,
-    0,
-    size.width,
-    kDefaultOuterBorderRadius,
-  );
-  path_0.lineTo(size.width, size.height);
-  path_0.lineTo(0, size.height);
-  path_0.lineTo(0, kDefaultOuterBorderRadius);
-  path_0.quadraticBezierTo(0, 0, kDefaultOuterBorderRadius, 0);
-  path_0.close();
-
-  return path_0;
-}
-
-class _KyberContainerCustomPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paintStroke0 = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..color = decoColor;
-
-    canvas.drawPath(_generateContainerPath(size), paintStroke0);
+    return Container(
+      height: 6,
+      decoration: BoxDecoration(
+        color: defaultColor.withOpacity(active ? 1 : 0.5),
+        borderRadius: .circular(3),
+      ),
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
-}
-
-class _KyberContainerClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    return _generateContainerPath(size);
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper oldClipper) {
-    return true;
-  }
-}
-
-class _DownloadItem extends StatefulWidget {
-  const _DownloadItem();
-
-  @override
-  State<_DownloadItem> createState() => _DownloadItemState();
-}
-
-class _DownloadItemState extends State<_DownloadItem> {
-  Server get server {
-    final info = context.read<ServerBrowserCubit>().state.selectedServer!;
-    if (info is ServerGroup) {
-      return info.serverInfo;
-    }
-
-    return info as Server;
+  Widget _buildServerRow(BuildContext context) {
+    return Row(
+      spacing: 10,
+      children: [
+        for (int i = 0; i < serverGroup.servers.length; i++) ...[
+          Expanded(
+            child: _buildServerIndicator(
+              active: serverGroup.servers[i] == selectedServer,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ServerBrowserCubit, ServerBrowserState>(
-      buildWhen: (previous, current) =>
-          previous.selectedServer != current.selectedServer ||
-          previous.joiningServer != current.joiningServer,
-      builder: (context, state) {
-        final hasRequiredMods = context
-            .read<ServerBrowserCubit>()
-            .hasAllRequiredMods();
-        if (state.selectedServer != server ||
-            server.mods.isEmpty ||
-            hasRequiredMods ||
-            !hasRequiredMods && state.joiningServer != server) {
-          return const SizedBox.shrink();
-        }
+    return _Dropdown(
+      initiallyExpanded: false,
+      title: Row(
+        spacing: 8,
+        children: [
+          const Text('SERVERS'),
+          Expanded(child: _buildServerRow(context)),
+          KyberPageSelector(
+            current: serverGroup.servers.indexOf(selectedServer) + 1,
+            total: serverGroup.servers.length,
+            onPrevious: () => null,
+            onNext: () => null,
+          ),
+        ],
+      ),
+      child: Builder(
+        builder: (context) {
+          return Column(
+            children: List.generate(serverGroup.servers.length, (index) {
+              final server = serverGroup.servers[index];
+              final isSelected = server == selectedServer;
 
-        return Container(
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: decoColor.withOpacity(0.5),
+              return ButtonBuilder(
+                onClick: () => onSwitched(index),
+                builder: (context, hovered) {
+                  return _buildServerItem(
+                    context,
+                    server,
+                    isSelected || hovered,
+                  );
+                },
+              );
+            }),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({this.text, this.icon, super.key});
+
+  final String? text;
+  final Widget? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    assert(text != null || icon != null, 'Badge must have either text or icon');
+
+    return Container(
+      padding: const .all(5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD9D9D9).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(kDefaultInnerBorderRadius),
+      ),
+      alignment: .center,
+      child:
+          icon ??
+          Text(
+            text!,
+            style: const TextStyle(
+              fontSize: 12,
+              fontFamily: FontFamily.battlefrontUI,
+              height: 0.9,
+              color: Color(0xFFD9D9D9),
+            ),
+          ),
+    );
+  }
+}
+
+class _Dropdown extends StatefulWidget {
+  const _Dropdown({
+    required this.title,
+    required this.child,
+    this.initiallyExpanded = true,
+    this.emptyContent = false,
+    super.key,
+  });
+
+  final Widget title;
+  final Widget child;
+  final bool emptyContent;
+  final bool initiallyExpanded;
+
+  @override
+  State<_Dropdown> createState() => _DropdownState();
+}
+
+class _DropdownState extends State<_Dropdown> {
+  late bool expanded;
+
+  @override
+  void initState() {
+    expanded = widget.initiallyExpanded;
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ButtonBuilder(
+          onClick: () => setState(() => expanded = !expanded),
+          builder: (_, _) => Row(
+            spacing: 10,
+            children: [
+              if (!widget.emptyContent)
+                Transform.rotate(
+                  angle: expanded ? 0.5 * 3.14 : 0,
+                  child: Assets.icons.kblPlay.svg(
+                    height: 12,
+                    width: 12,
+                    colorFilter: const .mode(
+                      decoColor,
+                      .srcIn,
+                    ),
+                  ),
+                ),
+              Expanded(child: widget.title),
+            ],
+          ),
+        ),
+        if (expanded) widget.child,
+      ],
+    );
+  }
+}
+
+class _PlayButton extends StatefulWidget {
+  const _PlayButton({required this.onPressed, super.key, this.text});
+
+  final VoidCallback onPressed;
+  final String? text;
+
+  @override
+  State<_PlayButton> createState() => _PlayButtonState();
+}
+
+class _PlayButtonState extends State<_PlayButton> {
+  bool hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = hovered ? kActiveColor : const Color(0xFFD9D9D9);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => hovered = true),
+      onExit: (_) => setState(() => hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: Stack(
+          children: [
+            VectorGraphic(
+              loader: AssetBytesLoader(Assets.icons.kblPlayIcon.path),
+              height: 47,
+              width: 208,
+            ),
+            VectorGraphic(
+              loader: AssetBytesLoader(Assets.icons.kblPlayIconBorder.path),
+              height: 47,
+              width: 208,
+              colorFilter: ColorFilter.mode(
+                target,
+                BlendMode.srcIn,
               ),
             ),
-          ),
-          height: 30,
-          child: const BackgroundBlur(
-            child: RepaintBoundary(
-              child: ServerDownloadProgress(),
+            Positioned(
+              top: 12,
+              left: 0,
+              right: 0,
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 150),
+                style: TextStyle(
+                  color: target,
+                  fontSize: 24,
+                  fontWeight: .bold,
+                  height: 1,
+                  shadows: hovered
+                      ? [
+                          Shadow(
+                            color: kActiveColor.withOpacity(.7),
+                            blurRadius: 10,
+                          ),
+                        ]
+                      : null,
+                ),
+                textAlign: .center,
+                child: Text(widget.text ?? 'START'),
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
