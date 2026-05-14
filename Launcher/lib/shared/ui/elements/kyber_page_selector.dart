@@ -9,15 +9,13 @@ class KyberPageSelector extends StatelessWidget {
   const KyberPageSelector({
     required this.current,
     required this.total,
-    required this.onPrevious,
-    required this.onNext,
+    required this.onPageChanged,
     super.key,
   });
 
   final int current;
   final int total;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
+  final ValueChanged<int>? onPageChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -35,29 +33,35 @@ class KyberPageSelector extends StatelessWidget {
             children: [
               _Arrow(
                 isFirst: true,
-                onPressed: onPrevious,
+                onPressed: onPageChanged == null
+                    ? null
+                    : () => onPageChanged!(current > 1 ? current - 1 : total),
               ),
               Container(
                 padding: const .symmetric(
                   horizontal: 14,
-                  vertical: 3,
+                  vertical: 4,
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: .circular(999),
-                ),
+                alignment: .center,
                 child: Text(
                   '$current/$total',
                   style: const TextStyle(
                     fontFamily: FontFamily.battlefrontUI,
                     fontSize: 13,
+                    fontWeight: .bold,
+                    height: 1.1,
                     color: kWhiteColor,
+                    fontFeatures: [
+                      .tabularFigures(),
+                    ]
                   ),
                 ),
               ),
               _Arrow(
                 isFirst: false,
-                onPressed: onNext,
+                onPressed: onPageChanged == null
+                    ? null
+                    : () => onPageChanged!(current < total ? current + 1 : 1),
               ),
             ],
           ),
@@ -88,7 +92,7 @@ class _Arrow extends StatelessWidget {
                 ? 0.2
                 : 0.1,
           ),
-          padding: const .symmetric(horizontal: 8, vertical: 3),
+          padding: const .symmetric(horizontal: 9, vertical: 5),
           child: Transform.rotate(
             angle: !isFirst ? 0 : 3.14,
             child: Assets.icons.kblPlay.svg(

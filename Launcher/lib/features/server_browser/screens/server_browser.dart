@@ -1,7 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/kyber/helper/kyber_status_helper.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_api_status_cubit.dart';
@@ -17,6 +15,7 @@ import 'package:kyber_launcher/features/server_browser/widgets/server_list/serve
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/elements/filter_dropdown.dart';
+import 'package:kyber_launcher/shared/ui/elements/kyber_page_selector.dart';
 import 'package:kyber_launcher/shared/ui/layout/bordered_content.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
@@ -108,19 +107,6 @@ class _HeaderBar extends StatelessWidget {
       child: SizedBox(
         child: Row(
           children: [
-            /*SizedBox(
-              child: KyberButton(
-                onPressed: () async => MaximaHelper.requestGameLaunch(context),
-                icon: SvgPicture.network(
-                  'https://upload.wikimedia.org/wikipedia/commons/0/0d/Electronic-Arts-Logo.svg',
-                  height: 15,
-                  width: 15,
-                  color: kWhiteColor,
-                ),
-                text: 'PLAY',
-              ),
-            ),
-            const SizedBox(width: 15),*/
             SizedBox(
               width: 40,
               child: KyberTabBar(
@@ -143,28 +129,14 @@ class _HeaderBar extends StatelessWidget {
               child: _FilterDropdown(),
             ),
             const SizedBox(width: 15),
-            SizedBox(
-              width: 120,
-              child: BlocBuilder<ServerListCubit, ServerListState>(
-                builder: (context, state) {
-                  final pageText = '${state.page ?? 0}/${state.pages ?? 0}';
-
-                  return KyberTabBar(
-                    selectedIndex: -1,
-                    onChanged: (value) {
-                      if (value == 0) {
-                        context.read<ServerListCubit>().previousPage();
-                      } else if (value == 2) {
-                        context.read<ServerListCubit>().nextPage();
-                      }
-                    },
-                    tabs: [
-                      const Icon(mt.Icons.arrow_back_ios_new_rounded),
-                      Text(pageText),
-                      const Icon(mt.Icons.arrow_forward_ios_rounded),
-                    ],
-                  );
-                },
+            BlocBuilder<ServerListCubit, ServerListState>(
+              builder: (context, state) => SizedBox(
+                height: 35,
+                child: KyberPageSelector(
+                  current: state.page ?? 0,
+                  total: state.pages ?? 0,
+                  onPageChanged: context.read<ServerListCubit>().goToPage,
+                ),
               ),
             ),
           ],

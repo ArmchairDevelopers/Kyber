@@ -95,6 +95,19 @@ class ServerListCubit extends Cubit<ServerListState> {
     loadServers();
   }
 
+  void goToPage(int page) {
+    if (state is ServerListLoaded) {
+      final x = state as ServerListLoaded;
+      if (page < 1 || page > x.pages) {
+        return;
+      }
+
+      _page = page;
+      emit(ServerListLoading(page: _page, pages: x.pages, filter: filter));
+      loadServers();
+    }
+  }
+
   void nextPage() {
     if (state is ServerListLoaded) {
       final x = state as ServerListLoaded;
