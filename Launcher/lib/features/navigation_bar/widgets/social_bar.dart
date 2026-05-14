@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart' hide Button;
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
@@ -10,6 +11,7 @@ import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
 import 'package:kyber_launcher/features/navigation_bar/widgets/exit_devplaytest_button.dart';
+import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
@@ -26,6 +28,7 @@ class _SocialBarState extends State<SocialBar> {
   Widget build(BuildContext context) {
     final kyberState = context.watch<KyberStatusCubit>().state;
     final maximaState = context.watch<MaximaCubit>().state;
+    final sessionState = context.watch<SessionCubit>().state;
 
     return SizedBox(
       height: 50,
@@ -43,16 +46,20 @@ class _SocialBarState extends State<SocialBar> {
             const ExitDevPlaytestButton(),
             const VCardSection(),
             const _UserBar(),
-            const SizedBox(width: 0),
-            Flexible(
-              child: Container(
-                constraints: const .new(
-                  maxWidth: 300,
-                  minWidth: 100,
+            if (sessionState is InParty) ...[
+              const SizedBox(width: 0),
+              Flexible(
+                child: Container(
+                  constraints: const .new(
+                    maxWidth: 300,
+                    minWidth: 100,
+                  ),
+                  child: const _FriendsBar(),
                 ),
-                child: const _FriendsBar(),
               ),
-            ),
+            ] else ...[
+              const _FriendsBar(reduced: true),
+            ],
             Row(
               children: [
                 if (kyberState is KyberStatusPlaying) ...[
@@ -287,7 +294,9 @@ class _DownloadManagerButton extends StatelessWidget {
 }
 
 class _FriendsBar extends StatelessWidget {
-  const _FriendsBar({super.key});
+  const _FriendsBar({this.reduced = false, super.key});
+
+  final bool reduced;
 
   @override
   Widget build(BuildContext context) {
@@ -295,26 +304,45 @@ class _FriendsBar extends StatelessWidget {
       builder: (context, state) {
         final friends = state.getSortedPlayers();
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final maxItems = ((constraints.maxWidth - 20) / 40).floor();
-            final displayedFriends = friends.take(maxItems).toList();
+        return ButtonBuilder(
+          onClick: () => showKyberDialog(
+            context: context,
+            builder: (_) => const MaximaFriendsDialog(),
+          ),
+          builder: (context, _) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final maxItems = !constraints.hasBoundedWidth
+                    ? 0
+                    : ((constraints.maxWidth - 20) / 40).floor();
+                final sessionState = context.watch<SessionCubit>().state;
+                var members = <KyberPlayer>[];
+                if (sessionState is InParty) {
+                  members = sessionState.party.members
+                      .where((m) => friends.any((f) => f.id == m.player.id))
+                      .take(maxItems)
+                      .map((m) => m.player)
+                      .toList();
+                }
 
-            return Row(
-              mainAxisSize: .min,
-              spacing: 10,
-              children: [
-                for (final friend in displayedFriends)
-                  MaximaAvatar(pd: friend.pd, height: 28, width: 28),
-                if (friends.length > maxItems)
-                  Text(
-                    '+${friends.length - maxItems}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: kInactiveColor,
-                    ),
-                  ),
-              ],
+                return Row(
+                  mainAxisSize: .min,
+                  spacing: 10,
+                  children: [
+                    if (!reduced)
+                      for (final member in members)
+                        MaximaAvatar(pd: member.id, height: 28, width: 28),
+                    if (friends.length > maxItems)
+                      Text(
+                        '+${friends.length - maxItems}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: kInactiveColor,
+                        ),
+                      ),
+                  ],
+                );
+              },
             );
           },
         );
