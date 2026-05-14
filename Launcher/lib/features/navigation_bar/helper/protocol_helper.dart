@@ -18,6 +18,7 @@ import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
@@ -264,7 +265,8 @@ class ProtocolHelper {
     }
 
     if (context.mounted) {
-      context.read<ServerBrowserCubit>().selectServer(server);
+      final entry = SingleServer(server: server);
+      context.read<ServerBrowserCubit>().selectServer(entry);
 
       if (forceJoin) {
         context.read<ServerBrowserCubit>().joinServer();
@@ -275,7 +277,7 @@ class ProtocolHelper {
       if (mods.every((m) => ModHelper.isInstalled(m.name, m.version))) {
         context.read<ServerBrowserCubit>().joinServer();
       } else {
-        context.read<ServerBrowserCubit>().selectServer(server);
+        context.read<ServerBrowserCubit>().selectServer(entry);
       }
     }
   }

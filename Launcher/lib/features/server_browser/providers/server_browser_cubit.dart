@@ -26,7 +26,7 @@ import 'package:kyber_launcher/features/nexusmods/dialogs/nexusmods_login.dart';
 import 'package:kyber_launcher/features/nexusmods/exceptions/missing_nexus_auth_exception.dart';
 import 'package:kyber_launcher/features/nexusmods/services/mod_finder_service.dart';
 import 'package:kyber_launcher/features/server_browser/dialogs/join_server_dialog.dart';
-import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
 import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
@@ -47,7 +47,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     return super.close();
   }
 
-  void selectServer(Object? server) {
+  void selectServer(ServerEntry? server) {
     emit(state.copyWith(selectedServer: server));
   }
 
@@ -79,17 +79,11 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     }
 
     if (hasAllRequiredMods()) {
-      if (state.selectedServer! is! ServerGroup) {
-        emit(state.copyWith(selectedServer: state.selectedServer! as Server));
-      }
-
       _joinServer();
     } else if (enabledDownload) {
       emit(
         state.copyWith(
-          joiningServer: (state.selectedServer is ServerGroup
-              ? (state.selectedServer! as ServerGroup).getPreferredServer()
-              : (state.selectedServer! as Server)),
+          joiningServer: state.selectedServer!.serverInfo,
         ),
       );
       _startDownloads();
@@ -100,9 +94,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     final server = state.selectedServer;
     if (server == null) return;
 
-    final serverInfo = server is ServerGroup
-        ? server.getPreferredServer()
-        : server as Server;
+    final serverInfo = server.serverInfo;
 
     try {
       // TODO: handle password protected servers
@@ -119,12 +111,8 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
   }
 
   bool hasAllRequiredMods() {
-    final targetServer = state.joiningServer ?? state.selectedServer;
-    if (targetServer == null) return false;
-
-    final server = targetServer is ServerGroup
-        ? targetServer.getPreferredServer()
-        : targetServer as Server;
+    final server = state.joiningServer ?? state.selectedServer?.serverInfo;
+    if (server == null) return false;
 
     return server.mods.every(
       (mod) => ModHelper.isInstalled(mod.name, mod.version),
@@ -135,9 +123,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     try {
       final dialogCompleted = Completer<JoinDialogResult?>();
       final server = state.selectedServer!;
-      final initialServerData = (server is ServerGroup)
-          ? server.getPreferredServer()
-          : server as Server;
+      final initialServerData = state.selectedServer!.serverInfo;
 
       showKyberDialog<JoinDialogResult?>(
         context: navigatorKey.currentContext!,
@@ -183,11 +169,12 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
         return;
       }
 
-      final selectedServer = server is! ServerGroup
-          ? server as Server
-          : server.servers.firstWhere(
-              (e) => e.meta['instance_id'] == result.instanceId,
-            );
+      final selectedServer = switch (server) {
+        SingleServer(:final server) => server,
+        GroupedServer(:final group) => group.servers.firstWhere(
+          (e) => e.meta['instance_id'] == result.instanceId,
+        ),
+      };
       await KyberServerHelper.joinServer(
         selectedServer,
         selectedCollection: result.collection,
@@ -314,9 +301,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
       NotificationService.info(message: 'Paused download for $name');
     }
 
-    final serverInfo = server is ServerGroup
-        ? server.getPreferredServer()
-        : server as Server;
+    final serverInfo = server.serverInfo;
 
     final missingMods = serverInfo.mods
         .where((mod) => !ModHelper.isInstalled(mod.name, mod.version))

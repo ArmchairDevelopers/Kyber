@@ -9,7 +9,7 @@ import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
   import 'package:kyber_launcher/features/mod_collections/extensions/mod_collection_extension.dart';
 import 'package:kyber_launcher/features/mods/widgets/collection_list/collection_icon.dart';
-import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/injection_container.dart';
@@ -26,7 +26,7 @@ import 'package:logging/logging.dart';
 class CosmeticModsDialog extends StatefulWidget {
   const CosmeticModsDialog({required this.server, this.skipPasswordCheck = false, super.key});
 
-  final Object server;
+  final ServerEntry server;
   final bool skipPasswordCheck;
 
   @override
@@ -48,7 +48,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
   @override
   void initState() {
-    serverInfo = widget.server is ServerGroup ? (widget.server as ServerGroup).getPreferredServer() : widget.server as Server;
+    serverInfo = widget.server.serverInfo;
     correctPassword = widget.skipPasswordCheck || !serverInfo.requiresPassword;
     withoutMods = !Preferences.general.useCosmetics;
     final mods = serverInfo.mods.map((e) => CollectionMod(name: e.name, version: e.version, link: e.link)).toList();
@@ -164,7 +164,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
             return Column(
               children: [
-                if (widget.server is ServerGroup) ...[
+                if (widget.server case GroupedServer(:final group)) ...[
                   RichText(
                     text: TextSpan(
                       text: 'JOINING INSTANCE ',
@@ -175,7 +175,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                       ),
                       children: [
                         TextSpan(
-                          text: '#${(widget.server as ServerGroup).getInstanceId(serverInfo.id)}',
+                          text: '#${group.getInstanceId(serverInfo.id)}',
                           style: TextStyle(
                             color: kActiveColor,
                           ),
@@ -218,7 +218,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                         },
                         itemBuilder: (DropdownItem<dynamic> item) {
                           item as DropdownItem<Server>;
-                          final instanceId = (widget.server as ServerGroup).getInstanceId(item.value.id);
+                          final instanceId = group.getInstanceId(item.value.id);
                           final serverInfo = item.value;
                           return Row(
                             children: [
@@ -310,8 +310,8 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                             ],
                           );
                         },
-                        items: (widget.server as ServerGroup).getSorted().map((e) {
-                          return DropdownItem(value: e, label: 'INSTANCE #${(widget.server as ServerGroup).getInstanceId(e.id)}');
+                        items: group.getSorted().map((e) {
+                          return DropdownItem(value: e, label: 'INSTANCE #${group.getInstanceId(e.id)}');
                         }).toList(),
                         selectedItem: serverInfo,
                       ),
@@ -451,7 +451,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                 collection: withoutMods ? ModCollectionMetaData.noMods() : selectedCollection ?? ModCollectionMetaData.noMods(),
                 spectator: spectator,
                 password: password,
-                instanceId: widget.server is ServerGroup ? serverInfo.meta['instance_id'] : null,
+                instanceId: widget.server is GroupedServer ? serverInfo.meta['instance_id'] : null,
               );
 
               Navigator.of(context).pop(result);

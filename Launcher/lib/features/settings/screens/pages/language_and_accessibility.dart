@@ -71,7 +71,7 @@ class LanguageAndAccessibility extends StatelessWidget {
         ),
         const SizedBox(height: 15),
         HiveListener(
-          keys: const ['rememberWindowPosition'],
+          keys: const ['rememberWindowPosition', 'groupServersByRegion'],
           box: box,
           builder: (context) {
             return BlocBuilder<KyberProxyCubit, KyberProxyState>(
@@ -92,6 +92,13 @@ class LanguageAndAccessibility extends StatelessWidget {
                       onChange: (value) async {
                         Preferences.customization.rememberWindowPosition =
                             value;
+                      },
+                    ),
+                    KyberTableItem.switchButton(
+                      title: 'Group Servers by Region',
+                      value: Preferences.general.groupServersByRegion,
+                      onChange: (value) async {
+                        Preferences.general.groupServersByRegion = value;
                       },
                     ),
                   ],

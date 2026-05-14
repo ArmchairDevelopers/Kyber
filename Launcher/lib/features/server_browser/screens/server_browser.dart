@@ -56,18 +56,12 @@ class _ServerBrowserState extends State<ServerBrowser> {
                   return;
                 }
 
-                final serverId = selectedServer is ServerGroup
-                    ? selectedServer.serverInfo.id
-                    : (selectedServer as Server).id;
+                final serverId = selectedServer.serverInfo.id;
+                final stillPresent = state.servers.any(
+                  (s) => s.serverInfo.id == serverId,
+                );
 
-                final server = state.servers.where((s) {
-                  final id = s is ServerGroup
-                      ? s.serverInfo.id
-                      : (s as Server).id;
-                  return id == serverId;
-                }).toList();
-
-                if (server.isEmpty) {
+                if (!stillPresent) {
                   context.read<ServerBrowserCubit>().clearServer();
                 }
               },

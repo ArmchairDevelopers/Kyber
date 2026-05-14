@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/routing/app_router.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/tutorial/models/tutorials/tutorial_class.dart';
 
@@ -32,7 +33,7 @@ class ServerHostTutorial implements Tutorial {
         'To select your mods, you have to select a mod collection here.',
       ),
       before: () async {
-        final server = KyberExampleServer();
+        final server = SingleServer(server: KyberExampleServer());
         BlocProvider.of<ServerBrowserCubit>(
           navigatorKey.currentContext!,
         ).selectServer(server);

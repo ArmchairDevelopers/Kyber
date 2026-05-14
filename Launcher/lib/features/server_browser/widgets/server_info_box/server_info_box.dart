@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/background_image.dart';
@@ -21,7 +22,7 @@ class ServerInfoBox extends StatefulWidget {
     super.key,
   });
 
-  final Object server;
+  final ServerEntry server;
   final bool moderationMode;
   final VoidCallback? onServerSelected;
   final VoidCallback? onClose;
@@ -41,9 +42,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
 
   @override
   void initState() {
-    serverInfo = widget.server is ServerGroup
-        ? (widget.server as ServerGroup).getPreferredServer()
-        : widget.server as Server;
+    serverInfo = widget.server.serverInfo;
     super.initState();
   }
 
@@ -53,19 +52,13 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
       selectedIndex = 0;
     }
 
-    serverInfo = widget.server is ServerGroup
-        ? (widget.server as ServerGroup).getPreferredServer()
-        : widget.server as Server;
+    serverInfo = widget.server.serverInfo;
 
     super.didUpdateWidget(oldWidget);
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedServer =
-        context.read<ServerBrowserCubit>().state.selectedServer ??
-        widget.server;
-
     final modeName = serverInfo.levelSetup.modeName.isNotEmpty
         ? serverInfo.levelSetup.modeName
         : MapHelper.getMode(serverInfo.levelSetup.mode)?.name ??
@@ -190,11 +183,11 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                               },
                             ),
                           ),
-                          if (widget.server is ServerGroup) ...[
+                          if (widget.server case GroupedServer(:final group)) ...[
                             const SizedBox(height: 20),
                             _InstanceSelector(
                               selectedServer: serverInfo,
-                              serverGroup: widget.server as ServerGroup,
+                              serverGroup: group,
                               onSwitched: (index) {},
                             ),
                           ],

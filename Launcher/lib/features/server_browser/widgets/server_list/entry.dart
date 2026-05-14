@@ -12,7 +12,7 @@ import 'package:kyber_launcher/features/kyber/models/modes.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/helpers/server_browser_helper.dart';
-import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
@@ -67,11 +67,11 @@ class ServerListEntry extends StatelessWidget {
       onHover: onHover,
       map: Map<dynamic, String>.from(map as Map<dynamic, dynamic>),
       mode: mode,
-      server: server,
+      server: SingleServer(server: server),
     );
   }
 
-  final Object server;
+  final ServerEntry server;
   final ValueChanged<bool> onHover;
   final void Function()? onClick;
   final int index;
@@ -84,9 +84,7 @@ class ServerListEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hovered = hoveredIndex == index + 1;
-    final serverInfo = server is ServerGroup
-        ? (server as ServerGroup).getPreferredServer()
-        : server as Server;
+    final serverInfo = server.serverInfo;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
@@ -203,16 +201,9 @@ class ServerListEntry extends StatelessWidget {
                         children: [
                           Builder(
                             builder: (context) {
-                              if (server is ServerGroup) {
-                                final totalPlayers = (server as ServerGroup)
-                                    .servers
-                                    .fold(
-                                      0,
-                                      (previousValue, element) =>
-                                          previousValue += element.playerCount,
-                                    );
+                              if (server is GroupedServer) {
                                 return Text(
-                                  totalPlayers.toString(),
+                                  server.totalPlayerCount.toString(),
                                   textAlign: TextAlign.center,
                                 );
                               }
@@ -288,7 +279,7 @@ class _JoinButtonState extends State<_JoinButton> {
                 )
                 ? () {
                     context.read<ServerBrowserCubit>()
-                      ..selectServer(widget.server)
+                      ..selectServer(SingleServer(server: widget.server))
                       ..joinServer(enabledDownload: false);
                   }
                 : null,
@@ -302,7 +293,7 @@ class _JoinButtonState extends State<_JoinButton> {
                       )
                       ? () {
                           context.read<ServerBrowserCubit>()
-                            ..selectServer(widget.server)
+                            ..selectServer(SingleServer(server: widget.server))
                             ..joinServer(enabledDownload: false);
                         }
                       : null,

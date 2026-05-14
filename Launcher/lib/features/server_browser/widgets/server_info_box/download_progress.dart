@@ -6,7 +6,6 @@ import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
-import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
@@ -26,12 +25,8 @@ class _ServerDownloadProgressState extends State<ServerDownloadProgress> {
   }
 
   int calcProgress(TaskRecord? activeDownload, int downloadProgress) {
-    final serverInfo = context.read<ServerBrowserCubit>().state.selectedServer;
-    final mods =
-        (serverInfo is ServerGroup
-                ? serverInfo.serverInfo
-                : (serverInfo! as Server))
-            .mods;
+    final selected = context.read<ServerBrowserCubit>().state.selectedServer;
+    final mods = selected!.serverInfo.mods;
 
     var total = 0;
     for (final mod in mods) {

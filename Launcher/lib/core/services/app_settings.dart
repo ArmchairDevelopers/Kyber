@@ -162,6 +162,12 @@ class General {
 
   set allowPartyInvitesFromAnyone(bool value) =>
       box.put('allowPartyInvitesFromAnyoneDUMMY', value);
+
+  bool get groupServersByRegion =>
+      box.get('groupServersByRegion', defaultValue: true) as bool;
+
+  set groupServersByRegion(bool value) =>
+      box.put('groupServersByRegion', value);
 }
 
 class Patreon {

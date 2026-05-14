@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/features/server_browser/helpers/server_browser_helper.dart';
-import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
@@ -30,12 +30,7 @@ class ServerButtonRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final server =
         this.server ??
-        (context.read<ServerBrowserCubit>().state.selectedServer! is ServerGroup
-            ? (context.read<ServerBrowserCubit>().state.selectedServer!
-                      as ServerGroup)
-                  .getPreferredServer()
-            : context.read<ServerBrowserCubit>().state.selectedServer!
-                  as Server);
+        context.read<ServerBrowserCubit>().state.selectedServer!.serverInfo;
     final state = onServerSelected != null
         ? null
         : context.watch<ServerBrowserCubit>().state;
@@ -71,7 +66,7 @@ class ServerButtonRow extends StatelessWidget {
         ),
         if (onPageChanged != null &&
             (server.description.isNotEmpty ||
-                state?.selectedServer is ServerGroup))
+                state?.selectedServer is GroupedServer))
           SizedBox(
             height: 35,
             width: 200,
@@ -80,7 +75,7 @@ class ServerButtonRow extends StatelessWidget {
                 const Text('MODS'),
                 if (server.description.isNotEmpty) const Text('INFO'),
                 if (context.read<ServerBrowserCubit>().state.selectedServer
-                    is ServerGroup)
+                    is GroupedServer)
                   const Text('SERVERS'),
               ],
               onChanged: onPageChanged ?? (index) {},

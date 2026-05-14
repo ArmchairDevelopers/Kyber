@@ -11,6 +11,7 @@ import 'package:kyber_launcher/features/kyber/helper/kyber_server_helper.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/mod_browser/screens/mod_details.dart';
 import 'package:kyber_launcher/features/server_browser/dialogs/join_server_dialog.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_list/server_list_header.dart';
 import 'package:kyber_launcher/features/server_moderation/dialogs/moderation_ban_dialog.dart';
 import 'package:kyber_launcher/features/server_moderation/dialogs/moderation_input_dialog.dart';
@@ -86,7 +87,9 @@ class _ServerModerationState extends State<ServerModeration> {
                                         >(
                                           context: context,
                                           builder: (_) => CosmeticModsDialog(
-                                            server: state.server!,
+                                            server: SingleServer(
+                                              server: state.server!,
+                                            ),
                                             skipPasswordCheck: true,
                                           ),
                                         );
