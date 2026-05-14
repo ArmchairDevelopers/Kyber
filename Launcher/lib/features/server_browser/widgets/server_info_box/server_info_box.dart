@@ -1,8 +1,10 @@
+import 'package:flutter/material.dart' as mt;
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
+import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
@@ -141,47 +143,27 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                       text: widget.moderationMode ? 'MODERATE' : 'PLAY',
                     ),
                     Expanded(
-                      child: ShaderMask(
-                        shaderCallback: (bounds) {
-                          const fadeHeight = 35.0;
-                          final end = fadeHeight / bounds.height;
-                          final mid = end * 0.5;
-
-                          return LinearGradient(
-                            begin: .topCenter,
-                            end: .bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.25),
-                              Colors.black,
-                            ],
-                            stops: [0.0, mid, end],
-                            tileMode: .mirror,
-                          ).createShader(bounds);
-                        },
-                        blendMode: .dstIn,
-                        child: ListView(
-                          padding: const .only(left: 25, right: 25, top: 35),
-                          children: [
-                            _ServerInfoDropdown(serverInfo: serverInfo),
-                            if (widget.server case GroupedServer(
-                              :final group,
-                            )) ...[
-                              const SizedBox(height: 20),
-                              _InstanceSelector(
-                                selectedServer: serverInfo,
-                                serverGroup: group,
-                                onSwitched: (index) {
-                                  setState(() {
-                                    serverInfo = group.servers[index - 1];
-                                  });
-                                },
-                              ),
-                            ],
+                      child: ListView(
+                        padding: const .only(left: 25, right: 25, top: 35),
+                        children: [
+                          _ServerInfoDropdown(serverInfo: serverInfo),
+                          if (widget.server case GroupedServer(
+                            :final group,
+                          )) ...[
                             const SizedBox(height: 20),
-                            _ModsDropdown(serverInfo: serverInfo),
+                            _InstanceSelector(
+                              selectedServer: serverInfo,
+                              serverGroup: group,
+                              onSwitched: (index) {
+                                setState(() {
+                                  serverInfo = group.servers[index - 1];
+                                });
+                              },
+                            ),
                           ],
-                        ),
+                          const SizedBox(height: 20),
+                          _ModsDropdown(serverInfo: serverInfo),
+                        ],
                       ),
                     ),
                   ],
@@ -256,33 +238,51 @@ class _ModsDropdown extends StatelessWidget {
           Text('MODS - 1/1'),
         ],
       ),
-      child: Builder(
-        builder: (context) {
-          return Column(
-            children: [
-              const Text(
-                'Required Mods:',
-                style: TextStyle(
-                  fontFamily: FontFamily.battlefrontUI,
-                  fontSize: 14,
-                  color: kWhiteColor1,
-                ),
-              ),
-              const SizedBox(height: 10),
-              for (final mod in serverInfo.mods)
-                Text(
-                  mod.name,
-                  style: TextStyle(
-                    fontFamily: FontFamily.battlefrontUI,
-                    fontSize: 12,
-                    color: kWhiteColor1.withOpacity(
-                      0.7,
-                    ),
+      child: Padding(
+        padding: const .only(top: 10, bottom: 15),
+        child: KyberList(
+          shrinkWrap: true,
+          roundedStart: true,
+          roundedEnd: true,
+          activeIndex: -1,
+          itemPadding: const .symmetric(horizontal: 10, vertical: 8),
+          borderRadius: 6,
+          itemCount: serverInfo.mods.length,
+          stateless: true,
+          itemBuilder: (context, index) {
+            final mod = serverInfo.mods[index];
+            final installed = ModHelper.isInstalled(mod.name, mod.version);
+
+            final color = installed ? Colors.green : Colors.red;
+
+            return Row(
+              spacing: 15,
+              children: [
+                Container(
+                  padding: const .all(2),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    borderRadius: .circular(4),
+                    border: .all(color: color),
+                  ),
+                  child: Icon(
+                    installed ? mt.Icons.check : mt.Icons.close,
+                    size: 16,
+                    color: color,
                   ),
                 ),
-            ],
-          );
-        },
+                Text(
+                  '${mod.name} (${mod.version})',
+                  style: const TextStyle(
+                    fontFamily: FontFamily.battlefrontUI,
+                    fontSize: 16,
+                    color: Color(0xFFD9D9D9),
+                  ),
+                )
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -365,26 +365,22 @@ class _InstanceSelector extends StatelessWidget {
           ),
         ],
       ),
-      child: Builder(
-        builder: (context) {
-          return Column(
-            children: List.generate(serverGroup.servers.length, (index) {
-              final server = serverGroup.servers[index];
-              final isSelected = server == selectedServer;
+      child: Column(
+        children: List.generate(serverGroup.servers.length, (index) {
+          final server = serverGroup.servers[index];
+          final isSelected = server == selectedServer;
 
-              return ButtonBuilder(
-                onClick: () => onSwitched(index),
-                builder: (context, hovered) {
-                  return _buildServerItem(
-                    context,
-                    server,
-                    isSelected || hovered,
-                  );
-                },
+          return ButtonBuilder(
+            onClick: () => onSwitched(index),
+            builder: (context, hovered) {
+              return _buildServerItem(
+                context,
+                server,
+                isSelected || hovered,
               );
-            }),
+            },
           );
-        },
+        }),
       ),
     );
   }
