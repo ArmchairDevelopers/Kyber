@@ -94,7 +94,6 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 25),
                 child: Column(
-                  spacing: 15,
                   children: [
                     Padding(
                       padding: const .symmetric(horizontal: 25),
@@ -133,112 +132,62 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 25),
                     _PlayButton(
                       // TODO: add disabled state
                       onPressed:
                           widget.onServerSelected ??
                           context.read<ServerBrowserCubit>().joinServer,
-                      text: 'PLAY',
+                      text: widget.moderationMode ? 'MODERATE' : 'PLAY',
                     ),
                     Expanded(
-                      child: ListView(
-                        padding: const .only(left: 25, right: 25, top: 15),
-                        children: [
-                          _Dropdown(
-                            title: Row(
-                              spacing: 8,
-                              children: [
-                                const Text('INFO'),
-                                if (serverInfo.official)
-                                  _Badge(
-                                    icon: Assets.icons.greyKyberLogo.svg(
-                                      height: 12,
-                                      width: 12,
-                                    ),
-                                  ),
-                                _Badge(
-                                  text:
-                                      '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
-                                ),
-                                _Badge(text: serverInfo.region),
-                              ],
-                            ),
-                            emptyContent: serverInfo.description.isEmpty,
-                            child: Builder(
-                              builder: (context) {
-                                final serverDescription =
-                                    serverInfo.description;
-                                if (serverDescription.isEmpty) {
-                                  return const SizedBox.shrink();
-                                }
+                      child: ShaderMask(
+                        shaderCallback: (bounds) {
+                          const fadeHeight = 35.0;
+                          final end = fadeHeight / bounds.height;
+                          final mid = end * 0.5;
 
-                                return Text(
-                                  serverDescription,
-                                  style: const TextStyle(
-                                    fontFamily: FontFamily.battlefrontUI,
-                                    fontSize: 14,
-                                    color: kWhiteColor1,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          if (widget.server case GroupedServer(
-                            :final group,
-                          )) ...[
+                          return LinearGradient(
+                            begin: .topCenter,
+                            end: .bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.25),
+                              Colors.black,
+                            ],
+                            stops: [0.0, mid, end],
+                            tileMode: .mirror,
+                          ).createShader(bounds);
+                        },
+                        blendMode: .dstIn,
+                        child: ListView(
+                          padding: const .only(left: 25, right: 25, top: 35),
+                          children: [
+                            _ServerInfoDropdown(serverInfo: serverInfo),
+                            if (widget.server case GroupedServer(
+                              :final group,
+                            )) ...[
+                              const SizedBox(height: 20),
+                              _InstanceSelector(
+                                selectedServer: serverInfo,
+                                serverGroup: group,
+                                onSwitched: (index) {
+                                  if (index < 0) {
+                                    index = group.servers.length - 1;
+                                  } else if (index >= group.servers.length) {
+                                    index = 0;
+                                  }
+
+                                  setState(() {
+                                    serverInfo = group.servers[index];
+                                  });
+                                },
+                              ),
+                            ],
                             const SizedBox(height: 20),
-                            _InstanceSelector(
-                              selectedServer: serverInfo,
-                              serverGroup: group,
-                              onSwitched: (index) {
-                                if (index < 0) {
-                                  index = group.servers.length - 1;
-                                } else if (index >= group.servers.length) {
-                                  index = 0;
-                                }
-
-                                setState(() {
-                                  serverInfo = group.servers[index];
-                                });
-                              },
-                            ),
+                            _ModsDropdown(serverInfo: serverInfo),
                           ],
-                          const SizedBox(height: 20),
-                          _Dropdown(
-                            title: const Row(
-                              spacing: 8,
-                              children: [
-                                Text('MODS - 1/1'),
-                              ],
-                            ),
-                            child: Builder(
-                              builder: (context) {
-                                return Column(
-                                  children: [
-                                    const Text(
-                                      'Required Mods:',
-                                      style: TextStyle(
-                                        fontFamily: FontFamily.battlefrontUI,
-                                        fontSize: 14,
-                                        color: kWhiteColor1,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    for (final mod in serverInfo.mods)
-                                      Text(
-                                        mod.name,
-                                        style: TextStyle(
-                                          fontFamily: FontFamily.battlefrontUI,
-                                          fontSize: 12,
-                                          color: kWhiteColor1.withOpacity(0.7),
-                                        ),
-                                      ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ],
@@ -247,6 +196,99 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ServerInfoDropdown extends StatelessWidget {
+  const _ServerInfoDropdown({required this.serverInfo, super.key});
+
+  final Server serverInfo;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Dropdown(
+      title: Row(
+        spacing: 8,
+        children: [
+          const Text('INFO'),
+          if (serverInfo.official)
+            _Badge(
+              icon: Assets.icons.greyKyberLogo.svg(
+                height: 12,
+                width: 12,
+              ),
+            ),
+          _Badge(
+            text: '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
+          ),
+          _Badge(text: serverInfo.region),
+        ],
+      ),
+      emptyContent: serverInfo.description.isEmpty,
+      child: Builder(
+        builder: (context) {
+          final serverDescription = serverInfo.description;
+          if (serverDescription.isEmpty) {
+            return const SizedBox.shrink();
+          }
+
+          return Text(
+            serverDescription,
+            style: const TextStyle(
+              fontFamily: FontFamily.battlefrontUI,
+              fontSize: 14,
+              color: kWhiteColor1,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ModsDropdown extends StatelessWidget {
+  const _ModsDropdown({required this.serverInfo, super.key});
+
+  final Server serverInfo;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Dropdown(
+      title: const Row(
+        spacing: 8,
+        children: [
+          Text('MODS - 1/1'),
+        ],
+      ),
+      child: Builder(
+        builder: (context) {
+          return Column(
+            children: [
+              const Text(
+                'Required Mods:',
+                style: TextStyle(
+                  fontFamily: FontFamily.battlefrontUI,
+                  fontSize: 14,
+                  color: kWhiteColor1,
+                ),
+              ),
+              const SizedBox(height: 10),
+              for (final mod in serverInfo.mods)
+                Text(
+                  mod.name,
+                  style: TextStyle(
+                    fontFamily: FontFamily.battlefrontUI,
+                    fontSize: 12,
+                    color: kWhiteColor1.withOpacity(
+                      0.7,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
