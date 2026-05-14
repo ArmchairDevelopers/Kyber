@@ -11,6 +11,7 @@ import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/maxima/widgets/friend_list/maxima_friend_list.dart';
 import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
+import 'package:kyber_launcher/features/reports/dialogs/report_player_dialog.dart';
 import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
@@ -277,7 +278,6 @@ class _SearchResultList extends StatelessWidget {
               child: SizedBox(
                 height: 40,
                 child: Row(
-                  crossAxisAlignment: .center,
                   children: [
                     Expanded(
                       child: Text(
@@ -306,10 +306,29 @@ class _SearchResultList extends StatelessWidget {
                         duration: const .new(milliseconds: 150),
                         child: SizedBox(
                           height: 33,
-                          child: KyberButton(
-                            text: 'INVITE',
-                            onPressed: () =>
-                                onInvite(player.id, player.username),
+                          child: Row(
+                            children: [
+                              KyberButton(
+                                text: 'INVITE',
+                                onPressed: () =>
+                                    onInvite(player.id, player.username),
+                              ),
+                              const SizedBox(width: 10),
+                              KyberButton(
+                                text: 'REPORT',
+                                onPressed: () {
+                                  showKyberDialog(
+                                    context: context,
+                                    builder: (context) => ReportPlayerDialog(
+                                      targetPlayer: ServerPlayer(
+                                        id: player.id,
+                                        name: player.username,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -516,7 +535,9 @@ class _MemberTile extends StatelessWidget {
                               child: const Text('MAKE LEADER'),
                               onPressed: () async {
                                 try {
-                                  await context.read<SessionCubit>().transferLeader(id);
+                                  await context
+                                      .read<SessionCubit>()
+                                      .transferLeader(id);
                                 } on GrpcError catch (e) {
                                   NotificationService.error(
                                     message:
@@ -527,14 +548,20 @@ class _MemberTile extends StatelessWidget {
                             ),
                           ),
                           KOutlinedButton(
-                            padding: const .symmetric(horizontal: 20, vertical: 5),
+                            padding: const .symmetric(
+                              horizontal: 20,
+                              vertical: 5,
+                            ),
                             child: const Icon(mt.Icons.close_sharp, size: 22),
                             onPressed: () async {
                               try {
-                                await context.read<SessionCubit>().kickFromParty(id);
+                                await context
+                                    .read<SessionCubit>()
+                                    .kickFromParty(id);
                               } on GrpcError catch (e) {
                                 NotificationService.error(
-                                  message: 'Failed to kick member: ${e.message}',
+                                  message:
+                                      'Failed to kick member: ${e.message}',
                                 );
                               }
                             },
