@@ -31,20 +31,20 @@ class KyberPageSelector extends StatelessWidget {
         borderRadius: .circular(kDefaultInnerBorderRadius - 2),
         child: IntrinsicHeight(
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: [
               _Arrow(
                 isFirst: true,
                 onPressed: onPrevious,
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
+                padding: const .symmetric(
                   horizontal: 14,
                   vertical: 3,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.black,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: .circular(999),
                 ),
                 child: Text(
                   '$current/$total',

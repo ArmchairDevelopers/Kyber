@@ -183,12 +183,24 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                               },
                             ),
                           ),
-                          if (widget.server case GroupedServer(:final group)) ...[
+                          if (widget.server case GroupedServer(
+                            :final group,
+                          )) ...[
                             const SizedBox(height: 20),
                             _InstanceSelector(
                               selectedServer: serverInfo,
                               serverGroup: group,
-                              onSwitched: (index) {},
+                              onSwitched: (index) {
+                                if (index < 0) {
+                                  index = group.servers.length - 1;
+                                } else if (index >= group.servers.length) {
+                                  index = 0;
+                                }
+
+                                setState(() {
+                                  serverInfo = group.servers[index];
+                                });
+                              },
                             ),
                           ],
                           const SizedBox(height: 20),
@@ -313,8 +325,12 @@ class _InstanceSelector extends StatelessWidget {
           KyberPageSelector(
             current: serverGroup.servers.indexOf(selectedServer) + 1,
             total: serverGroup.servers.length,
-            onPrevious: () => null,
-            onNext: () => null,
+            onPrevious: () => onSwitched(
+              serverGroup.servers.indexOf(selectedServer) - 1,
+            ),
+            onNext: () => onSwitched(
+              serverGroup.servers.indexOf(selectedServer) + 1,
+            ),
           ),
         ],
       ),
