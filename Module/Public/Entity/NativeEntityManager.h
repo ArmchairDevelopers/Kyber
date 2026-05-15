@@ -34,7 +34,7 @@ public:
     char pad_0000[56];         // 0x0000
     void* value;               // 0x0038
     class TypeInfo* valueType; // 0x0040
-    uint32_t flags;
+    uint32_t flags;            // 0x0048
 };                             // Size: 0x0088
 
 enum CacheDataFlags

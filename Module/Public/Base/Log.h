@@ -118,9 +118,18 @@ __forceinline void logInternal(LogLevel level, const char* label, const char* fm
     }
 }
 
+#define KYBER_IS_DEBUG(level) (Kyber::LogLevel::level <= Kyber::LogLevel::Debug)
+#define KYBER_LOG_STRINGIFY_DETAIL(s) #s
+#define KYBER_LOG_STRINGIFY(s) KYBER_LOG_STRINGIFY_DETAIL(s)
+
 #define KYBER_LOG(level, message, ...)                                                                                                     \
     FORCE_SC(if (SHOULD_LOG(Kyber::LogLevel::level)) {                                                                                     \
         std::stringstream _ss;                                                                                                             \
+        if constexpr                                                                                                                       \
+            KYBER_IS_DEBUG(level)                                                                                                          \
+            {                                                                                                                              \
+                _ss << "[" __FILE__ ":" KYBER_LOG_STRINGIFY(__LINE__) "] ";                                                                \
+            }                                                                                                                              \
         _ss << message;                                                                                                                    \
         logInternal(Kyber::LogLevel::level, "Kyber", _ss.str().c_str());                                                                   \
     })

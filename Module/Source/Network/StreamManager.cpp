@@ -137,7 +137,7 @@ KyberStreamedEvent* KyberStreamedEventRegistry::Construct(MemoryArena* arena, Ha
     const auto it = m_registry.find(hashCode);
     if (it == m_registry.end())
     {
-        KYBER_LOG(Error, "Constructed event that does not exist with hash code: " << hashCode);
+        KYBER_LOG(Debug, "Constructed event that does not exist with hash code: " << std::hex << hashCode);
         return nullptr;
     }
 

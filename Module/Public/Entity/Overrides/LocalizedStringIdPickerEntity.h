@@ -14,8 +14,9 @@ public:
     void PropertyChanged(PropertyModification* modification) override;
 
 private:
-    int32_t CalcStringHash(const std::string&);
     void GetLocalized();
+
+    static int32_t CalcStringHash(const std::string&);
 
     PropertyWriter<LocalizedStringId> m_localizedStringId;
 };

@@ -323,6 +323,12 @@ void CrashGameCommand(ConsoleContext& cc)
 
 void SetTeamCommand(ConsoleContext& cc)
 {
+    if (!g_program->m_server->IsRunning())
+    {
+        cc << "This is a server command, and you aren't running a server!";
+        return;
+    }
+
     auto stream = cc.stream();
     std::string playerName;
     int team;
@@ -341,6 +347,12 @@ void SetTeamCommand(ConsoleContext& cc)
 
 void SetTeamByIndexCommand(ConsoleContext& cc)
 {
+    if (!g_program->m_server->IsRunning())
+    {
+        cc << "This is a server command, and you aren't running a server!";
+        return;
+    }
+
     auto stream = cc.stream();
     int index;
     int team;
@@ -366,6 +378,12 @@ void SetTeamByIndexCommand(ConsoleContext& cc)
 
 void SetTeamByIdCommand(ConsoleContext& cc)
 {
+    if (!g_program->m_server->IsRunning())
+    {
+        cc << "This is a server command, and you aren't running a server!";
+        return;
+    }
+
     auto stream = cc.stream();
     uint64_t id;
     int team;
@@ -384,6 +402,12 @@ void SetTeamByIdCommand(ConsoleContext& cc)
 
 void FullTeamSwapCommand(ConsoleContext& cc)
 {
+    if (!g_program->m_server->IsRunning())
+    {
+        cc << "This is a server command, and you aren't running a server!";
+        return;
+    }
+
     auto& playerList = g_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
     for (ServerPlayer* player : playerList)
     {
@@ -399,6 +423,12 @@ void FullTeamSwapCommand(ConsoleContext& cc)
 
 void ShuffleTeamsCommand(ConsoleContext& cc)
 {
+    if (!g_program->m_server->IsRunning())
+    {
+        cc << "This is a server command, and you aren't running a server!";
+        return;
+    }
+
     // Create new vector of purely real players
     eastl::vector<ServerPlayer*> players;
     players.reserve(64);

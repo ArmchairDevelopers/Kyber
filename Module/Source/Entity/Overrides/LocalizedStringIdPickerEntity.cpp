@@ -12,7 +12,11 @@ KB_IMPLEMENT_ENTITY_OVERRIDE(LocalizedStringIdPickerEntity, LocalizedStringIdPic
 LocalizedStringIdPickerEntity::LocalizedStringIdPickerEntity(EntityManager* entityManager, NativeEntity* entity, LocalizedStringIdPickerEntityData* data)
     : KyberEntity(entity, data)
 {
-    m_localizedStringId = CreateFieldOverride<LocalizedStringId>("StringId", g_program->m_entityManager->GetNativeType("LocalizedStringId"));
+    LocalizedStringId* defaultValue = g_program->m_entityManager->CreateContainer<LocalizedStringId>("LocalizedStringId");
+    defaultValue->StringHash = CalcStringHash("ID_DBG_LOREM_IPSUM");
+    m_localizedStringId =
+        CreateFieldOverride<LocalizedStringId>("StringId", g_program->m_entityManager->GetNativeType("LocalizedStringId"), defaultValue);
+        
     GetLocalized();
 }
 

@@ -479,6 +479,13 @@ void PresenceBackendManagerAddBackendHk(void* inst, TypeObject* backend)
     trampoline(inst, backend);
 }
 
+void LoadSomethingHk(void* a1, __int64 a2, __int64 a3, __int64 a4, __int64 a5, __int64 a6, void(__fastcall*** a7)(__int64), __int64 a8,
+    __int64 a9, __int64 a10, char a11)
+{
+    static const auto trampoline = HookManager::Call(LoadSomethingHk);
+    return trampoline(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, false);
+}
+
 void ServerPlayerExtent2UpdateHk(ServerPlayerExtent2* inst, float deltaTime)
 {
     static const auto trampoline = HookManager::Call(ServerPlayerExtent2UpdateHk);
@@ -757,7 +764,7 @@ HookTemplate clientServerHookOffsets[] = {
     { OFFSET_SERVERPLAYER_SETTEAMID, ServerPlayerSetTeamIdHk },
     { OFFSET_APPLY_SETTINGS, SettingsManagerApplyHk },
     { HOOK_OFFSET(0x1478F8440), PresenceBackendManagerAddBackendHk },
-    //{ HOOK_OFFSET(0x1418CA790), LoadSomethingHk },
+    { HOOK_OFFSET(0x1418CA790), LoadSomethingHk },
     //{ HOOK_OFFSET(0x145FE09E0), ProtoHttpControlHk },
     //{ HOOK_OFFSET(0x145FE1920), ProtoHttpPostHk },
     //{ HOOK_OFFSET(0x145FE2990), ProtoHttpUpdateHk },
@@ -776,7 +783,7 @@ HookTemplate dedicatedServerHookOffsets[] = {
     { OFFSET_SERVERPLAYER_SETTEAMID, ServerPlayerSetTeamIdHk },
     { HOOK_OFFSET(0x1484213F0), GetSocketManagerHk },
     { HOOK_OFFSET(0x1478F8440), PresenceBackendManagerAddBackendHk },
-    //{ HOOK_OFFSET(0x1418CA790), LoadSomethingHk },
+    { HOOK_OFFSET(0x1418CA790), LoadSomethingHk },
     //{ OFFSET_SERVERCONNECTION_KICKPLAYER, ServerConnectionKickPlayerHk },
     { HOOK_OFFSET(0x140D4E1D0), MessageStreamAddMessageHk },
     { HOOK_OFFSET(0x1418D3380), CreatePresenceBackendHk },

@@ -100,19 +100,6 @@ std::string StringUtils::Base64EncodeChar(int encodedChar)
     return base64Encoded;
 }
 
-uint32_t StringUtils::HashQuick(const char* str)
-{
-    uint32_t hash = 5381;
-
-    const uint8_t* strBytes = reinterpret_cast<const uint8_t*>(str);
-    for (size_t i = 0; i < strlen(str); ++i)
-    {
-        hash = hash * 33 ^ uint32_t(strBytes[i]);
-    }
-
-    return hash;
-}
-
 uint32_t StringUtils::HashQuickLower(const char* str)
 {
     uint32_t hash = 5381;

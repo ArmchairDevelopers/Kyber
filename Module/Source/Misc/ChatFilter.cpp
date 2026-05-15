@@ -10,7 +10,7 @@
 
 namespace Kyber
 {
-char ChatFilter::s_filterCharacter = '#'; // We could do '*' but that bolds text in the chat and looks weird
+char ChatFilter::s_filterCharacter = '@'; // We could do '*' but that bolds text in the chat and looks weird
 
 ChatFilter::ChatFilter()
     : m_enabled(true)

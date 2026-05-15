@@ -19,7 +19,6 @@ public:
     static const char* Replace(const char* src, const char* find, const char* replace);
     static bool IsValid(const char* str);
     static std::string Base64Encode(const std::string& str);
-    static uint32_t HashQuick(const char* str);
     static uint32_t HashQuickLower(const char* str);
     static uint32_t HashHexCheck(const char* str);
     static std::wstring AsciiToWide(const std::string& str);
@@ -28,6 +27,19 @@ public:
     static bool StartsWith(const std::string& str, const std::string& start);
     static void MakeLower(char* begin, char* end);
     static void MakeUpper(char* begin, char* end);
+
+    static constexpr uint32_t HashQuick(const char* str)
+    {
+        uint32_t hash = 5381;
+
+        char c;
+        while ((c = *str++))
+        {
+            hash = hash * 33 ^ uint32_t(c);
+        }
+
+        return hash;
+    }
 
     // https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
     template<typename... Args>
@@ -51,13 +63,6 @@ private:
 
 consteval uint32_t operator""_hash(const char* str, size_t len)
 {
-    uint32_t hash = 5381;
-
-    for (size_t i = 0; i < len; ++i)
-    {
-        hash = hash * 33 ^ uint32_t(str[i]);
-    }
-
-    return hash;
+    return StringUtils::HashQuick(str);
 }
 } // namespace Kyber
