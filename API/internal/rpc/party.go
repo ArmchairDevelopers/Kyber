@@ -210,7 +210,7 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 	}
 
 	if inviteeSession == nil {
-		return nil, status.Error(codes.NotFound, "Player is offline")
+		return &pbcommon.Empty{}, nil
 	}
 
 	var party *models.PartyModel
