@@ -35,8 +35,10 @@ import 'package:kyber_launcher/features/navigation_bar/helper/protocol_helper.da
 import 'package:kyber_launcher/features/navigation_bar/providers/status_cubit.dart';
 import 'package:kyber_launcher/features/nexusmods/widgets/graphql_provider.dart';
 import 'package:kyber_launcher/features/server_browser/providers/ingame_view_cubit.dart';
+import 'package:kyber_launcher/features/server_browser/providers/lan_discovery_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
+import 'package:kyber_launcher/features/server_browser/services/lan_discovery_service.dart';
 import 'package:kyber_launcher/features/server_moderation/providers/moderation_cubit.dart';
 import 'package:kyber_launcher/features/server_moderation/providers/moderation_servers_cubit.dart';
 import 'package:kyber_launcher/features/stats/providers/stats_cubit.dart';
@@ -319,6 +321,11 @@ class _AppState extends State<App> {
                       BlocProvider(create: (_) => KyberStatusCubit()),
                       BlocProvider(create: (_) => ModBrowserCubit()),
                       BlocProvider(create: (_) => ServerListCubit()),
+                      BlocProvider(
+                        create: (_) => LanDiscoveryCubit(
+                          sl.get<LanDiscoveryService>(),
+                        ),
+                      ),
                       BlocProvider(create: (_) => ModerationServersCubit()),
                       BlocProvider(create: (_) => ModerationCubit()),
                       BlocProvider(create: (_) => ServerBrowserCubit()),

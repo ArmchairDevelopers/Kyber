@@ -7,11 +7,14 @@ import 'package:kyber_launcher/features/kyber/helper/kyber_status_helper.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_api_status_cubit.dart';
 import 'package:kyber_launcher/features/lightswitch/models/status.dart';
 import 'package:kyber_launcher/features/server_browser/constants/modes.dart';
+import 'package:kyber_launcher/features/server_browser/dialogs/direct_connect_dialog.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_list_state.dart';
+import 'package:kyber_launcher/features/server_browser/providers/lan_discovery_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/event_list.dart';
+import 'package:kyber_launcher/features/server_browser/widgets/lan_server_list.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/server_info_box.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_list/server_list.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
@@ -29,6 +32,8 @@ class ServerBrowser extends StatefulWidget {
 }
 
 class _ServerBrowserState extends State<ServerBrowser> {
+  int _selectedTab = 0;
+
   @override
   void initState() {
     super.initState();
@@ -71,11 +76,18 @@ class _ServerBrowserState extends State<ServerBrowser> {
                 }
               },
               listenWhen: (previous, current) => current is ServerListLoaded,
-              child: const _HeaderBar(),
+              child: _HeaderBar(
+                selectedTab: _selectedTab,
+                onTabChanged: (value) => setState(() => _selectedTab = value),
+              ),
             ),
-            content: const ServerListWidget(
-              key: Key('server_list'),
-            ),
+            content: _selectedTab == 0
+                ? const ServerListWidget(
+                    key: Key('server_list'),
+                  )
+                : const LanServerListWidget(
+                    key: Key('lan_server_list'),
+                  ),
           ),
         ),
         const SizedBox(width: 20),
@@ -106,7 +118,14 @@ class _ServerBrowserState extends State<ServerBrowser> {
 }
 
 class _HeaderBar extends StatelessWidget {
-  const _HeaderBar({super.key});
+  const _HeaderBar({
+    required this.selectedTab,
+    required this.onTabChanged,
+    super.key,
+  });
+
+  final int selectedTab;
+  final ValueChanged<int> onTabChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -128,6 +147,18 @@ class _HeaderBar extends StatelessWidget {
             ),
             const SizedBox(width: 15),*/
             SizedBox(
+              width: 180,
+              child: KyberTabBar(
+                tabs: [
+                  Text('Internet'.toUpperCase()),
+                  Text('LAN'.toUpperCase()),
+                ],
+                onChanged: onTabChanged,
+                selectedIndex: selectedTab,
+              ),
+            ),
+            const SizedBox(width: 15),
+            SizedBox(
               width: 40,
               child: KyberTabBar(
                 tabs: [
@@ -138,41 +169,59 @@ class _HeaderBar extends StatelessWidget {
                     ),
                   ),
                 ],
-                onChanged: (value) =>
-                    context.read<ServerListCubit>().loadServers(),
+                onChanged: (value) {
+                  if (selectedTab == 0) {
+                    context.read<ServerListCubit>().loadServers();
+                  } else {
+                    context.read<LanDiscoveryCubit>().refresh();
+                  }
+                },
                 selectedIndex: -1,
               ),
             ),
             const SizedBox(width: 15),
-            const Expanded(
-              flex: 2,
-              child: _FilterDropdown(),
-            ),
+            if (selectedTab == 0)
+              const Expanded(
+                flex: 2,
+                child: _FilterDropdown(),
+              )
+            else
+              const Spacer(),
             const SizedBox(width: 15),
-            SizedBox(
-              width: 120,
-              child: BlocBuilder<ServerListCubit, ServerListState>(
-                builder: (context, state) {
-                  final pageText = '${state.page ?? 0}/${state.pages ?? 0}';
-
-                  return KyberTabBar(
-                    selectedIndex: -1,
-                    onChanged: (value) {
-                      if (value == 0) {
-                        context.read<ServerListCubit>().previousPage();
-                      } else if (value == 2) {
-                        context.read<ServerListCubit>().nextPage();
-                      }
-                    },
-                    tabs: [
-                      const Icon(mt.Icons.arrow_back_ios_new_rounded),
-                      Text(pageText),
-                      const Icon(mt.Icons.arrow_forward_ios_rounded),
-                    ],
-                  );
-                },
+            KyberButton(
+              text: 'DIRECT CONNECT',
+              onPressed: () => showKyberDialog(
+                context: context,
+                builder: (_) => const DirectConnectDialog(),
               ),
             ),
+            if (selectedTab == 0) ...[
+              const SizedBox(width: 15),
+              SizedBox(
+                width: 120,
+                child: BlocBuilder<ServerListCubit, ServerListState>(
+                  builder: (context, state) {
+                    final pageText = '${state.page ?? 0}/${state.pages ?? 0}';
+
+                    return KyberTabBar(
+                      selectedIndex: -1,
+                      onChanged: (value) {
+                        if (value == 0) {
+                          context.read<ServerListCubit>().previousPage();
+                        } else if (value == 2) {
+                          context.read<ServerListCubit>().nextPage();
+                        }
+                      },
+                      tabs: [
+                        const Icon(mt.Icons.arrow_back_ios_new_rounded),
+                        Text(pageText),
+                        const Icon(mt.Icons.arrow_forward_ios_rounded),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           ],
         ),
       ),

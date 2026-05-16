@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_status_cubit.dart';
+import 'package:kyber_launcher/features/server_browser/services/lan_discovery_service.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/server_info_box.dart';
 import 'package:kyber_launcher/features/server_host/providers/host_search_cubit.dart';
 import 'package:kyber_launcher/features/server_host/widgets/create_server/map_rotation_page.dart';
@@ -15,6 +16,7 @@ import 'package:kyber_launcher/features/server_moderation/screens/moderation_ser
 import 'package:kyber_launcher/features/server_moderation/screens/server_moderation.dart';
 import 'package:kyber_launcher/features/tutorial/models/tutorials/server_host_tutorial.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
+import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_input.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_tab_bar.dart';
@@ -56,10 +58,13 @@ class _ServerHostState extends State<ServerHost> {
             'server_host',
           ).info('Detected hosting status (${state.serverState.id})');
           setState(() => createServer = false);
-          context.read<ModerationCubit>().selectServer(
-            serverId: state.serverState.id,
-          );
+          if (state.serverState.id.isNotEmpty) {
+            context.read<ModerationCubit>().selectServer(
+              serverId: state.serverState.id,
+            );
+          }
         } else {
+          sl.get<LanDiscoveryService>().stopBeacon();
           context.read<ModerationCubit>().unloadServer();
         }
       },

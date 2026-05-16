@@ -37,6 +37,8 @@ class _ServerSettingsBoxState extends State<ServerSettingsBox> {
         'password': Preferences.hostServer.password,
         'maxPlayers': Preferences.hostServer.maxPlayers,
         'maxSpectators': Preferences.hostServer.maxSpectators,
+        'lanMode': false,
+        'serverPort': '25200',
       },
       onChanged: () async {
         final state = context.read<ModerationCubit>().state;

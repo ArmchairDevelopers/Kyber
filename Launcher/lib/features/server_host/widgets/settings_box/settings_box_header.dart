@@ -8,11 +8,13 @@ import 'package:kyber/kyber.dart' hide ServerMod;
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/services/image_helper.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
+import 'package:kyber_launcher/core/services/windows_env.dart';
 import 'package:kyber_launcher/features/map_rotation/models/map_rotation_entry.dart';
 import 'package:kyber_launcher/features/map_rotation/providers/map_rotation_cubit.dart';
 import 'package:kyber_launcher/features/maxima/helper/maxima_helper.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
 import 'package:kyber_launcher/features/mods/services/level_declaration_service.dart';
+import 'package:kyber_launcher/features/server_browser/services/lan_discovery_service.dart';
 import 'package:kyber_launcher/features/server_host/providers/host_collection_cubit.dart';
 import 'package:kyber_launcher/features/server_host/widgets/settings_box/server_settings_box.dart';
 import 'package:kyber_launcher/features/server_moderation/providers/moderation_cubit.dart';
@@ -187,6 +189,21 @@ class SettingsBoxHeader extends StatelessWidget {
               );
             },
           ),
+          FutureBuilder<String>(
+            future: LanDiscoveryService.getLanAddress(),
+            builder: (context, snapshot) {
+              final address = snapshot.data ?? 'detecting LAN IP';
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'LAN address: $address:${LanDiscoveryService.gamePort}',
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: kWhiteColor,
+                  ),
+                ),
+              );
+            },
+          ),
           const SizedBox(
             height: 10,
           ),
@@ -223,6 +240,14 @@ class SettingsBoxHeader extends StatelessWidget {
                           }
 
                           if (state.selected) {
+                            if (form.value['lanMode'] as bool? ?? false) {
+                              NotificationService.showNotification(
+                                message:
+                                    'LAN servers are edited locally while hosting. Restart the server to change LAN metadata.',
+                                severity: InfoBarSeverity.warning,
+                              );
+                              return;
+                            }
                             await sl
                                 .get<KyberGRPCService>()
                                 .serverBrowserClient
@@ -241,7 +266,17 @@ class SettingsBoxHeader extends StatelessWidget {
                             return;
                           }
 
-                          await uploadHashes(context);
+                          final lanMode =
+                              form.value['lanMode'] as bool? ?? false;
+                          final serverPort =
+                              int.tryParse(
+                                (form.value['serverPort'] ?? '').toString(),
+                              ) ??
+                              LanDiscoveryService.gamePort;
+
+                          if (!lanMode) {
+                            await uploadHashes(context);
+                          }
 
                           final mapRotation = context
                               .read<MapRotationCubit>()
@@ -298,21 +333,34 @@ class SettingsBoxHeader extends StatelessWidget {
                               mapRotation: mapRotation,
                             );
 
-                            await sl
-                                .get<KyberGRPCService>()
-                                .serverBrowserClient
-                                .validateServer(
-                                  RegisterServerRequest(
-                                    name: startRequest.name,
-                                    description: startRequest.description,
-                                    password: startRequest.password,
-                                    maxPlayerCount: startRequest.maxPlayers,
-                                    explodedMods: [],
-                                    mods: [],
-                                    levelSetup: LevelSetup(map: '', mode: ''),
-                                    statsSource: .KYBER,
-                                  ),
-                                );
+                            ProcessEnv.set(
+                              'KYBER_ONLINE_MODE',
+                              lanMode ? '0' : '1',
+                            );
+                            ProcessEnv.set(
+                              'KYBER_SERVER_PORT',
+                              lanMode
+                                  ? serverPort.toString()
+                                  : LanDiscoveryService.gamePort.toString(),
+                            );
+
+                            if (!lanMode) {
+                              await sl
+                                  .get<KyberGRPCService>()
+                                  .serverBrowserClient
+                                  .validateServer(
+                                    RegisterServerRequest(
+                                      name: startRequest.name,
+                                      description: startRequest.description,
+                                      password: startRequest.password,
+                                      maxPlayerCount: startRequest.maxPlayers,
+                                      explodedMods: [],
+                                      mods: [],
+                                      levelSetup: LevelSetup(map: '', mode: ''),
+                                      statsSource: .KYBER,
+                                    ),
+                                  );
+                            }
 
                             final initialCommands = <String>[];
 
@@ -355,6 +403,11 @@ class SettingsBoxHeader extends StatelessWidget {
 
                               await client.serverClient.startServer(
                                 startRequest,
+                                options: lanMode
+                                    ? CallOptions(
+                                        metadata: {'kyber-lan-mode': '1'},
+                                      )
+                                    : null,
                               );
                             } else {
                               await MaximaHelper.requestGameLaunch(
@@ -365,6 +418,26 @@ class SettingsBoxHeader extends StatelessWidget {
                                 ),
                                 modCollection: collection,
                               );
+                            }
+
+                            if (lanMode) {
+                              await sl.get<LanDiscoveryService>().startBeacon(
+                                name: startRequest.name,
+                                port: serverPort,
+                                maxPlayers: startRequest.maxPlayers,
+                                requiresPassword:
+                                    startRequest.password.isNotEmpty,
+                                mapRotation: mapRotation,
+                                collection: collection,
+                              );
+                              final lanAddress =
+                                  await LanDiscoveryService.getLanAddress();
+                              NotificationService.showNotification(
+                                message:
+                                    'LAN server available at $lanAddress:$serverPort. Allow UDP $serverPort and ${LanDiscoveryService.discoveryPort} in your firewall.',
+                              );
+                            } else {
+                              await sl.get<LanDiscoveryService>().stopBeacon();
                             }
                           } on GrpcError catch (e) {
                             Logger.root.severe(

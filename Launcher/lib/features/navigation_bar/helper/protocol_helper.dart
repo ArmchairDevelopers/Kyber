@@ -13,6 +13,7 @@ import 'package:kyber_launcher/features/download_manager/models/download_link_ty
 import 'package:kyber_launcher/features/download_manager/models/download_request.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
 import 'package:kyber_launcher/features/download_manager/services/download_orchestrator.dart';
+import 'package:kyber_launcher/features/kyber/helper/kyber_server_helper.dart';
 import 'package:kyber_launcher/features/maxima/helper/maxima_helper.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
@@ -29,6 +30,7 @@ import 'package:window_manager/window_manager.dart';
 class ProtocolHelper {
   static const List<String> _supportedUrls = [
     'join_server',
+    'join_direct',
     'start_game',
     'deep_link',
     'discord_linked',
@@ -195,6 +197,18 @@ class ProtocolHelper {
           await _joinServer(
             uri.queryParameters['server_id']!,
             forceJoin: forceJoin,
+          );
+        case 'join_direct':
+          final ip = uri.queryParameters['ip'];
+          final port = int.tryParse(uri.queryParameters['port'] ?? '');
+          if (ip == null || ip.isEmpty) {
+            Logger.root.severe('Received protocol url but ip is null');
+            return;
+          }
+
+          await KyberServerHelper.joinByAddress(
+            ip: ip,
+            port: port ?? KyberServerHelper.defaultLanPort,
           );
         case 'start_game':
           if (!navigatorKey.currentContext!

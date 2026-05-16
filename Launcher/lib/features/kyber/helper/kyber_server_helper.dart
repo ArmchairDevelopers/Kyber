@@ -7,6 +7,7 @@ import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/core/routing/app_router.dart';
 import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
+import 'package:kyber_launcher/core/services/windows_env.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_proxy_cubit.dart';
 import 'package:kyber_launcher/features/maxima/dialogs/maxima_start_game_dialog.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
@@ -19,6 +20,7 @@ import 'package:logging/logging.dart';
 
 class KyberServerHelper {
   static final _logger = Logger('kyber_server_helper');
+  static const int defaultLanPort = 25200;
 
   static Future<void> joinServer(
     Server server, {
@@ -98,6 +100,7 @@ class KyberServerHelper {
     );
 
     try {
+      ProcessEnv.set('KYBER_ONLINE_MODE', '1');
       final service = sl.get<KyberGRPCService>();
       final joinToken = await service.clientServerClient.createJoinToken(
         .new(
@@ -142,6 +145,71 @@ class KyberServerHelper {
       NotificationService.error(
         message: 'Failed to join server: $e',
       );
+    }
+  }
+
+  static Future<void> joinByAddress({
+    required String ip,
+    int port = defaultLanPort,
+    ModCollectionMetaData? selectedCollection,
+    bool spectator = false,
+  }) async {
+    try {
+      ProcessEnv.set('KYBER_ONLINE_MODE', '0');
+
+      var serverIp = ip.trim();
+      final currentIp = await _getCurrentIpAddressOrNull();
+      if (currentIp != null && serverIp == currentIp) {
+        serverIp = '127.0.0.1';
+      }
+
+      final joinRequest = JoinServerRequest(
+        ip: serverIp,
+        port: port,
+        type: .DIRECT,
+        spectate: spectator,
+      );
+      final initializeRequest = InitializeRequest(joinServer: joinRequest);
+      if (selectedCollection != null) {
+        initializeRequest.modData = selectedCollection.getInterfaceData();
+      }
+
+      if (!sl.isRegistered<MaximaGameInstance>()) {
+        await showKyberDialog(
+          context: navigatorKey.currentContext!,
+          builder: (_) => MaximaStartGameDialog(
+            mods: selectedCollection
+                ?.getLocalMods()
+                .whereType<FrostyMod>()
+                .toList(),
+            initializeRequest: initializeRequest,
+          ),
+        );
+      } else {
+        final instance = sl.get<MaximaGameInstance>();
+        await instance.clientService.client.joinServer(
+          joinRequest,
+          options: CallOptions(metadata: {'kyber-lan-mode': '1'}),
+        );
+      }
+    } on GrpcError catch (e) {
+      _logger.severe('Failed to join LAN server: ${e.message}', e);
+      NotificationService.error(
+        message: 'Failed to join LAN server: ${e.message}',
+      );
+    } catch (e) {
+      _logger.severe('Failed to join LAN server: $e', e);
+      NotificationService.error(
+        message: 'Failed to join LAN server: $e',
+      );
+    }
+  }
+
+  static Future<String?> _getCurrentIpAddressOrNull() async {
+    try {
+      return await KyberNetworkHelper.getCurrentIpAddress();
+    } catch (_) {
+      return null;
     }
   }
 }

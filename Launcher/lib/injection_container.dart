@@ -14,6 +14,7 @@ import 'package:kyber_launcher/features/mods/services/level_declaration_service.
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dart';
 import 'package:kyber_launcher/features/plugin_manager/services/plugin_manager.dart';
+import 'package:kyber_launcher/features/server_browser/services/lan_discovery_service.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -31,6 +32,7 @@ void initializeDependencies() {
     ..registerSingleton<VoipService>(VoipService().getInstance())
     ..registerSingleton<PluginManager>(PluginManager())
     ..registerSingleton<LevelDeclarationService>(LevelDeclarationService())
+    ..registerSingleton<LanDiscoveryService>(LanDiscoveryService())
     ..registerSingletonAsync<ModService>(ModService.getInstance)
     ..registerSingletonAsync<DownloadOrchestrator>(
       DownloadOrchestrator.getInstance,

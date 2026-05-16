@@ -79,6 +79,40 @@ class ServerSettings extends StatelessWidget {
                   NotificationService.notImplemented();
                 },
               ),
+              KyberTableItem.custom(
+                title: 'LAN Server',
+                builder: (hovered) {
+                  return FormBuilderField<bool>(
+                    name: 'lanMode',
+                    builder: (field) {
+                      return GestureDetector(
+                        onTap: () => field.didChange(!(field.value ?? false)),
+                        child: KyberTableSwitch(
+                          hover: hovered,
+                          disabledText: 'Internet',
+                          enabledText: 'LAN',
+                          value: field.value ?? false,
+                          onChanged: field.didChange,
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+              KyberTableItem.custom(
+                title: 'Server Port',
+                builder: (hovered) {
+                  return KyberFormInputField(
+                    name: 'serverPort',
+                    placeholder: '25200',
+                    validator: FormBuilderValidators.compose([
+                      FormBuilderValidators.integer(),
+                      FormBuilderValidators.min(1),
+                      FormBuilderValidators.max(65535),
+                    ]),
+                  );
+                },
+              ),
             ],
           ),
         ),
