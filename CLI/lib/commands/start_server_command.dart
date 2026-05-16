@@ -34,10 +34,20 @@ class StartServerCommand extends Command<int> {
         help: 'Starts a non-dedicated server',
         negatable: false,
       )
+      ..addFlag(
+        'lan',
+        help: 'Starts a LAN-only server without registering with Kyber API or proxies.',
+        negatable: false,
+      )
       ..addSeparator('Server Options')
       ..addOption('server-name', abbr: 'n', help: 'Specify the server name')
       ..addOption('server-password', abbr: 'p', help: 'Specify the server name')
       ..addOption('server-description', help: 'Specify the server description')
+      ..addOption(
+        'server-port',
+        defaultsTo: '25200',
+        help: 'Specify the LAN game server port',
+      )
       ..addOption(
         'max-players',
         defaultsTo: '40',
@@ -283,6 +293,12 @@ class StartServerCommand extends Command<int> {
     }
 
     Env.set('KYBER_API_TOKEN', kToken);
+    final lanMode = argResults?['lan'] as bool? ?? false;
+    Env.set('KYBER_ONLINE_MODE', lanMode ? '0' : '1');
+    Env.set(
+      'KYBER_SERVER_PORT',
+      lanMode ? argResults?['server-port'] as String? ?? '25200' : '25200',
+    );
 
     final noDedicated = argResults?['no-dedicated'] as bool? ?? false;
     Env.set('KYBER_DEDICATED_SERVER', noDedicated ? '0' : '1');
