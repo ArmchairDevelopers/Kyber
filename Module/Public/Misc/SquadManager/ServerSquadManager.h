@@ -7,17 +7,16 @@
 #include <EASTL/unordered_map.h>
 #include <EASTL/vector.h>
 
-#include <cstdint>
-
 namespace Kyber
 {
 class ServerPlayer;
 
-typedef uint64_t GroupId;
-
 class ServerSquadManager : EventListener
 {
 public:
+    using GroupId = uint64_t;
+    using PlayerId = uint64_t;
+
     ServerSquadManager(EventManager* eventManager);
     ~ServerSquadManager() override = default;
 
@@ -27,31 +26,18 @@ public:
     bool GroupHasPlayer(const ServerPlayer* player, const GroupId groupId);
     GroupId FindPlayerGroup(const ServerPlayer* player);
     void SendGroupUpdatedEvent(const ServerPlayer* player);
-    eastl::vector<uint64_t> GetPlayersInGroup(GroupId groupId);
+    eastl::vector<PlayerId> GetPlayersInGroup(GroupId groupId);
 
     static void InitializeHooks();
 
 private:
     static void** ServerSquadEventSystemCtorHk(void* inst);
-    
+
     static void* s_squadEventSystem;
 
-    void RemovePlayerFromGroup(uint64_t playerId, GroupId groupId);
+    void RemovePlayerFromGroup(PlayerId playerId, GroupId groupId);
 
     // Map of group id to list of players in that group
-    eastl::unordered_map<GroupId, eastl::vector<uint64_t>> m_activeGroups;
-};
-
-class ClientSquadManager : EventListener
-{
-public:
-    ClientSquadManager(EventManager* clientEventManager);
-    ~ClientSquadManager() override = default;
-
-    virtual void OnEvent(const Event& event) override;
-
-    static void InitializeHooks();
-
-    eastl::vector<uint64_t> m_squadMates;
+    eastl::unordered_map<GroupId, eastl::vector<PlayerId>> m_activeGroups;
 };
 } // namespace Kyber

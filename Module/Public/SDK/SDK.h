@@ -2089,7 +2089,7 @@ static_assert(sizeof(ComponentContainer) == 0x10);
 class ComponentEntity : public SpatialEntity
 {
 public:
-    KB_DECLARE_GAMEMEMBERFUNC(0x147ECBEC0, Component*, GetComponentByType, (typeInfo), TypeInfo* typeInfo)
+    KB_DECLARE_GAMEMEMBERFUNC(0x14116D630, Component*, GetComponentByType, (typeInfo), TypeInfo* typeInfo)
 
     void DebugLogAllComponents();
 

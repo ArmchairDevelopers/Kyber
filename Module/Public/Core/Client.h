@@ -8,7 +8,7 @@
 #include <Core/EventManager.h>
 #include <Network/SocketManager.h>
 #include <Voip/VoipManager.h>
-#include <Misc/SquadManager.h>
+#include <Misc/SquadManager/ClientSquadManager.h>
 
 #define OFFSET_GET_CLIENT_INSTANCE 0x14659DE50
 

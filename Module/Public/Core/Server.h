@@ -8,7 +8,7 @@
 #include <SDK/Types.h>
 #include <Core/Settings.h>
 #include <Persistence/PersistenceManager.h>
-#include <Misc/SquadManager.h>
+#include <Misc/SquadManager/ServerSquadManager.h>
 #include <Misc/ChatFilter.h>
 #include <Core/EventManager.h>
 
