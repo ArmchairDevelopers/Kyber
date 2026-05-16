@@ -71,6 +71,10 @@ void LauncherInterface::Initialize() const
     }
     case kyber_interface::InitializeRequest::kJoinServer: {
         const auto& joinServer = request.joinserver();
+        if (joinServer.id().empty() && joinServer.type() == kyber_interface::JoinServerType::DIRECT && joinServer.jointoken().empty())
+        {
+            g_program->m_server->m_onlineMode = false;
+        }
 
         auto* event = new MainLoopInitJoinServerEvent();
         event->id = joinServer.id();

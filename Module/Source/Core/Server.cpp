@@ -18,6 +18,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdio>
+#include <cstdlib>
 #include <thread>
 #include <cstring>
 
@@ -53,6 +54,18 @@ static bool IsOnlineMode()
     }
 
     return true;
+}
+
+static int GetServerPort()
+{
+    const char* portOverride = std::getenv("KYBER_SERVER_PORT");
+    if (portOverride == nullptr)
+    {
+        return 25200;
+    }
+
+    int port = atoi(portOverride);
+    return port > 0 && port <= 65535 ? port : 25200;
 }
 
 void ServerLoadLevelMessagePostHk(LevelSetup* levelSetup, bool fadeOut, bool forceReloadResources)
@@ -183,7 +196,7 @@ void Server::Start(const ServerCreationInfo& info, bool changeState)
 
     NetworkSettings* networkSettings = Settings<NetworkSettings>("Network");
     networkSettings->MaxClientCount = info.maxPlayers;
-    networkSettings->ServerPort = 25200;
+    networkSettings->ServerPort = GetServerPort();
     // networkSettings->UseFrameManager = false;
 
     KYBER_LOG(Info, "[Server] Protocol Version " << networkSettings->ProtocolVersion << " TitleId " << networkSettings->TitleId);

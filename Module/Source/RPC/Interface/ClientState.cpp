@@ -18,6 +18,18 @@ using namespace kyber_interface;
 ServerUnaryReactor* ClientInterfaceService::JoinServer( 
     CallbackServerContext* context, const JoinServerRequest* request, kyber_common::Empty* response)
 {
+    const bool isLanDirectJoin =
+        request->id().empty() && request->type() == kyber_interface::JoinServerType::DIRECT && request->jointoken().empty();
+    if (isLanDirectJoin)
+    {
+        g_program->m_server->m_onlineMode = false;
+    }
+    else
+    {
+        g_program->m_server->m_onlineMode = true;
+    }
+
+    g_program->m_client->m_joinToken = request->jointoken();
     g_program->m_client->JoinServer(request->id(), request->ip(), request->port(), request->spectate(),
         request->type() == kyber_interface::JoinServerType::PROXIED, true);
 

@@ -8,6 +8,7 @@
 #include <Utilities/StringUtils.h>
 
 #include <grpcpp/support/status.h>
+#include <string>
 
 namespace Kyber
 {
@@ -20,6 +21,9 @@ ServerUnaryReactor* ServerInterfaceService::StartServer(
     CallbackServerContext* context, const StartServerRequest* request, ServerState* response)
 {
     ServerUnaryReactor* reactor = context->DefaultReactor();
+    auto lanMode = context->client_metadata().find("kyber-lan-mode");
+    g_program->m_server->m_onlineMode =
+        !(lanMode != context->client_metadata().end() && std::string(lanMode->second.data(), lanMode->second.length()) == "1");
 
     g_program->m_server->m_mapRotation.Reset();
     for (const auto& entry : request->maprotation())
