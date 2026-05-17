@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:kyber/kyber.dart';
 import 'package:kyber_collection/kyber_collection.dart';
+import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/models/lan_server.dart';
 
 class LanDiscoveryService {
