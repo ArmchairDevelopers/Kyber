@@ -240,10 +240,23 @@ class SettingsBoxHeader extends StatelessWidget {
                           }
 
                           if (state.selected) {
+                            if (state.isLocalLanHost) {
+                              NotificationService.showNotification(
+                                message:
+                                    'LAN servers are edited locally while '
+                                    'hosting. Restart the server to change '
+                                    'LAN metadata.',
+                                severity: InfoBarSeverity.warning,
+                              );
+                              return;
+                            }
+
                             if (form.value['lanMode'] as bool? ?? false) {
                               NotificationService.showNotification(
                                 message:
-                                    'LAN servers are edited locally while hosting. Restart the server to change LAN metadata.',
+                                    'LAN servers are edited locally while '
+                                    'hosting. Restart the server to change '
+                                    'LAN metadata.',
                                 severity: InfoBarSeverity.warning,
                               );
                               return;

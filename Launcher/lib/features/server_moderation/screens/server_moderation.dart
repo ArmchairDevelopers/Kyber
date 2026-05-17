@@ -36,11 +36,20 @@ class _ServerModerationState extends State<ServerModeration> {
   Widget build(BuildContext context) {
     return BlocBuilder<ModerationCubit, ModerationServerState>(
       builder: (context, state) {
-        if (state.id == null) {
+        if (state.id == null && !state.isLocalLanHost) {
           return const Placeholder();
         }
 
         if (widget.selectedPage == 1) {
+          if (state.isLocalLanHost) {
+            return const Center(
+              child: Text(
+                'LAN server management is local-only. Moderators and bans '
+                'require an online server.',
+              ),
+            );
+          }
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -907,7 +916,7 @@ class _TeamContainerState extends State<_TeamContainer> {
                                     message: 'Ban player'.toUpperCase(),
                                     child: CustomSvgButton(
                                       onPressed: () async {
-                                        final result = await showKyberDialog(
+                                        await showKyberDialog(
                                           context: context,
                                           builder: (_) => BlocProvider.value(
                                             value: context

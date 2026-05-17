@@ -30,6 +30,7 @@ class ModerationCubit extends Cubit<ModerationServerState> {
 
   final _logger = Logger('moderation_cubit');
   Timer? _keepAliveTimer;
+  Timer? _localLanRefreshTimer;
 
   ReplaySubject<(int, int)>? botChangeStream;
 
@@ -42,6 +43,10 @@ class ModerationCubit extends Cubit<ModerationServerState> {
   }
 
   Future<void> loadModerators() async {
+    if (state.isLocalLanHost) {
+      return;
+    }
+
     final moderators = await sl
         .get<KyberGRPCService>()
         .serverManagementClient
@@ -50,6 +55,10 @@ class ModerationCubit extends Cubit<ModerationServerState> {
   }
 
   Future<void> loadPunishments() async {
+    if (state.isLocalLanHost) {
+      return;
+    }
+
     final punishments = await sl
         .get<KyberGRPCService>()
         .serverManagementClient
@@ -81,6 +90,13 @@ class ModerationCubit extends Cubit<ModerationServerState> {
   }
 
   Future<void> unbanPlayer(String id) async {
+    if (state.isLocalLanHost) {
+      NotificationService.info(
+        message: 'LAN servers do not use Kyber bans.',
+      );
+      return;
+    }
+
     _logger.info('Unbanning player $id');
     await sl.get<KyberGRPCService>().serverManagementClient.unbanPlayer(
       UnbanPlayerRequest(userId: id, serverId: state.id),
@@ -90,6 +106,13 @@ class ModerationCubit extends Cubit<ModerationServerState> {
   }
 
   Future<void> promotePlayer(String id) {
+    if (state.isLocalLanHost) {
+      NotificationService.info(
+        message: 'LAN servers do not use Kyber moderators.',
+      );
+      return Future.value();
+    }
+
     _logger.info('Promoting player $id');
     return sl
         .get<KyberGRPCService>()
@@ -101,6 +124,13 @@ class ModerationCubit extends Cubit<ModerationServerState> {
   }
 
   Future<void> demotePlayer(String id) {
+    if (state.isLocalLanHost) {
+      NotificationService.info(
+        message: 'LAN servers do not use Kyber moderators.',
+      );
+      return Future.value();
+    }
+
     _logger.info('Demoting player $id');
     return sl
         .get<KyberGRPCService>()
@@ -116,6 +146,13 @@ class ModerationCubit extends Cubit<ModerationServerState> {
     required String reason,
     required Duration duration,
   }) {
+    if (state.isLocalLanHost) {
+      NotificationService.info(
+        message: 'LAN servers do not use Kyber bans.',
+      );
+      return Future.value();
+    }
+
     _logger.info('Banning player $id');
     return sl.get<KyberGRPCService>().serverManagementClient.banPlayer(
       ServerBanPlayerRequest(
@@ -135,6 +172,13 @@ class ModerationCubit extends Cubit<ModerationServerState> {
   }
 
   Future<void> kickPlayer(String id, {String? reason = 'Kicked by moderator'}) {
+    if (state.isLocalLanHost) {
+      NotificationService.info(
+        message: 'Kicking LAN players from the Host tab is not supported yet.',
+      );
+      return Future.value();
+    }
+
     _logger.info('Kicking player $id');
     return sl.get<KyberGRPCService>().serverManagementClient.kickPlayer(
       ServerKickPlayerRequest(
@@ -146,7 +190,7 @@ class ModerationCubit extends Cubit<ModerationServerState> {
   }
 
   void sendCommand(String input) {
-    if (state.server == null) {
+    if (!state.isLocalLanHost && state.server == null) {
       return;
     }
 
@@ -156,10 +200,35 @@ class ModerationCubit extends Cubit<ModerationServerState> {
     };
 
     _logger.info('Sending command: $command');
-    sl.get<KyberGRPCService>().serverManagementClient.runCommand(
-      ServerRunCommandRequest(
-        id: state.id,
-        command: command,
+    if (state.isLocalLanHost) {
+      if (!sl.isRegistered<MaximaGameInstance>()) {
+        NotificationService.error(message: 'No local Kyber instance found');
+        return;
+      }
+
+      unawaited(
+        sl
+            .get<MaximaGameInstance>()
+            .clientService
+            .commonClient
+            .runCommand(RunCommandRequest(command: command))
+            .catchError((Object e, StackTrace s) {
+              _logger.severe('Failed to send local LAN command', e, s);
+              NotificationService.error(
+                message: 'Failed to send LAN command: $e',
+              );
+              return Empty();
+            }),
+      );
+      return;
+    }
+
+    unawaited(
+      sl.get<KyberGRPCService>().serverManagementClient.runCommand(
+        ServerRunCommandRequest(
+          id: state.id,
+          command: command,
+        ),
       ),
     );
   }
@@ -167,8 +236,12 @@ class ModerationCubit extends Cubit<ModerationServerState> {
   void unloadServer() {
     _logger.info('Unloading server');
 
-    _channel?.sink.close();
+    final channel = _channel;
+    if (channel != null) {
+      unawaited(channel.sink.close());
+    }
     _keepAliveTimer?.cancel();
+    _localLanRefreshTimer?.cancel();
 
     emit(const ModerationServerState());
 
@@ -181,6 +254,50 @@ class ModerationCubit extends Cubit<ModerationServerState> {
     emit(ModerationServerState(id: server.id, server: server));
   }
 
+  Future<void> selectLocalLanServer(ServerState serverState) async {
+    _logger.info('Loading local LAN server');
+
+    await _channel?.sink.close();
+    _keepAliveTimer?.cancel();
+    _localLanRefreshTimer?.cancel();
+
+    emit(
+      ModerationServerState(
+        selected: true,
+        isLocalLanHost: true,
+        players: serverState.playerList,
+        commands: const ['Connected to local LAN server management.'],
+      ),
+    );
+
+    _localLanRefreshTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _refreshLocalLanServer(),
+    );
+  }
+
+  Future<void> _refreshLocalLanServer() async {
+    if (!state.isLocalLanHost || !sl.isRegistered<MaximaGameInstance>()) {
+      return;
+    }
+
+    try {
+      final data = await sl
+          .get<MaximaGameInstance>()
+          .clientService
+          .commonClient
+          .getInfo(Empty());
+      if (!data.hasServer()) {
+        unloadServer();
+        return;
+      }
+
+      emit(state.copyWith(players: data.server.playerList));
+    } on GrpcError catch (e, s) {
+      _logger.warning('Failed to refresh local LAN server state', e, s);
+    }
+  }
+
   Future<void> selectServer({String? serverId}) async {
     if (state.server == null && serverId == null) {
       return;
@@ -188,6 +305,7 @@ class ModerationCubit extends Cubit<ModerationServerState> {
 
     await _channel?.sink.close();
     _keepAliveTimer?.cancel();
+    _localLanRefreshTimer?.cancel();
 
     try {
       final id = serverId ?? state.id;
@@ -320,6 +438,7 @@ class ModerationServerState {
     this.moderators = const [],
     this.punishments = const [],
     this.selected = false,
+    this.isLocalLanHost = false,
   });
 
   final String? id;
@@ -329,6 +448,7 @@ class ModerationServerState {
   final List<Punishment> punishments;
   final List<String> commands;
   final List<KyberPlayer> moderators;
+  final bool isLocalLanHost;
 
   bool isModerator(String userId) {
     return moderators.any((moderator) => moderator.id == userId);
@@ -342,6 +462,7 @@ class ModerationServerState {
     List<String>? commands,
     List<Punishment>? punishments,
     bool? selected,
+    bool? isLocalLanHost,
   }) {
     return ModerationServerState(
       id: id ?? this.id,
@@ -351,6 +472,7 @@ class ModerationServerState {
       punishments: punishments ?? this.punishments,
       selected: selected ?? this.selected,
       moderators: moderators ?? this.moderators,
+      isLocalLanHost: isLocalLanHost ?? this.isLocalLanHost,
     );
   }
 }

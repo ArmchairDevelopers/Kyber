@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -21,7 +23,6 @@ import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_input.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_tab_bar.dart';
 import 'package:kyber_launcher/shared/ui/layout/bordered_content.dart';
-import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
 import 'package:logging/logging.dart';
 
 class ServerHost extends StatefulWidget {
@@ -59,12 +60,20 @@ class _ServerHostState extends State<ServerHost> {
           ).info('Detected hosting status (${state.serverState.id})');
           setState(() => createServer = false);
           if (state.serverState.id.isNotEmpty) {
-            context.read<ModerationCubit>().selectServer(
-              serverId: state.serverState.id,
+            unawaited(
+              context.read<ModerationCubit>().selectServer(
+                serverId: state.serverState.id,
+              ),
+            );
+          } else {
+            unawaited(
+              context.read<ModerationCubit>().selectLocalLanServer(
+                state.serverState,
+              ),
             );
           }
         } else {
-          sl.get<LanDiscoveryService>().stopBeacon();
+          unawaited(sl.get<LanDiscoveryService>().stopBeacon());
           context.read<ModerationCubit>().unloadServer();
         }
       },
