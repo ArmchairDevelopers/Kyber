@@ -9,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_js/flutter_js.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:form_builder_validators/localization/l10n.dart';
 import 'package:grpc/grpc.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
@@ -320,6 +321,11 @@ class _AppState extends State<App> {
                 child: child,
               );
             }
+
+            child = DefaultSvgTheme(
+              theme: const .new(currentColor: Color(0xFFD9D9D9)),
+              child: child,
+            );
 
             return Builder(
               builder: (context) {

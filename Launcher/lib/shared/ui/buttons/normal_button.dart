@@ -212,17 +212,22 @@ class KOutlinedButton extends StatelessWidget {
               ),
               borderRadius: const .all(.circular(6)),
             ),
-            child: IconTheme(
-              data: .new(
-                color: itemColor,
+            child: DefaultSvgTheme(
+              theme: SvgTheme(
+                currentColor: itemColor,
               ),
-              child: DefaultTextStyle(
-                style: .new(
+              child: IconTheme(
+                data: .new(
                   color: itemColor,
-                  fontFamily: FontFamily.battlefrontUI,
-                  fontWeight: .w700,
                 ),
-                child: child,
+                child: DefaultTextStyle(
+                  style: .new(
+                    color: itemColor,
+                    fontFamily: FontFamily.battlefrontUI,
+                    fontWeight: .w700,
+                  ),
+                  child: child,
+                ),
               ),
             ),
           );

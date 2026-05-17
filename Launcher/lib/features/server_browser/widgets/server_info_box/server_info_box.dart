@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart' as mt;
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
@@ -135,16 +135,35 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                       ),
                     ),
                     const SizedBox(height: 25),
-                    _PlayButton(
-                      // TODO: add disabled state
-                      onPressed:
-                          widget.onServerSelected ??
-                          context.read<ServerBrowserCubit>().joinServer,
-                      text: widget.moderationMode ? 'MODERATE' : 'PLAY',
+                    Padding(
+                      padding: const .symmetric(horizontal: 25),
+                      child: Row(
+                        mainAxisAlignment: .spaceBetween,
+                        children: [
+                          KOutlinedButton.icon(
+                            child: const Icon(mt.Icons.camera_alt),
+                            onPressed: () => null,
+                          ),
+                          _PlayButton(
+                            // TODO: add disabled state
+                            onPressed:
+                                widget.onServerSelected ??
+                                context.read<ServerBrowserCubit>().joinServer,
+                            text: widget.moderationMode ? 'MODERATE' : 'PLAY',
+                          ),
+
+                          KOutlinedButton.icon(
+                            child: Assets.icons.kblCollection.svg(),
+                            onPressed: () => null,
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 25),
+                    const CardSection(),
                     Expanded(
                       child: ListView(
-                        padding: const .only(left: 25, right: 25, top: 35),
+                        padding: const .only(left: 25, right: 25, top: 25),
                         children: [
                           _ServerInfoDropdown(serverInfo: serverInfo),
                           if (widget.server case GroupedServer(
@@ -168,6 +187,24 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                     ),
                   ],
                 ),
+              ),
+            ),
+            Positioned(
+              top: 25,
+              left: 25,
+              right: 25,
+              child: Row(
+                mainAxisAlignment: .spaceBetween,
+                children: [
+                  const SizedBox.shrink(),
+                  KOutlinedButton(
+                    onPressed:
+                        widget.onClose ??
+                        () => context.read<ServerBrowserCubit>().clearServer(),
+                    padding: const .symmetric(horizontal: 8, vertical: 2),
+                    child: const Icon(mt.Icons.close),
+                  ),
+                ],
               ),
             ),
           ],
@@ -239,7 +276,7 @@ class _ModsDropdown extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const .only(top: 10, bottom: 15),
+        padding: const .only(top: 10, bottom: 25),
         child: KyberList(
           shrinkWrap: true,
           roundedStart: true,
@@ -255,31 +292,46 @@ class _ModsDropdown extends StatelessWidget {
 
             final color = installed ? Colors.green : Colors.red;
 
-            return Row(
-              spacing: 15,
-              children: [
-                Container(
-                  padding: const .all(2),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
-                    borderRadius: .circular(4),
-                    border: .all(color: color),
+            return KyberTooltip(
+              message: '${mod.name} ${mod.version}',
+              child: Row(
+                children: [
+                  Container(
+                    margin: const .only(right: 15),
+                    padding: const .all(2),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.2),
+                      borderRadius: .circular(4),
+                      border: .all(color: color),
+                    ),
+                    child: Icon(
+                      installed ? mt.Icons.check : mt.Icons.close,
+                      size: 16,
+                      color: color,
+                    ),
                   ),
-                  child: Icon(
-                    installed ? mt.Icons.check : mt.Icons.close,
-                    size: 16,
-                    color: color,
+                  Flexible(
+                    child: Text(
+                      mod.name,
+                      style: const TextStyle(
+                        fontFamily: FontFamily.battlefrontUI,
+                        fontSize: 16,
+                        color: Color(0xFFD9D9D9),
+                      ),
+                      overflow: .ellipsis,
+                      maxLines: 1,
+                    ),
                   ),
-                ),
-                Text(
-                  '${mod.name} (${mod.version})',
-                  style: const TextStyle(
-                    fontFamily: FontFamily.battlefrontUI,
-                    fontSize: 16,
-                    color: Color(0xFFD9D9D9),
+                  Text(
+                    ' (${mod.version})',
+                    style: const TextStyle(
+                      fontFamily: FontFamily.battlefrontUI,
+                      fontSize: 14,
+                      color: Color(0xFFD9D9D9),
+                    ),
                   ),
-                )
-              ],
+                ],
+              ),
             );
           },
         ),

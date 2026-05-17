@@ -57,7 +57,11 @@ class _ServerBrowserState extends State<ServerBrowser> {
 
                 final serverId = selectedServer.serverInfo.id;
                 final stillPresent = state.servers.any(
-                  (s) => s.serverInfo.id == serverId,
+                  (s) => s is ServerGroup
+                      ? (s as ServerGroup).servers.any(
+                          (i) => i.id == serverId,
+                        )
+                      : s.serverInfo.id == serverId,
                 );
 
                 if (!stillPresent) {
