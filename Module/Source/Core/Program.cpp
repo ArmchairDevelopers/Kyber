@@ -566,6 +566,7 @@ void GameSimulationInitDedicatedServerHk(void* inst, void* createInfo)
 
     NetworkSettings* networkSettings = Settings<NetworkSettings>("Network");
     networkSettings->MaxClientCount = 64;
+    networkSettings->ServerPort = Server::GetConfiguredPort();
 
     GameSettings* gameSettings = Settings<GameSettings>("Game");
     gameSettings->MaxSpectatorCount = 4;
@@ -596,6 +597,7 @@ void GameSimulationInitDedicatedServerHk(void* inst, void* createInfo)
     spawnInfo.isDedicated = true;
     spawnInfo.saveData.init(0);
     GameSimulationSpawnServerHk(inst, spawnInfo);
+    g_program->m_server->StartLanBeacon();
 }
 
 class GameSimulation

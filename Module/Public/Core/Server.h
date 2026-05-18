@@ -11,6 +11,7 @@
 #include <Core/EventManager.h>
 
 #include <Windows.h>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -19,6 +20,7 @@
 namespace Kyber
 {
 void InitLevelSetup(LevelSetup* levelSetup, const char* level, const char* mode, const char* startPoint, const char* initialSubLevel);
+class LanBeacon;
 
 struct ServerCreationInfo
 {
@@ -86,6 +88,10 @@ public:
     void Start(const ServerCreationInfo& info, bool changeState = true);
     void Stop();
 
+    static int GetConfiguredPort();
+    void StartLanBeacon();
+    void StopLanBeacon();
+
     void Heartbeat(const UpdateParameters& params);
     void Register(bool force = false);
 
@@ -119,6 +125,7 @@ public:
     void* m_serverInstance;
 
     std::optional<ServerCreationInfo> m_creationInfo;
+    std::unique_ptr<LanBeacon> m_lanBeacon;
     std::string m_serverId;
     bool m_onlineMode;
 

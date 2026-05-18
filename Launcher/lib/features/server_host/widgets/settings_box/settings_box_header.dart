@@ -434,15 +434,6 @@ class SettingsBoxHeader extends StatelessWidget {
                             }
 
                             if (lanMode) {
-                              await sl.get<LanDiscoveryService>().startBeacon(
-                                name: startRequest.name,
-                                port: serverPort,
-                                maxPlayers: startRequest.maxPlayers,
-                                requiresPassword:
-                                    startRequest.password.isNotEmpty,
-                                mapRotation: mapRotation,
-                                collection: collection,
-                              );
                               final lanAddress =
                                   await LanDiscoveryService.getLanAddress();
                               NotificationService.showNotification(

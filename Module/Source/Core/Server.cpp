@@ -12,6 +12,7 @@
 #include <Utilities/PlatformUtils.h>
 #include <Utilities/StringUtils.h>
 #include <Entity/KyberSettings.h>
+#include <Network/LanBeacon.h>
 
 #include <ws2tcpip.h>
 #include <iomanip>
@@ -56,7 +57,7 @@ static bool IsOnlineMode()
     return true;
 }
 
-static int GetServerPort()
+int Server::GetConfiguredPort()
 {
     const char* portOverride = std::getenv("KYBER_SERVER_PORT");
     if (portOverride == nullptr)
@@ -144,6 +145,7 @@ Server::Server()
     , m_eventManager(new EventManager())
     , m_socketSpawnInfo(SocketSpawnInfo(false, "", "", ""))
     , m_serverInstance(nullptr)
+    , m_lanBeacon(new LanBeacon())
     , m_onlineMode(IsOnlineMode())
     , m_runningHosted(false)
     , m_restarting(false)
@@ -168,6 +170,7 @@ Server::Server()
 
 Server::~Server()
 {
+    StopLanBeacon();
     KYBER_LOG(Debug, "[Server] Destroying");
 }
 
@@ -196,7 +199,7 @@ void Server::Start(const ServerCreationInfo& info, bool changeState)
 
     NetworkSettings* networkSettings = Settings<NetworkSettings>("Network");
     networkSettings->MaxClientCount = info.maxPlayers;
-    networkSettings->ServerPort = GetServerPort();
+    networkSettings->ServerPort = GetConfiguredPort();
     // networkSettings->UseFrameManager = false;
 
     KYBER_LOG(Info, "[Server] Protocol Version " << networkSettings->ProtocolVersion << " TitleId " << networkSettings->TitleId);
@@ -243,6 +246,7 @@ void Server::Start(const ServerCreationInfo& info, bool changeState)
 
     m_hooksRemoved = false;
     m_runningHosted = true;
+    StartLanBeacon();
 }
 
 void Server::KickPlayer(ServerPlayer* player, const char* reason)
@@ -340,6 +344,25 @@ void Server::SetDedicatedCreationInfo(const ServerCreationInfo& info)
     }
 
     m_creationInfo = info;
+}
+
+void Server::StartLanBeacon()
+{
+    if (m_onlineMode || !m_creationInfo || !IsRunning())
+    {
+        StopLanBeacon();
+        return;
+    }
+
+    m_lanBeacon->Start(m_creationInfo.value(), GetConfiguredPort());
+}
+
+void Server::StopLanBeacon()
+{
+    if (m_lanBeacon)
+    {
+        m_lanBeacon->Stop();
+    }
 }
 
 __int64 ServerCtorHk(void* inst, ServerSpawnInfo& info, SocketManager* socketManager)
@@ -849,6 +872,8 @@ void Server::SendConsoleMessage(const std::string& message)
 void Server::Stop()
 {
     KYBER_LOG(Info, "[Server] Stopping Kyber server...");
+
+    StopLanBeacon();
 
     m_runningHosted = false;
     m_playerManager = nullptr;
