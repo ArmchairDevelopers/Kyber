@@ -46,7 +46,7 @@ class JoinGameDialog extends StatelessWidget {
           content: SizedBox(
             width: 450,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: [
                 Text(
                   info.serverName.toUpperCase(),
@@ -191,15 +191,15 @@ class _MemberRow extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      padding: const .symmetric(vertical: 8, horizontal: 4),
       child: Row(
         children: [
           MaximaAvatar(pd: member.player.id, height: 36, width: 36),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: .start,
+              mainAxisSize: .min,
               children: [
                 Row(
                   children: [
@@ -212,7 +212,7 @@ class _MemberRow extends StatelessWidget {
                           color: kWhiteColor,
                           height: 1,
                         ),
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                       ),
                     ),
                     if (isLeader) ...[
