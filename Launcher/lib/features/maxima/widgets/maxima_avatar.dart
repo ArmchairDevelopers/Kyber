@@ -1,6 +1,10 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:collection/collection.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
 
@@ -28,7 +32,7 @@ class _MaximaAvatarState extends State<MaximaAvatar> {
 
   @override
   void initState() {
-    _load(widget.pd);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load(widget.pd));
     super.initState();
   }
 
@@ -49,6 +53,17 @@ class _MaximaAvatarState extends State<MaximaAvatar> {
         loaded = false;
         path = null;
       });
+    }
+
+    final rtmState = context.read<MaximaRtmCubit>().state;
+    final friend = rtmState.friends.firstWhereOrNull((f) => f.pd == pd);
+    if (friend != null && friend.avatar != null) {
+      setState(() {
+        loaded = true;
+        path = friend.avatar?.medium.path;
+      });
+
+      return;
     }
 
     final result = await avatarImage(
@@ -92,7 +107,7 @@ class _MaximaAvatarState extends State<MaximaAvatar> {
     }
 
     ImageProvider imageProvider = switch (path) {
-      final String p when p.startsWith('http') => NetworkImage(p),
+      final String p when p.startsWith('http') => CachedNetworkImageProvider(p),
       final String p => FileImage(File(p)),
       _ => Assets.images.usericonTmp.provider(),
     };
