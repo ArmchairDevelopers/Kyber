@@ -74,7 +74,6 @@ class SessionCubit extends Cubit<SessionState> {
   }
 
   void leaveGame() {
-    gameJoined = false;
     _channel?.sink.add(
       SessionClientEvent(
         gameLeft: .new(),
@@ -149,6 +148,7 @@ class SessionCubit extends Cubit<SessionState> {
   }
 
   Future<void> onJoined({required String serverId}) async {
+    gameJoined = true;
     _channel?.sink.add(
       SessionClientEvent(
         gameJoined: .new(serverId: serverId),
@@ -615,6 +615,7 @@ class SessionCubit extends Cubit<SessionState> {
     } else if (event.hasJoinGameCancelled()) {
       _partyDownloadChecker?.cancel();
       _partyDownloadChecker = null;
+      gameJoined = false;
       emit(InParty(party, pendingInvite: _inParty?.pendingInvite));
       NotificationService.info(message: 'Join game was cancelled');
     }
