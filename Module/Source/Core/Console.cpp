@@ -428,7 +428,7 @@ void ShuffleTeamsCommand(ConsoleContext& cc)
         cc << "This is a server command, and you aren't running a server!";
         return;
     }
-
+    
     // Create new vector of purely real players
     eastl::vector<ServerPlayer*> players;
     players.reserve(64);
@@ -505,13 +505,13 @@ void ShuffleTeamsCommand(ConsoleContext& cc)
         size_t assignedPlayerCount = 0;
         size_t team1Count = 0;
         size_t team2Count = 0;
-        const size_t totalGroupCount = groupedPlayers.size();
+        
         while (assignedPlayerCount < totalPlayerCount)
         {
             // Go through entire list and find the largest group.
             size_t bestCandidate = 0;
             size_t max = 0;
-            for (int i = 0; i < totalGroupCount; i++)
+            for (int i = 0; i < groupedPlayers.size(); i++)
             {
                 size_t groupSize = groupedPlayers[i].size();
                 if (groupSize > max)

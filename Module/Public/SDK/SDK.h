@@ -535,12 +535,14 @@ public:
 
     KB_DECLARE_GAMEMEMBERFUNC(0x1454600C0, void*, Init, (bitCount, arena), uint32_t bitCount, MemoryArena* arena)
     KB_DECLARE_GAMEMEMBERFUNC(0x1401E71B0, void*, Destroy, (arena), MemoryArena* arena)
+    KB_DECLARE_GAMEMEMBERFUNC(0x14545B4C0, bool, CopyTo, (dest), FBBitArray* dest)
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1401EA294, void, Reset)
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1401EA5C0, void, SetAllBits)
 
     uint32_t* m_bits;       // 0x08
     uint32_t m_defaultBits; // 0x10
     uint32_t m_bitCount;    // 0x14
-    int32_t m_byteCount;    // 0x18
+    int32_t m_dwordCount;    // 0x18
     __int64 pad_0020[2];    // 0x20
 
 private:
@@ -1271,11 +1273,12 @@ public:
     KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS();
 
     // Research:
-    // +0xE60 is unlock bitarray
     // Contains a ServerGamePlayerInternalExtent
 
     char pad_0008[0xBD0];     // 0x0008
     const Asset* m_activeKit; // 0x0BD8
+    char pad_0BF0[0x288];     // 0x0BF0
+    FBBitArray m_unlockArray; // 0x0E58
 
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x14686AC80, TypeObject*, GetCharacter)
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1468843B0, TypeObject*, GetVehicle)

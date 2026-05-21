@@ -42,14 +42,32 @@ void LogPlayerStats(ConsoleContext& cc)
         }
     }
 }
+
+#define SERVER_PERSISTENCE_MANAGER (*reinterpret_cast<void***>(0x1440A6C70))
+
+TL_DECLARE_FUNC(0x1418B6670, uint32_t, ServerPersistenceGetUnlockBitCount, void* inst)
+
+uint32_t GetUnlockCount()
+{
+    if (SERVER_PERSISTENCE_MANAGER)
+    {
+        return ServerPersistenceGetUnlockBitCount(SERVER_PERSISTENCE_MANAGER[2]);
+    }
+    else
+    {
+        return kPlayerUnlockArraySize;
+    }
+}
+
 void ServerPlayerSetUnlock(ServerPlayer* player, const Guid& guid, bool value)
 {
     ServerGamePlayerExtent* extent = player->GetServerGamePlayerExtent();
 
-    extent->InitUnlockArray(kPlayerUnlockArraySize);
+    uint32_t unlockCount = GetUnlockCount();
+    extent->InitUnlockArray(unlockCount);
     FBBitArray* bitArray = new (FB_SERVER_ARENA) FBBitArray();
-    bitArray->Init(kPlayerUnlockArraySize, nullptr);
-    memcpy(bitArray->m_bits, reinterpret_cast<void*>(extent + 0xE60), 4 * bitArray->m_byteCount);
+    bitArray->Init(unlockCount, nullptr);
+    memcpy(bitArray->m_bits, extent->m_unlockArray.m_bits, 4 * bitArray->m_dwordCount);
 
     uint32_t index = ServerPersistenceUnlocksGetBitIndex(*reinterpret_cast<__int64*>(0x143ED4480), guid);
 
@@ -79,16 +97,20 @@ __int64 InitUnlockArrayHk(__int64 a1, ServerPlayer* player)
     KYBER_LOG(Debug, "[Persistence] Initialized unlock array " << player->m_name << " " << std::hex << extent);
     //__int64 result = trampoline(a1, serverPlayer);
 
+    // Here we intentionally use the enum kPlayerUnlockArraySize as it is the count of
+    // unlocks in the base game, and any additional unlocks added by mods will not be instantly
+    // unlocked.
+
     extent->InitUnlockArray(kPlayerUnlockArraySize);
 
     FBBitArray* bitArray = new (FB_SERVER_ARENA) FBBitArray();
     bitArray->Init(kPlayerUnlockArraySize, nullptr);
-    memset(bitArray->m_bits, 0xFFFFFFFF, 4 * bitArray->m_byteCount);
+    bitArray->SetAllBits();
 
     extent->SetUnlocks(bitArray);
 
     bitArray->Destroy(nullptr);
-    FB_SERVER_ARENA->free(bitArray);
+    FB_SERVER_ARENA->del(bitArray);
     // return result;
     return 0;
 }

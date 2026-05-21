@@ -315,6 +315,7 @@ void Server::BroadcastMessage(const std::string& message, const std::string& use
     ServerPlayer dummyPlayer;
     dummyPlayer.m_name = dummyName;
     dummyPlayer.m_teamId = kServerTeamAdminMarker;
+    memset(dummyPlayer.m_onlineId.m_id, 0, sizeof(OnlineId::m_id));
     Server_sendChatMessage(channel, message.c_str(), &dummyPlayer);
 
     FB_SERVER_ARENA->free(dummyName);
@@ -325,6 +326,7 @@ void Server::SendChatMessage(ServerPlayer* player, const std::string& message)
     ServerPlayer dummyPlayer;
     dummyPlayer.m_name = "";
     dummyPlayer.m_teamId = kServerTeamAdminMarker;
+    memset(dummyPlayer.m_onlineId.m_id, 0, sizeof(OnlineId::m_id));
 
     ServerConnection* serverConnection = GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
     serverConnection->SendChatMessage(ChatChannel_Admin, message.c_str(), dummyPlayer.m_onlineId);
@@ -690,6 +692,7 @@ void Server::InitializePlayer(ServerPlayer* player)
 {
     // Set up inactivity timer
     player->GetServerPlayerExtent2()->m_enableInactivityTimer = true;
+    player->GetServerPlayerExtent2()->m_unusedChatFilterDisabled = false;
 }
 
 void Server::Heartbeat(const UpdateParameters& params)

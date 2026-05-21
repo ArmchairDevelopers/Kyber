@@ -629,6 +629,11 @@ static int ServerPlayerIndex(lua_State* L)
         lua_pushcfunction(L, ServerPlayerSendSyncedSettings);
         return 1;
     }
+    else if (key == "SendChatMessage")
+    {
+        lua_pushcfunction(L, ServerPlayerSendChatMessage);
+        return 1;
+    }
     else if (key == "name")
     {
         lua_pushstring(L, player->m_name);
