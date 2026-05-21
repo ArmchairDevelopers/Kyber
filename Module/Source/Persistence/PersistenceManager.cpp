@@ -51,7 +51,7 @@ uint32_t GetUnlockCount()
 {
     if (SERVER_PERSISTENCE_MANAGER)
     {
-        return ServerPersistenceGetUnlockBitCount(SERVER_PERSISTENCE_MANAGER[2]);
+        return ServerPersistenceGetUnlockBitCount(SERVER_PERSISTENCE_MANAGER[3]);
     }
     else
     {

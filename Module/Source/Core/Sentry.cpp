@@ -208,7 +208,8 @@ void WriteMiniDumpHk(MiniDumpInfo* params)
         PrintDumpToLog(params->exceptionInfo);
     }
 
-    if (PlatformUtils::GetEnv("KYBER_PRESERVE_CRASH_DUMP", "0") == "1")
+    // For now always create crash dump for testing
+    if (true || PlatformUtils::GetEnv("KYBER_PRESERVE_CRASH_DUMP", "0") == "1")
     {
         trampoline(params);
     }
