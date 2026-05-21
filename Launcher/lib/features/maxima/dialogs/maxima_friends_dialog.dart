@@ -87,26 +87,32 @@ class _PartyPanel extends StatelessWidget {
               },
             ),
           ),
-          const Padding(
-            padding: .only(left: 20, bottom: 20),
-            child: DefaultTextStyle(
-              style: TextStyle(
-                fontSize: 14,
-                color: kInactiveColor,
-                fontFamily: FontFamily.battlefrontUI,
-              ),
-              child: Column(
-                crossAxisAlignment: .start,
-                children: [
-                  Text(
-                    'Invite friends and then choose what to play in the Play menu.',
+          BlocSelector<SessionCubit, SessionState, bool>(
+            selector: (state) => state is InParty,
+            builder: (context, inParty) {
+              if (inParty) return const SizedBox.shrink();
+              return const Padding(
+                padding: .only(left: 20, bottom: 20),
+                child: DefaultTextStyle(
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: kInactiveColor,
+                    fontFamily: FontFamily.battlefrontUI,
                   ),
-                  Text(
-                    'The whole group will be matchmade and kept together.',
+                  child: Column(
+                    crossAxisAlignment: .start,
+                    children: [
+                      Text(
+                        'Invite friends, then pick a server in the Server Browser.',
+                      ),
+                      Text(
+                        'The whole group will be brought into the game together.',
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ],
       ),

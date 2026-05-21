@@ -16,6 +16,7 @@ import 'package:kyber_launcher/features/server_browser/widgets/server_list/serve
 import 'package:kyber_launcher/features/server_moderation/dialogs/moderation_ban_dialog.dart';
 import 'package:kyber_launcher/features/server_moderation/dialogs/moderation_input_dialog.dart';
 import 'package:kyber_launcher/features/server_moderation/providers/moderation_cubit.dart';
+import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
@@ -81,6 +82,32 @@ class _ServerModerationState extends State<ServerModeration> {
                                   onPressed: () async {
                                     if (state.server == null) return;
 
+                                    final sessionState = context
+                                        .read<SessionCubit>()
+                                        .state;
+                                    if (sessionState is InParty) {
+                                      if (!sessionState.isLeader()) {
+                                        NotificationService.warning(
+                                          message:
+                                              'Only the party leader can join a server!',
+                                        );
+                                        return;
+                                      }
+                                      try {
+                                        await context
+                                            .read<SessionCubit>()
+                                            .startJoinGame(
+                                              serverId: state.server!.id,
+                                            );
+                                      } catch (e) {
+                                        NotificationService.error(
+                                          message:
+                                              'Failed to start party join: $e',
+                                        );
+                                      }
+                                      return;
+                                    }
+
                                     final result =
                                         await showKyberDialog<
                                           JoinDialogResult?
@@ -110,6 +137,14 @@ class _ServerModerationState extends State<ServerModeration> {
                                 KyberButton(
                                   text: 'SPECTATE',
                                   onPressed: () {
+                                    if (context.read<SessionCubit>().state
+                                        is InParty) {
+                                      NotificationService.warning(
+                                        message:
+                                            'You cannot spectate while in a party!',
+                                      );
+                                      return;
+                                    }
                                     KyberServerHelper.joinServer(
                                       state.server!,
                                       spectator: true,

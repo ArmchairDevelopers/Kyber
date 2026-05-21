@@ -237,8 +237,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                   final sessionCubit = context
                                       .read<SessionCubit>()
                                       .state;
-                                  if (sessionCubit is InParty &&
-                                      !sessionCubit.isLeader()) {
+                                  if (sessionCubit is InParty) {
                                     NotificationService.warning(
                                       message:
                                           'You cannot launch a collection while in a party. Please leave your current party to launch this collection.',

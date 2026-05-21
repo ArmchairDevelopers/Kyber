@@ -241,6 +241,7 @@ class _ServerHostState extends State<ServerHost> {
                 if (state.server != null) {
                   return ServerInfoBox(
                     server: SingleServer(server: state.server!),
+                    moderationMode: true,
                     onClose: () =>
                         context.read<ModerationCubit>().unloadServer(),
                     onServerSelected: () =>
