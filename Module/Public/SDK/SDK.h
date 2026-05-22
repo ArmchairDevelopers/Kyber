@@ -531,6 +531,7 @@ class FBBitArray
 {
 public:
     FBBitArray();
+    FBBitArray(uint32_t bitCount, MemoryArena* arena = nullptr);
     virtual ~FBBitArray() = default; // Gets set in Ctor()
 
     KB_DECLARE_GAMEMEMBERFUNC(0x1454600C0, void*, Init, (bitCount, arena), uint32_t bitCount, MemoryArena* arena)
@@ -542,7 +543,7 @@ public:
     uint32_t* m_bits;       // 0x08
     uint32_t m_defaultBits; // 0x10
     uint32_t m_bitCount;    // 0x14
-    int32_t m_dwordCount;    // 0x18
+    int32_t m_dwordCount;   // 0x18
     __int64 pad_0020[2];    // 0x20
 
 private:
@@ -2195,6 +2196,24 @@ class ServerVehicleEntity : public ComponentEntity
 {
 public:
     void Teleport(const LinearTransform& trans);
+};
+
+class ServerPersistenceUnlockInfo
+{
+public:
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1418B6670, uint32_t, GetUnlockBitCount)
+};
+
+class ServerPersistenceManager
+{
+public:
+    char pad_0000[0x18]; // 0x0000
+    ServerPersistenceUnlockInfo* m_unlockInfo;
+
+    static ServerPersistenceManager* Get()
+    {
+        return *reinterpret_cast<ServerPersistenceManager**>(0x1440A6C70);
+    }
 };
 
 // Messages Below

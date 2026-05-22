@@ -43,20 +43,14 @@ void LogPlayerStats(ConsoleContext& cc)
     }
 }
 
-#define SERVER_PERSISTENCE_MANAGER (*reinterpret_cast<void***>(0x1440A6C70))
-
-TL_DECLARE_FUNC(0x1418B6670, uint32_t, ServerPersistenceGetUnlockBitCount, void* inst)
-
-uint32_t GetUnlockCount()
+static uint32_t GetUnlockCount()
 {
-    if (SERVER_PERSISTENCE_MANAGER)
+    if (ServerPersistenceManager* manager = ServerPersistenceManager::Get())
     {
-        return ServerPersistenceGetUnlockBitCount(SERVER_PERSISTENCE_MANAGER[3]);
+        return manager->m_unlockInfo->GetUnlockBitCount();
     }
-    else
-    {
-        return kPlayerUnlockArraySize;
-    }
+
+    return kPlayerUnlockArraySize;
 }
 
 void ServerPlayerSetUnlock(ServerPlayer* player, const Guid& guid, bool value)
@@ -65,8 +59,7 @@ void ServerPlayerSetUnlock(ServerPlayer* player, const Guid& guid, bool value)
 
     uint32_t unlockCount = GetUnlockCount();
     extent->InitUnlockArray(unlockCount);
-    FBBitArray* bitArray = new (FB_SERVER_ARENA) FBBitArray();
-    bitArray->Init(unlockCount, nullptr);
+    FBBitArray* bitArray = new (FB_SERVER_ARENA) FBBitArray(unlockCount);
     memcpy(bitArray->m_bits, extent->m_unlockArray.m_bits, 4 * bitArray->m_dwordCount);
 
     uint32_t index = ServerPersistenceUnlocksGetBitIndex(*reinterpret_cast<__int64*>(0x143ED4480), guid);
@@ -103,8 +96,7 @@ __int64 InitUnlockArrayHk(__int64 a1, ServerPlayer* player)
 
     extent->InitUnlockArray(kPlayerUnlockArraySize);
 
-    FBBitArray* bitArray = new (FB_SERVER_ARENA) FBBitArray();
-    bitArray->Init(kPlayerUnlockArraySize, nullptr);
+    FBBitArray* bitArray = new (FB_SERVER_ARENA) FBBitArray(kPlayerUnlockArraySize);
     bitArray->SetAllBits();
 
     extent->SetUnlocks(bitArray);

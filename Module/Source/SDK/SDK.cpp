@@ -100,6 +100,12 @@ FBBitArray::FBBitArray()
     KYBER_ASSERT(this == Ctor());
 }
 
+FBBitArray::FBBitArray(uint32_t bitCount, MemoryArena* arena)
+{
+    KYBER_ASSERT(this == Ctor());
+    Init(bitCount, arena);
+}
+
 bool TypeInfo::isKindOf(const TypeInfo* other) const
 {
     return ClassInfo_isKindOf(this, other);
