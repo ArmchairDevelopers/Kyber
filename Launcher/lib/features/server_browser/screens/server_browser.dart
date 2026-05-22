@@ -187,14 +187,16 @@ class _HeaderBar extends StatelessWidget {
               )
             else
               const Spacer(),
-            const SizedBox(width: 15),
-            KyberButton(
-              text: 'DIRECT CONNECT',
-              onPressed: () => showKyberDialog(
-                context: context,
-                builder: (_) => const DirectConnectDialog(),
+            if (selectedTab == 1) ...[
+              const SizedBox(width: 15),
+              KyberButton(
+                text: 'DIRECT CONNECT',
+                onPressed: () => showKyberDialog(
+                  context: context,
+                  builder: (_) => const DirectConnectDialog(),
+                ),
               ),
-            ),
+            ],
             if (selectedTab == 0) ...[
               const SizedBox(width: 15),
               SizedBox(
