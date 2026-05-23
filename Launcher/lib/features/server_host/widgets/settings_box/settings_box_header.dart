@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fixnum/fixnum.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -192,11 +194,15 @@ class SettingsBoxHeader extends StatelessWidget {
           FutureBuilder<String>(
             future: LanDiscoveryService.getLanAddress(),
             builder: (context, snapshot) {
-              final address = snapshot.data ?? 'detecting LAN IP';
+              final address = snapshot.data;
+              final displayAddress = address == null ||
+                      address == InternetAddress.loopbackIPv4.address
+                  ? 'available after the game is running'
+                  : '$address:${LanDiscoveryService.gamePort}';
               return Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'LAN address: $address:${LanDiscoveryService.gamePort}',
+                  'LAN address: $displayAddress',
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: kWhiteColor,
                   ),
@@ -440,8 +446,6 @@ class SettingsBoxHeader extends StatelessWidget {
                                 message:
                                     'LAN server available at $lanAddress:$serverPort. Allow UDP $serverPort and ${LanDiscoveryService.discoveryPort} in your firewall.',
                               );
-                            } else {
-                              await sl.get<LanDiscoveryService>().stopBeacon();
                             }
                           } on GrpcError catch (e) {
                             Logger.root.severe(

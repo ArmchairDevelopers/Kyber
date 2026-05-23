@@ -4,23 +4,20 @@ import 'dart:io';
 
 import 'package:grpc/grpc.dart';
 import 'package:kyber/gen/Proto/kyber_common.pb.dart';
-import 'package:kyber/kyber.dart';
-import 'package:kyber_collection/kyber_collection.dart';
-import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
-import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/models/lan_server.dart';
+import 'package:kyber_launcher/injection_container.dart';
 
 class LanDiscoveryService {
   static const int gamePort = 25200;
   static const int discoveryPort = 25201;
-  static const Duration beaconInterval = Duration(seconds: 3);
   static const Duration staleAfter = Duration(seconds: 30);
+
+  /// Four-byte prefix before the UTF-8 JSON body on discovery port UDP packets.
+  static const List<int> lanBeaconMagic = [0x4B, 0x59, 0x42, 0x52]; // "KYBR"
 
   final _controller = StreamController<LanServer>.broadcast();
   RawDatagramSocket? _listener;
-  RawDatagramSocket? _beaconSocket;
-  Timer? _beaconTimer;
 
   Stream<LanServer> get servers => _controller.stream;
 
@@ -45,7 +42,13 @@ class LanDiscoveryService {
       }
 
       try {
-        final payload = utf8.decode(datagram.data);
+        if (!_hasLanBeaconMagic(datagram.data)) {
+          return;
+        }
+
+        final payload = utf8.decode(
+          datagram.data.sublist(lanBeaconMagic.length),
+        );
         final json = jsonDecode(payload) as Map<String, dynamic>;
         if (json['type'] != 'kyber_lan_server') {
           return;
@@ -60,65 +63,7 @@ class LanDiscoveryService {
     });
   }
 
-  Future<void> startBeacon({
-    required String name,
-    required int port,
-    required int maxPlayers,
-    required bool requiresPassword,
-    required List<LevelSetup> mapRotation,
-    ModCollectionMetaData? collection,
-  }) async {
-    await stopBeacon();
-
-    final mods = collection
-            ?.getLocalMods(onlyGameplay: true, expandCollections: true)
-            .whereType<FrostyMod>()
-            .map((mod) => '${mod.details.name} (${mod.details.version})')
-            .toList() ??
-        const <String>[];
-
-    final payload = utf8.encode(
-      jsonEncode({
-        'type': 'kyber_lan_server',
-        'name': name,
-        'port': port,
-        'maxPlayers': maxPlayers,
-        'requiresPassword': requiresPassword,
-        'mods': mods,
-        if (mapRotation.isNotEmpty)
-          'levelSetup': {
-            'map': mapRotation.first.map,
-            'mode': mapRotation.first.mode,
-            'mapName': mapRotation.first.mapName,
-            'modeName': mapRotation.first.modeName,
-          },
-      }),
-    );
-
-    _beaconSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
-    _beaconSocket!.broadcastEnabled = true;
-
-    void sendBeacon() {
-      _beaconSocket?.send(
-        payload,
-        InternetAddress('255.255.255.255'),
-        discoveryPort,
-      );
-    }
-
-    sendBeacon();
-    _beaconTimer = Timer.periodic(beaconInterval, (_) => sendBeacon());
-  }
-
-  Future<void> stopBeacon() async {
-    _beaconTimer?.cancel();
-    _beaconTimer = null;
-    _beaconSocket?.close();
-    _beaconSocket = null;
-  }
-
   Future<void> dispose() async {
-    await stopBeacon();
     await _controller.close();
     _listener?.close();
     _listener = null;
@@ -160,5 +105,19 @@ class LanDiscoveryService {
   static Future<String> getLanAddress() async {
     final address = await getPreferredLanAddressFromModule();
     return address ?? InternetAddress.loopbackIPv4.address;
+  }
+
+  static bool _hasLanBeaconMagic(List<int> data) {
+    if (data.length < lanBeaconMagic.length) {
+      return false;
+    }
+
+    for (var index = 0; index < lanBeaconMagic.length; index++) {
+      if (data[index] != lanBeaconMagic[index]) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }
