@@ -21,6 +21,8 @@ namespace
 {
 constexpr int kDiscoveryPort = 25201;
 constexpr auto kBeaconInterval = std::chrono::seconds(3);
+constexpr char kLanBeaconMagic[] = { 'K', 'Y', 'B', 'R' };
+constexpr size_t kLanBeaconMagicSize = sizeof(kLanBeaconMagic);
 
 std::string FormatEndpoint(const LanIpv4Endpoint& endpoint)
 {
@@ -129,7 +131,12 @@ std::string LanBeacon::BuildPayload(const ServerCreationInfo& info, int port) co
             } },
     };
 
-    return payload.dump();
+    const std::string jsonPayload = payload.dump();
+    std::string finalPayload;
+    finalPayload.reserve(kLanBeaconMagicSize + jsonPayload.size());
+    finalPayload.append(kLanBeaconMagic, kLanBeaconMagicSize);
+    finalPayload.append(jsonPayload);
+    return finalPayload;
 }
 
 void LanBeacon::Run(std::string payload)
