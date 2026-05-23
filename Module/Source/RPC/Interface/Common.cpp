@@ -7,6 +7,7 @@
 
 #include <Base/Log.h>
 #include <Core/Program.h>
+#include <Network/LanNetworkInterfaces.h>
 #include <grpcpp/support/status.h>
 
 #include <FastDelegate.h>
@@ -55,6 +56,11 @@ ServerUnaryReactor* CommonInterfaceService::GetInfo(
     bool vivoxInitialized =
         g_program->m_client->m_voipManager != nullptr && !g_program->m_client->m_voipManager->GetRenderDevices().empty();
     response->set_vivoxinitialized(vivoxInitialized);
+
+    if (const std::optional<std::string> preferredLanAddress = SelectPreferredLanAddress())
+    {
+        response->set_preferredlanaddress(*preferredLanAddress);
+    }
 
     reactor->Finish(Status::OK);
     return reactor;

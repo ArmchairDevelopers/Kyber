@@ -23,8 +23,10 @@ Only the Launcher on the hosting machine can control the LAN server. Other Launc
 LAN discovery is emitted by the server-side Module, not by the host Launcher. When a server runs in offline LAN mode, `Kyber.dll` starts a UDP broadcast beacon on discovery port `25201`.
 
 ```text
-Kyber.dll server -> UDP broadcast 255.255.255.255:25201 -> Launcher LAN browser
+Kyber.dll server -> directed subnet broadcast (e.g. 192.168.1.255:25201) per eligible interface -> Launcher LAN browser
 ```
+
+For each eligible IPv4 subnet, the Module binds the beacon socket to the interface address and sends one UDP packet to that subnet's broadcast address. Subnets are deduplicated (Ethernet is preferred over Wi-Fi on the same `/24`). Virtual adapters (WSL, Hyper-V, Docker, VPN overlays, and similar) are excluded by default.
 
 This works for both Launcher-hosted LAN servers and dedicated servers started from the CLI with `start_server --lan`, because both paths load the Module.
 
@@ -37,6 +39,24 @@ The beacon payload is compatible with the Launcher LAN browser and currently inc
 - password requirement;
 - first map and mode in the rotation;
 - an empty `mods` list.
+
+Clients derive the join address from the UDP packet source IP (there is no `ip` field in the Module beacon). The host Launcher reads `preferredLanAddress` from `Common.GetInfo` when the Module is connected.
+
+### Interface selection
+
+Eligible adapters must be up and have a usable IPv4 unicast address (not loopback, not APIPA `169.254.x.x`, not `/32`).
+
+By default, only physical Ethernet and Wi-Fi adapters are used. Adapter friendly names or descriptions matching common virtual patterns (for example `WSL`, `Hyper-V`, `Docker`, `Hamachi`, `VPN`) are ignored.
+
+When multiple adapters share the same subnet, only one beacon is sent for that subnet. The preferred address for display and for `CommonState.preferredLanAddress` follows this order:
+
+1. `192.168.0.0/16`
+2. `10.0.0.0/8`
+3. `172.16.0.0/12` (private range, after virtual adapters are filtered out)
+
+Set `KYBER_LAN_INCLUDE_VIRTUAL=1` to include virtual adapters when debugging discovery on WSL or VPN interfaces.
+
+`Common.GetInfo` always includes `preferredLanAddress` when the Module can resolve a usable IPv4 interface, even if no server is running yet.
 
 The game server port defaults to `25200` and can be overridden with `KYBER_SERVER_PORT` in LAN mode. The discovery port remains `25201`.
 

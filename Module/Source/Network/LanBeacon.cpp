@@ -8,10 +8,12 @@
 
 #include <Base/Log.h>
 #include <Core/Server.h>
+#include <Network/LanNetworkInterfaces.h>
 
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <sstream>
 
 namespace Kyber
 {
@@ -19,7 +21,67 @@ namespace
 {
 constexpr int kDiscoveryPort = 25201;
 constexpr auto kBeaconInterval = std::chrono::seconds(3);
+
+std::string FormatEndpoint(const LanIpv4Endpoint& endpoint)
+{
+    char localAddress[INET_ADDRSTRLEN]{};
+    char broadcastAddress[INET_ADDRSTRLEN]{};
+    inet_ntop(AF_INET, &endpoint.address, localAddress, sizeof(localAddress));
+    inet_ntop(AF_INET, &endpoint.broadcast, broadcastAddress, sizeof(broadcastAddress));
+    return std::string(localAddress) + " -> " + broadcastAddress + " (" + endpoint.adapterName + ")";
 }
+
+bool SendBeaconPayload(const std::string& payload, const LanIpv4Endpoint& endpoint)
+{
+    SOCKET socketHandle = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (socketHandle == INVALID_SOCKET)
+    {
+        KYBER_LOG(Warning, "[LAN] Failed to create LAN beacon socket: " << WSAGetLastError());
+        return false;
+    }
+
+    BOOL enabled = TRUE;
+    if (setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<const char*>(&enabled), sizeof(enabled)) == SOCKET_ERROR)
+    {
+        KYBER_LOG(Warning, "[LAN] Failed to enable LAN beacon broadcast: " << WSAGetLastError());
+        closesocket(socketHandle);
+        return false;
+    }
+
+    sockaddr_in bindAddress{};
+    bindAddress.sin_family = AF_INET;
+    bindAddress.sin_addr = endpoint.address;
+    bindAddress.sin_port = 0;
+    if (bind(socketHandle, reinterpret_cast<sockaddr*>(&bindAddress), sizeof(bindAddress)) == SOCKET_ERROR)
+    {
+        KYBER_LOG(Warning, "[LAN] Failed to bind LAN beacon socket to " << FormatEndpoint(endpoint) << ": " << WSAGetLastError());
+        closesocket(socketHandle);
+        return false;
+    }
+
+    sockaddr_in destination{};
+    destination.sin_family = AF_INET;
+    destination.sin_addr = endpoint.broadcast;
+    destination.sin_port = htons(kDiscoveryPort);
+
+    const int sent = sendto(
+        socketHandle,
+        payload.c_str(),
+        static_cast<int>(payload.size()),
+        0,
+        reinterpret_cast<sockaddr*>(&destination),
+        sizeof(destination));
+    closesocket(socketHandle);
+
+    if (sent == SOCKET_ERROR)
+    {
+        KYBER_LOG(Warning, "[LAN] Failed to send LAN beacon on " << FormatEndpoint(endpoint) << ": " << WSAGetLastError());
+        return false;
+    }
+
+    return true;
+}
+} // namespace
 
 LanBeacon::LanBeacon()
     : m_running(false)
@@ -72,49 +134,45 @@ std::string LanBeacon::BuildPayload(const ServerCreationInfo& info, int port) co
 
 void LanBeacon::Run(std::string payload)
 {
-    SOCKET socketHandle = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (socketHandle == INVALID_SOCKET)
-    {
-        KYBER_LOG(Error, "[LAN] Failed to create LAN beacon socket: " << WSAGetLastError());
-        m_running = false;
-        return;
-    }
-
-    BOOL enabled = TRUE;
-    if (setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, reinterpret_cast<const char*>(&enabled), sizeof(enabled)) == SOCKET_ERROR)
-    {
-        KYBER_LOG(Error, "[LAN] Failed to enable LAN beacon broadcast: " << WSAGetLastError());
-        closesocket(socketHandle);
-        m_running = false;
-        return;
-    }
-
-    sockaddr_in address{};
-    address.sin_family = AF_INET;
-    address.sin_port = htons(kDiscoveryPort);
-    address.sin_addr.s_addr = INADDR_BROADCAST;
-
     KYBER_LOG(Info, "[LAN] Starting LAN beacon on UDP " << kDiscoveryPort);
 
-    while (m_running)
+    std::string lastTargetSummary;
+    while (m_running.load())
     {
-        int sent = sendto(
-            socketHandle,
-            payload.c_str(),
-            static_cast<int>(payload.size()),
-            0,
-            reinterpret_cast<sockaddr*>(&address),
-            sizeof(address));
-        if (sent == SOCKET_ERROR)
+        const std::vector<LanIpv4Endpoint> targets = EnumerateLanBroadcastTargets();
+        if (targets.empty())
         {
-            KYBER_LOG(Warning, "[LAN] Failed to send LAN beacon: " << WSAGetLastError());
+            KYBER_LOG(Warning, "[LAN] No eligible LAN interfaces for beacon (set KYBER_LAN_INCLUDE_VIRTUAL=1 to include virtual adapters)");
+        }
+        else
+        {
+            std::ostringstream summary;
+            for (size_t index = 0; index < targets.size(); ++index)
+            {
+                if (index > 0)
+                {
+                    summary << "; ";
+                }
+                summary << FormatEndpoint(targets[index]);
+            }
+
+            const std::string targetSummary = summary.str();
+            if (targetSummary != lastTargetSummary)
+            {
+                KYBER_LOG(Info, "[LAN] Beacon targets: " << targetSummary);
+                lastTargetSummary = targetSummary;
+            }
+
+            for (const LanIpv4Endpoint& target : targets)
+            {
+                SendBeaconPayload(payload, target);
+            }
         }
 
         std::unique_lock<std::mutex> lock(m_mutex);
-        m_condition.wait_for(lock, kBeaconInterval, [this] { return !m_running; });
+        m_condition.wait_for(lock, kBeaconInterval, [this] { return !m_running.load(); });
     }
 
-    closesocket(socketHandle);
     KYBER_LOG(Info, "[LAN] Stopped LAN beacon");
 }
 } // namespace Kyber

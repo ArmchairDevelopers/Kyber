@@ -159,6 +159,9 @@ message CommonState {
     ClientState client = 2;
     ServerState server = 3;
   }
+
+  // Preferred local IPv4 for LAN hosting (from Module network selection).
+  string preferredLanAddress = 4;
 }
 
 message ClientState {

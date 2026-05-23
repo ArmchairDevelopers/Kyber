@@ -29,6 +29,7 @@ cc_binary(
     linkopts = [
         "d3d11.lib",
         "Ws2_32.lib",
+        "iphlpapi.lib",
         "dxgi.lib",
         "rpcrt4.lib",
         "winmm.lib",

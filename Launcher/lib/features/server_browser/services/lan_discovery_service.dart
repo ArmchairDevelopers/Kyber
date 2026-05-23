@@ -2,8 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:grpc/grpc.dart';
+import 'package:kyber/gen/Proto/kyber_common.pb.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_collection/kyber_collection.dart';
+import 'package:kyber_launcher/injection_container.dart';
+import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
 import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/models/lan_server.dart';
 
@@ -66,7 +70,6 @@ class LanDiscoveryService {
   }) async {
     await stopBeacon();
 
-    final address = await getLanAddress();
     final mods = collection
             ?.getLocalMods(onlyGameplay: true, expandCollections: true)
             .whereType<FrostyMod>()
@@ -78,7 +81,6 @@ class LanDiscoveryService {
       jsonEncode({
         'type': 'kyber_lan_server',
         'name': name,
-        'ip': address,
         'port': port,
         'maxPlayers': maxPlayers,
         'requiresPassword': requiresPassword,
@@ -122,19 +124,41 @@ class LanDiscoveryService {
     _listener = null;
   }
 
-  static Future<String> getLanAddress() async {
-    final interfaces = await NetworkInterface.list(
-      includeLoopback: false,
-      type: InternetAddressType.IPv4,
-    );
-    for (final interface in interfaces) {
-      for (final address in interface.addresses) {
-        if (!address.isLoopback && !address.address.startsWith('169.254.')) {
-          return address.address;
-        }
-      }
+  static bool sharesClassCSubnet(String left, String right) {
+    final leftParts = left.split('.');
+    final rightParts = right.split('.');
+    if (leftParts.length != 4 || rightParts.length != 4) {
+      return false;
     }
 
-    return InternetAddress.loopbackIPv4.address;
+    return leftParts[0] == rightParts[0] &&
+        leftParts[1] == rightParts[1] &&
+        leftParts[2] == rightParts[2];
+  }
+
+  static Future<String?> getPreferredLanAddressFromModule() async {
+    if (!sl.isRegistered<MaximaGameInstance>()) {
+      return null;
+    }
+
+    try {
+      final state = await sl
+          .get<MaximaGameInstance>()
+          .clientService
+          .commonClient
+          .getInfo(Empty());
+      if (state.preferredLanAddress.isEmpty) {
+        return null;
+      }
+
+      return state.preferredLanAddress;
+    } on GrpcError {
+      return null;
+    }
+  }
+
+  static Future<String> getLanAddress() async {
+    final address = await getPreferredLanAddressFromModule();
+    return address ?? InternetAddress.loopbackIPv4.address;
   }
 }

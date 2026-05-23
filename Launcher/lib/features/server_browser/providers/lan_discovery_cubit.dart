@@ -43,10 +43,12 @@ class LanDiscoveryCubit extends Cubit<LanDiscoveryState> {
   final _logger = Logger('lan_discovery_cubit');
   late final StreamSubscription<LanServer> _subscription;
   late final Timer _cleanupTimer;
+  String? _localPreferredAddress;
 
   Future<void> startScan() async {
     emit(state.copyWith(scanning: true));
     try {
+      await _refreshLocalPreferredAddress();
       await _service.startListening();
       emit(state.copyWith(scanning: false));
     } catch (e, stack) {
@@ -64,20 +66,84 @@ class LanDiscoveryCubit extends Cubit<LanDiscoveryState> {
     _removeStaleServers();
   }
 
+  Future<void> _refreshLocalPreferredAddress() async {
+    _localPreferredAddress =
+        await LanDiscoveryService.getPreferredLanAddressFromModule();
+  }
+
+  bool _isOnLocalSubnet(String address) {
+    final local = _localPreferredAddress;
+    if (local == null || local.isEmpty) {
+      return false;
+    }
+
+    return LanDiscoveryService.sharesClassCSubnet(local, address);
+  }
+
+  int _addressClassPriority(String ip) {
+    if (ip.startsWith('192.168.')) {
+      return 0;
+    }
+
+    if (ip.startsWith('10.')) {
+      return 1;
+    }
+
+    final parts = ip.split('.');
+    if (parts.length == 4) {
+      final first = int.tryParse(parts[0]);
+      final second = int.tryParse(parts[1]);
+      if (first == 172 && second != null && second >= 16 && second <= 31) {
+        return 2;
+      }
+    }
+
+    return 3;
+  }
+
+  bool _shouldPreferServer(LanServer candidate, LanServer existing) {
+    final candidateOnSubnet = _isOnLocalSubnet(candidate.address);
+    final existingOnSubnet = _isOnLocalSubnet(existing.address);
+    if (candidateOnSubnet != existingOnSubnet) {
+      return candidateOnSubnet;
+    }
+
+    final candidatePriority = _addressClassPriority(candidate.address);
+    final existingPriority = _addressClassPriority(existing.address);
+    if (candidatePriority != existingPriority) {
+      return candidatePriority < existingPriority;
+    }
+
+    return candidate.lastSeen.isAfter(existing.lastSeen);
+  }
+
   void _upsertServer(LanServer server) {
     final servers = [...state.servers];
-    final index = servers.indexWhere((entry) => entry.id == server.id);
-    if (index == -1) {
-      servers.add(server);
-    } else {
-      servers[index] = server;
+    LanServer? existingByName;
+    for (final entry in servers) {
+      if (entry.port == server.port && entry.name == server.name) {
+        existingByName = entry;
+        break;
+      }
     }
+
+    servers.removeWhere(
+      (entry) => entry.port == server.port && entry.name == server.name,
+    );
+
+    final resolved = existingByName == null
+        ? server
+        : (_shouldPreferServer(server, existingByName) ? server : existingByName)
+            .copyWith(lastSeen: server.lastSeen);
+    servers.add(resolved);
 
     servers.sort((a, b) => a.name.compareTo(b.name));
     emit(state.copyWith(servers: servers, message: null));
   }
 
   void _removeStaleServers() {
+    unawaited(_refreshLocalPreferredAddress());
+
     final now = DateTime.now();
     final servers = state.servers
         .where(

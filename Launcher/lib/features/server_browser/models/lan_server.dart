@@ -18,7 +18,7 @@ class LanServer {
   }) {
     return LanServer(
       name: json['name'] as String? ?? 'LAN Server',
-      address: json['ip'] as String? ?? sourceAddress,
+      address: sourceAddress,
       port: json['port'] as int? ?? 25200,
       maxPlayers: json['maxPlayers'] as int?,
       requiresPassword: json['requiresPassword'] as bool? ?? false,
