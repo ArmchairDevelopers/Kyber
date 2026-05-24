@@ -7,6 +7,7 @@
 #include <Network/LanBeacon.h>
 
 #include <Base/Log.h>
+#include <Core/Program.h>
 #include <Core/Server.h>
 #include <Network/LanNetworkInterfaces.h>
 
@@ -20,6 +21,7 @@ namespace Kyber
 namespace
 {
 constexpr int kDiscoveryPort = 25201;
+constexpr size_t kRecommendedBeaconPayloadSize = 1400;
 constexpr auto kBeaconInterval = std::chrono::seconds(3);
 constexpr char kLanBeaconMagic[] = { 'K', 'Y', 'B', 'R' };
 constexpr size_t kLanBeaconMagicSize = sizeof(kLanBeaconMagic);
@@ -117,13 +119,22 @@ void LanBeacon::Stop()
 
 std::string LanBeacon::BuildPayload(const ServerCreationInfo& info, int port) const
 {
+    nlohmann::json mods = nlohmann::json::array();
+    for (const auto& mod : g_program->m_modData.serverMods)
+    {
+        mods.push_back({
+            { "name", mod.name() },
+            { "version", mod.version() },
+        });
+    }
+
     nlohmann::json payload = {
         { "type", "kyber_lan_server" },
         { "name", info.name.empty() ? "LAN Server" : info.name },
         { "port", port },
         { "maxPlayers", info.maxPlayers },
         { "requiresPassword", !info.password.empty() },
-        { "mods", nlohmann::json::array() },
+        { "mods", mods },
         { "levelSetup",
             {
                 { "map", info.level },
@@ -132,6 +143,17 @@ std::string LanBeacon::BuildPayload(const ServerCreationInfo& info, int port) co
     };
 
     const std::string jsonPayload = payload.dump();
+    const size_t totalPayloadSize = kLanBeaconMagicSize + jsonPayload.size();
+    if (totalPayloadSize > kRecommendedBeaconPayloadSize)
+    {
+        KYBER_LOG(
+            Warning,
+            "[LAN] Beacon payload is "
+                << totalPayloadSize
+                << " bytes (recommended max "
+                << kRecommendedBeaconPayloadSize
+                << "). Some networks may drop or fragment the discovery packet. Prefer collapsed mod collections in serverMods.");
+    }
     std::string finalPayload;
     finalPayload.reserve(kLanBeaconMagicSize + jsonPayload.size());
     finalPayload.append(kLanBeaconMagic, kLanBeaconMagicSize);
