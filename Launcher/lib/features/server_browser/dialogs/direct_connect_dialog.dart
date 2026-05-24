@@ -1,8 +1,12 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:kyber_collection/kyber_collection.dart';
+import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/features/frosty/dialogs/frosty_pack_selector_dialog.dart';
 import 'package:kyber_launcher/features/kyber/helper/kyber_server_helper.dart';
+import 'package:kyber_launcher/features/server_browser/dialogs/join_server_dialog.dart';
+import 'package:kyber_launcher/core/routing/app_router.dart';
+import 'package:kyber_launcher/main.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 
@@ -25,10 +29,21 @@ class _DirectConnectDialogState extends State<DirectConnectDialog> {
   @override
   void initState() {
     super.initState();
-    _ipController = TextEditingController(text: widget.initialIp ?? '');
-    _portController = TextEditingController(
-      text: (widget.initialPort ?? KyberServerHelper.defaultLanPort).toString(),
+    final savedIp = Preferences.general.lastDirectConnectIp;
+    final savedPort = Preferences.general.lastDirectConnectPort;
+    final savedCollectionId = Preferences.general.lastDirectConnectCollectionId;
+
+    _ipController = TextEditingController(
+      text: widget.initialIp ?? savedIp ?? '',
     );
+    _portController = TextEditingController(
+      text: (widget.initialPort ?? savedPort ?? KyberServerHelper.defaultLanPort)
+          .toString(),
+    );
+
+    if (savedCollectionId != null && collectionBox.containsKey(savedCollectionId)) {
+      _collection = collectionBox.get(savedCollectionId);
+    }
   }
 
   @override
@@ -55,12 +70,43 @@ class _DirectConnectDialogState extends State<DirectConnectDialog> {
       return;
     }
 
+    Preferences.general.lastDirectConnectIp = ip;
+    Preferences.general.lastDirectConnectPort = port;
+    Preferences.general.lastDirectConnectCollectionId = _collection?.localId;
+
     Navigator.of(context).pop();
+
+    final result = await showKyberDialog<JoinDialogResult?>(
+      context: navigatorKey.currentContext!,
+      builder: (_) => CosmeticModsDialog.directConnect(),
+    );
+
+    if (result == null) {
+      return;
+    }
+
     await KyberServerHelper.joinByAddress(
       ip: ip,
       port: port,
-      selectedCollection: _collection,
-      spectator: _spectator,
+      selectedCollection: _resolveJoinCollection(_collection, result),
+      spectator: _spectator || result.spectator,
+    );
+  }
+
+  ModCollectionMetaData _resolveJoinCollection(
+    ModCollectionMetaData? base,
+    JoinDialogResult result,
+  ) {
+    if (result.collection.localId == 'no-mods') {
+      return base ?? ModCollectionMetaData.noMods();
+    }
+
+    if (base == null) {
+      return result.collection;
+    }
+
+    return base.copyWith(
+      mods: [...base.mods, ...result.collection.mods],
     );
   }
 

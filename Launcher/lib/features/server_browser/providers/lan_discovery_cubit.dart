@@ -1,8 +1,15 @@
 import 'dart:async';
 
+import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kyber_launcher/core/routing/app_router.dart';
+import 'package:kyber_launcher/core/services/notification_service.dart';
+import 'package:kyber_launcher/features/kyber/helper/kyber_server_helper.dart';
+import 'package:kyber_launcher/features/server_browser/dialogs/join_server_dialog.dart';
+import 'package:kyber_launcher/features/server_browser/helpers/lan_server_browser_helper.dart';
 import 'package:kyber_launcher/features/server_browser/models/lan_server.dart';
 import 'package:kyber_launcher/features/server_browser/services/lan_discovery_service.dart';
+import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 import 'package:logging/logging.dart';
 
 class LanDiscoveryState {
@@ -10,21 +17,27 @@ class LanDiscoveryState {
     this.servers = const [],
     this.scanning = false,
     this.message,
+    this.selectedServer,
   });
 
   final List<LanServer> servers;
   final bool scanning;
   final String? message;
+  final LanServer? selectedServer;
 
   LanDiscoveryState copyWith({
     List<LanServer>? servers,
     bool? scanning,
     String? message,
+    LanServer? selectedServer,
+    bool clearSelectedServer = false,
   }) {
     return LanDiscoveryState(
       servers: servers ?? this.servers,
       scanning: scanning ?? this.scanning,
       message: message,
+      selectedServer:
+          clearSelectedServer ? null : selectedServer ?? this.selectedServer,
     );
   }
 }
@@ -64,6 +77,47 @@ class LanDiscoveryCubit extends Cubit<LanDiscoveryState> {
 
   void refresh() {
     _removeStaleServers();
+  }
+
+  void selectServer(LanServer? server) {
+    emit(
+      state.copyWith(
+        selectedServer: server,
+        clearSelectedServer: server == null,
+      ),
+    );
+  }
+
+  Future<void> joinServer(LanServer server) async {
+    if (!LanServerBrowserHelper.hasInstalledMods(server)) {
+      NotificationService.showNotification(
+        message: 'Install the required gameplay mods before joining this server.',
+        severity: InfoBarSeverity.warning,
+      );
+      return;
+    }
+
+    try {
+      final result = await showKyberDialog<JoinDialogResult?>(
+        context: navigatorKey.currentContext!,
+        builder: (_) => CosmeticModsDialog.lan(server: server),
+      );
+
+      if (result == null) {
+        return;
+      }
+
+      await KyberServerHelper.joinLanServer(
+        server,
+        selectedCollection: result.collection,
+        spectator: result.spectator,
+      );
+    } catch (e, stack) {
+      _logger.severe('Failed to join LAN server', e, stack);
+      NotificationService.error(
+        message: 'Failed to join LAN server: $e',
+      );
+    }
   }
 
   Future<void> _refreshLocalPreferredAddress() async {
@@ -131,14 +185,34 @@ class LanDiscoveryCubit extends Cubit<LanDiscoveryState> {
       (entry) => entry.port == server.port && entry.name == server.name,
     );
 
-    final resolved = existingByName == null
+    final preferred = existingByName == null
         ? server
-        : (_shouldPreferServer(server, existingByName) ? server : existingByName)
-            .copyWith(lastSeen: server.lastSeen);
+        : (_shouldPreferServer(server, existingByName) ? server : existingByName);
+    final resolved = preferred.copyWith(
+      lastSeen: server.lastSeen,
+      gameplayMods: server.gameplayMods.isNotEmpty
+          ? server.gameplayMods
+          : preferred.gameplayMods,
+      maxPlayers: server.maxPlayers ?? preferred.maxPlayers,
+      requiresPassword: server.requiresPassword,
+      levelSetup: server.levelSetup ?? preferred.levelSetup,
+      name: server.name,
+      address: preferred.address,
+      port: server.port,
+    );
     servers.add(resolved);
 
     servers.sort((a, b) => a.name.compareTo(b.name));
-    emit(state.copyWith(servers: servers, message: null));
+    final selectedServer = state.selectedServer?.id == resolved.id
+        ? resolved
+        : state.selectedServer;
+    emit(
+      state.copyWith(
+        servers: servers,
+        message: null,
+        selectedServer: selectedServer,
+      ),
+    );
   }
 
   void _removeStaleServers() {

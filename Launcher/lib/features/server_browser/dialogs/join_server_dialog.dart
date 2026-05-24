@@ -9,6 +9,7 @@ import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
 import 'package:kyber_launcher/features/mods/widgets/collection_list/collection_icon.dart';
+import 'package:kyber_launcher/features/server_browser/models/lan_server.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
@@ -24,10 +25,33 @@ import 'package:kyber_launcher/shared/ui/utils/button_builder.dart';
 import 'package:logging/logging.dart';
 
 class CosmeticModsDialog extends StatefulWidget {
-  const CosmeticModsDialog({required this.server, this.skipPasswordCheck = false, super.key});
+  const CosmeticModsDialog({
+    required this.server,
+    this.skipPasswordCheck = false,
+    super.key,
+  })  : lanServer = null,
+        directConnectOnly = false;
+
+  const CosmeticModsDialog.lan({
+    required LanServer server,
+    super.key,
+  })  : server = server,
+        lanServer = server,
+        skipPasswordCheck = true,
+        directConnectOnly = false;
+
+  CosmeticModsDialog.directConnect({super.key})
+      : server = _directConnectMarker,
+        lanServer = null,
+        skipPasswordCheck = true,
+        directConnectOnly = true;
 
   final Object server;
+  final LanServer? lanServer;
   final bool skipPasswordCheck;
+  final bool directConnectOnly;
+
+  bool get isLanJoin => lanServer != null;
 
   @override
   State<CosmeticModsDialog> createState() => _CosmeticModsDialogState();
@@ -41,18 +65,56 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
   bool spectator = false;
   bool showInstanceSelector = false;
 
-  late Server serverInfo;
+  Server? serverInfo;
 
   List<ModCollectionMetaData> collections = [];
   ModCollectionMetaData? selectedCollection;
 
   @override
   void initState() {
-    serverInfo = widget.server is ServerGroup ? (widget.server as ServerGroup).getPreferredServer() : widget.server as Server;
-    correctPassword = widget.skipPasswordCheck || !serverInfo.requiresPassword;
+    final List<CollectionMod> requiredMods;
+    if (widget.directConnectOnly) {
+      correctPassword = true;
+      requiredMods = const [];
+    } else if (widget.lanServer != null) {
+      final lanServer = widget.lanServer!;
+      correctPassword = true;
+      requiredMods = lanServer.gameplayMods
+          .map(
+            (mod) => CollectionMod(
+              name: mod.name,
+              version: mod.version,
+              link: '',
+            ),
+          )
+          .toList();
+    } else {
+      serverInfo = widget.server is ServerGroup
+          ? (widget.server as ServerGroup).getPreferredServer()
+          : widget.server as Server;
+      correctPassword =
+          widget.skipPasswordCheck || !serverInfo!.requiresPassword;
+      requiredMods = serverInfo!.mods
+          .map(
+            (e) => CollectionMod(
+              name: e.name,
+              version: e.version,
+              link: e.link,
+            ),
+          )
+          .toList();
+    }
+
     withoutMods = !Preferences.general.useCosmetics;
-    final mods = serverInfo.mods.map((e) => CollectionMod(name: e.name, version: e.version, link: e.link)).toList();
+    final mods = requiredMods;
     for (final collection in collectionBox.values) {
+      if (widget.directConnectOnly) {
+        if (collection.isCosmetic || !collection.containsGameplayMods()) {
+          collections.add(collection);
+        }
+        continue;
+      }
+
       final gameplayMods = collection
           .getLocalMods(
         onlyGameplay: true,
@@ -86,10 +148,14 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
   }
 
   Future<void> checkPassword() async {
+    if (widget.isLanJoin || serverInfo == null) {
+      return;
+    }
+
     try {
       final service = sl.get<KyberGRPCService>();
       final result = await service.serverBrowserClient.canJoinServer(CanJoinServerRequest(
-        id: serverInfo.id,
+        id: serverInfo!.id,
         password: password,
       ));
 
@@ -135,9 +201,11 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
             if (!correctPassword) {
               return Column(
                 children: [
-                  const Text(
-                    'This server requires a password to join.',
-                    style: TextStyle(
+                  Text(
+                    widget.isLanJoin
+                        ? 'This LAN server may require a password in-game.'
+                        : 'This server requires a password to join.',
+                    style: const TextStyle(
                       color: kWhiteColor,
                     ),
                   ),
@@ -164,7 +232,14 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
 
             return Column(
               children: [
-                if (widget.server is ServerGroup) ...[
+                if (widget.isLanJoin && widget.lanServer!.requiresPassword) ...[
+                  const Text(
+                    'This LAN server is password-protected. You may be prompted in-game.',
+                    style: TextStyle(color: kWhiteColor),
+                  ),
+                  const SizedBox(height: 15),
+                ],
+                if (!widget.isLanJoin && widget.server is ServerGroup) ...[
                   RichText(
                     text: TextSpan(
                       text: 'JOINING INSTANCE ',
@@ -175,7 +250,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                       ),
                       children: [
                         TextSpan(
-                          text: '#${(widget.server as ServerGroup).getInstanceId(serverInfo.id)}',
+                          text: '#${(widget.server as ServerGroup).getInstanceId(serverInfo!.id)}',
                           style: TextStyle(
                             color: kActiveColor,
                           ),
@@ -187,7 +262,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                           ),
                         ),
                         TextSpan(
-                          text: '(${serverInfo.playerCount}/${serverInfo.maxPlayerCount})',
+                          text: '(${serverInfo!.playerCount}/${serverInfo!.maxPlayerCount})',
                         ),
                       ],
                     ),
@@ -214,7 +289,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                       padding: const EdgeInsets.only(top: 5),
                       child: KyberDropdown<Server>(
                         onChanged: (value) {
-                          setState(() => serverInfo = value);
+                          setState(() => serverInfo = value as Server);
                         },
                         itemBuilder: (DropdownItem<dynamic> item) {
                           item as DropdownItem<Server>;
@@ -390,7 +465,7 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
           text: 'Cancel',
           onPressed: Navigator.of(context).pop,
         ),
-        if (!correctPassword)
+        if (!correctPassword && !widget.isLanJoin)
           KyberButton(
             text: 'Next',
             onPressed: checkPassword,
@@ -412,11 +487,13 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
             text: 'Join Server',
             icon: Assets.icons.kyberLogo.svg(height: 20),
             onPressed: () async {
-              if (!serverInfo.requiresPassword) {
+              if (!widget.isLanJoin &&
+                  serverInfo != null &&
+                  !serverInfo!.requiresPassword) {
                 try {
                   final result = await sl.get<KyberGRPCService>().serverBrowserClient.canJoinServer(
                     CanJoinServerRequest(
-                      id: serverInfo.id,
+                      id: serverInfo!.id,
                       password: password,
                     ),
                   );
@@ -451,7 +528,9 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
                 collection: withoutMods ? ModCollectionMetaData.noMods() : selectedCollection ?? ModCollectionMetaData.noMods(),
                 spectator: spectator,
                 password: password,
-                instanceId: widget.server is ServerGroup ? serverInfo.meta['instance_id'] : null,
+                instanceId: !widget.isLanJoin && widget.server is ServerGroup
+                    ? serverInfo!.meta['instance_id']
+                    : null,
               );
 
               Navigator.of(context).pop(result);
@@ -461,6 +540,8 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
     );
   }
 }
+
+const _directConnectMarker = Object();
 
 class JoinDialogResult {
   JoinDialogResult({required this.collection, required this.spectator, this.password = '', this.instanceId});

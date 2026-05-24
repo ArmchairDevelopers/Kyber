@@ -1,4 +1,5 @@
 import 'package:kyber/kyber.dart';
+import 'package:kyber_launcher/features/server_browser/models/lan_server_mod.dart';
 
 class LanServer {
   const LanServer({
@@ -8,7 +9,7 @@ class LanServer {
     required this.lastSeen,
     this.maxPlayers,
     this.requiresPassword = false,
-    this.mods = const [],
+    this.gameplayMods = const [],
     this.levelSetup,
   });
 
@@ -22,9 +23,7 @@ class LanServer {
       port: json['port'] as int? ?? 25200,
       maxPlayers: json['maxPlayers'] as int?,
       requiresPassword: json['requiresPassword'] as bool? ?? false,
-      mods: (json['mods'] as List<dynamic>? ?? const [])
-          .whereType<String>()
-          .toList(),
+      gameplayMods: _parseGameplayMods(json['mods']),
       levelSetup: json['levelSetup'] is Map<String, dynamic>
           ? LevelSetup(
               map: (json['levelSetup'] as Map<String, dynamic>)['map']
@@ -50,11 +49,15 @@ class LanServer {
   final int port;
   final int? maxPlayers;
   final bool requiresPassword;
-  final List<String> mods;
+  final List<LanServerMod> gameplayMods;
   final LevelSetup? levelSetup;
   final DateTime lastSeen;
 
   String get id => '$address:$port';
+
+  List<ServerMod> get serverMods => gameplayMods
+      .map((mod) => ServerMod(name: mod.name, version: mod.version))
+      .toList();
 
   LanServer copyWith({
     String? name,
@@ -62,7 +65,7 @@ class LanServer {
     int? port,
     int? maxPlayers,
     bool? requiresPassword,
-    List<String>? mods,
+    List<LanServerMod>? gameplayMods,
     LevelSetup? levelSetup,
     DateTime? lastSeen,
   }) {
@@ -72,9 +75,20 @@ class LanServer {
       port: port ?? this.port,
       maxPlayers: maxPlayers ?? this.maxPlayers,
       requiresPassword: requiresPassword ?? this.requiresPassword,
-      mods: mods ?? this.mods,
+      gameplayMods: gameplayMods ?? this.gameplayMods,
       levelSetup: levelSetup ?? this.levelSetup,
       lastSeen: lastSeen ?? this.lastSeen,
     );
+  }
+
+  static List<LanServerMod> _parseGameplayMods(dynamic raw) {
+    if (raw is! List<dynamic>) {
+      return const [];
+    }
+
+    return raw
+        .map(LanServerMod.parseEntry)
+        .where((mod) => mod.name.isNotEmpty && mod.version.isNotEmpty)
+        .toList();
   }
 }

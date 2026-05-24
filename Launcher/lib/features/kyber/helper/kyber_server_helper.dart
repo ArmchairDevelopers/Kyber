@@ -14,6 +14,7 @@ import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart'
 import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
 import 'package:kyber_launcher/features/mods/extensions/frosty_collection_extension.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
+import 'package:kyber_launcher/features/server_browser/models/lan_server.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 import 'package:logging/logging.dart';
@@ -146,6 +147,64 @@ class KyberServerHelper {
         message: 'Failed to join server: $e',
       );
     }
+  }
+
+  static Future<void> joinLanServer(
+    LanServer server, {
+    ModCollectionMetaData? selectedCollection,
+    bool spectator = false,
+  }) async {
+    final localMods = sl.get<ModService>().mods;
+    final collectionMods = <CollectionMod>[];
+
+    for (final requiredMod in server.gameplayMods) {
+      final mod = localMods.firstWhereOrNull(
+        (element) =>
+            element.details.name == requiredMod.name &&
+            element.details.version == requiredMod.version,
+      );
+      if (mod == null) {
+        throw Exception(
+          'Required mod "${requiredMod.name}" (${requiredMod.version}) is not installed',
+        );
+      }
+
+      if (mod.isCollection) {
+        final cMods = mod.getMods()!.map(
+          (e) => localMods
+              .firstWhereOrNull((x) => x.filename == e)
+              ?.toCollectionMod(),
+        );
+        if (cMods.contains(null)) {
+          throw Exception(
+            '"${mod.details.name}" is corrupted. Please reinstall it',
+          );
+        }
+
+        collectionMods.addAll(cMods.whereType<CollectionMod>());
+      } else {
+        collectionMods.add(mod.toCollectionMod());
+      }
+    }
+
+    final tmpCollection = ModCollectionMetaData(
+      title: server.name,
+      mods: [
+        if (selectedCollection != null &&
+            !selectedCollection.containsGameplayMods())
+          ...collectionMods,
+        if (selectedCollection != null) ...selectedCollection.mods,
+        if (selectedCollection == null) ...collectionMods,
+      ],
+      localId: server.id,
+    );
+
+    await joinByAddress(
+      ip: server.address,
+      port: server.port,
+      selectedCollection: tmpCollection,
+      spectator: spectator,
+    );
   }
 
   static Future<void> joinByAddress({

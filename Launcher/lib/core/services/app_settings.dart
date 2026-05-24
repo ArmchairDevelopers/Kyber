@@ -155,6 +155,21 @@ class General {
           as String;
 
   set locale(String value) => box.put('locale', value);
+
+  String? get lastDirectConnectIp => box.get('lastDirectConnectIp') as String?;
+
+  set lastDirectConnectIp(String? value) => box.put('lastDirectConnectIp', value);
+
+  int? get lastDirectConnectPort => box.get('lastDirectConnectPort') as int?;
+
+  set lastDirectConnectPort(int? value) =>
+      box.put('lastDirectConnectPort', value);
+
+  String? get lastDirectConnectCollectionId =>
+      box.get('lastDirectConnectCollectionId') as String?;
+
+  set lastDirectConnectCollectionId(String? value) =>
+      box.put('lastDirectConnectCollectionId', value);
 }
 
 class Patreon {

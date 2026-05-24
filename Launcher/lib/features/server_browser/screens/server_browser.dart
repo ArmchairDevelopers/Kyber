@@ -14,6 +14,7 @@ import 'package:kyber_launcher/features/server_browser/providers/lan_discovery_c
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/event_list.dart';
+import 'package:kyber_launcher/features/server_browser/widgets/lan_server_info_box.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/lan_server_list.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/server_info_box.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_list/server_list.dart';
@@ -96,19 +97,34 @@ class _ServerBrowserState extends State<ServerBrowser> {
           child: Column(
             children: [
               const _StatusWidget(),
-              BlocBuilder<ServerBrowserCubit, ServerBrowserState>(
-                builder: (context, state) {
-                  if (state.selectedServer != null) {
-                    return Expanded(
-                      child: ServerInfoBox(
-                        server: state.selectedServer!,
-                      ),
-                    );
-                  }
+              if (_selectedTab == 0)
+                BlocBuilder<ServerBrowserCubit, ServerBrowserState>(
+                  builder: (context, state) {
+                    if (state.selectedServer != null) {
+                      return Expanded(
+                        child: ServerInfoBox(
+                          server: state.selectedServer!,
+                        ),
+                      );
+                    }
 
-                  return const HomeEventList();
-                },
-              ),
+                    return const HomeEventList();
+                  },
+                )
+              else
+                BlocBuilder<LanDiscoveryCubit, LanDiscoveryState>(
+                  builder: (context, state) {
+                    if (state.selectedServer != null) {
+                      return Expanded(
+                        child: LanServerInfoBox(
+                          server: state.selectedServer!,
+                        ),
+                      );
+                    }
+
+                    return const HomeEventList();
+                  },
+                ),
             ],
           ),
         ),
@@ -153,7 +169,14 @@ class _HeaderBar extends StatelessWidget {
                   Text('Internet'.toUpperCase()),
                   Text('LAN'.toUpperCase()),
                 ],
-                onChanged: onTabChanged,
+                onChanged: (value) {
+                  if (value == 0) {
+                    context.read<LanDiscoveryCubit>().selectServer(null);
+                  } else {
+                    context.read<ServerBrowserCubit>().clearServer();
+                  }
+                  onTabChanged(value);
+                },
                 selectedIndex: selectedTab,
               ),
             ),

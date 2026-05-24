@@ -40,9 +40,26 @@ The beacon payload is compatible with the Launcher LAN browser and currently inc
 - max player count;
 - password requirement;
 - first map and mode in the rotation;
-- an empty `mods` list.
+- required gameplay mods as a `mods` array.
+
+Each `mods` entry is an object with `name` and `version` (the same collapsed gameplay list as online `serverMods`, not the exploded per-`.fbmod` list). Frosty collections such as Battlefront Plus appear as a single entry, for example `{"name":"Battlefront Plus","version":"10.0_final_1b"}`.
+
+Legacy string entries `name@version` are still accepted by the Launcher parser.
 
 Clients derive the join address from the UDP packet source IP (there is no `ip` field in the Module beacon). The host Launcher reads `preferredLanAddress` from `Common.GetInfo` when the Module is connected.
+
+### Beacon size limit
+
+Discovery uses a single UDP datagram per subnet (prefix `KYBR` + compact JSON). On typical Ethernet LANs, keep the total payload under about **1400 bytes** (~1472 byte UDP MTU). The Module logs a warning when the payload is larger.
+
+Order-of-magnitude capacity with the fixed beacon fields:
+
+| Mod entry style | Approx. max gameplay mods |
+| --- | --- |
+| Collection-sized names (~35 bytes JSON each, e.g. Battlefront Plus) | ~35–40 |
+| Long individual mod names (~55+ bytes each) | ~20–25 |
+
+If the host loads many separate gameplay mods without collapsing them into collections, the beacon may be dropped or fragmented on some networks. Prefer collection entries in `serverMods` (as when registering an online server). Cosmetic mods are not included in `mods`; clients choose those locally when joining.
 
 ### Interface selection
 
