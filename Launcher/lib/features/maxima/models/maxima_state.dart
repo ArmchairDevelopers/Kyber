@@ -79,6 +79,7 @@ enum UserEntitlement {
   verifiedServers,
   officialStats,
   patreonPerks,
+  bypassPlayerLimit,
 }
 
 UserEntitlement? parseUserEntitlement(String value) {
@@ -101,6 +102,8 @@ UserEntitlement? parseUserEntitlement(String value) {
       return .patreonPerks;
     case 'STAFF':
       return .staff;
+    case 'BYPASS_PLAYER_LIMIT':
+      return .bypassPlayerLimit;
     default:
       return null;
   }

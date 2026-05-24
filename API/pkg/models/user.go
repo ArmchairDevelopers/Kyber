@@ -23,6 +23,7 @@ const (
 	EntitlementPatreonPerks            UserEntitlement = "PATREON_PERKS"
 	EntitlementDisableNameSync         UserEntitlement = "DISABLE_NAME_SYNC"
 	EntitlementAutoApproveModImages    UserEntitlement = "AUTO_APPROVE_MOD_IMAGES"
+	EntitlementBypassPlayerLimit       UserEntitlement = "BYPASS_PLAYER_LIMIT"
 	EntitlementUnknown                 UserEntitlement = "UNKNOWN"
 )
 
