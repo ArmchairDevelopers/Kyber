@@ -106,7 +106,7 @@ Why: Launcher-side discovery did not cover dedicated servers. A dedicated server
 
 This component:
 
-- builds the same `kyber_lan_server` JSON payload consumed by the Launcher LAN browser;
+- builds the same `kyber_lan_server` JSON payload consumed by the Launcher LAN browser, prefixed with the `KYBR` magic bytes;
 - sends UDP broadcast packets to `255.255.255.255:25201` every 3 seconds;
 - starts only when the server is running in offline LAN mode;
 - stops when the server stops or the Module is destroyed;

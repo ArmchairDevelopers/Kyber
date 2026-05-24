@@ -30,6 +30,8 @@ For each eligible IPv4 subnet, the Module binds the beacon socket to the interfa
 
 This works for both Launcher-hosted LAN servers and dedicated servers started from the CLI with `start_server --lan`, because both paths load the Module.
 
+Each discovery UDP datagram starts with a four-byte magic prefix `KYBR`, followed by a UTF-8 JSON body. Clients reject packets that do not match this prefix before parsing JSON.
+
 The beacon payload is compatible with the Launcher LAN browser and currently includes:
 
 - `type = kyber_lan_server`;
