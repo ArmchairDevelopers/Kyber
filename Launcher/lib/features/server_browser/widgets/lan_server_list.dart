@@ -234,7 +234,9 @@ class _LanServerEntry extends StatelessWidget {
                 SizedBox(
                   width: 100,
                   child: Text(
-                    server.maxPlayers == null ? '-' : '0/${server.maxPlayers}',
+                    server.maxPlayers == null
+                        ? '-'
+                        : '${server.playerCount ?? 0}/${server.maxPlayers}',
                     textAlign: TextAlign.center,
                   ),
                 ),

@@ -7,6 +7,7 @@ class LanServer {
     required this.address,
     required this.port,
     required this.lastSeen,
+    this.playerCount,
     this.maxPlayers,
     this.requiresPassword = false,
     this.gameplayMods = const [],
@@ -21,6 +22,7 @@ class LanServer {
       name: json['name'] as String? ?? 'LAN Server',
       address: sourceAddress,
       port: json['port'] as int? ?? 25200,
+      playerCount: json['playerCount'] as int?,
       maxPlayers: json['maxPlayers'] as int?,
       requiresPassword: json['requiresPassword'] as bool? ?? false,
       gameplayMods: _parseGameplayMods(json['mods']),
@@ -47,6 +49,7 @@ class LanServer {
   final String name;
   final String address;
   final int port;
+  final int? playerCount;
   final int? maxPlayers;
   final bool requiresPassword;
   final List<LanServerMod> gameplayMods;
@@ -63,6 +66,7 @@ class LanServer {
     String? name,
     String? address,
     int? port,
+    int? playerCount,
     int? maxPlayers,
     bool? requiresPassword,
     List<LanServerMod>? gameplayMods,
@@ -73,6 +77,7 @@ class LanServer {
       name: name ?? this.name,
       address: address ?? this.address,
       port: port ?? this.port,
+      playerCount: playerCount ?? this.playerCount,
       maxPlayers: maxPlayers ?? this.maxPlayers,
       requiresPassword: requiresPassword ?? this.requiresPassword,
       gameplayMods: gameplayMods ?? this.gameplayMods,

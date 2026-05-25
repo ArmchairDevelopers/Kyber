@@ -85,6 +85,31 @@ bool SendBeaconPayload(const std::string& payload, const LanIpv4Endpoint& endpoi
 
     return true;
 }
+
+int GetCurrentPlayerCount()
+{
+    if (g_program->m_server == nullptr || !g_program->m_server->IsRunning())
+    {
+        return 0;
+    }
+
+    ServerPlayerManager* playerManager = g_program->m_server->m_playerManager;
+    if (playerManager == nullptr)
+    {
+        return 0;
+    }
+
+    int playerCount = 0;
+    for (ServerPlayer* player : playerManager->m_players)
+    {
+        if (player != nullptr && !player->IsAIPlayer())
+        {
+            ++playerCount;
+        }
+    }
+
+    return playerCount;
+}
 } // namespace
 
 LanBeacon::LanBeacon()
@@ -101,7 +126,7 @@ void LanBeacon::Start(const ServerCreationInfo& info, int port)
     Stop();
 
     m_running = true;
-    m_thread = std::thread(&LanBeacon::Run, this, BuildPayload(info, port));
+    m_thread = std::thread(&LanBeacon::Run, this, info, port);
 }
 
 void LanBeacon::Stop()
@@ -117,7 +142,7 @@ void LanBeacon::Stop()
     }
 }
 
-std::string LanBeacon::BuildPayload(const ServerCreationInfo& info, int port) const
+std::string LanBeacon::BuildPayload(const ServerCreationInfo& info, int port, int playerCount) const
 {
     nlohmann::json mods = nlohmann::json::array();
     for (const auto& mod : g_program->m_modData.serverMods)
@@ -132,6 +157,7 @@ std::string LanBeacon::BuildPayload(const ServerCreationInfo& info, int port) co
         { "type", "kyber_lan_server" },
         { "name", info.name.empty() ? "LAN Server" : info.name },
         { "port", port },
+        { "playerCount", playerCount },
         { "maxPlayers", info.maxPlayers },
         { "requiresPassword", !info.password.empty() },
         { "mods", mods },
@@ -161,13 +187,14 @@ std::string LanBeacon::BuildPayload(const ServerCreationInfo& info, int port) co
     return finalPayload;
 }
 
-void LanBeacon::Run(std::string payload)
+void LanBeacon::Run(const ServerCreationInfo& info, int port)
 {
     KYBER_LOG(Info, "[LAN] Starting LAN beacon on UDP " << kDiscoveryPort);
 
     std::string lastTargetSummary;
     while (m_running.load())
     {
+        const std::string payload = BuildPayload(info, port, GetCurrentPlayerCount());
         const std::vector<LanIpv4Endpoint> targets = EnumerateLanBroadcastTargets();
         if (targets.empty())
         {

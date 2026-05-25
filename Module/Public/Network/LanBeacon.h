@@ -22,8 +22,8 @@ public:
     void Stop();
 
 private:
-    std::string BuildPayload(const ServerCreationInfo& info, int port) const;
-    void Run(std::string payload);
+    std::string BuildPayload(const ServerCreationInfo& info, int port, int playerCount) const;
+    void Run(const ServerCreationInfo& info, int port);
 
     std::atomic_bool m_running;
     std::thread m_thread;

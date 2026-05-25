@@ -193,6 +193,7 @@ class LanDiscoveryCubit extends Cubit<LanDiscoveryState> {
       gameplayMods: server.gameplayMods.isNotEmpty
           ? server.gameplayMods
           : preferred.gameplayMods,
+      playerCount: server.playerCount ?? preferred.playerCount,
       maxPlayers: server.maxPlayers ?? preferred.maxPlayers,
       requiresPassword: server.requiresPassword,
       levelSetup: server.levelSetup ?? preferred.levelSetup,
