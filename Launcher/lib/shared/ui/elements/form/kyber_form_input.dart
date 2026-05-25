@@ -24,7 +24,7 @@ class KyberFormInputField extends StatelessWidget {
 
   final String name;
   final String? initialValue;
-  final String? Function(dynamic)? validator;
+  final String? Function(String?)? validator;
   final String? placeholder;
   final bool? autofocus;
   final bool? filled;
