@@ -25,6 +25,7 @@ public:
     void RemovePlayerFromGroup(const ServerPlayer* player, GroupId groupId);
     bool GroupHasPlayer(const ServerPlayer* player, const GroupId groupId);
     GroupId FindPlayerGroup(const ServerPlayer* player);
+    GroupId FindPlayerGroup(PlayerId playerId);
     void SendGroupUpdatedEvent(const ServerPlayer* player);
     eastl::vector<PlayerId> GetPlayersInGroup(GroupId groupId);
 

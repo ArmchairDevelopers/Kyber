@@ -159,11 +159,16 @@ bool ServerSquadManager::GroupHasPlayer(const ServerPlayer* player, const GroupI
 
 ServerSquadManager::GroupId ServerSquadManager::FindPlayerGroup(const ServerPlayer* player)
 {
+    return FindPlayerGroup(player->m_onlineId.m_nativeData);
+}
+
+ServerSquadManager::GroupId ServerSquadManager::FindPlayerGroup(PlayerId playerId)
+{
     for (const auto& groupPlayerList : m_activeGroups)
     {
-        for (uint64_t playerId : groupPlayerList.second)
+        for (uint64_t groupPlayerId : groupPlayerList.second)
         {
-            if (player->m_onlineId.m_nativeData == playerId)
+            if (playerId == groupPlayerId)
             {
                 return groupPlayerList.first;
             }
@@ -283,10 +288,21 @@ void ServerAutoTeamEntityEventHk(void* inst, ServerPlayerEvent* event)
     }
 }
 
+bool ServerInternalChatSystemCheckInSameGroup(void* inst, OnlineId& playerA, OnlineId& playerB)
+{
+    ServerSquadManager::GroupId playerAGroupId = g_program->m_server->m_squadManager->FindPlayerGroup(playerA.m_nativeData);
+    ServerSquadManager::GroupId playerBGroupId = g_program->m_server->m_squadManager->FindPlayerGroup(playerB.m_nativeData);
+
+    // If either of the player ids are 0, return false
+    // If neither are 0, if they are both the same group id return true
+    return !(playerAGroupId == 0 || playerBGroupId == 0) && playerAGroupId == playerBGroupId;
+}
+
 void ServerSquadManager::InitializeHooks()
 {
     HookManager::CreateHook(HOOK_OFFSET(0x1418C5960), ServerSquadEventSystemCtorHk);
     HookManager::CreateHook(HOOK_OFFSET(0x148A4F530), ServerAutoTeamEntityEventHk);
+    HookManager::CreateHook(HOOK_OFFSET(0x148EC1C70), ServerInternalChatSystemCheckInSameGroup);
 
     // Disable blaze communication
     uint8_t zero = 0x00;
