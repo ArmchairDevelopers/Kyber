@@ -7,6 +7,7 @@
 #include <Utilities/PlatformUtils.h>
 #include <Core/Program.h>
 #include <SDK/Fb/Entity.h>
+#include <SDK/Fb/Soldier.h>
 
 namespace Kyber
 {
@@ -15,8 +16,8 @@ GameWorld** g_gameWorld = (GameWorld**)0x143EEC298;
 void** g_gameContext = (void**)0x143EFABD0;
 
 PlayerExtentRegistration* ServerGamePlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143A8C2A0);
-PlayerExtentRegistration* ServerPlayerExtent2::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB4F30);
-PlayerExtentRegistration* ServerWSGameplayExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB7470);
+PlayerExtentRegistration* OnlineServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB4F30);
+PlayerExtentRegistration* ServerPlayerCustomizationExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB7470);
 PlayerExtentRegistration* WSServerPlayerAbilityExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB5F50);
 PlayerExtentRegistration* PersistenceServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB4900);
 PlayerExtentRegistration* SoldierServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AAD370);
@@ -158,6 +159,19 @@ bool ServerPlayer::Teleport(const LinearTransform& transform)
 void ServerPlayer::ForceSendChatMessage(ChatChannel channel, const char* message)
 {
     Server_sendChatMessage(channel, message, this);
+}
+
+
+void ServerCharacterEntity::Kill()
+{
+    if (!this->getType()->isKindOf(typeInfo_ServerSoldierEntity))
+    {
+        KYBER_LOG(Error, "Tried to kill character that isn't a soldier");
+        return;
+    }
+
+    auto func = reinterpret_cast<void(*)(void* inst, bool)>(PlatformUtils::GetVTableFunction(this, 94));
+    func(this, false);
 }
 
 void ServerVehicleEntity::Teleport(const LinearTransform& transform)

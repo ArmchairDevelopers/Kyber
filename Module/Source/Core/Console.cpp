@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #define _WINSOCKAPI_
 #include <Core/Console.h>
 
@@ -30,9 +31,9 @@ TL_DECLARE_FUNC(0x145478280, void*, AllocatingBuffer_writeEx, void* inst, const 
 TL_DECLARE_FUNC(0x1401B4EB0, void, ConsoleRegistry_registerConsoleMethods, const char* groupName, ConsoleMethod* methods, int count);
 TL_DECLARE_FUNC(0x1453ECF10, SINGLE_ARG(eastl::fixed_vector<InstanceMethod, 128>&), ConsoleRegistry_getInstanceMethods);
 TL_DECLARE_FUNC(0x14BEC6FE0, void*, NetworkSettingsMessage_ctor, void* inst);
-TL_DECLARE_FUNC(0x141BCE400, void, ServerWSGameplayExtent_setActiveKit, ServerPlayerExtent* inst, uint32_t gpId, uint32_t unk0,
+TL_DECLARE_FUNC(0x141BCE400, void, ServerPlayerCustomizationExtent_setActiveKit, ServerPlayerExtent* inst, uint32_t gpId, uint32_t unk0,
     uint32_t vurId, uint32_t skinInfoId);
-TL_DECLARE_FUNC(0x141BCFC40, void, ServerWSGameplayExtent_updateActiveKit, ServerPlayerExtent* inst, uint32_t gpId, void** selectionInfo, __int64 garbage);
+TL_DECLARE_FUNC(0x141BCFC40, void, ServerPlayerCustomizationExtent_updateActiveKit, ServerPlayerExtent* inst, uint32_t gpId, void** selectionInfo, __int64 garbage);
 TL_DECLARE_FUNC(0x14D8987B0, void, PlayerAbilityPickedUpMessage_ctor, PlayerAbilityPickedUpMessage* inst, LocalPlayerId localPlayerId);
 
 void ConsoleContext::pushOutput(const std::string& out)
@@ -134,20 +135,49 @@ void SendStatsCommand(ConsoleContext& cc)
 
 void ServerPlayerExtentDebugCommand(ConsoleContext& cc)
 {
+    if (!g_program->m_server->IsRunning())
+    {
+        cc << "This is a server command, and you aren't running a server!";
+        return;
+    }
+
     ServerPlayer* player = g_program->m_server->m_playerManager->m_players[0];
     KYBER_LOG(Info, "----- Server Player Extents -----");
+
+    PlayerExtentRegistration* extentRegistration = *reinterpret_cast<PlayerExtentRegistration**>(0x143ED3378);
+    while (extentRegistration)
+    {
+        void* extent = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(player) + extentRegistration->size);
+        KYBER_LOG(Info, "Extent: " << std::hex << extent << " : " << extentRegistration->typeName << " Offset: " << std::hex
+                                   << extentRegistration->offset << " Size: " << std::hex << extentRegistration->size);
+
+        extentRegistration = extentRegistration->next;
+    }
+}
+
+void ClientPlayerExtentDebugCommand(ConsoleContext& cc)
+{
+    if (g_program->m_isDedicatedServer) 
+    {
+        cc << "Cant run on non client";
+        return;
+    }
+
+    ClientPlayer* player = ClientGameContext::Get()->playerManager->GetLocalPlayer(LocalPlayerId_0);
+    KYBER_LOG(Info, "----- Client Player Extents -----");
 
     // Magix forced me to comment what this means:
     // This magic offset is the first node of a linked list
     // of server player extents.
 
-    uint32_t* extentRegistration = reinterpret_cast<uint32_t*>(0x143AB6FA0);
+    PlayerExtentRegistration* extentRegistration = *reinterpret_cast<PlayerExtentRegistration**>(0x143EE7850);
     while (extentRegistration)
     {
-        TypeObject* extent = reinterpret_cast<TypeObject*>(reinterpret_cast<__int64>(player) + *extentRegistration);
-        KYBER_LOG(Info, "Extent: " << std::hex << extent << " : " << extent->getType()->getName() 
-            << " Offset: " << std::hex << extentRegistration[0] <<  " Size: " << std::hex << extentRegistration[1]);
-        extentRegistration = *reinterpret_cast<uint32_t**>(reinterpret_cast<uintptr_t>(extentRegistration) + 0x38);
+        ServerPlayerExtent* extent = reinterpret_cast<ServerPlayerExtent*>(reinterpret_cast<uintptr_t>(player) + extentRegistration->size);
+        KYBER_LOG(Info, "Extent: " << std::hex << extent << " : " << extentRegistration->typeName << " Offset: " << std::hex
+                                   << extentRegistration->offset << " Size: " << std::hex << extentRegistration->size);
+
+        extentRegistration = extentRegistration->next;
     }
 }
 
@@ -166,9 +196,6 @@ void TestSetPlayerActiveKit(ConsoleContext& cc)
     int skinInfo;
     stream >> playerName >> gp >> maxCount >> vurId >> skinInfo;
 
-    ServerPlayer* serverPlayer = g_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
-    ServerPlayerExtent* extent = serverPlayer->GetExtent(ServerWSGameplayExtent::s_registration);
-    ServerWSGameplayExtent_setActiveKit(extent, gp, maxCount, vurId, skinInfo);
     cc << "Done";
 }
 
@@ -180,7 +207,7 @@ void TestUpdateActiveKit(ConsoleContext& cc)
     stream >> playerName >> gp;
 
     ServerPlayer* serverPlayer = g_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
-    ServerPlayerExtent* extent = serverPlayer->GetServerWSGameplayExtent();
+    ServerPlayerExtent* extent = serverPlayer->GetServerPlayerCustomizationExtent();
 
     __int64 data1[6];
     __int64 data2[1];
@@ -190,8 +217,8 @@ void TestUpdateActiveKit(ConsoleContext& cc)
     Asset* assets1[3];
     assets1[0] = reinterpret_cast<Asset*>(ResourceManagerLookupDataContainer("Gameplay/Equipment/Abilities/Ability_BattleCommand/SC_Trooper_37"));
 
-    // ServerWSGameplayExtent_updateActiveKit(extent, gp, (void**)0x142D6CDE0, (void**)0x142D6CDE0);
-    ServerWSGameplayExtent_updateActiveKit(extent, 1605240203, reinterpret_cast<void**>(&assets1), (__int64)0x142D6CDE0);
+    // ServerPlayerCustomizationExtent_updateActiveKit(extent, gp, (void**)0x142D6CDE0, (void**)0x142D6CDE0);
+    ServerPlayerCustomizationExtent_updateActiveKit(extent, 1605240203, reinterpret_cast<void**>(&assets1), (__int64)0x142D6CDE0);
     cc << "Done";
 }
 
@@ -505,7 +532,7 @@ void ShuffleTeamsCommand(ConsoleContext& cc)
         size_t assignedPlayerCount = 0;
         size_t team1Count = 0;
         size_t team2Count = 0;
-        
+
         while (assignedPlayerCount < totalPlayerCount)
         {
             // Go through entire list and find the largest group.
@@ -625,7 +652,7 @@ void SetBattlepointsCommand(ConsoleContext& cc)
         return;
     }
 
-    player->GetServerWSGameplayExtent()->SetBattlepoints(amount);
+    player->GetServerPlayerCustomizationExtent()->SetBattlepoints(amount);
     cc << "Set " << playerName << "'s battlepoints to " << amount;
 }
 
@@ -649,8 +676,8 @@ void GiveBattlepointsCommand(ConsoleContext& cc)
         return;
     }
 
-    player->GetServerWSGameplayExtent()->AddBattlepoints(amount);
-    cc << "Gave " << playerName << " " << amount << " battlepoints, now has " << player->GetServerWSGameplayExtent()->m_battlepoints << " total";
+    player->GetServerPlayerCustomizationExtent()->AddBattlepoints(amount);
+    cc << "Gave " << playerName << " " << amount << " battlepoints, now has " << player->GetServerPlayerCustomizationExtent()->m_battlepoints << " total";
 }
 
 void BroadcastCommand(ConsoleContext& cc)
@@ -768,7 +795,6 @@ Console::Console()
     BYTE ptch[] = { 0xEB };
     MemoryUtils::Patch(HOOK_OFFSET(0x1401D0D03), (void*)ptch, sizeof(ptch));
     MemoryUtils::Patch(HOOK_OFFSET(0x1401D0D5B), (void*)ptch, sizeof(ptch));
-    MemoryUtils::Patch(HOOK_OFFSET(0x141BCE55C), (void*)ptch, sizeof(ptch)); // ServerWSGameplayExtent::setActiveKit
 
     RegisterConsoleCommand(&RestartCommand, "Restart");
     RegisterConsoleCommand(&LoadLevelCommand, "LoadLevel", "<level> <mode>");

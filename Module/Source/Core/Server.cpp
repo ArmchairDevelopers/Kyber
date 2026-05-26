@@ -488,9 +488,9 @@ void LoadSomethingHk(void* a1, __int64 a2, __int64 a3, __int64 a4, __int64 a5, _
     return trampoline(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, false);
 }
 
-void ServerPlayerExtent2UpdateHk(ServerPlayerExtent2* inst, float deltaTime)
+void OnlineServerPlayerExtentUpdateHk(OnlineServerPlayerExtent* inst, float deltaTime)
 {
-    static const auto trampoline = HookManager::Call(ServerPlayerExtent2UpdateHk);
+    static const auto trampoline = HookManager::Call(OnlineServerPlayerExtentUpdateHk);
     trampoline(inst, deltaTime);
     
     if (!inst->m_enableInactivityTimer)
@@ -691,8 +691,8 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
 void Server::InitializePlayer(ServerPlayer* player) 
 {
     // Set up inactivity timer
-    player->GetServerPlayerExtent2()->m_enableInactivityTimer = true;
-    player->GetServerPlayerExtent2()->m_unusedChatFilterDisabled = false;
+    player->GetOnlineServerPlayerExtent()->m_enableInactivityTimer = true;
+    player->GetOnlineServerPlayerExtent()->m_unusedChatFilterDisabled = false;
 }
 
 void Server::Heartbeat(const UpdateParameters& params)
@@ -778,7 +778,7 @@ HookTemplate clientServerHookOffsets[] = {
     { OFFSET_SERVERLEVEL_UPDATELOAD, ServerLevelUpdateLoadHk },
     { HOOK_OFFSET(0x140BCF350), ServerLoadLevelMessagePostHk },
     { HOOK_OFFSET(0x14193DA20), ServerSendChatMessageHk },
-    { HOOK_OFFSET(0x14843AF70), ServerPlayerExtent2UpdateHk },
+    { HOOK_OFFSET(0x14843AF70), OnlineServerPlayerExtentUpdateHk },
 };
 
 HookTemplate dedicatedServerHookOffsets[] = {
@@ -795,7 +795,7 @@ HookTemplate dedicatedServerHookOffsets[] = {
     { OFFSET_SERVER_UPDATEPASSPREFRAME, ServerUpdatePassPreFrameHk },
     { HOOK_OFFSET(0x140BCF350), ServerLoadLevelMessagePostHk },
     { HOOK_OFFSET(0x14193DA20), ServerSendChatMessageHk },
-    { HOOK_OFFSET(0x14843AF70), ServerPlayerExtent2UpdateHk },
+    { HOOK_OFFSET(0x14843AF70), OnlineServerPlayerExtentUpdateHk },
 };
 
 void Server::InitializeGameHooks()

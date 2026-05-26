@@ -486,6 +486,11 @@ public:
     {
         return static_cast<T*>(InternalCreateContainer(name));
     }
+    template<class T>
+    T* CreateContainer(const TypeInfo* typeInfo) const
+    {
+        return static_cast<T*>(InternalCreateContainer(typeInfo));
+    }
 
     TypeInfo* GetBuiltType(const Guid& guid)
     {
@@ -550,6 +555,7 @@ public:
 private:
     // Create a fully initialized data container for a custom type
     DataContainer* InternalCreateContainer(const std::string& name) const;
+    DataContainer* InternalCreateContainer(const TypeInfo* typeInfo) const;
 
     std::vector<Guid> m_guids;
     std::map<Guid, TypeInfo*> m_builtTypes;

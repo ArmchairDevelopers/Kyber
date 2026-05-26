@@ -404,6 +404,7 @@ public:
 
         size_t headerSize = sizeof(uint32_t) > __alignof(T) ? sizeof(uint32_t) : __alignof(T);
         m_data = (T*)(reinterpret_cast<uint8_t*>(FB_GLOBAL_ARENA->alloc(headerSize + size * sizeof(T))) + headerSize);
+        memset(m_data, 0, size * sizeof(T));
 
         uint32_t* data = reinterpret_cast<uint32_t*>(reinterpret_cast<char*>(m_data));
         data[-1] = size;
@@ -919,7 +920,7 @@ public:
 
     char pad_0218[16];                                // 0x0218
     class ClientCameraViewManager* cameraViewManager; // 0x0228
-};
+}; // Size: 0x298
 
 class ClientPlayerManager
 {
@@ -1231,35 +1232,29 @@ public:
 class ServerCharacterEntity;
 class ServerVehicleEntity;
 
-struct PlayerExtentRegistration
-{
-    uint32_t offset;
-    uint32_t size;
-    uint32_t alignment;
-};
-
-// Extent research
-
-// Some server extents are named, most arent.
-// We will make due with just numbering the generic ones
-// and describing what is in each.
-
-// There are extent strings in the exe but are completely unreferenced
-// We can make guesses as to which is which
-// Full list:
-//      ServerAutoPlayerExtent
-//      OnlineServerPlayerExtent
-//      ServerSquadCommandPlayerExtent
-//      SpectatorServerPlayerExtent
-//      ServerWSGameplayExtent
-//      WSServerAutoPlayerExtent
-//      ServerPlayerSpawnExtent
-//      ServerPlayerSquadSpawnExtent
-//      PersistenceServerPlayerExtent
-//      ServerPlayerCustomizationExtent
+// Player Extents
+// These are chunks of data that are allocated alongside Players,
+// holding data from how many battlepoints they have to what kit they have equipped.
 
 class ServerPlayerExtent : public TypeObject
 {};
+
+struct PlayerExtentRegistration
+{
+    using ctorFunc_t = ServerPlayerExtent* (*)(ServerPlayerExtent*);
+    using dtorFunc_t = ctorFunc_t;
+    
+    uint32_t offset;
+    uint32_t size;
+    uint32_t alignment;
+    char pad_0C[4];
+    const char* typeName;
+    const char* parentTypeName;
+    ctorFunc_t ctorFunc;
+    dtorFunc_t dtorFunc;
+    void* nullFunction;
+    PlayerExtentRegistration* next;
+};
 
 #define KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS()                                                                                            \
     static PlayerExtentRegistration* s_registration;                                                                                       \
@@ -1291,7 +1286,6 @@ public:
     KB_DECLARE_GAMEMEMBERFUNC(0x146881840, void*, SetUnlocks, (bitArray), FBBitArray* bitArray)
 };
 
-// Unnamed extent 3
 class PersistenceServerPlayerExtent : public ServerPlayerExtent
 {
 public:
@@ -1346,8 +1340,7 @@ public:
     ActiveKitAbilityContainer* m_abilityContainer;
 };
 
-// Unnamed extent 2
-class ServerPlayerExtent2 : public ServerPlayerExtent
+class OnlineServerPlayerExtent : public ServerPlayerExtent
 {
 public:
     KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS();
@@ -1370,8 +1363,7 @@ public:
     char pad_0A61[15];               // 0x0A61
 };
 
-// Unnamed extent 4
-class ServerWSGameplayExtent : public ServerPlayerExtent
+class ServerPlayerCustomizationExtent : public ServerPlayerExtent
 {
 public:
     KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS();
@@ -1380,10 +1372,11 @@ public:
     KB_DECLARE_GAMEMEMBERFUNC(0x148E4EF60, void, AddBattlepoints, (amount), int amount);
     KB_DECLARE_GAMEMEMBERFUNC(0x141BCE400, void, SetActiveKit, (gpId, unk0, vurId, skinInfoId), uint32_t gpId, uint32_t unk0,
         uint32_t vurId, uint32_t skinInfoId);
+    KB_DECLARE_GAMEMEMBERFUNC(0x148E52040, void, SetActiveKitStruct, (data), void* data);
 
     char pad_0008[0x113C];
-    uint32_t m_battlepoints;
-    float m_battlepointsMultiplier;
+    uint32_t m_battlepoints; // 0x113C
+    float m_battlepointsMultiplier; // 0x1140
 };
 
 enum WeaponSlot
@@ -1429,19 +1422,22 @@ class ServerPlayer
 {
 public:
     virtual void unk1() {};
-    class PlayerData* m_data;          // 0x0008
-    class MemoryArena* m_memoryArena;  // 0x0010
-    const char* m_name;                // 0x0018
-    char pad_0020[24];                 // 0x0020
-    LocalPlayerId m_localPlayerId;     // 0x0038
-    uint32_t m_analogInputEnableMask;  // 0x003C
-    uint64_t m_digitalInputEnableMask; // 0x0040
-    char pad_0048[16];                 // 0x0048
-    int32_t m_teamId;                  // 0x0058
-    char pad_005C[4];                  // 0x005C
-    OnlineId m_onlineId;               // 0x0060
-    char pad_0078[72];                 // 0x0078
-    bool m_isSpectator;                // 0x00C0
+    class PlayerData* m_data;            // 0x0008
+    class MemoryArena* m_memoryArena;    // 0x0010
+    const char* m_name;                  // 0x0018
+    char pad_0020[24];                   // 0x0020
+    LocalPlayerId m_localPlayerId;       // 0x0038
+    uint32_t m_analogInputEnableMask;    // 0x003C
+    uint64_t m_digitalInputEnableMask;   // 0x0040
+    char pad_0048[16];                   // 0x0048
+    int32_t m_teamId;                    // 0x0058
+    char pad_005C[4];                    // 0x005C
+    OnlineId m_onlineId;                 // 0x0060
+    char pad_0078[72];                   // 0x0078
+    bool m_isSpectator;                  // 0x00C0
+    char pad_00C1[7];                    // 0x00C1
+    char pad_00C8[0x200];                // 0x00C8
+    class SpatialEntity* m_controllable; // 0x02C8
 
     void SendChatMessage(ChatChannel channel, const char* message) const;
 
@@ -1486,8 +1482,8 @@ public:
     }
 
     KB_DECLARE_SERVERPLAYEREXTENT(ServerGamePlayerExtent)
-    KB_DECLARE_SERVERPLAYEREXTENT(ServerPlayerExtent2)
-    KB_DECLARE_SERVERPLAYEREXTENT(ServerWSGameplayExtent)
+    KB_DECLARE_SERVERPLAYEREXTENT(OnlineServerPlayerExtent)
+    KB_DECLARE_SERVERPLAYEREXTENT(ServerPlayerCustomizationExtent)
     KB_DECLARE_SERVERPLAYEREXTENT(WSServerPlayerAbilityExtent)
     KB_DECLARE_SERVERPLAYEREXTENT(PersistenceServerPlayerExtent)
     KB_DECLARE_SERVERPLAYEREXTENT(SoldierServerPlayerExtent)
@@ -2190,6 +2186,8 @@ public:
     {
         Teleport(trans, false);
     }
+
+    void Kill();
 };
 
 class ServerVehicleEntity : public ComponentEntity

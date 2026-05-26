@@ -196,7 +196,7 @@ static int ServerPlayerSetBattlepoints(lua_State* L)
     }
 
     int amount = luaL_checkinteger(L, 2);
-    player->GetServerWSGameplayExtent()->SetBattlepoints(amount);
+    player->GetServerPlayerCustomizationExtent()->SetBattlepoints(amount);
     return 1;
 }
 
@@ -209,7 +209,7 @@ static int ServerPlayerGiveBattlepoints(lua_State* L)
     }
 
     int amount = luaL_checkinteger(L, 2);
-    player->GetServerWSGameplayExtent()->AddBattlepoints(amount);
+    player->GetServerPlayerCustomizationExtent()->AddBattlepoints(amount);
     return 1;
 }
 
@@ -651,7 +651,7 @@ static int ServerPlayerIndex(lua_State* L)
     }
     else if (key == "battlepoints")
     {
-        lua_pushinteger(L, player->GetServerWSGameplayExtent()->m_battlepoints);
+        lua_pushinteger(L, player->GetServerPlayerCustomizationExtent()->m_battlepoints);
         return 1;
     }
     else if (key == "score")

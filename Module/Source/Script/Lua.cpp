@@ -33,6 +33,12 @@ void LuaUtils::Push<int>(lua_State* L, int value)
 }
 
 template<>
+void LuaUtils::Push<double>(lua_State* L, double value)
+{
+    lua_pushnumber(L, value);
+}
+
+template<>
 void LuaUtils::Push<float>(lua_State* L, float value)
 {
     lua_pushnumber(L, value);

@@ -806,6 +806,13 @@ DataContainer* EntityManager::InternalCreateContainer(const std::string& name) c
     return container;
 }
 
+DataContainer* EntityManager::InternalCreateContainer(const TypeInfo* typeInfo) const
+{
+    DataContainer* container = DataContainerClassInfo_createInstance(typeInfo, FB_GLOBAL_ARENA, true, true);
+    container->m_dcType = const_cast<TypeInfo*>(typeInfo);
+    return container;
+}
+
 EntityManager::EntityManager()
 {
     KYBER_LOG(Info, "[Entity] Initializing Entity Manager");

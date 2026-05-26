@@ -405,7 +405,14 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     {
         CoreGameTimerMessage* msg = static_cast<CoreGameTimerMessage*>(message);
 
-        KYBER_LOG(Info, "Average TPS: (" << (float(msg->m_ticks) / msg->m_timeElapsed) << ") Average tick time: " << msg->m_avgTickTime);
+        KYBER_LOG(Info, "Average TPS: (" << (float(msg->m_ticks) / msg->m_timeElapsed) << ") Average tick time: (" << msg->m_avgTickTime
+                                         << ") Worst tick time: (" << msg->m_worstTickTime << ")");
+
+        if (g_program->m_scriptManager != nullptr)
+        {
+            g_program->m_scriptManager->GetEventManager().Fire("DedicatedServer:PerformanceStatsMessage",
+                double(msg->m_ticks) / msg->m_timeElapsed, msg->m_avgTickTime, msg->m_worstTickTime);
+        }
     }
     else if (name == "ServerPlayerDisconnectMessage")
     {
@@ -623,8 +630,8 @@ void GameSimulationInitHk(GameSimulation* inst, void* createInfo)
     static const auto trampoline = HookManager::Call(GameSimulationInitHk);
     KYBER_LOG(Info, "[GameSim] Initializing Game Simulation");
 
-    double newFpsCap2 = 1.f / 500.f;
-    MemoryUtils::Patch(reinterpret_cast<void*>(0x142EF7668), &newFpsCap2, sizeof(newFpsCap2));
+    double newFpsCap = 1.f / 500.f;
+    MemoryUtils::Patch(reinterpret_cast<void*>(0x142EF7668), &newFpsCap, sizeof(newFpsCap));
 
     if (g_program->m_isDedicatedServer)
     {
