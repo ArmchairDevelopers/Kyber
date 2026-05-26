@@ -40,7 +40,7 @@ void ClientSquadManager::OnEvent(const Event& event)
         const auto& groupAssignedEvent = event.as<KyberSetGroupMembersEvent>();
 
         m_squadMates = groupAssignedEvent.m_groupMembers;
-        KYBER_LOG(Info, "!!!!!!!!!!!!!!ClientSquadManager::OnEvent|KyberSetGroupMembersEvent pass");
+        KYBER_LOG(Debug, "Got KyberSetGroupMembersEvent");
     }
 }
 
