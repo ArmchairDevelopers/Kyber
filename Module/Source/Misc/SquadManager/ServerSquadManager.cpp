@@ -288,10 +288,10 @@ void ServerAutoTeamEntityEventHk(void* inst, ServerPlayerEvent* event)
     }
 }
 
-bool ServerInternalChatSystemCheckInSameGroup(void* inst, OnlineId& playerA, OnlineId& playerB)
+bool ServerInternalChatSystemCheckInSameGroup(void* inst, uint64_t playerA, uint64_t playerB)
 {
-    ServerSquadManager::GroupId playerAGroupId = g_program->m_server->m_squadManager->FindPlayerGroup(playerA.m_nativeData);
-    ServerSquadManager::GroupId playerBGroupId = g_program->m_server->m_squadManager->FindPlayerGroup(playerB.m_nativeData);
+    ServerSquadManager::GroupId playerAGroupId = g_program->m_server->m_squadManager->FindPlayerGroup(playerA);
+    ServerSquadManager::GroupId playerBGroupId = g_program->m_server->m_squadManager->FindPlayerGroup(playerB);
 
     // If either of the player ids are 0, return false
     // If neither are 0, if they are both the same group id return true
