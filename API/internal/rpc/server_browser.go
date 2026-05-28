@@ -99,8 +99,8 @@ func (s *ServerBrowserServer) cleanupStaleServers() {
 				}
 
 				partyIDs := make([]uint64, 0, len(parties))
-				for i, p := range parties {
-					partyIDs[i] = p.ID
+				for _, p := range parties {
+					partyIDs = append(partyIDs, p.ID)
 
 					members, err := s.store.Sessions.GetByPartyID(ctx, p.ID)
 					if err != nil {
