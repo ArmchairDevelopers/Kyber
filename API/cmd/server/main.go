@@ -199,7 +199,7 @@ func main() {
 
 	reflection.Register(grpcServer)
 	pbapi.RegisterAuthenticationServer(grpcServer, rpc.NewAuthenticationServer(ctx, store, *mqClient))
-	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, serverManager, *mqClient, jwtService))
+	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, serverManager, *mqClient, jwtService, sessionManager))
 	pbapi.RegisterClientServerServer(grpcServer, rpc.NewClientServer(store, jwtService))
 	pbapi.RegisterLauncherServer(grpcServer, rpc.NewLauncherServer(store, minioClient, patronsCache))
 	pbapi.RegisterServerManagementServer(grpcServer, rpc.NewServerManagementServer(store, serverManager))
