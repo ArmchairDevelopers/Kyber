@@ -17,6 +17,8 @@ type PartyRepository interface {
 	Update(ctx context.Context, partyID uint64, update interface{}) error
 	Delete(ctx context.Context, partyID uint64) error
 	GetNextID(ctx context.Context) (uint64, error)
+	DeleteJoinGameStatusForMultiple(ctx context.Context, partyIDs []uint64) error
+	GetByJoiningServerIDs(ctx context.Context, serverIDs []string) ([]*models.PartyModel, error)
 	SetMemberJoinState(ctx context.Context, partyID uint64, userID string, serverID *string, joined bool) (*models.PartyJoinGameMemberStatus, error)
 	UpdateMemberModStatus(ctx context.Context, partyID uint64, userID string, hasMods bool, modDownloadPercentage *uint32) (*models.PartyJoinGameMemberStatus, error)
 }
@@ -27,6 +29,36 @@ type mongoPartyRepo struct {
 
 func NewPartyRepo(col *mongo.Collection) PartyRepository {
 	return &mongoPartyRepo{col: *col}
+}
+
+func (r *mongoPartyRepo) DeleteJoinGameStatusForMultiple(ctx context.Context, partyIDs []uint64) error {
+	_, err := r.col.UpdateMany(ctx, bson.M{"_id": bson.M{"$in": partyIDs}}, bson.D{
+		{Key: "$unset", Value: bson.D{
+			{Key: "join_game_state", Value: 1},
+		}},
+	})
+	return err
+}
+
+func (r *mongoPartyRepo) GetByJoiningServerIDs(ctx context.Context, serverIDs []string) ([]*models.PartyModel, error) {
+	cursor, err := r.col.Find(ctx, bson.M{"join_game_state.server_id": bson.M{"$in": serverIDs}})
+	if err != nil {
+		return nil, err
+	}
+
+	defer cursor.Close(ctx)
+
+	var parties []*models.PartyModel
+	for cursor.Next(ctx) {
+		var party models.PartyModel
+		if err := cursor.Decode(&party); err != nil {
+			return nil, err
+		}
+
+		parties = append(parties, &party)
+	}
+
+	return parties, nil
 }
 
 func (r *mongoPartyRepo) Create(ctx context.Context, party *models.PartyModel) error {

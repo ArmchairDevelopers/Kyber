@@ -12,3 +12,11 @@ type SessionModel struct {
 	ReconnectAt *time.Time `json:"reconnect_at,omitempty" bson:"reconnect_at,omitempty"`
 	UpdatedAt   time.Time  `json:"updated_at" bson:"updated_at"`
 }
+
+func GetUserIDsFromSessions(sessions []SessionModel) []string {
+	userIDs := make([]string, len(sessions))
+	for i, session := range sessions {
+		userIDs[i] = session.UserID
+	}
+	return userIDs
+}

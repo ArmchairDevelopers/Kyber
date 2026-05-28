@@ -32,6 +32,7 @@ type ServerBrowserServer struct {
 	store    *db.Store
 	sm       *ws.ServerManager
 	jwt      *jwts.Service
+	sessions *ws.SessionManager
 	mqClient mq.Client
 	pbapi.UnimplementedServerBrowserServer
 }
@@ -91,6 +92,38 @@ func (s *ServerBrowserServer) cleanupStaleServers() {
 					s.sm.PublishWS(msg, id)
 				}
 
+				parties, err := s.store.Parties.GetByJoiningServerIDs(ctx, ids)
+				if err != nil {
+					logger.L().Error("Failed to get parties", zap.Error(err))
+					continue
+				}
+
+				partyIDs := make([]uint64, 0, len(parties))
+				for i, p := range parties {
+					partyIDs[i] = p.ID
+
+					members, err := s.store.Sessions.GetByPartyID(ctx, p.ID)
+					if err != nil {
+						logger.L().Error("Failed to get sessions", zap.Error(err))
+						continue
+					}
+
+					s.sessions.Send(models.GetUserIDsFromSessions(members), &pbapi.SessionEvent{
+						Body: &pbapi.SessionEvent_PartyEvent{
+							PartyEvent: &pbapi.PartyEvent{
+								Body: &pbapi.PartyEvent_JoinGameCancelled{
+									JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
+								},
+							},
+						},
+					})
+				}
+
+				if err := s.store.Parties.DeleteJoinGameStatusForMultiple(ctx, partyIDs); err != nil {
+					logger.L().Error("Failed to delete join game status", zap.Error(err))
+					continue
+				}
+
 				logger.L().Debug("Deleted stale servers", zap.Int("count", len(ids)))
 			}
 		}()
@@ -99,12 +132,13 @@ func (s *ServerBrowserServer) cleanupStaleServers() {
 	}
 }
 
-func NewServerBrowserServer(store *db.Store, sm *ws.ServerManager, client mq.Client, jwt *jwts.Service) *ServerBrowserServer {
+func NewServerBrowserServer(store *db.Store, sm *ws.ServerManager, client mq.Client, jwt *jwts.Service, sessions *ws.SessionManager) *ServerBrowserServer {
 	srv := &ServerBrowserServer{
 		store:    store,
 		sm:       sm,
 		mqClient: client,
 		jwt:      jwt,
+		sessions: sessions,
 	}
 
 	go srv.cleanupStaleServers()
