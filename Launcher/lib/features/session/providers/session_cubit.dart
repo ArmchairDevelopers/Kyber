@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -9,6 +10,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:grpc/grpc.dart' hide Server;
 import 'package:kyber/gen/Proto/mod_bridge.pb.dart' as mb;
 import 'package:kyber/kyber.dart';
+import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_link_type.dart'
     as dl;
@@ -193,6 +195,48 @@ class SessionCubit extends Cubit<SessionState> {
   Future<void> joinServerForParty() async {
     final info = _inParty?.joinGameInfo;
     if (info == null) return;
+
+    final instance = sl.maybeGet<MaximaGameInstance>();
+    if (instance != null) {
+      final clientMods = instance.gameplayMods
+          .map((e) => e.toCollectionMod())
+          .toList();
+
+      final mods = info.mods
+          .map<CollectionMod>(
+            (e) => .new(name: e.name, version: e.version, link: e.link),
+          )
+          .toList();
+
+      if (!const ListEquality<CollectionMod>().equals(clientMods, mods)) {
+        NotificationService.warning(
+          message:
+              'Game is running with the wrong set of mods. Restarting the game to join the party...',
+        );
+        Process.killPid(instance.pid);
+
+        const maxTries = 10;
+        var stopped = false;
+        for (var i = 0; i < maxTries; i++) {
+          await Future<void>.delayed(const .new(seconds: 1));
+          final instance = sl.maybeGet<MaximaGameInstance>();
+          if (instance == null) {
+            _logger.fine('Game process has exited, proceeding to join party');
+            stopped = true;
+            break;
+          }
+        }
+
+        if (!stopped) {
+          _logger.severe('Failed to stop game process after $maxTries seconds');
+          NotificationService.error(
+            message:
+                'Failed to stop the game process. Please close the game and try joining the party again.',
+          );
+          return;
+        }
+      }
+    }
 
     final kyberStatus = navigatorKey.currentContext
         ?.read<KyberStatusCubit>()
