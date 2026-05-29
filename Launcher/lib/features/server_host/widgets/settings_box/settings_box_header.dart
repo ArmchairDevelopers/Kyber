@@ -16,6 +16,7 @@ import 'package:kyber_launcher/features/mods/services/level_declaration_service.
 import 'package:kyber_launcher/features/server_host/providers/host_collection_cubit.dart';
 import 'package:kyber_launcher/features/server_host/widgets/settings_box/server_settings_box.dart';
 import 'package:kyber_launcher/features/server_moderation/providers/moderation_cubit.dart';
+import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:logging/logging.dart';
@@ -290,6 +291,16 @@ class SettingsBoxHeader extends StatelessWidget {
                           }
 
                           try {
+                            final sessionState = context.read<SessionState>();
+                            final isInParty = sessionState is InParty;
+                            if (isInParty && !sessionState.isLeader()) {
+                              NotificationService.warning(
+                                message:
+                                    'Only the party leader can join a server!',
+                              );
+                              return;
+                            }
+
                             final startRequest = StartServerRequest(
                               name: form.value['serverName'] as String,
                               description: form.value['description'] as String?,
