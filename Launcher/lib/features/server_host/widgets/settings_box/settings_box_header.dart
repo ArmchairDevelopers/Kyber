@@ -368,7 +368,6 @@ class SettingsBoxHeader extends StatelessWidget {
                                 startRequest,
                               );
                             } else {
-                              return;
                               await MaximaHelper.requestGameLaunch(
                                 context,
                                 initializeRequest: InitializeRequest(
