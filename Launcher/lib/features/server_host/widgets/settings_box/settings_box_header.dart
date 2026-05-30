@@ -291,7 +291,7 @@ class SettingsBoxHeader extends StatelessWidget {
                           }
 
                           try {
-                            final sessionState = context.read<SessionState>();
+                            final sessionState = context.read<SessionCubit>().state;
                             final isInParty = sessionState is InParty;
                             if (isInParty && !sessionState.isLeader()) {
                               NotificationService.warning(
@@ -368,6 +368,7 @@ class SettingsBoxHeader extends StatelessWidget {
                                 startRequest,
                               );
                             } else {
+                              return;
                               await MaximaHelper.requestGameLaunch(
                                 context,
                                 initializeRequest: InitializeRequest(
