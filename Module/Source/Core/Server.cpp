@@ -502,6 +502,17 @@ void OnlineServerPlayerExtentUpdateHk(OnlineServerPlayerExtent* inst, float delt
     if (wsSettings->NoInteractivityTimeoutTime > 0 && inst->m_inactivityTime > wsSettings->NoInteractivityTimeoutTime)
     {
         ServerPlayer* player = inst->GetPlayer();
+
+        // Check if player is host
+        if (!g_program->m_isDedicatedServer)
+        {
+            ClientPlayer* clientPlayer = ClientGameContext::Get()->GetPlayerManager()->GetLocalPlayer(LocalPlayerId_0);
+            if (clientPlayer && clientPlayer->m_onlineId.m_nativeData == player->m_onlineId.m_nativeData)
+            {
+                return;
+            }
+        }
+
         ServerConnection* serverConnection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
         serverConnection->SafeDisconnect("AFK timeout threshold exceeded.", SecureReason_InteractivityTimeout);
 

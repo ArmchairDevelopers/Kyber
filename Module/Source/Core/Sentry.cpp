@@ -203,13 +203,14 @@ void WriteMiniDumpHk(MiniDumpInfo* params)
     uctx.exception_ptrs = *params->exceptionInfo;
     sentry_handle_exception(&uctx);
 
-    if (std::getenv("POD_NAME") != nullptr || SHOULD_LOG(Kyber::LogLevel::Debug))
+    //if (std::getenv("POD_NAME") != nullptr || SHOULD_LOG(Kyber::LogLevel::Debug))
+    // Always do now
     {
         PrintDumpToLog(params->exceptionInfo);
     }
 
     // For now always create crash dump for testing
-    if (true || PlatformUtils::GetEnv("KYBER_PRESERVE_CRASH_DUMP", "0") == "1")
+    if (PlatformUtils::GetEnv("KYBER_PRESERVE_CRASH_DUMP", "0") == "1")
     {
         trampoline(params);
     }
@@ -235,7 +236,7 @@ void Sentry::Initialize()
 #endif
 
     sentry_options_t* options = sentry_options_new();
-    sentry_options_set_dsn(options, "https://3be50e0a7bc8258a06f413c6fdef0521@sentry.kyber.gg/2");
+    sentry_options_set_dsn(options, "https://0e9433cdc24aa998ae3944ebe424a313@o4510921032859648.ingest.de.sentry.io/4510937325699152");
 
     sentry_options_set_database_pathw(options, (PlatformUtils::GetProgramDataPath() / "ModuleData/Sentry").c_str());
 

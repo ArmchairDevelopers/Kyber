@@ -6,6 +6,10 @@
 #include <RPC/Interface/ServerState.h>
 #include <RPC/Interface/Common.h>
 
+#include <grpcpp/server.h>
+#include <grpcpp/server_builder.h>
+#include <grpcpp/security/credentials.h>
+
 #include <memory>
 
 namespace Kyber

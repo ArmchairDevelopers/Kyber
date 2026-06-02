@@ -261,16 +261,16 @@ void ServerAutoTeamEntityEventHk(void* inst, ServerPlayerEvent* event)
         {
             continue;
         }
-        KYBER_LOG(Debug, "[SquadManager] Successfully got group mate (player id): " << groupMateId);
 
         // Successfully found a group member to change teams to
+        KYBER_LOG(Debug, "[SquadManager] Successfully got group mate (player id): " << groupMateId);
         ServerPlayer* groupMate = g_program->m_server->m_playerManager->GetPlayer(groupMateId);
         if (groupMate == nullptr)
         {
             continue;
         }
-        KYBER_LOG(Debug, "[SquadManager] Successfully got group mate (player name): " << groupMate->m_name);
 
+        KYBER_LOG(Debug, "[SquadManager] Successfully got group mate (player name): " << groupMate->m_name);
         if (groupMate->m_teamId == 0)
         {
             continue;

@@ -8,6 +8,8 @@ common --nolegacy_external_runfiles
 common --experimental_sibling_repository_layout
 
 build:debug --copt=/RTC1 # Runtime memory error checks
+#build:debug --copt=/D_DEBUG # Define debug preprocessor
+#build:debug --copt=/MDd # Debug static lib
 
 build:release --compilation_mode=opt
 build:release --copt=/Z7 # Generate complete debugging information

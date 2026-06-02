@@ -1307,7 +1307,7 @@ public:
     int32_t unk4;
     int32_t m_longestKillstreak; // 0x68
     char pad_006C[0x12C];
-    void* m_persistentStorage; // 0x198
+    class PersistentStorage* m_persistentStorage; // 0x198
 };
 
 class WSServerPlayerAbilityExtent : public ServerPlayerExtent

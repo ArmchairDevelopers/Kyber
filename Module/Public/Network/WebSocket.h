@@ -20,6 +20,7 @@ namespace Kyber
 struct WebSocketMessage
 {
     uint32_t socketId;
+    uint32_t timestamp;
     uint8_t data[2048];
     size_t size;
 };
@@ -27,7 +28,7 @@ struct WebSocketMessage
 class WebSocket
 {
 public:
-    using ReceiveQueue = SafeQueue<WebSocketMessage>;
+    using ReceiveQueue = SafeQueue<WebSocketMessage*>;
 
     WebSocket(std::string id, uint32_t index, std::shared_ptr<ReceiveQueue> queue);
 

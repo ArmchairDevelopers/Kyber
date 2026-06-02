@@ -8,6 +8,7 @@
 #include <Utilities/ErrorUtils.h>
 #include <Utilities/PlatformUtils.h>
 #include <Utilities/StringUtils.h>
+#include <SDK/Funcs.h>
 
 #include <ws2tcpip.h>
 
@@ -132,7 +133,7 @@ bool UDPSocket::Send(uint8_t* buffer, int bufferSize, unsigned int flags)
     return true;
 }
 
-int UDPSocket::ReceiveFrom(uint8_t* buffer, int bufferSize)
+int UDPSocket::ReceiveFromWhen(uint8_t* buffer, int bufferSize, unsigned int& when)
 {
     int addressSize = sizeof(sockaddr_in);
     sockaddr_in addr = *(sockaddr_in*)m_peerAddress.Data();
@@ -142,16 +143,20 @@ int UDPSocket::ReceiveFrom(uint8_t* buffer, int bufferSize)
     int proxyId = -1;
     int recvSize = 0;
 
-    std::optional<WebSocketMessage> data = m_proxyQueue->tryDequeue();
+    std::optional<WebSocketMessage*> data = m_proxyQueue->tryDequeue();
     if (data)
     {
-        recvSize = std::min(bufferSize, static_cast<int>(data->size));
-        memcpy(buffer, data->data, recvSize);
+        WebSocketMessage* msgData = *data;
+        recvSize = std::min(bufferSize, static_cast<int>(msgData->size));
+        when = msgData->timestamp;
+        proxyId = msgData->socketId;
+        memcpy(buffer, msgData->data, recvSize);
 
-        proxyId = data->socketId;
+        FB_GLOBAL_ARENA->del(msgData);
     }
-    else if (m_socketHandle != INVALID_SOCKET)
+    else if (m_socketHandle != INVALID_SOCKET) // Local
     {
+        when = NetTick();
         recvSize = recvfrom(m_socketHandle, (char*)buffer, bufferSize, 0, (sockaddr*)&addr, &addressSize);
         if (recvSize < 0)
         {
@@ -190,18 +195,11 @@ int UDPSocket::ReceiveFrom(uint8_t* buffer, int bufferSize)
     // ":"
     //                     << ntohs(addr.sin_port));
 
-
 #ifdef _DEBUG
     KYBER_LOG(Trace, "[" << DirectionToString(m_direction) << "] Received " << recvSize << " bytes");
 #endif
 
     return recvSize;
-}
-
-int ISocket::ReceiveFromWhen(uint8_t* buffer, int maxSize, unsigned int& receivedWhen)
-{
-    receivedWhen = 0;
-    return ReceiveFrom(buffer, maxSize);
 }
 
 bool UDPSocket::Listen(const SocketAddr& address, bool blocking)

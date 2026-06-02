@@ -4,7 +4,8 @@
 
 #include <Proto/kyber_interface.grpc.pb.h>
 
-#include <grpcpp/grpcpp.h>
+#include <grpcpp/support/server_callback.h>
+#include <grpcpp/server_context.h>
 
 namespace Kyber
 {

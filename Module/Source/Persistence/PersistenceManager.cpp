@@ -31,7 +31,7 @@ void LogPlayerStats(ConsoleContext& cc)
         {
             KYBER_LOG(Info, "Offset: " << PersistenceServerPlayerExtent::s_registration->offset);
             PersistenceServerPlayerExtent* extent = player->GetPersistenceServerPlayerExtent();
-            PersistentStorage* storage = static_cast<PersistentStorage*>(extent->m_persistentStorage);
+            PersistentStorage* storage = extent->m_persistentStorage;
             KYBER_LOG(Info, "Offset: " << offsetof(PersistentStorage, m_template) << " " << std::hex << player << " " << extent << " "
                                        << (((__int64)player) + 10800)); // no i do not know what +10800 is for
 
@@ -130,7 +130,7 @@ PlayerStatsMap ExtractPlayerStats(ServerPlayer* player)
     }
 
     PersistenceServerPlayerExtent* extent = player->GetPersistenceServerPlayerExtent();
-    PersistentStorage* storage = static_cast<PersistentStorage*>(extent->m_persistentStorage);
+    PersistentStorage* storage = extent->m_persistentStorage;
 
     uint32_t count = storage->m_template->GetCount();
     for (uint32_t i = 0; i < count; i++)
@@ -152,7 +152,7 @@ PlayerStatsMap ExtractPlayerStats(ServerPlayer* player)
 void ApplyPlayerStats(void* inst, ServerPlayer* player, const PlayerStatsMap& stats)
 {
     PersistenceServerPlayerExtent* extent = player->GetPersistenceServerPlayerExtent();
-    PersistentStorage* storage = static_cast<PersistentStorage*>(extent->m_persistentStorage);
+    PersistentStorage* storage = extent->m_persistentStorage;
     if (storage == nullptr)
     {
         return;

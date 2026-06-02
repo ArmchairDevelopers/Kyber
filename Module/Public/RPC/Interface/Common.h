@@ -4,7 +4,7 @@
 
 #include <Proto/kyber_interface.grpc.pb.h>
 
-#include <grpcpp/grpcpp.h>
+#include <grpcpp/channel.h>
 
 namespace Kyber
 {

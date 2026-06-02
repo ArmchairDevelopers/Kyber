@@ -99,8 +99,13 @@ struct ISocket
     virtual ~ISocket() {};
 
     virtual bool Send(uint8_t* sendBuffer, int size, unsigned int flags = 0) = 0;
-    virtual int ReceiveFrom(uint8_t* buffer, int bufferSize) = 0;
-	virtual int ReceiveFromWhen(uint8_t* receiveBuffer, int maxSize, unsigned int& receivedWhen);
+    virtual int ReceiveFrom(uint8_t* buffer, int bufferSize)
+    {
+        unsigned int recievedWhen;
+        return ReceiveFromWhen(buffer, bufferSize, recievedWhen);
+    }
+
+	virtual int ReceiveFromWhen(uint8_t* receiveBuffer, int maxSize, unsigned int& receivedWhen) = 0;
     virtual bool SetBroadcast(uint16_t port) = 0;
     virtual void SetPeerAddress(const SocketAddr& sockAddr) = 0;
     virtual SocketAddr PeerAddress() const = 0;
@@ -133,7 +138,7 @@ public:
     virtual bool Create(bool blocking = false) override;
     void Close();
     virtual bool Send(uint8_t* buffer, int bufferSize, unsigned int flags = 0) override;
-    virtual int ReceiveFrom(uint8_t* buffer, int bufferSize) override;
+    virtual int ReceiveFromWhen(uint8_t* buffer, int bufferSize, unsigned int& when) override;
     virtual bool SetBroadcast(uint16_t port) override;
     virtual void SetPeerAddress(const SocketAddr& sockAddr) override;
     virtual SocketAddr PeerAddress() const override;

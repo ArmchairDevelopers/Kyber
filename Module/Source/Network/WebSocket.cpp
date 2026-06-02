@@ -8,6 +8,7 @@
 #include <Utilities/ErrorUtils.h>
 #include <Utilities/PlatformUtils.h>
 #include <Utilities/StringUtils.h>
+#include <SDK/Funcs.h>
 
 #include <winnt.h>
 #include <winsock.h>
@@ -88,16 +89,17 @@ void WebSocket::Receive(const ix::WebSocketMessagePtr& msg)
             InterlockedExchange(&m_failedAttempts, 0);
         }
 
-        WebSocketMessage message;
-        message.socketId = m_index;
-        message.size = msg->str.size();
-        if (message.size > sizeof(message.data))
+        WebSocketMessage* message = new (FB_GLOBAL_ARENA) WebSocketMessage;
+        message->socketId = m_index;
+        message->timestamp = NetTick();
+        message->size = msg->str.size();
+        if (message->size > sizeof(message->data))
         {
-            KYBER_LOG(Error, "[Network] Proxy Connection '" << m_id << "' received message larger than buffer size: " << message.size);
+            KYBER_LOG(Error, "[Network] Proxy Connection '" << m_id << "' received message larger than buffer size: " << message->size);
             return;
         }
         
-        memcpy(message.data, msg->str.data(), message.size);
+        memcpy(message->data, msg->str.data(), message->size);
         m_receiveQueue->enqueue(message);
         break;
     }

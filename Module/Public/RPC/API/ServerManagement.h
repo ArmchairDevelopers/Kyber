@@ -8,7 +8,7 @@
 
 #include <Proto/kyber_api.grpc.pb.h>
 
-#include <grpcpp/grpcpp.h>
+#include <grpcpp/channel.h>
 
 #include <ixwebsocket/IXWebSocket.h>
 

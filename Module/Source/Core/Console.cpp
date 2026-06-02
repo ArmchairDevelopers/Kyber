@@ -166,10 +166,6 @@ void ClientPlayerExtentDebugCommand(ConsoleContext& cc)
     ClientPlayer* player = ClientGameContext::Get()->playerManager->GetLocalPlayer(LocalPlayerId_0);
     KYBER_LOG(Info, "----- Client Player Extents -----");
 
-    // Magix forced me to comment what this means:
-    // This magic offset is the first node of a linked list
-    // of server player extents.
-
     PlayerExtentRegistration* extentRegistration = *reinterpret_cast<PlayerExtentRegistration**>(0x143EE7850);
     while (extentRegistration)
     {
@@ -243,44 +239,6 @@ void TestSetAbility(ConsoleContext& cc)
     g_program->m_server->GetServerGameContext()->messageManager->QueueMessage(reinterpret_cast<Message*>(message), 0.0f);
 
     cc << "Done";
-}
-
-class TestStreamedEvent : public KyberStreamedEvent
-{
-public:
-    uint32_t data;
-
-    void Write(BitStreamWrite* stream) override
-    {
-        KYBER_LOG(Info, "Writing data: " << data);
-        stream->WriteOctets(&data, 4);
-    }
-
-    void Read(BitStreamRead* stream) override
-    {
-        stream->ReadOctets(&data, 4);
-        KYBER_LOG(Info, "Got data value: " << data);
-    }
-};
-
-KB_REGISTER_STREAMED_EVENT(TestStreamedEvent);
-
-void SendTestStreamedKyberEvent(ConsoleContext& cc)
-{
-    if (!g_program->m_server->IsRunning())
-    {
-        cc << "This is a server command, and you aren't running a server!";
-        return;
-    }
-
-    for (auto& player : g_program->m_server->m_playerManager->m_players)
-    {
-        ServerConnection* connection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
-        TestStreamedEvent* event = new (FB_GLOBAL_ARENA) TestStreamedEvent();
-        event->data = 19472;
-
-        ServerStreamedEventManager::Send(connection, event);
-    }
 }
 
 void DebugLogComponentsInCharacter(ConsoleContext& cc)
@@ -802,7 +760,8 @@ Console::Console()
     RegisterConsoleCommand(&LoadSPLevel2Command, "LoadSPLevel2");
     RegisterConsoleCommand(&AddLevelCommand, "AddLevel", "<level> <mode>");
     RegisterConsoleCommand(&SendStatsCommand, "SendStats");
-    RegisterConsoleCommand(&ServerPlayerExtentDebugCommand, "ExtentDebug");
+    RegisterConsoleCommand(&ServerPlayerExtentDebugCommand, "ServerPlayerExtentDebug");
+    RegisterConsoleCommand(&ClientPlayerExtentDebugCommand, "ClientPlayerExtentDebug");
     RegisterConsoleCommand(&DebugServerPlayerManagerAddressCommand, "PlayerManagerAddr");
     RegisterConsoleCommand(&SaveLocationCommand, "SaveLocation");
     RegisterConsoleCommand(&CrashGameCommand, "CrashGame");
@@ -820,7 +779,6 @@ Console::Console()
     RegisterConsoleCommand(&TestSetPlayerActiveKit, "TestSetActive", "<player> <gpId> <unknown> <vurId> <skinInfoId>");
     RegisterConsoleCommand(&TestUpdateActiveKit, "TestUpdateActive", "<player> <gpId>");
     RegisterConsoleCommand(&TestSetAbility, "TestSetAbility", "<player> <abilityId> <slot>");
-    RegisterConsoleCommand(&SendTestStreamedKyberEvent, "SendTestStreamed");
     RegisterConsoleCommand(&DebugLogComponentsInCharacter, "DebugLogComponentsCharacter");
     RegisterConsoleCommand(&LogMemoryLeakCommand, "LogMemoryLeak");
 

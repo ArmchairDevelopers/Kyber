@@ -7,23 +7,23 @@
 #include <Utilities/PlatformUtils.h>
 #include <SDK/Funcs.h>
 #include <Entity/KyberSettings.h>
+#include <SDK/TypeInfo.h>
 
 namespace Kyber
 {
-
-// NOTE: This display is not regarded as being accurate, as it gives absurdly large
-// numbers (around 200ms for locally hosted servers, when that should be 0)
-// It is not to be put in prod until that is fixed.
-
 class LatencyDisplay : public GenericUpdateListener
 {
 public:
     void Update(UpdateType type, const UpdateParameters& params) override
     {
-        return;
+        KyberSettings* kyberSettings = Settings<KyberSettings>("Kyber");
+        PerfOverlaySettings* perfOverlaySettings = Settings<PerfOverlaySettings>("PerfOverlay");
+        if (kyberSettings == nullptr || perfOverlaySettings == nullptr)
+        {
+            return;
+        }
 
-        KyberSettings* settings = Settings<KyberSettings>("Kyber");
-        if (settings == nullptr)
+        if (!kyberSettings->RenderLatencyDisplay && !perfOverlaySettings->DrawFps)
         {
             return;
         }

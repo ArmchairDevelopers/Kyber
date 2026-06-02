@@ -53,6 +53,7 @@ TL_DECLARE_FUNC(0x145488820, char*, ExecutionContext_getOptionValue, const char*
 
 // Misc
 TL_DECLARE_FUNC(0x14778DE50, char*, LocalizationManager_getString, const char* id, bool showLocalizationError);
+TL_DECLARE_FUNC(0x140754D60, uint32_t, NetTick);
 
 inline bool ScriptContext_Impl_executeStringEasy(void* inst, const eastl::string& cmdString, eastl::string* outErr = nullptr)
 {

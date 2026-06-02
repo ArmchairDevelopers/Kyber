@@ -14,8 +14,6 @@
 
 namespace Kyber
 {
-void* ServerSquadManager::s_squadEventSystem = nullptr;
-
 struct GameEventSquadChange
 {
     uint8_t eventType;
