@@ -23,17 +23,26 @@ type EventBlacklistConfig struct {
 	Events []string `yaml:"events"`
 }
 
+type ChatFilterConfig struct {
+	Phrases []string `yaml:"phrases"`
+}
+
 type ClientServer struct {
 	store             *db.Store
 	jwt               *jwts.Service
+	chatFilterConfig  *ChatFilterConfig
 	blacklistedEvents []string
 	pbapi.UnimplementedClientServerServer
 }
 
 func NewClientServer(store *db.Store, jwt *jwts.Service) *ClientServer {
 	config := &EventBlacklistConfig{}
-	err := util.LoadConfig("event-blacklist.yaml", config)
-	if err != nil {
+	if err := util.LoadConfig("event-blacklist.yaml", config); err != nil {
+		panic(err)
+	}
+
+	chatFilterConfig := &ChatFilterConfig{}
+	if err := util.LoadConfig("chat-filter.yaml", chatFilterConfig); err != nil {
 		panic(err)
 	}
 
@@ -42,6 +51,12 @@ func NewClientServer(store *db.Store, jwt *jwts.Service) *ClientServer {
 		blacklistedEvents: config.Events,
 		jwt:               jwt,
 	}
+}
+
+func (s *ClientServer) GetChatFilter(context.Context, *pbcommon.Empty) (*pbapi.ChatFilterResponse, error) {
+	return &pbapi.ChatFilterResponse{
+		Phrases: s.chatFilterConfig.Phrases,
+	}, nil
 }
 
 func (s *ClientServer) GetBlacklist(context.Context, *pbcommon.Empty) (*pbapi.EventSyncBlacklistResponse, error) {

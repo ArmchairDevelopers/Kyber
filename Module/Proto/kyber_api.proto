@@ -38,6 +38,7 @@ service ClientServer {
   rpc ConsumeJoinToken(ConsumeJoinTokenRequest)
       returns (ConsumeJoinTokenResponse);
   rpc GetBlacklist(kyber_common.Empty) returns (EventSyncBlacklistResponse);
+  rpc GetChatFilter(kyber_common.Empty) returns (ChatFilterResponse);
 }
 
 service Proxy {
@@ -121,6 +122,10 @@ service Party {
 // SessionService
 
 message CheckForUpdatesEvent {}
+
+message ChatFilterResponse {
+  repeated string phrases = 1;
+}
 
 message ProxiesUpdatedEvent {
   repeated ProxyInfo proxies = 1;
