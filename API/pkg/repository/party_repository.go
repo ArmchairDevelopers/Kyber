@@ -21,6 +21,7 @@ type PartyRepository interface {
 	GetByJoiningServerIDs(ctx context.Context, serverIDs []string) ([]*models.PartyModel, error)
 	SetMemberJoinState(ctx context.Context, partyID uint64, userID string, serverID *string, joined bool) (*models.PartyJoinGameMemberStatus, error)
 	UpdateMemberModStatus(ctx context.Context, partyID uint64, userID string, hasMods bool, modDownloadPercentage *uint32) (*models.PartyJoinGameMemberStatus, error)
+	RemoveMemberStatus(ctx context.Context, partyID uint64, userID string) error
 }
 
 type mongoPartyRepo struct {
@@ -103,9 +104,22 @@ func (r *mongoPartyRepo) GetNextID(ctx context.Context) (uint64, error) {
 	return 0, errors.New("failed to find unused party id after 10 attempts")
 }
 
+func (r *mongoPartyRepo) RemoveMemberStatus(ctx context.Context, partyID uint64, userID string) error {
+	_, err := r.col.UpdateOne(ctx, bson.M{
+		"_id":             partyID,
+		"join_game_state": bson.M{"$exists": true},
+	}, bson.M{
+		"$pull": bson.M{
+			"join_game_state.member_statuses": bson.M{"user_id": userID},
+		},
+	})
+	return err
+}
+
 func (r *mongoPartyRepo) SetMemberJoinState(ctx context.Context, partyID uint64, userID string, serverID *string, joined bool) (*models.PartyJoinGameMemberStatus, error) {
 	filter := bson.M{
-		"_id": partyID,
+		"_id":             partyID,
+		"join_game_state": bson.M{"$exists": true},
 	}
 
 	if serverID != nil {

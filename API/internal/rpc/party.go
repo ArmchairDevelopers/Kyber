@@ -2,8 +2,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/ArmchairDevelopers/Kyber/API/api/v1/pbapi"
@@ -12,36 +10,32 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/ws"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const maxPartySize = 20
 
 type PartyService struct {
 	store    *db.Store
-	mq       mq.Client
 	partyPub *mq.PartyEventPublisher
 	sessions *ws.SessionManager
+	queues   *queue.Manager
 	pbapi.UnimplementedPartyServer
 }
 
-func NewPartyServer(store *db.Store, mqClient mq.Client, partyPub *mq.PartyEventPublisher, sessionManager *ws.SessionManager) *PartyService {
-	s := &PartyService{
+func NewPartyServer(store *db.Store, partyPub *mq.PartyEventPublisher, sessionManager *ws.SessionManager, queues *queue.Manager) *PartyService {
+	return &PartyService{
 		store:    store,
-		mq:       mqClient,
 		partyPub: partyPub,
 		sessions: sessionManager,
+		queues:   queues,
 	}
-
-	go s.consumePartyEvents()
-
-	return s
 }
 
 func (s *PartyService) CancelJoinGame(ctx context.Context, _ *pbcommon.Empty) (*pbcommon.Empty, error) {
@@ -64,6 +58,10 @@ func (s *PartyService) CancelJoinGame(ctx context.Context, _ *pbcommon.Empty) (*
 		return nil, status.Error(codes.Internal, "Failed to get party")
 	}
 
+	if party == nil {
+		return nil, status.Error(codes.NotFound, "Party not found")
+	}
+
 	if party.LeaderID != user.ID {
 		return nil, status.Error(codes.PermissionDenied, "Only the party leader can cancel joining a game")
 	}
@@ -77,13 +75,20 @@ func (s *PartyService) CancelJoinGame(ctx context.Context, _ *pbcommon.Empty) (*
 		return nil, status.Error(codes.Internal, "Failed to cancel joining game")
 	}
 
+	s.queues.RemoveByPartyID(ctx, partyID, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
+
 	sessions, err := s.store.Sessions.GetByPartyID(ctx, partyID)
+	if err != nil {
+		logger.L().Error("Failed to get party sessions", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to cancel joining game")
+	}
+
 	userIDs := make([]string, 0, len(sessions))
 	for _, s := range sessions {
 		userIDs = append(userIDs, s.UserID)
 	}
 
-	s.partyPub.Publish(partyID, userIDs, &pbapi.PartyEvent{
+	s.partyPub.Publish(userIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_JoinGameCancelled{
 			JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
 		},
@@ -125,6 +130,8 @@ func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbco
 			logger.L().Error("Failed to delete empty party", zap.Error(err))
 		}
 
+		s.queues.RemoveByPartyID(ctx, partyID, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
+
 		for _, sess := range remainingSessions {
 			if err := s.store.Sessions.SetPartyID(ctx, sess.UserID, nil); err != nil {
 				logger.L().Error("Failed to clear party ID on remaining session", zap.Error(err))
@@ -133,7 +140,7 @@ func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbco
 
 		if len(remainingSessions) > 0 {
 			memberIDs := []string{remainingSessions[0].UserID}
-			s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+			s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 				Body: &pbapi.PartyEvent_MemberLeft{
 					MemberLeft: &pbapi.MemberLeftEvent{
 						UserId: user.ID,
@@ -147,13 +154,17 @@ func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbco
 			memberIDs[i] = sess.UserID
 		}
 
-		s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+		s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 			Body: &pbapi.PartyEvent_MemberLeft{
 				MemberLeft: &pbapi.MemberLeftEvent{
 					UserId: user.ID,
 				},
 			},
 		})
+
+		if err := s.store.Parties.RemoveMemberStatus(ctx, partyID, user.ID); err != nil {
+			logger.L().Error("Failed to prune member join status", zap.Error(err))
+		}
 
 		party, err := s.store.Parties.GetByID(ctx, partyID)
 		if err != nil {
@@ -163,7 +174,10 @@ func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbco
 				if err := s.store.Parties.Update(ctx, partyID, bson.M{"$unset": bson.M{"join_game_state": ""}}); err != nil {
 					logger.L().Error("Failed to clear join game state", zap.Error(err))
 				}
-				s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+
+				s.queues.RemoveByPartyID(ctx, partyID, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
+
+				s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 					Body: &pbapi.PartyEvent_JoinGameCancelled{
 						JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
 					},
@@ -175,7 +189,7 @@ func (s *PartyService) LeaveParty(ctx context.Context, _ *pbcommon.Empty) (*pbco
 				logger.L().Error("Failed to update party leader", zap.Error(err))
 			}
 
-			s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+			s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 				Body: &pbapi.PartyEvent_NewLeader{
 					NewLeader: &pbapi.NewLeaderEvent{
 						NewLeaderId: newLeaderID,
@@ -203,6 +217,10 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		return nil, status.Error(codes.Internal, "Failed to get session")
 	}
 
+	if session == nil {
+		return nil, status.Error(codes.FailedPrecondition, "You have no active session")
+	}
+
 	inviteeSession, err := s.store.Sessions.GetByUserID(ctx, req.UserId)
 	if err != nil {
 		logger.L().Error("Failed to check invitee session", zap.Error(err))
@@ -214,7 +232,7 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 	}
 
 	var party *models.PartyModel
-	if session != nil && session.PartyID != nil {
+	if session.PartyID != nil {
 		party, err = s.store.Parties.GetByID(ctx, *session.PartyID)
 		if err != nil {
 			logger.L().Error("Failed to get party", zap.Error(err))
@@ -259,7 +277,8 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		}
 
 		// TODO: maybe do a transaction here so that the sessions party id gets cleared if the party delete fails
-		if err := s.store.Parties.Delete(ctx, *inviteeSession.PartyID); err != nil {
+		inviteePartyID := *inviteeSession.PartyID
+		if err := s.store.Parties.Delete(ctx, inviteePartyID); err != nil {
 			logger.L().Error("Failed to delete invitee's empty party", zap.Error(err))
 			return nil, status.Error(codes.Internal, "Failed to check invitee party")
 		}
@@ -268,6 +287,16 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 			logger.L().Error("Failed to clear invitee's party ID", zap.Error(err))
 			return nil, status.Error(codes.Internal, "Failed to check invitee party")
 		}
+
+		s.queues.RemoveByPartyID(ctx, inviteePartyID, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
+
+		s.partyPub.Publish([]string{inviteeSession.UserID}, &pbapi.PartyEvent{
+			Body: &pbapi.PartyEvent_MemberLeft{
+				MemberLeft: &pbapi.MemberLeftEvent{
+					UserId: inviteeSession.UserID,
+				},
+			},
+		})
 	}
 
 	invites, err := s.store.PartyInvites.GetInvites(ctx, party.ID)
@@ -281,6 +310,11 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 	for _, inv := range invites {
 		if now.Before(inv.ExpiresAt) {
 			activeInvites = append(activeInvites, inv)
+			continue
+		}
+
+		if err := s.store.PartyInvites.Delete(ctx, inv.ID); err != nil {
+			logger.L().Error("Failed to delete expired party invite", zap.Error(err))
 		}
 	}
 
@@ -328,7 +362,7 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		return nil, status.Error(codes.Internal, "Failed to get party members")
 	}
 
-	s.partyPub.Publish(party.ID, []string{req.UserId}, &pbapi.PartyEvent{
+	s.partyPub.Publish([]string{req.UserId}, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_InviteReceived{
 			InviteReceived: &pbapi.InviteReceivedEvent{
 				PartyId:     party.ID,
@@ -355,7 +389,20 @@ func (s *PartyService) AcceptInvite(ctx context.Context, req *pbapi.AcceptInvite
 	}
 
 	if session != nil && session.PartyID != nil {
-		return nil, status.Error(codes.AlreadyExists, "You are already in a party")
+		existingParty, err := s.store.Parties.GetByID(ctx, *session.PartyID)
+		if err != nil {
+			logger.L().Error("Failed to get existing party", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get existing party")
+		}
+
+		if existingParty != nil {
+			return nil, status.Error(codes.AlreadyExists, "You are already in a party")
+		}
+
+		if err := s.store.Sessions.SetPartyID(ctx, user.ID, nil); err != nil {
+			logger.L().Error("Failed to clear orphaned party ID", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to clear orphaned party ID")
+		}
 	}
 
 	party, err := s.store.Parties.GetByID(ctx, req.PartyId)
@@ -404,16 +451,32 @@ func (s *PartyService) AcceptInvite(ctx context.Context, req *pbapi.AcceptInvite
 		return nil, status.Error(codes.Internal, "Failed to join party")
 	}
 
+	currentSessions, err := s.store.Sessions.GetByPartyID(ctx, party.ID)
+	if err == nil && len(currentSessions) > maxPartySize {
+		if err := s.store.Sessions.SetPartyID(ctx, user.ID, nil); err != nil {
+			logger.L().Error("Failed to back out of full party", zap.Error(err))
+		}
+
+		if err := s.store.PartyInvites.Delete(ctx, invite.ID); err != nil {
+			logger.L().Error("Failed to delete invite for full party", zap.Error(err))
+		}
+
+		return nil, status.Error(codes.ResourceExhausted, "Party is full")
+	}
+
 	if err := s.store.PartyInvites.Delete(ctx, invite.ID); err != nil {
 		logger.L().Error("Failed to delete party invite", zap.Error(err))
 	}
+
+	s.queues.RemoveByUserID(ctx, user.ID, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
 
 	allMemberIDs := make([]string, 0, len(existingSessions)+1)
 	for _, sess := range existingSessions {
 		allMemberIDs = append(allMemberIDs, sess.UserID)
 	}
+	allMemberIDs = append(allMemberIDs, user.ID)
 
-	s.partyPub.Publish(party.ID, allMemberIDs, &pbapi.PartyEvent{
+	s.partyPub.Publish(allMemberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_MemberJoined{
 			MemberJoined: &pbapi.MemberJoinedEvent{
 				User: user.Proto(),
@@ -465,7 +528,7 @@ func (s *PartyService) DeclineInvite(ctx context.Context, req *pbapi.DeclineInvi
 		allMemberIDs[i] = sess.UserID
 	}
 
-	s.partyPub.Publish(party.ID, allMemberIDs, &pbapi.PartyEvent{
+	s.partyPub.Publish(allMemberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_InviteDeclined{
 			InviteDeclined: &pbapi.InviteDeclinedEvent{
 				User: user.Proto(),
@@ -523,7 +586,19 @@ func (s *PartyService) GetParty(ctx context.Context, _ *pbcommon.Empty) (*pbapi.
 		mapped[u.ID] = u
 	}
 
-	return &pbapi.GetPartyResponse{Party: party.Proto(sessions, mapped)}, nil
+	state := party.Proto(sessions, mapped)
+
+	if state.JoinGameState != nil {
+		entry, err := s.store.Queues.GetByPartyID(ctx, party.ID)
+		if err != nil {
+			logger.L().Error("Failed to get queue entry", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get queue entry")
+		} else if entry != nil {
+			state.JoinGameState.Queue = s.queues.Status(ctx, entry)
+		}
+	}
+
+	return &pbapi.GetPartyResponse{Party: state}, nil
 }
 
 func (s *PartyService) StartJoinGame(ctx context.Context, req *pbapi.StartJoinGameRequest) (*pbcommon.Empty, error) {
@@ -553,29 +628,9 @@ func (s *PartyService) StartJoinGame(ctx context.Context, req *pbapi.StartJoinGa
 		return nil, status.Error(codes.PermissionDenied, "Only the party leader can join a game")
 	}
 
-	server, err := s.store.Servers.GetByID(ctx, req.GetServerId())
+	server, err := getJoinableServer(ctx, s.store, user, req.GetServerId(), req.Password)
 	if err != nil {
-		logger.L().Error("Failed to get server", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Failed to get server")
-	}
-
-	if server == nil {
-		return nil, status.Error(codes.NotFound, "Server not found")
-	}
-
-	punishment, err := s.store.Punishments.GetBanForServer(ctx, server.HostID, user.ID)
-	if err != nil {
-		logger.L().Error("Failed to check ban", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Failed to check ban")
-	}
-
-	if punishment != nil {
-		reason := fmt.Sprintf("You are banned from this server: %s", *punishment.Reason)
-		return nil, status.Error(codes.PermissionDenied, reason)
-	}
-
-	if server.Password != nil && *server.Password != req.Password {
-		return nil, status.Error(codes.PermissionDenied, "Invalid password")
+		return nil, err
 	}
 
 	sessions, err := s.store.Sessions.GetByPartyID(ctx, party.ID)
@@ -589,19 +644,41 @@ func (s *PartyService) StartJoinGame(ctx context.Context, req *pbapi.StartJoinGa
 		memberIDs[i] = sess.UserID
 	}
 
-	// if party.JoinGameState != nil {
-	// 	s.partyPub.Publish(party.ID, memberIDs, &pbapi.PartyEvent{
-	// 		Body: &pbapi.PartyEvent_JoinGameCancelled{
-	// 			JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
-	// 		},
-	// 	})
-	// }
+	existingEntry, err := s.store.Queues.GetByPartyID(ctx, party.ID)
+	if err != nil {
+		logger.L().Error("Failed to get queue entry", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to start join game")
+	}
+
+	if existingEntry != nil && existingEntry.ServerID != server.ID {
+		s.queues.RemoveEntry(ctx, existingEntry, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
+		existingEntry = nil
+	}
 
 	joinGameState := &models.PartyJoinGameState{
 		ServerID:   server.ID,
 		ServerName: server.Name,
 		Mods:       server.Mods,
-		// TODO: automatically share server passwords?
+		Password:   req.Password,
+	}
+
+	queueEntry := existingEntry
+	if queueEntry == nil {
+		shouldQueue, err := s.queues.ShouldQueue(ctx, server)
+		if err != nil {
+			logger.L().Error("Failed to check queue requirement", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to start join game")
+		}
+
+		if shouldQueue {
+			queueEntry, err = s.queues.Enqueue(ctx, server, &party.ID, nil)
+			if err != nil {
+				logger.L().Error("Failed to create queue entry", zap.Error(err))
+				return nil, status.Error(codes.Internal, "Failed to join server queue")
+			}
+
+			logger.L().Info("Party joined server queue", zap.Uint64("party_id", party.ID), zap.String("server_id", server.ID))
+		}
 	}
 
 	if err := s.store.Parties.Update(ctx, party.ID, bson.M{"$set": bson.M{"join_game_state": joinGameState}}); err != nil {
@@ -619,14 +696,24 @@ func (s *PartyService) StartJoinGame(ctx context.Context, req *pbapi.StartJoinGa
 		}
 	}
 
-	s.partyPub.Publish(party.ID, memberIDs, &pbapi.PartyEvent{
+	joinGameEvent := &pbapi.JoinGameEvent{
+		ServerId:   server.ID,
+		ServerName: server.Name,
+		Mods:       protoMods,
+		LeaderId:   user.ID,
+	}
+
+	if req.Password != "" {
+		joinGameEvent.Password = &req.Password
+	}
+
+	if queueEntry != nil {
+		joinGameEvent.Queue = s.queues.Status(ctx, queueEntry)
+	}
+
+	s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_JoinGame{
-			JoinGame: &pbapi.JoinGameEvent{
-				ServerId:   server.ID,
-				ServerName: server.Name,
-				Mods:       protoMods,
-				LeaderId:   user.ID,
-			},
+			JoinGame: joinGameEvent,
 		},
 	})
 
@@ -691,7 +778,7 @@ func (s *PartyService) KickMember(ctx context.Context, req *pbapi.KickMemberRequ
 		memberIDs[i] = sess.UserID
 	}
 
-	s.partyPub.Publish(partyID, []string{req.UserId}, &pbapi.PartyEvent{
+	s.partyPub.Publish([]string{req.UserId}, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_Kicked{
 			Kicked: &pbapi.KickedEvent{
 				UserId: req.UserId,
@@ -699,10 +786,17 @@ func (s *PartyService) KickMember(ctx context.Context, req *pbapi.KickMemberRequ
 		},
 	})
 
+	if err := s.store.Parties.RemoveMemberStatus(ctx, partyID, req.UserId); err != nil {
+		logger.L().Error("Failed to prune member join status", zap.Error(err))
+	}
+
 	if len(remainingSessions) < 2 {
 		if err := s.store.Parties.Delete(ctx, partyID); err != nil {
 			logger.L().Error("Failed to delete empty party", zap.Error(err))
 		}
+
+		s.queues.RemoveByPartyID(ctx, partyID, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
+
 		for _, sess := range remainingSessions {
 			if err := s.store.Sessions.SetPartyID(ctx, sess.UserID, nil); err != nil {
 				logger.L().Error("Failed to clear party ID on remaining session", zap.Error(err))
@@ -711,7 +805,7 @@ func (s *PartyService) KickMember(ctx context.Context, req *pbapi.KickMemberRequ
 	}
 
 	if len(memberIDs) > 0 {
-		s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+		s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 			Body: &pbapi.PartyEvent_MemberLeft{
 				MemberLeft: &pbapi.MemberLeftEvent{
 					UserId: req.UserId,
@@ -783,7 +877,7 @@ func (s *PartyService) TransferLeader(ctx context.Context, req *pbapi.TransferLe
 		memberIDs[i] = sess.UserID
 	}
 
-	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+	s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_NewLeader{
 			NewLeader: &pbapi.NewLeaderEvent{
 				NewLeaderId: req.UserId,
@@ -825,58 +919,6 @@ func (s *PartyService) createParty(ctx context.Context, user models.UserModel) (
 	logger.L().Info("Created party", zap.Uint64("party_id", party.ID), zap.String("leader_id", user.ID))
 
 	return party, nil
-}
-
-func (s *PartyService) consumePartyEvents() {
-	for {
-		if !s.runPartyEventConsumer() {
-			return
-		}
-		logger.L().Warn("Party event consumer disconnected, retrying in 5s")
-		time.Sleep(5 * time.Second)
-	}
-}
-
-func (s *PartyService) runPartyEventConsumer() bool {
-	q, err := s.mq.Channel.QueueDeclare("", false, true, true, false, nil)
-	if err != nil {
-		logger.L().Error("Failed to declare party events queue", zap.Error(err))
-		return true
-	}
-
-	err = s.mq.Channel.QueueBind(q.Name, "", "party_events", false, nil)
-	if err != nil {
-		logger.L().Error("Failed to bind party events queue", zap.Error(err))
-		return true
-	}
-
-	msgs, err := s.mq.Channel.Consume(q.Name, "", true, false, false, false, nil)
-	if err != nil {
-		logger.L().Error("Failed to consume party events", zap.Error(err))
-		return true
-	}
-
-	for msg := range msgs {
-		var wire mq.PartyEventWire
-		if err := json.Unmarshal(msg.Body, &wire); err != nil {
-			logger.L().Error("Failed to unmarshal party event wire", zap.Error(err))
-			continue
-		}
-
-		var event pbapi.PartyEvent
-		if err := protojson.Unmarshal(wire.Event, &event); err != nil {
-			logger.L().Error("Failed to unmarshal party event proto", zap.Error(err))
-			continue
-		}
-
-		s.sessions.Send(wire.UserIDs, &pbapi.SessionEvent{
-			Body: &pbapi.SessionEvent_PartyEvent{
-				PartyEvent: &event,
-			},
-		})
-	}
-
-	return true
 }
 
 func (s *PartyService) getInvite(invites []*models.PartyInviteModel, inviteeID string) *models.PartyInviteModel {

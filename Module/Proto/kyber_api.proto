@@ -119,6 +119,12 @@ service Party {
   rpc CancelJoinGame(kyber_common.Empty) returns (kyber_common.Empty);
 }
 
+service ServerQueue {
+  rpc JoinQueue(JoinQueueRequest) returns (QueueStatus);
+  rpc LeaveQueue(kyber_common.Empty) returns (kyber_common.Empty);
+  rpc GetQueueStatus(kyber_common.Empty) returns (GetQueueStatusResponse);
+}
+
 // SessionService
 
 message CheckForUpdatesEvent {}
@@ -136,6 +142,52 @@ message SessionEvent {
     PartyEvent partyEvent = 1;
     CheckForUpdatesEvent checkForUpdates = 2;
     ProxiesUpdatedEvent proxiesUpdated = 3;
+    QueueEvent queueEvent = 4;
+  }
+}
+
+// ServerQueueService
+
+enum QueueEntryState {
+  QUEUE_STATE_WAITING = 0;
+  QUEUE_STATE_RESERVED = 1;
+}
+
+enum QueueRemovedReason {
+  QUEUE_REMOVED_LEFT = 0;
+  QUEUE_REMOVED_SERVER_SHUTDOWN = 1;
+  QUEUE_REMOVED_TIMEOUT = 2;
+}
+
+message QueueStatus {
+  string serverId = 1;
+  uint32 position = 2;
+  uint32 queueSize = 3;
+  QueueEntryState state = 4;
+}
+
+message JoinQueueRequest {
+  string serverId = 1;
+  string password = 2;
+}
+
+message GetQueueStatusResponse {
+  optional QueueStatus status = 1;
+}
+
+message QueueUpdatedEvent {
+  QueueStatus status = 1;
+}
+
+message QueueRemovedEvent {
+  string serverId = 1;
+  QueueRemovedReason reason = 2;
+}
+
+message QueueEvent {
+  oneof body {
+    QueueUpdatedEvent queueUpdated = 1;
+    QueueRemovedEvent queueRemoved = 2;
   }
 }
 
@@ -204,6 +256,8 @@ message JoinGameState {
   string serverName = 2;
   repeated kyber_common.ServerMod mods = 3;
   repeated JoinGameMemberStatus memberStatuses = 4;
+  optional string password = 5;
+  optional QueueStatus queue = 6;
 }
 
 message JoinGameMemberStatus {
@@ -271,6 +325,8 @@ message JoinGameEvent {
   string serverName = 2;
   repeated kyber_common.ServerMod mods = 3;
   string leaderId = 4;
+  optional string password = 5;
+  optional QueueStatus queue = 6;
 }
 
 message JoinGameStatusEvent {
@@ -909,6 +965,8 @@ message CanJoinServerResponse {
   bool canJoin = 1;
   // The reason the user can't join the server
   optional string reason = 2;
+  // set when the server is full but the user can queue for it
+  optional bool canQueue = 3;
 }
 
 message Server {

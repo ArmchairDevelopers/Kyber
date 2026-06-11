@@ -35,17 +35,18 @@ type OwnedClient struct {
 }
 
 type ServerManager struct {
-	ownedServers   map[string]*OwnedServer
-	ownedClients   map[string]map[string]*OwnedClient
-	playerCache    map[string][]*pbcommon.ServerPlayer
-	amqpConn       *amqp.Connection
-	amqpChannel    *amqp.Channel
-	exchangeName   string
-	exchangeType   string
-	subscriberDone chan bool
-	ctx            context.Context
-	mu             sync.RWMutex
-	store          *db.Store
+	ownedServers         map[string]*OwnedServer
+	ownedClients         map[string]map[string]*OwnedClient
+	playerCache          map[string][]*pbcommon.ServerPlayer
+	amqpConn             *amqp.Connection
+	amqpChannel          *amqp.Channel
+	exchangeName         string
+	exchangeType         string
+	subscriberDone       chan bool
+	ctx                  context.Context
+	mu                   sync.RWMutex
+	store                *db.Store
+	OnPlayerCountUpdated func(serverID string)
 }
 
 func NewServerManager(ctx context.Context, amqpURL string, store *db.Store) *ServerManager {
@@ -542,11 +543,16 @@ func (sm *ServerManager) processServerSocketEvent(serverID string, evt *pbapi.Se
 
 		if err := sm.store.Servers.UpdateByID(updateCtx, serverID, bson.M{
 			"$set": bson.M{
-				"player_count": len(players) + len(existingTokens),
-				"last_updated": time.Now(),
+				"player_count":    len(players) + len(existingTokens),
+				"connected_count": len(players),
+				"last_updated":    time.Now(),
 			},
 		}); err != nil {
 			return fmt.Errorf("failed to update player count: %w", err)
+		}
+
+		if sm.OnPlayerCountUpdated != nil {
+			sm.OnPlayerCountUpdated(serverID)
 		}
 
 		pmPlayers := make([]ServerPlayerModel, 0)

@@ -18,6 +18,7 @@ type Store struct {
 	Parties      repository.PartyRepository
 	PartyInvites repository.PartyInviteRepository
 	Sessions     repository.SessionRepository
+	Queues       repository.QueueRepository
 }
 
 func NewStore(ctx context.Context, uri string) (*Store, error) {
@@ -39,6 +40,8 @@ func NewStore(ctx context.Context, uri string) (*Store, error) {
 	partyCollection := GetCollection("kyber", "parties")
 	partyInviteCollection := GetCollection("kyber", "party_invites")
 	sessionCollection := GetCollection("kyber", "sessions")
+	queueCollection := GetCollection("kyber", "server_queues")
+	queueLockCollection := GetCollection("kyber", "queue_locks")
 
 	return &Store{
 		Users:        repository.NewUserRepo(userCollection),
@@ -52,5 +55,6 @@ func NewStore(ctx context.Context, uri string) (*Store, error) {
 		Parties:      repository.NewPartyRepo(partyCollection),
 		PartyInvites: repository.NewPartyInviteRepo(partyInviteCollection),
 		Sessions:     repository.NewSessionRepo(sessionCollection),
+		Queues:       repository.NewQueueRepo(queueCollection, queueLockCollection),
 	}, nil
 }

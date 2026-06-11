@@ -63,7 +63,7 @@ func setupIndexes(ctx context.Context, client *mongo.Client) {
 		Keys: bson.D{{Key: "created", Value: 1}},
 		Options: options.Index().
 			SetName("created_ttl_idx").
-			SetExpireAfterSeconds(15 * 60),
+			SetExpireAfterSeconds(5 * 60),
 	}
 	if _, err := db.Collection("join_tokens").Indexes().CreateOne(ctx, jtTTLIdx); err != nil {
 		zap.L().Error("failed to create servers TTL index", zap.Error(err))

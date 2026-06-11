@@ -15,6 +15,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/ws"
 	"github.com/TwiN/go-away"
@@ -33,7 +34,9 @@ type ServerBrowserServer struct {
 	sm       *ws.ServerManager
 	jwt      *jwts.Service
 	sessions *ws.SessionManager
-	mqClient mq.Client
+	mqClient *mq.Client
+	partyPub *mq.PartyEventPublisher
+	queues   *queue.Manager
 	pbapi.UnimplementedServerBrowserServer
 }
 
@@ -50,81 +53,76 @@ func (s *ServerBrowserServer) cleanupStaleServers() {
 			defer ticker.Stop()
 
 			for range ticker.C {
-				cutoff := time.Now().Add(-40 * time.Second)
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				servers, err := s.store.Servers.GetWithCutoff(ctx, cutoff)
+				func() {
+					cutoff := time.Now().Add(-40 * time.Second)
+					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer cancel()
 
-				cancel()
-
-				if err != nil {
-					logger.L().Error("Failed to get servers with cutoff", zap.Error(err))
-					continue
-				}
-
-				if len(servers) == 0 {
-					continue
-				}
-
-				ids := make([]string, len(servers))
-				for i, srv := range servers {
-					ids[i] = srv.ID
-				}
-
-				ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-				if err := s.store.Servers.DeleteMany(ctx, ids); err != nil {
-					cancel()
-					logger.L().Error("Failed to delete servers", zap.Error(err))
-					continue
-				}
-
-				cancel()
-
-				cnvIds := make([]*string, len(ids))
-				for i, s := range servers {
-					cnvIds[i] = &s.ID
-				}
-
-				s.publishKronosUpdate(ctx, models.KronosServerUpdate{ServersDeleted: cnvIds})
-
-				for _, id := range ids {
-					m := ws.NewStatusStaleServer()
-					msg := ws.APIManagementMessage{ServerID: id, Status: &m}
-					s.sm.PublishWS(msg, id)
-				}
-
-				parties, err := s.store.Parties.GetByJoiningServerIDs(ctx, ids)
-				if err != nil {
-					logger.L().Error("Failed to get parties", zap.Error(err))
-					continue
-				}
-
-				partyIDs := make([]uint64, 0, len(parties))
-				for _, p := range parties {
-					partyIDs = append(partyIDs, p.ID)
-
-					members, err := s.store.Sessions.GetByPartyID(ctx, p.ID)
+					servers, err := s.store.Servers.GetWithCutoff(ctx, cutoff)
 					if err != nil {
-						logger.L().Error("Failed to get sessions", zap.Error(err))
-						continue
+						logger.L().Error("Failed to get servers with cutoff", zap.Error(err))
+						return
 					}
 
-					s.sessions.Send(models.GetUserIDsFromSessions(members), &pbapi.SessionEvent{
-						Body: &pbapi.SessionEvent_PartyEvent{
-							PartyEvent: &pbapi.PartyEvent{
-								Body: &pbapi.PartyEvent_JoinGameCancelled{
-									JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
-								},
+					if len(servers) == 0 {
+						return
+					}
+
+					ids := make([]string, len(servers))
+					for i, srv := range servers {
+						ids[i] = srv.ID
+					}
+
+					s.queues.HandleServersDeleted(ctx, ids)
+
+					if err := s.store.Servers.DeleteMany(ctx, ids); err != nil {
+						logger.L().Error("Failed to delete servers", zap.Error(err))
+						return
+					}
+
+					cnvIds := make([]*string, len(ids))
+					for i, s := range servers {
+						cnvIds[i] = &s.ID
+					}
+
+					s.publishKronosUpdate(ctx, models.KronosServerUpdate{ServersDeleted: cnvIds})
+
+					for _, id := range ids {
+						m := ws.NewStatusStaleServer()
+						msg := ws.APIManagementMessage{ServerID: id, Status: &m}
+						s.sm.PublishWS(msg, id)
+					}
+
+					parties, err := s.store.Parties.GetByJoiningServerIDs(ctx, ids)
+					if err != nil {
+						logger.L().Error("Failed to get parties", zap.Error(err))
+						return
+					}
+
+					partyIDs := make([]uint64, 0, len(parties))
+					for _, p := range parties {
+						partyIDs = append(partyIDs, p.ID)
+
+						members, err := s.store.Sessions.GetByPartyID(ctx, p.ID)
+						if err != nil {
+							logger.L().Error("Failed to get sessions", zap.Error(err))
+							continue
+						}
+
+						s.partyPub.Publish(models.GetUserIDsFromSessions(members), &pbapi.PartyEvent{
+							Body: &pbapi.PartyEvent_JoinGameCancelled{
+								JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
 							},
-						},
-					})
-				}
+						})
+					}
 
-				if err := s.store.Parties.DeleteJoinGameStatusForMultiple(ctx, partyIDs); err != nil {
-					logger.L().Error("Failed to delete join game status", zap.Error(err))
-					continue
-				}
+					if err := s.store.Parties.DeleteJoinGameStatusForMultiple(ctx, partyIDs); err != nil {
+						logger.L().Error("Failed to delete join game status", zap.Error(err))
+						return
+					}
 
-				logger.L().Debug("Deleted stale servers", zap.Int("count", len(ids)))
+					logger.L().Debug("Deleted stale servers", zap.Int("count", len(ids)))
+				}()
 			}
 		}()
 
@@ -132,13 +130,15 @@ func (s *ServerBrowserServer) cleanupStaleServers() {
 	}
 }
 
-func NewServerBrowserServer(store *db.Store, sm *ws.ServerManager, client mq.Client, jwt *jwts.Service, sessions *ws.SessionManager) *ServerBrowserServer {
+func NewServerBrowserServer(store *db.Store, sm *ws.ServerManager, client *mq.Client, jwt *jwts.Service, sessions *ws.SessionManager, partyPub *mq.PartyEventPublisher, queues *queue.Manager) *ServerBrowserServer {
 	srv := &ServerBrowserServer{
 		store:    store,
 		sm:       sm,
 		mqClient: client,
 		jwt:      jwt,
 		sessions: sessions,
+		partyPub: partyPub,
+		queues:   queues,
 	}
 
 	go srv.cleanupStaleServers()
@@ -281,7 +281,7 @@ func (s *ServerBrowserServer) UploadModImages(ctx context.Context, req *pbapi.Up
 		if user.Entitled(models.EntitlementAutoApproveModImages) {
 			imageStatus = models.ImageHashStatusApproved
 
-			err = s.mqClient.Channel.Publish("image_hashes", "", false, false, amqp.Publishing{
+			err = s.mqClient.Publish("image_hashes", "", amqp.Publishing{
 				Body:        []byte(hash),
 				ContentType: "text/plain",
 			})
@@ -665,7 +665,7 @@ func (s *ServerBrowserServer) getServerMapImage(ctx context.Context, levelSetup 
 
 	if image.Status != models.ImageHashStatusApproved {
 		if image.UseCount+1 >= 1 {
-			err = s.mqClient.Channel.Publish("image_hashes", "", false, false, amqp.Publishing{
+			err = s.mqClient.Publish("image_hashes", "", amqp.Publishing{
 				Body:        []byte(image.ID),
 				ContentType: "text/plain",
 			})
@@ -715,6 +715,56 @@ func (s *ServerBrowserServer) CanJoinServer(ctx context.Context, req *pbapi.CanJ
 			CanJoin: false,
 			Reason:  &reason,
 		}, nil
+	}
+
+	shouldQueue, err := s.queues.ShouldQueue(ctx, server)
+	if err != nil {
+		logger.L().Error("Failed to check queue requirement", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to check queue")
+	}
+
+	if shouldQueue {
+		host, err := s.store.Users.GetByID(ctx, server.HostID)
+		if err != nil {
+			logger.L().Error("Failed to get server host", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get server host")
+		}
+
+		canBypass := server.CanManage(host, user) || user.Entitled(models.EntitlementBypassPlayerLimit)
+
+		if !canBypass {
+			reserved, err := s.store.Queues.GetReservedForUser(ctx, server.ID, user.ID)
+			if err != nil {
+				logger.L().Error("Failed to get reserved queue entry", zap.Error(err))
+				return nil, status.Error(codes.Internal, "Failed to check queue")
+			}
+
+			hasToken := false
+			if reserved == nil {
+				tokens, err := s.store.JoinTokens.GetByUserID(ctx, user.ID)
+				if err != nil {
+					logger.L().Error("Failed to get join tokens", zap.Error(err))
+					return nil, status.Error(codes.Internal, "Failed to check join tokens")
+				}
+
+				for _, token := range tokens {
+					if token.Server == server.ID {
+						hasToken = true
+						break
+					}
+				}
+			}
+
+			if reserved == nil && !hasToken {
+				reason := "Server is full"
+				canQueue := true
+				return &pbapi.CanJoinServerResponse{
+					CanJoin:  false,
+					Reason:   &reason,
+					CanQueue: &canQueue,
+				}, nil
+			}
+		}
 	}
 
 	return &pbapi.CanJoinServerResponse{
@@ -767,11 +817,9 @@ func (s *ServerBrowserServer) publishKronosUpdate(ctx context.Context, update mo
 		return
 	}
 
-	if err = s.mqClient.Channel.Publish(
+	if err = s.mqClient.Publish(
 		"kronos_server_browser",
 		"",
-		false,
-		false,
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        body,

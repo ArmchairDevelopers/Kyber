@@ -50,14 +50,14 @@ type AuthenticationServer struct {
 	patreonClient    *patreon.Client
 	patreonOAuth     *oauth2.Config
 	whitelist        *whitelist
-	mqClient         mq.Client
+	mqClient         *mq.Client
 	usersClient      *pbea.UsersClient
 	discordHelper    *discord.Helper
 	whitelistEnabled bool
 	pbapi.UnimplementedAuthenticationServer
 }
 
-func NewAuthenticationServer(ctx context.Context, store *db.Store, mqClient mq.Client) *AuthenticationServer {
+func NewAuthenticationServer(ctx context.Context, store *db.Store, mqClient *mq.Client) *AuthenticationServer {
 	eaJwks, err := ea2.LoadJwks()
 	if err != nil {
 		panic(fmt.Sprintf("failed to load EA JWKS: %v", err))
@@ -779,11 +779,9 @@ func (s *AuthenticationServer) publishPlayerLoggedIn(user models.UserModel) {
 		return
 	}
 
-	err = s.mqClient.Channel.Publish(
+	err = s.mqClient.Publish(
 		"player_events",
 		"player.connected",
-		false,
-		false,
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        body,

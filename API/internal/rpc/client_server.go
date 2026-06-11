@@ -11,6 +11,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/jwts"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
@@ -30,12 +31,13 @@ type ChatFilterConfig struct {
 type ClientServer struct {
 	store             *db.Store
 	jwt               *jwts.Service
+	queues            *queue.Manager
 	chatFilterConfig  *ChatFilterConfig
 	blacklistedEvents []string
 	pbapi.UnimplementedClientServerServer
 }
 
-func NewClientServer(store *db.Store, jwt *jwts.Service) *ClientServer {
+func NewClientServer(store *db.Store, jwt *jwts.Service, queues *queue.Manager) *ClientServer {
 	config := &EventBlacklistConfig{}
 	if err := util.LoadConfig("event-blacklist.yaml", config); err != nil {
 		panic(err)
@@ -50,6 +52,8 @@ func NewClientServer(store *db.Store, jwt *jwts.Service) *ClientServer {
 		store:             store,
 		blacklistedEvents: config.Events,
 		jwt:               jwt,
+		queues:            queues,
+		chatFilterConfig:  chatFilterConfig,
 	}
 }
 
@@ -115,9 +119,29 @@ func (s *ClientServer) CreateJoinToken(ctx context.Context, req *pbapi.JoinToken
 	}
 
 	isModerator := server.CanManage(host, user) || user.Entitled(models.EntitlementAdmin)
-	isFull := server.PlayerCount >= server.MaxPlayerCount
-	if !isModerator && isFull {
-		return nil, status.Error(codes.ResourceExhausted, "Server is full")
+	canBypass := isModerator || user.Entitled(models.EntitlementBypassPlayerLimit)
+
+	var reservedEntry *models.QueueEntryModel
+	if !canBypass {
+		reservedEntry, err = s.store.Queues.GetReservedForUser(ctx, server.ID, user.ID)
+		if err != nil {
+			logger.L().Error("Failed to get reserved queue entry", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to check queue")
+		}
+
+		if reservedEntry == nil {
+			shouldQueue, err := s.queues.ShouldQueue(ctx, server)
+			if err != nil {
+				logger.L().Error("Failed to check queue requirement", zap.Error(err))
+				return nil, status.Error(codes.Internal, "Failed to check queue")
+			}
+
+			// TODO: add check if party size is greater than max server capacity
+
+			if shouldQueue {
+				return nil, status.Error(codes.ResourceExhausted, "Server is full")
+			}
+		}
 	}
 
 	if server.Password != nil && !isModerator && *server.Password != req.Password {

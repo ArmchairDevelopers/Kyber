@@ -16,6 +16,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/jwts"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/ws"
 	"github.com/getsentry/sentry-go"
 	sentryhttp "github.com/getsentry/sentry-go/http"
@@ -107,27 +108,20 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	mqClient, err := mq.NewClient(amqpURL)
+	mqClient, err := mq.NewClient(amqpURL, []mq.ExchangeConfig{
+		{Name: "player_events", Kind: "topic", Durable: true},
+		{Name: "image_hashes", Kind: "fanout", Durable: true},
+		{Name: "reports", Kind: "fanout", Durable: true},
+		{Name: "kronos_server_browser", Kind: "fanout", Durable: true},
+		{Name: "session_events", Kind: "fanout", Durable: true},
+	})
 	if err != nil {
 		panic("failed to connect to RabbitMQ: " + err.Error())
 	}
 	defer mqClient.Close()
 
-	exchanges := []mq.ExchangeConfig{
-		{Name: "player_events", Kind: "topic", Durable: true},
-		{Name: "image_hashes", Kind: "fanout", Durable: true},
-		{Name: "reports", Kind: "fanout", Durable: true},
-		{Name: "kronos_server_browser", Kind: "fanout", Durable: true},
-		{Name: "party_events", Kind: "fanout", Durable: true},
-	}
-
-	for _, cfg := range exchanges {
-		if err := mqClient.DeclareExchange(cfg); err != nil {
-			logger.L().Sugar().Fatalf("could not declare %s: %v", cfg.Name, err)
-		}
-	}
-
-	partyPub := mq.NewPartyEventPublisher(mqClient.Channel)
+	partyPub := mq.NewPartyEventPublisher(mqClient)
+	queuePub := mq.NewQueueEventPublisher(mqClient)
 
 	statsCache := cache.NewStatsCache(redisClient, 10*time.Minute)
 	patronsCache := cache.NewPatronsCache(redisClient, time.Hour)
@@ -150,8 +144,14 @@ func main() {
 
 	downloadManager := api.NewDownloadManager(minioClient)
 	imageManager := api.NewImageManager(store)
-	sessionManager := ws.NewSessionManager(store, partyPub)
+	queueManager := queue.NewManager(store, queuePub)
+	sessionManager := ws.NewSessionManager(store, partyPub, queueManager)
 	serverManager := ws.NewServerManager(ctx, amqpURL, store)
+	serverManager.OnPlayerCountUpdated = func(serverID string) {
+		go queueManager.Advance(context.Background(), serverID)
+	}
+
+	go sessionManager.ConsumeSessionEvents(mqClient)
 
 	httpHandler := sentryHandler.Handle(httpRouter)
 
@@ -198,16 +198,17 @@ func main() {
 	)
 
 	reflection.Register(grpcServer)
-	pbapi.RegisterAuthenticationServer(grpcServer, rpc.NewAuthenticationServer(ctx, store, *mqClient))
-	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, serverManager, *mqClient, jwtService, sessionManager))
-	pbapi.RegisterClientServerServer(grpcServer, rpc.NewClientServer(store, jwtService))
+	pbapi.RegisterAuthenticationServer(grpcServer, rpc.NewAuthenticationServer(ctx, store, mqClient))
+	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, serverManager, mqClient, jwtService, sessionManager, partyPub, queueManager))
+	pbapi.RegisterClientServerServer(grpcServer, rpc.NewClientServer(store, jwtService, queueManager))
 	pbapi.RegisterLauncherServer(grpcServer, rpc.NewLauncherServer(store, minioClient, patronsCache))
 	pbapi.RegisterServerManagementServer(grpcServer, rpc.NewServerManagementServer(store, serverManager))
 	pbapi.RegisterStatisticsServer(grpcServer, rpc.NewStatisticsServer(ctx, store, statsCache))
 	pbapi.RegisterVoipServer(grpcServer, rpc.NewVoipServer(store))
 	pbapi.RegisterProxyServer(grpcServer, rpc.NewProxyServer())
-	pbapi.RegisterReportServiceServer(grpcServer, rpc.NewReportServer(store, serverManager, *mqClient))
-	pbapi.RegisterPartyServer(grpcServer, rpc.NewPartyServer(store, *mqClient, partyPub, sessionManager))
+	pbapi.RegisterReportServiceServer(grpcServer, rpc.NewReportServer(store, serverManager, mqClient))
+	pbapi.RegisterPartyServer(grpcServer, rpc.NewPartyServer(store, partyPub, sessionManager, queueManager))
+	pbapi.RegisterServerQueueServer(grpcServer, rpc.NewQueueServer(store, queueManager))
 
 	eg, _ := errgroup.WithContext(ctx)
 

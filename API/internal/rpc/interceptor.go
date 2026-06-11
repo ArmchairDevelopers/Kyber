@@ -128,5 +128,6 @@ var authMethods = map[string]bool{
 	"/kyber_api.ServerManagement":                    true,
 	"/kyber_api.ReportService":                       true,
 	"/kyber_api.Party":                               true,
+	"/kyber_api.ServerQueue":                         true,
 	"/kyber_api.Voip":                                true,
 }

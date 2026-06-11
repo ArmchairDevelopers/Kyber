@@ -19,6 +19,7 @@ type PartyJoinGameState struct {
 	ServerName     string                      `json:"server_name" bson:"server_name"`
 	Mods           []ServerModModel            `json:"mods" bson:"mods"`
 	MemberStatuses []PartyJoinGameMemberStatus `json:"member_statuses,omitempty" bson:"member_statuses,omitempty"`
+	Password       string                      `json:"password,omitempty" bson:"password,omitempty"`
 }
 
 type PartyModel struct {
@@ -75,6 +76,10 @@ func (p *PartyModel) Proto(sessions []SessionModel, users map[string]*UserModel)
 			ServerName:     p.JoinGameState.ServerName,
 			Mods:           mods,
 			MemberStatuses: statuses,
+		}
+
+		if p.JoinGameState.Password != "" {
+			state.JoinGameState.Password = &p.JoinGameState.Password
 		}
 	}
 

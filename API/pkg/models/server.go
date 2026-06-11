@@ -59,6 +59,7 @@ type ServerModel struct {
 	ExplodedMods   []ServerModModel  `json:"exploded_mods" bson:"exploded_mods"`
 	MetaData       map[string]string `json:"meta_data" bson:"meta_data"`
 	PlayerCount    uint32            `json:"player_count" bson:"player_count"`
+	ConnectedCount uint32            `json:"connected_count" bson:"connected_count"`
 	MaxPlayerCount uint32            `json:"max_player_count" bson:"max_player_count" validate:"required,min=1,max=64"`
 	Official       bool              `json:"official" bson:"official"`
 	Verified       bool              `json:"verified" bson:"verified"`

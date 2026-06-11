@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"sync"
 	"time"
@@ -11,9 +12,11 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
 	"github.com/gorilla/websocket"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -27,14 +30,16 @@ type sessionSub struct {
 type SessionManager struct {
 	store    *db.Store
 	partyPub *mq.PartyEventPublisher
+	queues   *queue.Manager
 	mu       sync.RWMutex
 	subs     map[string]*sessionSub
 }
 
-func NewSessionManager(store *db.Store, partyPub *mq.PartyEventPublisher) *SessionManager {
+func NewSessionManager(store *db.Store, partyPub *mq.PartyEventPublisher, queues *queue.Manager) *SessionManager {
 	s := &SessionManager{
 		store:    store,
 		partyPub: partyPub,
+		queues:   queues,
 		subs:     make(map[string]*sessionSub),
 	}
 
@@ -42,6 +47,24 @@ func NewSessionManager(store *db.Store, partyPub *mq.PartyEventPublisher) *Sessi
 	go s.cleanupStaleSessions()
 
 	return s
+}
+
+func (s *SessionManager) ConsumeSessionEvents(client *mq.Client) {
+	client.ConsumeFanout("session_events", func(body []byte) {
+		var wire mq.SessionEventWire
+		if err := json.Unmarshal(body, &wire); err != nil {
+			logger.L().Error("Failed to unmarshal session event wire", zap.Error(err))
+			return
+		}
+
+		var event pbapi.SessionEvent
+		if err := protojson.Unmarshal(wire.Event, &event); err != nil {
+			logger.L().Error("Failed to unmarshal session event proto", zap.Error(err))
+			return
+		}
+
+		s.Send(wire.UserIDs, &event)
+	})
 }
 
 func (s *SessionManager) Send(userIDs []string, event *pbapi.SessionEvent) {
@@ -110,6 +133,9 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 	logger.L().Debug("Session expired", zap.String("user_id", session.UserID))
 
 	if session.PartyID == nil {
+		queueCtx, queueCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		s.queues.RemoveByUserID(queueCtx, session.UserID, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
+		queueCancel()
 		return
 	}
 
@@ -124,11 +150,18 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 		return
 	}
 
+	pruneCtx, pruneCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := s.store.Parties.RemoveMemberStatus(pruneCtx, partyID, session.UserID); err != nil {
+		logger.L().Error("Failed to prune member join status", zap.Error(err))
+	}
+	pruneCancel()
+
 	if len(remainingSessions) < 2 {
 		delCtx, delCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := s.store.Parties.Delete(delCtx, partyID); err != nil {
 			logger.L().Error("Failed to delete empty party", zap.Error(err))
 		}
+		s.queues.RemoveByPartyID(delCtx, partyID, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
 		delCancel()
 
 		for _, sess := range remainingSessions {
@@ -140,7 +173,7 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 		}
 
 		if len(remainingSessions) > 0 {
-			s.partyPub.Publish(partyID, []string{remainingSessions[0].UserID}, &pbapi.PartyEvent{
+			s.partyPub.Publish([]string{remainingSessions[0].UserID}, &pbapi.PartyEvent{
 				Body: &pbapi.PartyEvent_MemberLeft{
 					MemberLeft: &pbapi.MemberLeftEvent{
 						UserId: session.UserID,
@@ -156,7 +189,7 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 		memberIDs[i] = sess.UserID
 	}
 
-	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+	s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_MemberLeft{
 			MemberLeft: &pbapi.MemberLeftEvent{
 				UserId: session.UserID,
@@ -184,7 +217,9 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 			logger.L().Error("Failed to clear join game state", zap.Error(err))
 		}
 
-		s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+		s.queues.RemoveByPartyID(partyCtx, partyID, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
+
+		s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 			Body: &pbapi.PartyEvent_JoinGameCancelled{
 				JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
 			},
@@ -197,7 +232,7 @@ func (s *SessionManager) handleSessionEnded(session models.SessionModel) {
 		return
 	}
 
-	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+	s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_NewLeader{
 			NewLeader: &pbapi.NewLeaderEvent{
 				NewLeaderId: newLeaderID,
@@ -408,6 +443,10 @@ func (s *SessionManager) handleJoinGameStatusUpdate(userID string, evt *pbapi.Up
 	}
 
 	s.broadcastMemberStatus(ctx, partyID, status)
+
+	if evt.HasMods {
+		s.queues.OnPartyMemberReady(ctx, partyID)
+	}
 }
 
 func (s *SessionManager) broadcastMemberStatus(ctx context.Context, partyID uint64, status *models.PartyJoinGameMemberStatus) {
@@ -422,7 +461,7 @@ func (s *SessionManager) broadcastMemberStatus(ctx context.Context, partyID uint
 		memberIDs[i] = sess.UserID
 	}
 
-	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+	s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_JoinGameStatus{
 			JoinGameStatus: &pbapi.JoinGameStatusEvent{
 				UserId:                status.UserID,
@@ -465,7 +504,7 @@ func (s *SessionManager) handleJoinGameReady(userID string) {
 		memberIDs[i] = sess.UserID
 	}
 
-	s.partyPub.Publish(partyID, memberIDs, &pbapi.PartyEvent{
+	s.partyPub.Publish(memberIDs, &pbapi.PartyEvent{
 		Body: &pbapi.PartyEvent_JoinGameReady{
 			JoinGameReady: &pbapi.JoinGameReadyEvent{},
 		},
