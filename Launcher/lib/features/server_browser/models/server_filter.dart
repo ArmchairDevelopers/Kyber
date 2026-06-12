@@ -71,8 +71,19 @@ class ServerGroup {
 
   Server getPreferredServer() {
     final s = List.of(servers)
-      ..removeWhere((e) => e.playerCount >= e.maxPlayerCount)
-      ..sort((a, b) => b.playerCount.compareTo(a.playerCount));
+      ..sort((a, b) {
+        final aIsFull = a.playerCount >= a.maxPlayerCount;
+        final bIsFull = b.playerCount >= b.maxPlayerCount;
+
+        if (aIsFull && !bIsFull) {
+          return 1;
+        } else if (!aIsFull && bIsFull) {
+          return -1;
+        }
+
+        return b.playerCount.compareTo(a.playerCount);
+      });
+
     return s.first;
   }
 
