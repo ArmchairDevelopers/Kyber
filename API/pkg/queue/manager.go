@@ -185,6 +185,7 @@ func (m *Manager) Advance(ctx context.Context, serverID string) {
 			},
 		})
 
+		reserved = true
 		free -= len(members)
 	}
 
