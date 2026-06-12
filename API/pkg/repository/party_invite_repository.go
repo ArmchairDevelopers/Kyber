@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,6 +13,7 @@ import (
 type PartyInviteRepository interface {
 	Create(ctx context.Context, invite *models.PartyInviteModel) error
 	GetInvites(ctx context.Context, partyID uint64) ([]*models.PartyInviteModel, error)
+	GetActiveInvitesByPartyID(ctx context.Context, partyID uint64) ([]*models.PartyInviteModel, error)
 	Delete(ctx context.Context, id string) error
 	GetByInvitee(ctx context.Context, partyID uint64, inviteeID string) (*models.PartyInviteModel, error)
 }
@@ -32,6 +34,21 @@ func (r *mongoPartyInviteRepo) Create(ctx context.Context, invite *models.PartyI
 func (r *mongoPartyInviteRepo) GetInvites(ctx context.Context, partyID uint64) ([]*models.PartyInviteModel, error) {
 	var invites []*models.PartyInviteModel
 	cursor, err := r.col.Find(ctx, bson.M{"party_id": partyID})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	if err := cursor.All(ctx, &invites); err != nil {
+		return nil, err
+	}
+
+	return invites, nil
+}
+
+func (r *mongoPartyInviteRepo) GetActiveInvitesByPartyID(ctx context.Context, partyID uint64) ([]*models.PartyInviteModel, error) {
+	var invites []*models.PartyInviteModel
+	cursor, err := r.col.Find(ctx, bson.M{"party_id": partyID, "expires_at": bson.M{"$gt": time.Now()}})
 	if err != nil {
 		return nil, err
 	}

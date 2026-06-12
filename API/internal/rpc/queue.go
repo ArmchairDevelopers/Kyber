@@ -66,8 +66,37 @@ func (s *QueueService) JoinQueue(ctx context.Context, req *pbapi.JoinQueueReques
 		return nil, status.Error(codes.Internal, "Failed to get session")
 	}
 
+	var partyId *uint64
 	if session != nil && session.PartyID != nil {
-		return nil, status.Error(codes.FailedPrecondition, "Only the party leader can queue for a server")
+		party, err := s.store.Parties.GetByID(ctx, *session.PartyID)
+		if err != nil {
+			logger.L().Error("Failed to get party", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get party")
+		}
+
+		if party == nil {
+			return nil, status.Error(codes.NotFound, "Party not found")
+		}
+
+		if party.LeaderID != user.ID {
+			return nil, status.Error(codes.FailedPrecondition, "Only the party leader can queue for a server")
+		}
+
+		if party.JoinGameState == nil || party.JoinGameState.ServerID != req.GetServerId() {
+			return nil, status.Error(codes.FailedPrecondition, "Party is not in the correct join game state")
+		}
+
+		activeInvites, err := s.store.PartyInvites.GetActiveInvitesByPartyID(ctx, *session.PartyID)
+		if err != nil {
+			logger.L().Error("Failed to get party invites", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get party invites")
+		}
+
+		if len(activeInvites) > 0 {
+			return nil, status.Error(codes.FailedPrecondition, "All party invites must be accepted or declined before joining a queue")
+		}
+
+		partyId = session.PartyID
 	}
 
 	server, err := getJoinableServer(ctx, s.store, user, req.GetServerId(), req.GetPassword())
@@ -75,7 +104,13 @@ func (s *QueueService) JoinQueue(ctx context.Context, req *pbapi.JoinQueueReques
 		return nil, err
 	}
 
-	existing, err := s.store.Queues.GetByUserID(ctx, user.ID)
+	var existing *models.QueueEntryModel
+	if partyId != nil {
+		existing, err = s.store.Queues.GetByPartyID(ctx, *partyId)
+	} else {
+		existing, err = s.store.Queues.GetByUserID(ctx, user.ID)
+	}
+
 	if err != nil {
 		logger.L().Error("Failed to get queue entry", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Failed to get queue entry")
@@ -102,7 +137,7 @@ func (s *QueueService) JoinQueue(ctx context.Context, req *pbapi.JoinQueueReques
 		return nil, status.Error(codes.FailedPrecondition, "Server is not full")
 	}
 
-	entry, err := s.queues.Enqueue(ctx, server, nil, &user.ID)
+	entry, err := s.queues.Enqueue(ctx, server, partyId, &user.ID)
 	if err != nil {
 		logger.L().Error("Failed to create queue entry", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Failed to join queue")

@@ -240,11 +240,35 @@ func (s *PartyService) InvitePlayer(ctx context.Context, req *pbapi.InvitePlayer
 		}
 	}
 
+	isInQueue := false
+
 	if party == nil {
-		party, err = s.createParty(ctx, *user)
+		queueEntry, err := s.store.Queues.GetByUserID(ctx, user.ID)
 		if err != nil {
-			return nil, status.Error(codes.Internal, "Failed to create party")
+			logger.L().Error("Failed to get queue", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get queue")
 		}
+
+		isInQueue = queueEntry != nil
+
+		if !isInQueue {
+			party, err = s.createParty(ctx, *user)
+			if err != nil {
+				return nil, status.Error(codes.Internal, "Failed to create party")
+			}
+		}
+	} else {
+		queueEntry, err := s.store.Queues.GetByPartyID(ctx, party.ID)
+		if err != nil {
+			logger.L().Error("Failed to get queue", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get queue")
+		}
+
+		isInQueue = queueEntry != nil
+	}
+
+	if isInQueue {
+		return nil, status.Error(codes.FailedPrecondition, "To invite a player to a party, you must leave the queue")
 	}
 
 	if inviteeSession.PartyID != nil {
@@ -444,6 +468,26 @@ func (s *PartyService) AcceptInvite(ctx context.Context, req *pbapi.AcceptInvite
 		}
 
 		return nil, status.Error(codes.ResourceExhausted, "Party is full")
+	}
+
+	queueEntry, err := s.store.Queues.GetByUserID(ctx, user.ID)
+	if err != nil {
+		logger.L().Error("Failed to get queue entry", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get queue entry")
+	}
+
+	if queueEntry != nil {
+		return nil, status.Error(codes.FailedPrecondition, "You can't join a party while in a queue")
+	}
+
+	partyQueueEntry, err := s.store.Queues.GetByPartyID(ctx, party.ID)
+	if err != nil {
+		logger.L().Error("Failed to get party queue entry", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get party queue entry")
+	}
+
+	if partyQueueEntry != nil {
+		return nil, status.Error(codes.FailedPrecondition, "You can't join a party that is in a queue")
 	}
 
 	if err := s.store.Sessions.SetPartyID(ctx, user.ID, &party.ID); err != nil {
@@ -648,6 +692,16 @@ func (s *PartyService) StartJoinGame(ctx context.Context, req *pbapi.StartJoinGa
 	if err != nil {
 		logger.L().Error("Failed to get queue entry", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Failed to start join game")
+	}
+
+	openInvites, err := s.store.PartyInvites.GetActiveInvitesByPartyID(ctx, party.ID)
+	if err != nil {
+		logger.L().Error("Failed to get party invites", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to start join game")
+	}
+
+	if len(openInvites) > 0 {
+		return nil, status.Error(codes.FailedPrecondition, "All invites must be accepted or declined before joining a game")
 	}
 
 	if existingEntry != nil && existingEntry.ServerID != server.ID {
