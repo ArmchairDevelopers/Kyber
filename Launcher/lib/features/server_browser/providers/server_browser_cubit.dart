@@ -180,6 +180,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
         selectedCollection: result.collection,
         spectator: result.spectator,
         password: result.password,
+        queueIfFull: true,
       );
 
       emit(ServerBrowserState(selectedServer: server));

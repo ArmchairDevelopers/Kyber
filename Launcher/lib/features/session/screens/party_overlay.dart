@@ -63,7 +63,228 @@ class _PartyOverlayState extends State<PartyOverlay> {
             return _JoinGameBanner(info: info);
           },
         ),
+        BlocSelector<SessionCubit, SessionState, (QueueInfo?, bool, bool)>(
+          selector: (state) => switch (state) {
+            PartyInitial(:final queueInfo) => (queueInfo, false, false),
+            final InParty s => (s.queueInfo, true, s.isLeader()),
+          },
+          builder: (context, data) {
+            final (info, isParty, isLeader) = data;
+            return _QueueBanner(
+              info: info,
+              isParty: isParty,
+              isLeader: isLeader,
+            );
+          },
+        ),
       ],
+    );
+  }
+}
+
+class _QueueBanner extends StatefulWidget {
+  const _QueueBanner({
+    required this.info,
+    required this.isParty,
+    required this.isLeader,
+  });
+
+  final QueueInfo? info;
+  final bool isParty;
+  final bool isLeader;
+
+  @override
+  State<_QueueBanner> createState() => _QueueBannerState();
+}
+
+class _QueueBannerState extends State<_QueueBanner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Offset> _slideAnimation;
+  late final Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: .zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+
+    if (widget.info != null) _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(_QueueBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.info != null && oldWidget.info == null) {
+      _controller.forward();
+    } else if (widget.info == null && oldWidget.info != null) {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _leaveQueue() async {
+    final cubit = context.read<SessionCubit>();
+    if (widget.isParty) {
+      await cubit.cancelJoinGame();
+    } else {
+      await cubit.leaveQueue();
+    }
+  }
+
+  Widget _buildIndicator(QueueInfo info) {
+    final reserved = info.isReserved;
+    final hasPosition = info.position > 0;
+
+    final double? value;
+    if (reserved) {
+      value = 100;
+    } else if (hasPosition && info.queueSize > 0) {
+      final ahead = info.queueSize - info.position + 1;
+      value = (ahead / info.queueSize).clamp(0.0, 1.0) * 100;
+    } else {
+      value = null;
+    }
+
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: Stack(
+        alignment: .center,
+        children: [
+          ProgressRing(
+            value: value,
+            strokeWidth: 2.5,
+            activeColor: kActiveColor,
+            backgroundColor: decoColor,
+          ),
+          if (reserved)
+            Icon(FluentIcons.game, size: 15, color: kActiveColor)
+          else if (hasPosition)
+            Text(
+              '${info.position}',
+              style: const TextStyle(
+                fontFamily: FontFamily.battlefrontUI,
+                fontSize: 13,
+                color: kWhiteColor,
+                height: 1,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      bottom: 120,
+      right: 0,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: _buildBanner(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBanner() {
+    final info = widget.info;
+    if (info == null) return const SizedBox.shrink();
+
+    final canLeave = !widget.isParty || widget.isLeader;
+
+    final String statusText;
+    if (info.isReserved) {
+      statusText = 'JOINING GAME';
+    } else if (info.queueSize > 0) {
+      statusText = '${info.queueSize} IN QUEUE';
+    } else {
+      statusText = 'WAITING FOR A SLOT';
+    }
+
+    return BackgroundBlur(
+      borderRadius: const .horizontal(
+        left: .circular(kDefaultInnerBorderRadius),
+      ),
+      blurColorOpacity: 0.6,
+      blurIntensity: 8,
+      child: Container(
+        constraints: .new(maxWidth: 300, minWidth: 260),
+        decoration: BoxDecoration(
+          border: const Border(
+            left: .new(color: decoColor, width: 2),
+            top: .new(color: decoColor, width: 2),
+            bottom: .new(color: decoColor, width: 2),
+          ),
+          borderRadius: .horizontal(
+            left: const .circular(kDefaultInnerBorderRadius),
+          ),
+        ),
+        child: Padding(
+          padding: const .symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            mainAxisSize: .min,
+            children: [
+              _buildIndicator(info),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: .start,
+                  mainAxisSize: .min,
+                  children: [
+                    const Text(
+                      'IN QUEUE',
+                      style: TextStyle(
+                        fontFamily: FontFamily.battlefrontUI,
+                        fontSize: 13,
+                        color: kWhiteColor,
+                        height: 1,
+                      ),
+                      overflow: .ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        fontFamily: FontFamily.battlefrontUI,
+                        fontSize: 11,
+                        color: info.isReserved ? kActiveColor : kButtonBorder,
+                        height: 1,
+                      ),
+                      overflow: .ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (canLeave && !info.isReserved)
+                _BannerAction(
+                  icon: mt.Icons.close,
+                  color: Colors.red,
+                  onPressed: _leaveQueue,
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

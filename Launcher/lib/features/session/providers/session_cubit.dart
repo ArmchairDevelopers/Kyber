@@ -52,6 +52,11 @@ class SessionCubit extends Cubit<SessionState> {
 
   InParty? get _inParty => state is InParty ? state as InParty : null;
 
+  QueueInfo? get _queueInfo => switch (state) {
+    PartyInitial(:final queueInfo) => queueInfo,
+    InParty(:final queueInfo) => queueInfo,
+  };
+
   String? get _userId =>
       navigatorKey.currentContext?.read<MaximaCubit>().state.servicePlayer?.id;
 
@@ -102,7 +107,13 @@ class SessionCubit extends Cubit<SessionState> {
       );
     }
 
-    emit(InParty(response.party, joinGameInfo: joinGameInfo));
+    emit(
+      InParty(
+        response.party,
+        joinGameInfo: joinGameInfo,
+        queueInfo: _queueInfoFromParty(response.party),
+      ),
+    );
 
     if (joinGameInfo != null) {
       _checkAndReportModStatus(joinGameInfo.mods);
@@ -113,9 +124,15 @@ class SessionCubit extends Cubit<SessionState> {
   Future<void> clearInvite() async {
     final inParty = _inParty;
     if (inParty != null) {
-      emit(InParty(inParty.party, joinGameInfo: inParty.joinGameInfo));
+      emit(
+        InParty(
+          inParty.party,
+          joinGameInfo: inParty.joinGameInfo,
+          queueInfo: inParty.queueInfo,
+        ),
+      );
     } else {
-      emit(PartyInitial());
+      emit(PartyInitial(queueInfo: _queueInfo));
     }
   }
 
@@ -151,6 +168,7 @@ class SessionCubit extends Cubit<SessionState> {
 
   Future<void> onJoined({required String serverId}) async {
     gameJoined = true;
+    _clearQueueInfo();
     _channel?.sink.add(
       SessionClientEvent(
         gameJoined: .new(serverId: serverId),
@@ -160,6 +178,198 @@ class SessionCubit extends Cubit<SessionState> {
 
   Future<void> cancelJoinGame() async {
     await _service.partyServiceClient.cancelJoinGame(.new());
+  }
+
+  Future<QueueStatus> joinQueue(Server server, {String password = ''}) async {
+    final status = await _service.serverQueueClient.joinQueue(
+      .new(serverId: server.id, password: password),
+    );
+
+    _setQueueInfo(
+      _queueInfoFromStatus(
+        status,
+        serverName: server.name,
+        password: password,
+      ),
+    );
+
+    return status;
+  }
+
+  Future<void> leaveQueue() async {
+    if (_queueInfo == null) return;
+
+    _clearQueueInfo();
+
+    try {
+      await _service.serverQueueClient.leaveQueue(.new());
+    } on GrpcError catch (e) {
+      _logger.warning('Failed to leave queue: ${e.message}', e);
+    }
+  }
+
+  void _handleQueueEvent(QueueEvent event) async {
+    if (event.hasQueueUpdated()) {
+      final info = _queueInfoFromStatus(event.queueUpdated.status);
+      _setQueueInfo(info);
+
+      if (info.serverName.isEmpty) {
+        _loadQueueServer(info.serverId);
+      }
+
+      if (info.isReserved) {
+        await _onQueueReserved(info);
+      }
+      return;
+    }
+
+    if (event.hasQueueRemoved()) {
+      final removed = event.queueRemoved;
+      final info = _queueInfo;
+      if (info == null || info.serverId != removed.serverId) return;
+
+      _clearQueueInfo();
+
+      final message = switch (removed.reason) {
+        .QUEUE_REMOVED_TIMEOUT => 'Your queue reservation expired',
+        .QUEUE_REMOVED_SERVER_SHUTDOWN =>
+          'The server you were queued for is no longer available',
+        _ => null,
+      };
+
+      if (message != null) {
+        NotificationService.warning(message: message);
+      }
+    }
+  }
+
+  Future<void> _onQueueReserved(QueueInfo info) async {
+    if (gameJoined) return;
+
+    final partyInfo = _inParty?.joinGameInfo;
+    if (partyInfo != null && partyInfo.serverId == info.serverId) {
+      final myStatus = partyInfo.memberStatuses[_userId];
+      if (!(myStatus?.hasMods ?? false)) {
+        NotificationService.warning(
+          message: 'A queue spot is reserved but you are missing mods.',
+        );
+        return;
+      }
+
+      NotificationService.info(
+        message: 'Queue spot reserved! Joining game...',
+      );
+      await joinServerForParty();
+      return;
+    }
+
+    NotificationService.info(message: 'Joining server...');
+
+    try {
+      final server = await _service.serverBrowserClient.getServer(
+        .new(id: info.serverId),
+      );
+      await KyberServerHelper.joinServer(server, password: info.password);
+    } on GrpcError catch (e) {
+      _logger.severe('Failed to join server from queue: ${e.message}', e);
+      NotificationService.error(
+        message: 'Failed to join server from queue: ${e.message}',
+      );
+    } catch (e) {
+      _logger.severe('Failed to join server from queue: $e', e);
+      NotificationService.error(
+        message: 'Failed to join server from queue: $e',
+      );
+    }
+  }
+
+  void _setQueueInfo(QueueInfo info) {
+    switch (state) {
+      case PartyInitial(:final pendingInvite):
+        emit(PartyInitial(pendingInvite: pendingInvite, queueInfo: info));
+      case InParty():
+        emit(_inParty!.copyWith(queueInfo: info));
+    }
+  }
+
+  void _clearQueueInfo() {
+    switch (state) {
+      case PartyInitial(:final pendingInvite, :final queueInfo):
+        if (queueInfo != null) {
+          emit(PartyInitial(pendingInvite: pendingInvite));
+        }
+      case InParty():
+        final inParty = _inParty!;
+        if (inParty.queueInfo != null) {
+          emit(
+            InParty(
+              inParty.party,
+              pendingInvite: inParty.pendingInvite,
+              joinGameInfo: inParty.joinGameInfo,
+            ),
+          );
+        }
+    }
+  }
+
+  QueueInfo _queueInfoFromStatus(
+    QueueStatus status, {
+    String serverName = '',
+    String password = '',
+  }) {
+    final existing = _queueInfo;
+    final keep = existing != null && existing.serverId == status.serverId;
+
+    return QueueInfo(
+      serverId: status.serverId,
+      state: status.state,
+      position: status.position,
+      queueSize: status.queueSize,
+      serverName: serverName.isNotEmpty
+          ? serverName
+          : (keep ? existing.serverName : ''),
+      password: password.isNotEmpty
+          ? password
+          : (keep ? existing.password : ''),
+    );
+  }
+
+  QueueInfo? _queueInfoFromParty(PartyState party) {
+    if (!party.hasJoinGameState() || !party.joinGameState.hasQueue()) {
+      return null;
+    }
+
+    final jgs = party.joinGameState;
+    return _queueInfoFromStatus(
+      jgs.queue,
+      serverName: jgs.serverName,
+      password: jgs.hasPassword() ? jgs.password : '',
+    );
+  }
+
+  bool _isWaitingInQueue(String serverId) {
+    final info = _queueInfo;
+    return info != null && info.serverId == serverId && !info.isReserved;
+  }
+
+  void _loadQueueServer(String serverId) async {
+    try {
+      final server = await _service.serverBrowserClient.getServer(
+        .new(id: serverId),
+      );
+      if (isClosed) return;
+
+      final info = _queueInfo;
+      if (info == null ||
+          info.serverId != serverId ||
+          info.serverName.isNotEmpty) {
+        return;
+      }
+
+      _setQueueInfo(info.copyWith(serverName: server.name));
+    } catch (e) {
+      _logger.warning('Failed to get server name', e);
+    }
   }
 
   void readyUp() {
@@ -361,7 +571,11 @@ class SessionCubit extends Cubit<SessionState> {
             );
           }
 
-          _emitInParty(response.party, joinGameInfo: joinGameInfo);
+          _emitInParty(
+            response.party,
+            joinGameInfo: joinGameInfo,
+            queueInfo: _queueInfoFromParty(response.party),
+          );
 
           if (joinGameInfo != null) {
             _checkAndReportModStatus(joinGameInfo.mods);
@@ -370,6 +584,19 @@ class SessionCubit extends Cubit<SessionState> {
         })
         .catchError((error) {
           _logger.warning('Failed to get current party', error);
+        });
+
+    _service.serverQueueClient
+        .getQueueStatus(.new())
+        .then((response) {
+          if (isClosed || !response.hasStatus()) return;
+          if (_queueInfo != null) return;
+
+          _setQueueInfo(_queueInfoFromStatus(response.status));
+          _loadQueueServer(response.status.serverId);
+        })
+        .catchError((error) {
+          _logger.warning('Failed to get queue status', error);
         });
 
     _channel = IOWebSocketChannel.connect(
@@ -388,7 +615,8 @@ class SessionCubit extends Cubit<SessionState> {
             .partyEvent => _handlePartyEvent(data.partyEvent),
             .checkForUpdates => _handleUpdateCheck(),
             .proxiesUpdated => null,
-            .notSet => null,
+            .queueEvent => _handleQueueEvent(data.queueEvent),
+            _ => null,
           };
         } catch (e, s) {
           _logger.severe('Error parsing session event', e, s);
@@ -467,7 +695,7 @@ class SessionCubit extends Cubit<SessionState> {
       if (state is InParty) {
         emit((_inParty!).copyWith(pendingInvite: pending));
       } else {
-        emit(PartyInitial(pendingInvite: pending));
+        emit(PartyInitial(pendingInvite: pending, queueInfo: _queueInfo));
       }
       return;
     }
@@ -589,10 +817,26 @@ class SessionCubit extends Cubit<SessionState> {
         serverName: jg.serverName,
         mods: jg.mods.toList(),
         leaderId: jg.leaderId,
+        password: jg.hasPassword() ? jg.password : '',
         memberStatuses: memberStatuses,
       );
 
-      _emitInParty(party, joinGameInfo: joinGameInfo);
+      final queueInfo = jg.hasQueue()
+          ? _queueInfoFromStatus(
+              jg.queue,
+              serverName: jg.serverName,
+              password: jg.hasPassword() ? jg.password : '',
+            )
+          : (isSameServer ? _queueInfo : null);
+
+      emit(
+        InParty(
+          _sortMembers(party),
+          pendingInvite: _inParty?.pendingInvite,
+          joinGameInfo: joinGameInfo,
+          queueInfo: queueInfo,
+        ),
+      );
       _checkAndReportModStatus(jg.mods.toList());
       if (!isSameServer) {
         showJoinGameDialog();
@@ -619,6 +863,7 @@ class SessionCubit extends Cubit<SessionState> {
       );
 
       if (gameJoined) return;
+      if (_isWaitingInQueue(info.serverId)) return;
 
       final myStatus = statuses[userId];
       final leaderStatus = statuses[info.leaderId];
@@ -642,6 +887,13 @@ class SessionCubit extends Cubit<SessionState> {
     } else if (event.hasJoinGameReady()) {
       final info = _inParty?.joinGameInfo;
       if (info == null) return;
+
+      if (_isWaitingInQueue(info.serverId)) {
+        NotificationService.info(
+          message: 'Waiting for a spot in the server queue...',
+        );
+        return;
+      }
 
       final myStatus = info.memberStatuses[userId];
       if (myStatus?.hasMods ?? false) {
@@ -678,12 +930,17 @@ class SessionCubit extends Cubit<SessionState> {
     return true;
   }
 
-  void _emitInParty(PartyState party, {JoinGameInfo? joinGameInfo}) {
+  void _emitInParty(
+    PartyState party, {
+    JoinGameInfo? joinGameInfo,
+    QueueInfo? queueInfo,
+  }) {
     emit(
       InParty(
         _sortMembers(party),
         pendingInvite: _inParty?.pendingInvite,
         joinGameInfo: joinGameInfo ?? _inParty?.joinGameInfo,
+        queueInfo: queueInfo ?? _queueInfo,
       ),
     );
   }
@@ -731,6 +988,7 @@ class SessionCubit extends Cubit<SessionState> {
       serverName: jgs.serverName,
       mods: jgs.mods.toList(),
       leaderId: leaderId,
+      password: jgs.hasPassword() ? jgs.password : '',
       memberStatuses: {
         for (final s in jgs.memberStatuses)
           s.userId: JoinGameMemberStatusInfo(

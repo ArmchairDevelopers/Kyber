@@ -4,20 +4,22 @@ part of 'session_cubit.dart';
 sealed class SessionState extends Equatable {}
 
 final class PartyInitial extends SessionState {
-  PartyInitial({this.pendingInvite});
+  PartyInitial({this.pendingInvite, this.queueInfo});
 
   final PendingInvite? pendingInvite;
+  final QueueInfo? queueInfo;
 
   @override
-  List<Object?> get props => [pendingInvite];
+  List<Object?> get props => [pendingInvite, queueInfo];
 }
 
 final class InParty extends SessionState {
-  InParty(this.party, {this.pendingInvite, this.joinGameInfo});
+  InParty(this.party, {this.pendingInvite, this.joinGameInfo, this.queueInfo});
 
   final PartyState party;
   final PendingInvite? pendingInvite;
   final JoinGameInfo? joinGameInfo;
+  final QueueInfo? queueInfo;
 
   List<KyberPlayer> get members => party.members
       .where(
@@ -46,16 +48,66 @@ final class InParty extends SessionState {
     PartyState? party,
     PendingInvite? pendingInvite,
     JoinGameInfo? joinGameInfo,
+    QueueInfo? queueInfo,
   }) {
     return InParty(
       party ?? this.party,
       pendingInvite: pendingInvite ?? this.pendingInvite,
       joinGameInfo: joinGameInfo ?? this.joinGameInfo,
+      queueInfo: queueInfo ?? this.queueInfo,
     );
   }
 
   @override
-  List<Object?> get props => [party, pendingInvite, joinGameInfo];
+  List<Object?> get props => [party, pendingInvite, joinGameInfo, queueInfo];
+}
+
+class QueueInfo extends Equatable {
+  const QueueInfo({
+    required this.serverId,
+    required this.state,
+    this.serverName = '',
+    this.position = 0,
+    this.queueSize = 0,
+    this.password = '',
+  });
+
+  final String serverId;
+  final QueueEntryState state;
+  final String serverName;
+  final int position;
+  final int queueSize;
+  final String password;
+
+  bool get isReserved => state == QueueEntryState.QUEUE_STATE_RESERVED;
+
+  QueueInfo copyWith({
+    String? serverId,
+    QueueEntryState? state,
+    String? serverName,
+    int? position,
+    int? queueSize,
+    String? password,
+  }) {
+    return QueueInfo(
+      serverId: serverId ?? this.serverId,
+      state: state ?? this.state,
+      serverName: serverName ?? this.serverName,
+      position: position ?? this.position,
+      queueSize: queueSize ?? this.queueSize,
+      password: password ?? this.password,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    serverId,
+    state,
+    serverName,
+    position,
+    queueSize,
+    password,
+  ];
 }
 
 class JoinGameMemberStatusInfo extends Equatable {
@@ -110,13 +162,13 @@ class JoinGameInfo extends Equatable {
 
   @override
   List<Object?> get props => [
-        serverId,
-        serverName,
-        mods,
-        leaderId,
-        password,
-        memberStatuses,
-      ];
+    serverId,
+    serverName,
+    mods,
+    leaderId,
+    password,
+    memberStatuses,
+  ];
 }
 
 class PendingInvite extends Equatable {

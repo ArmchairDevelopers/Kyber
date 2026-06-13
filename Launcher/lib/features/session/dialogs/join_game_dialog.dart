@@ -17,13 +17,13 @@ class JoinGameDialog extends StatelessWidget {
     return BlocSelector<
       SessionCubit,
       SessionState,
-      (JoinGameInfo?, List<PartyMember>?)
+      (JoinGameInfo?, List<PartyMember>?, QueueInfo?)
     >(
       selector: (state) => state is InParty
-          ? (state.joinGameInfo, state.party.members.toList())
-          : (null, null),
+          ? (state.joinGameInfo, state.party.members.toList(), state.queueInfo)
+          : (null, null, null),
       builder: (context, data) {
-        final (info, members) = data;
+        final (info, members, queue) = data;
         if (info == null || members == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) Navigator.of(context).pop();
@@ -39,6 +39,11 @@ class JoinGameDialog extends StatelessWidget {
             myStatus?.modDownloadPercentage != null && !hasMods;
         final leaderIsInGame =
             info.memberStatuses[info.leaderId]?.joined ?? false;
+        final queueForServer = queue != null && queue.serverId == info.serverId
+            ? queue
+            : null;
+        final waitingInQueue =
+            queueForServer != null && !queueForServer.isReserved;
 
         return KyberContentDialog(
           title: Text('Join Game'.toUpperCase()),
@@ -57,8 +62,14 @@ class JoinGameDialog extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'WAITING FOR MEMBERS',
+                Text(
+                  queueForServer == null
+                      ? 'WAITING FOR MEMBERS'
+                      : queueForServer.isReserved
+                      ? 'JOINING GAME...'
+                      : queueForServer.position > 0
+                      ? 'IN QUEUE > POSITION ${queueForServer.position} OF ${queueForServer.queueSize}'
+                      : 'WAITING IN QUEUE',
                   style: TextStyle(
                     fontFamily: FontFamily.battlefrontUI,
                     fontSize: 12,
@@ -114,7 +125,7 @@ class JoinGameDialog extends StatelessWidget {
                   context.read<SessionCubit>().joinGameLate();
                 },
               ),
-            if (isLeader && hasMods)
+            if (isLeader && hasMods && !waitingInQueue)
               KyberButton(
                 text: 'Join All Ready',
                 onPressed: () {
