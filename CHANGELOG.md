@@ -1,3 +1,81 @@
+## [2.0.0-beta10] - [??/??/????]
+- Added parties
+    - Invite players to a party through the friends list. Invites show up as a banner with a sound and can be accepted or declined directly
+    - Party leaders can kick members and transfer leadership
+    - The party leader picks a server and every member is taken through the required mod checks and downloads automatically
+    - Members join the game automatically once everyone is ready, or can join late at any time
+    - Party leaders can also host a server and have the party join it
+    - Party members are placed in the same in-game squad
+    - Added an in-game party chat that is only visible to your party
+    - Added a privacy setting to control whether non-friends can invite you to a party
+    - In-game team shuffling now groups party members together
+- Added server queues
+    - Joining a full server now places you in a queue instead of failing
+    - Your queue position is shown live in the launcher and a slot is reserved for you as soon as one frees up
+    - Parties queue as a group and get reserved slots for the whole party once every member has the required mods
+    - Party invites can't be sent or accepted while queueing, so a queue spot can't be shared with players who weren't in the party when it was queued
+- Replaced the navigation bar with a new social bar
+    - Shows your friends, your party and download progress at a glance
+- Added incremental mod downloads
+    - Now when downloading a new version of a mod collection, only mods that have been updated need to be downloaded.
+- Added in-game AFK kicking. Configure timeout with `Whiteshark.NoInteractivityTimeoutTime` in seconds. To disable, set to 0
+- Added in-game chat filtering
+    - Messages sent are filtered from a list of phrases, with a default one set for every server
+    - Plugin developers can configure this list, the filter character, & functionality with the `ChatFilter` interface.
+    - Set console setting `Kyber.LogFilteredChatMessages` to true to enable in-depth logs of filtered messages
+- Increased the mod limit from 247 to 1739
+- Redesigned the server info box
+- Servers are now grouped by region in the server browser
+- Added a token reset flow for Kyber tokens
+- Added a bypass player limit entitlement that allows joining full servers
+- The launcher now warns about corrupted collections and prefers a working duplicate when available
+- Battlepoints can now be interacted with via console commands `Kyber.SetBattlepoints <username> <value>` & `Kyber.GiveBattlepoints`
+- Added new KYBER Plugin features:
+    - Plugins can now be hot-reloaded with `Kyber.HotReloadLua server`
+    - Official API documentation is now available at https://docs.kyber.gg/g/pluginref
+    - `MapRotation` Library: modify & read the current map rotation at runtime
+    - `ChatFilter` Library: modify the chat filter blocked phrases list & toggle functionality.
+    - Certain events can now be cancelled via `EventManager.SetCancelled(true)` in the event callback context
+    - `FBArray`s can now be fully read and processed
+    - Fixed DataContainer reading
+    - All enums are now usable
+    - `Client` plugins are now deprecated
+    - Player battlepoints, score, kills, assists, deaths, active kit, if they are spawned, and player id are now interactable
+    - Players can now have their health, max health, and abilities changed while spawned
+    - You can now disable player inputs with `SetInputEnabled`
+    - Added events `Level:Complete`, `DedicatedServer:PerformanceStatsMessage`, `ServerPlayer:Disconnect`, `ServerPlayer:Killed`, `ServerPlayer:Spawned`, `ServerPlayer:SendMessage`
+    - Renamed event `Server:PlayerJoined` to `ServerPlayer:Joined`
+- Optimized launcher avatar loading
+- Many Module stability and performance improvements
+    - Many API requests made were before synchonous and took up processing across 14 threads, and now only take 2 and are properly asynchronous
+        - This fix/performance improvement should fix a good amount of random startup crashes & lower FPS spikes
+    - Optimized ModLoader array extension allocations
+    - Optimized player persistence instantiation
+    - Optimized FNV string hashes
+    - Optimized packet processing
+- Added new time entities:
+    - `KyberCurrentTimeEntity`: Get current `Time` field
+    - `KyberTimeSplitterEntity`: Input `Time` float from the previous entity to get the current day, month, year, second, minute, and hour
+- In-game friendly fire now fully works
+- Fixed an issue where collections would display the wrong mod count
+- Fixed shift-selection in the mods list
+- Fixed an issue where proxies were not reachable for users with IPv6
+    - Proxy connections now force IPv4 DNS lookups
+- Fixed an issue where unreachable proxies could break the launcher while loading
+- Fixed an issue where mod files inside nested archive folders were not detected on mod installs
+- Fixed in-game latency differential value readback
+- Fixed ModLoader bundling issue with an asset that has different bundles in different mods
+- Fixed PlayerExtentRegistration type name reading
+- Fixed `LocalizedStringIdPickerEntity` not reading the property connection `Sid` to have the output field `StringId` changed at outside of instantiation
+- Fixed in-game team chat not working
+- Fixed joining a server while having the game already open
+- Fixed certain console commands being able to be ran on the client, causing a crash
+- The server browser search is now cleared when switching tabs
+- The launcher window can now be dragged from the full width of the title bar
+- Fixed punished players missing their user information on the server moderation page
+    - This fixes the issue where it would not be possible to unban a player
+- Banning a player that is already banned no longer creates a duplicate punishment
+
 ## [2.0.0-beta9] - [??/??/????]
 - Fixed stats on official servers not updating
 - Added a new filter options to the mods page
