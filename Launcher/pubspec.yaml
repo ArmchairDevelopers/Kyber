@@ -175,8 +175,10 @@ flutter:
           weight: 700
     - family: BattlefrontUI
       fonts:
-        - asset: assets/fonts/Univers_Next_Pro_Medium_Condensed.ttf
-        - asset: assets/fonts/Univers_Next_Pro_Medium_Condensed_Italic.ttf
+        - asset: assets/fonts/BarlowCondensed-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/BarlowCondensed-MediumItalic.ttf
+          weight: 500
   assets:
     - assets/
     - assets/ca/
