@@ -158,7 +158,7 @@ jobs:
           cp "_work/vivoxsdk.dll" "build/windows/x64/runner/Release/vivoxsdk.dll"
 
       - name: Stage binaries for signing
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath-launcher'
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
         working-directory: ${{ env.working-directory }}
         run: |
           $release = "build/windows/x64/runner/Release"
@@ -168,7 +168,7 @@ jobs:
         shell: powershell
 
       - name: Upload unsigned launcher artifact
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath-launcher'
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
         id: upload-unsigned-launcher
         uses: actions/upload-artifact@v4
         with:
@@ -176,7 +176,7 @@ jobs:
           path: ${{ env.working-directory }}/_signing/*
 
       - name: Submit signing request
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath-launcher'
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
@@ -190,7 +190,7 @@ jobs:
           wait-for-completion-timeout-in-seconds: 1800
 
       - name: Copy signed binaries back
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath-launcher'
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
         working-directory: ${{ env.working-directory }}
         run: |
           $release = "build/windows/x64/runner/Release"
@@ -205,7 +205,7 @@ jobs:
           options: /O+
 
       - name: Stage installer for signing
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath-launcher'
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
         working-directory: ${{ env.working-directory }}
         run: |
           New-Item -Path _signing_installer -ItemType Directory -Force | Out-Null
@@ -213,7 +213,7 @@ jobs:
         shell: powershell
 
       - name: Upload unsigned installer artifact
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath-launcher'
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
         id: upload-unsigned-installer
         uses: actions/upload-artifact@v4
         with:
@@ -221,7 +221,7 @@ jobs:
           path: ${{ env.working-directory }}/_signing_installer/*
 
       - name: Submit installer signing request
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath-launcher'
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
@@ -235,7 +235,7 @@ jobs:
           wait-for-completion-timeout-in-seconds: 1800
 
       - name: Copy signed installer back
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath-launcher'
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
         working-directory: ${{ env.working-directory }}
         run: |
           Copy-Item -Force "_signed_installer/KyberLauncherInstaller.exe" "installer/KyberLauncherInstaller.exe"
