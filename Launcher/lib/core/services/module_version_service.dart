@@ -261,6 +261,8 @@ class ModuleVersionService {
       file.deleteSync();
     }
 
+    file.createSync(recursive: true);
+
     final raf = file.openSync(mode: FileMode.write);
 
     try {

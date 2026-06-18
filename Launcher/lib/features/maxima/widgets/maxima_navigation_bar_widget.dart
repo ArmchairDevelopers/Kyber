@@ -1,3 +1,4 @@
+import 'package:background_downloader/background_downloader.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
@@ -388,10 +389,26 @@ class _DownloadItem extends StatelessWidget {
                                     ? (extractingProgress.extracted /
                                           extractingProgress.total)
                                     : 1.0;
-                                displayText =
-                                    'EXTRACTING FILE (${extractingProgress?.extracted ?? '?'}/${extractingProgress?.total ?? '?'})';
+
+                                final extracted = extractingProgress.extracted;
+                                final total = extractingProgress.total;
+                                if (extractingProgress.total == 1) {
+                                  displayText = 'FINALIZING COLLECTION';
+                                } else {
+                                  if (currentDownload.task is CallbackTask) {
+                                    displayText =
+                                        'COPYING FILES ($extracted/$total)';
+                                  } else {
+                                    displayText =
+                                        'EXTRACTING FILE ($extracted/$total)';
+                                  }
+                                }
                               } else if (xProgress >= 1) {
-                                displayText = 'EXTRACTING FILE';
+                                if (currentDownload.task is CallbackTask) {
+                                  displayText = 'INITIALIZING DOWNLOAD';
+                                } else {
+                                  displayText = 'EXTRACTING FILE';
+                                }
                               } else {
                                 displayText =
                                     'DOWNLOADING (${(progress * 100).toInt()}% ${formatBytes((expectedFileSize * progress).toInt(), 1)}/${formatBytes(expectedFileSize, 1)})';

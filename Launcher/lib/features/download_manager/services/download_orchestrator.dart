@@ -16,6 +16,7 @@ import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_request.dart';
 import 'package:kyber_launcher/features/download_manager/services/download_link_resolver.dart';
 import 'package:kyber_launcher/features/download_manager/services/download_post_processor.dart';
+import 'package:kyber_launcher/features/download_manager/services/incremental_updater.dart';
 import 'package:kyber_launcher/features/download_manager/services/platform/download_platform_integration.dart';
 import 'package:kyber_launcher/features/download_manager/services/platform/windows_taskbar_integration.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
@@ -195,6 +196,23 @@ class DownloadOrchestrator with ChangeNotifier {
         return false;
       }
 
+      final isZipFile = extension(resolved.filename) == '.zip';
+      final useIncrementalUpdate =
+          Preferences.general.incrementalDownloadsEnabled;
+
+      if (useIncrementalUpdate && isZipFile) {
+        final updater = IncrementalUpdater();
+        final isEligible = await updater.checkEligibility(resolved.url);
+        if (isEligible) {
+          _logger.info('Using incremental update for ${request.displayName}');
+
+          return enqueueIncrementalUpdate(
+            resolved.url,
+            request: request,
+          );
+        }
+      }
+
       final result = await FileDownloader().enqueue(
         DownloadTask(
           url: resolved.url,
@@ -295,6 +313,60 @@ class DownloadOrchestrator with ChangeNotifier {
       _logger.warning('Failed to cancel download', e, s);
       return false;
     }
+  }
+
+  Future<bool> enqueueIncrementalUpdate(
+    String downloadUrl, {
+    required DownloadRequest request,
+  }) async {
+    final task = CallbackTask(
+      execute: (controller) async {
+        final updater = IncrementalUpdater();
+        final result = await updater.update(
+          downloadUrl: downloadUrl,
+          controller: controller,
+          onPhaseChanged: (phase) {
+            if (phase != .downloadingMissingMods) {
+              controller.updateProgress(1);
+            } else if (phase == .downloadingMissingMods) {
+              controller.updateProgress(0);
+            }
+          },
+          onProgress: (current, total) {
+            sl.get<DownloadOrchestrator>()._extractionProgressUpdates.add(
+              .new(current, total),
+            );
+          },
+          onDownloadProgress: (bytes, totalBytes) {
+            controller.updateBytesTransferred(
+              bytes,
+              totalBytes,
+              interval: const Duration(milliseconds: 500),
+            );
+          },
+        );
+
+        if (result) {
+          await sl.isReady<ModService>();
+          await sl.get<ModService>().refresh();
+          controller.complete();
+        } else {
+          controller.fail('Failed to apply incremental update');
+        }
+      },
+      displayName: request.displayName,
+      priority: 1,
+      metaData: _encodeMetadata(request.metadata),
+    );
+
+    final enqueued = await FileDownloader().enqueue(task);
+    if (!enqueued) {
+      _logger.warning('Failed to enqueue incremental update');
+      return false;
+    }
+
+    _logger.info('Enqueued incremental update: ${task.displayName}');
+    return true;
   }
 
   Future<void> _taskStatusCallback(TaskStatusUpdate update) async {

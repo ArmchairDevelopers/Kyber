@@ -386,14 +386,14 @@ ClassInfoAsset* EntityManager::CreateClassInfoAsset(const KyberTypeInfo& info)
 
 void KyberEntityBase::FireEvent(EventId entityEvent)
 {
-    KYBER_LOG(Info, "Firing event " << entityEvent);
-
     EntityEvent event = entityEvent;
     FullEntityBusInternalFireEventHk(m_nativeEntity->m_entityBus, reinterpret_cast<const DataContainer*>(m_data), &event);
 }
 
 void KyberEntityBase::FireEvent(const char* event)
 {
+    KYBER_LOG(Debug, "Firing event " << event);
+
     FireEvent(StringUtils::HashQuick(event));
 }
 

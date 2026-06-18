@@ -61,8 +61,8 @@ class MaximaHelper {
           .launcherClient
           .getPreloadedMods(Empty());
       final modLimit = Preferences.general.enabledPreloadMods
-          ? 247 - preloadedMods.mods.length
-          : 247;
+          ? 1739 - preloadedMods.mods.length
+          : 1739;
       if (modPaths.length >= modLimit) {
         _logger.warning('Mod limit reached: ${modPaths.length}');
 

@@ -198,7 +198,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                     ),
                                   ),
                                   Text(
-                                    '${collection.mods.length} Mods',
+                                    '${collection.getModPaths().length} Mods',
                                     style: const TextStyle(
                                       fontFamily: FontFamily.battlefrontUI,
                                       fontSize: 15,

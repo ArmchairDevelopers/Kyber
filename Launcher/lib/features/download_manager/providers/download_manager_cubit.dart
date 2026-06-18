@@ -24,6 +24,8 @@ class DownloadCubit extends Cubit<DownloadState> {
   StreamSubscription<TaskStatusUpdate>? _statusSubscription;
   StreamSubscription<ProgressUpdate>? _extractionProgressSubscription;
 
+  final _callbackTasks = <String, TaskRecord>{};
+
   Future<void> _initialize() async {
     await sl.isReady<DownloadOrchestrator>();
     final orchestrator = _orchestrator ?? sl.get<DownloadOrchestrator>();
@@ -32,7 +34,7 @@ class DownloadCubit extends Cubit<DownloadState> {
       _onProgressUpdate,
     );
     _statusSubscription = orchestrator.statusUpdates.listen(
-      (_) => _loadTasks(),
+      _onStatusUpdate,
     );
     _extractionProgressSubscription = orchestrator.extractionProgressUpdates
         .listen(_onExtractionProgressUpdate);
@@ -40,8 +42,26 @@ class DownloadCubit extends Cubit<DownloadState> {
     await _loadTasks();
   }
 
+  void _onStatusUpdate(TaskStatusUpdate update) {
+    if (update.task is CallbackTask) {
+      if (update.status.isFinalState) {
+        _callbackTasks.remove(update.task.taskId);
+      } else {
+        _callbackTasks[update.task.taskId] = TaskRecord(
+          update.task,
+          update.status,
+          0,
+          -1,
+        );
+      }
+    }
+    _loadTasks();
+  }
+
   Future<void> _loadTasks() async {
     final tasks = await _repository.getActiveTasks();
+
+    tasks.addAll(_callbackTasks.values);
 
     tasks.sort((a, b) {
       if (a.status == TaskStatus.running) {
@@ -61,6 +81,15 @@ class DownloadCubit extends Cubit<DownloadState> {
   }
 
   void _onProgressUpdate(TaskProgressUpdate update) {
+    if (update.task is CallbackTask) {
+      _callbackTasks[update.task.taskId] = TaskRecord(
+        update.task,
+        TaskStatus.running,
+        update.progress,
+        update.expectedFileSize,
+      );
+    }
+
     if (state is DownloadLoaded) {
       final currentState = state as DownloadLoaded;
       emit(currentState.copyWith(progressUpdate: update));
