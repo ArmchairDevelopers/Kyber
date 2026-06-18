@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ${{ (github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath') && 'windows-latest' || 'windows-latest-l' }}
+    runs-on: ${{ (github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath') && 'windows-2022' || 'windows-latest-l' }}
 
     env:
       working-directory: ./Launcher
