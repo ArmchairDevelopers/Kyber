@@ -19,7 +19,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ (github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath') && 'windows-latest' || 'windows-latest-l' }}
+    runs-on: ${{ (github.ref == 'refs/heads/stable') && 'windows-latest' || 'windows-latest-l' }}
 
     env:
       working-directory: ./Module
@@ -76,14 +76,14 @@ jobs:
           cp "bazel-bin/Kyber.dll" "_work/Kyber.dll"
 
       - name: upload-unsigned-artifact
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
+        if: github.ref == 'refs/heads/stable'
         id: upload-unsigned-artifact
         uses: actions/upload-artifact@v4
         with:
           path: ${{env.working-directory}}/bazel-bin/Kyber.dll
 
       - id: optional_step_id
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
+        if: github.ref == 'refs/heads/stable'
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
@@ -96,7 +96,7 @@ jobs:
           wait-for-completion-timeout-in-seconds: 36288000
 
       - name: Copy DLL
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/feat/signpath'
+        if: github.ref == 'refs/heads/stable'
         working-directory: ${{env.working-directory}}
         run: |
           cp -Force "_signed/Kyber.dll" "_work/Kyber.dll"
