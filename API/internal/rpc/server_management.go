@@ -287,7 +287,7 @@ func (s *ServerManagement) BanPlayer(ctx context.Context, req *pbapi.ServerBanPl
 	}
 
 	var expiresAt *time.Time
-	if req.Duration != nil {
+	if req.Duration != nil && req.GetDuration() > 0 {
 		expiresAt = new(time.Time)
 		*expiresAt = time.Now().Add(time.Duration(*req.Duration) * time.Second)
 	}
