@@ -1,3 +1,4 @@
+import 'package:background_downloader/background_downloader.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Button;
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -218,7 +219,7 @@ class _DownloadManagerButton extends StatelessWidget {
   }
 
   Widget buildActiveDownloadButton({required DownloadLoaded state}) {
-    final progress = switch (state.progressUpdate) {
+    var progress = switch (state.progressUpdate) {
       null => state.currentDownload?.progress ?? 1.0,
       final update => update.progress,
     };
@@ -230,6 +231,20 @@ class _DownloadManagerButton extends StatelessWidget {
     };
     final remaining = expectedSize - (expectedSize * progress).toInt();
     final remainingSizeText = formatBytes(remaining, 1);
+
+    final isExtracting = state.extractionProgressUpdate != null;
+    final extractingTotal = state.extractionProgressUpdate?.total ?? 0;
+    final extractingCurrent = state.extractionProgressUpdate?.extracted ?? 0;
+
+    final isCopyingFiles = state.currentDownload?.task is CallbackTask;
+
+    if (isExtracting || isCopyingFiles) {
+      if (extractingTotal > 0) {
+        progress = extractingCurrent / extractingTotal;
+      } else {
+        progress = 0.0;
+      }
+    }
 
     return SizedBox(
       width: 50,
@@ -262,33 +277,63 @@ class _DownloadManagerButton extends StatelessWidget {
             right: 0,
             bottom: 0,
             top: 0,
-            child: Column(
-              spacing: 5,
-              mainAxisAlignment: .center,
-              children: [
-                Text(
-                  progressText,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    height: 1,
-                    fontFeatures: [.tabularFigures()],
-                  ),
-                  textAlign: .center,
-                ),
-                Text(
-                  remainingSizeText,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 1,
-                    fontFeatures: [.tabularFigures()],
-                  ),
-                  textAlign: .center,
-                ),
-              ],
+            child: Builder(
+              builder: (context) {
+                if (isExtracting || isCopyingFiles) {
+                  return _DownloadInfo(
+                    title: const Icon(mt.Icons.file_copy),
+                    text: Text(
+                      progress >= 1.0
+                          ? 'FINALIZING'
+                          : '$extractingCurrent of $extractingTotal',
+                    ),
+                  );
+                }
+
+                return _DownloadInfo(
+                  title: Text(progressText),
+                  text: Text(remainingSizeText),
+                );
+              },
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DownloadInfo extends StatelessWidget {
+  const _DownloadInfo({required this.title, required this.text, super.key});
+
+  final Widget title;
+  final Widget text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      spacing: 5,
+      mainAxisAlignment: .center,
+      children: [
+        DefaultTextStyle(
+          style: const TextStyle(
+            fontSize: 18,
+            height: 1,
+            fontFeatures: [.tabularFigures()],
+          ),
+          textAlign: .center,
+          child: title,
+        ),
+        DefaultTextStyle(
+          style: const TextStyle(
+            fontSize: 12,
+            height: 1,
+            fontFeatures: [.tabularFigures()],
+          ),
+          textAlign: .center,
+          child: text,
+        ),
+      ],
     );
   }
 }
