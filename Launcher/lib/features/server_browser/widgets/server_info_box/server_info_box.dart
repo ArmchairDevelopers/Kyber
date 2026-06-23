@@ -531,6 +531,7 @@ class _DropdownState extends State<_Dropdown> {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: .start,
       children: [
         ButtonBuilder(
           onClick: () => setState(() => expanded = !expanded),
