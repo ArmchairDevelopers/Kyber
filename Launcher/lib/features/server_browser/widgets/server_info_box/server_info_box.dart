@@ -261,18 +261,49 @@ class _ServerInfoDropdown extends StatelessWidget {
   }
 }
 
-class _ModsDropdown extends StatelessWidget {
+class _ModsDropdown extends StatefulWidget {
   const _ModsDropdown({required this.serverInfo, super.key});
 
   final Server serverInfo;
 
   @override
+  State<_ModsDropdown> createState() => _ModsDropdownState();
+}
+
+class _ModsDropdownState extends State<_ModsDropdown> {
+  late int _installedMods;
+
+  @override
+  void initState() {
+    _setInstalledMods();
+    super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    _setInstalledMods();
+    super.didChangeDependencies();
+  }
+
+  void _setInstalledMods() {
+    final count = widget.serverInfo.mods
+        .where((e) => ModHelper.isInstalled(e.name, e.version))
+        .length;
+
+    setState(() {
+      _installedMods = count;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final modCount = widget.serverInfo.mods.length;
+
     return _Dropdown(
-      title: const Row(
+      title: Row(
         spacing: 8,
         children: [
-          Text('MODS - 1/1'),
+          Text('MODS - $_installedMods/$modCount'),
         ],
       ),
       child: Padding(
@@ -284,10 +315,10 @@ class _ModsDropdown extends StatelessWidget {
           activeIndex: -1,
           itemPadding: const .symmetric(horizontal: 10, vertical: 8),
           borderRadius: 6,
-          itemCount: serverInfo.mods.length,
+          itemCount: widget.serverInfo.mods.length,
           stateless: true,
           itemBuilder: (context, index) {
-            final mod = serverInfo.mods[index];
+            final mod = widget.serverInfo.mods[index];
             final installed = ModHelper.isInstalled(mod.name, mod.version);
 
             final color = installed ? Colors.green : Colors.red;
