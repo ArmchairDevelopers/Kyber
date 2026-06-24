@@ -112,10 +112,11 @@ class KyberStatusCubit extends Cubit<KyberStatusState> {
       }
     } catch (e) {
       if (e is GrpcError) {
-        if (e.code == StatusCode.unavailable) {
-          _logger.severe('Kyber gRPC server is unavailable...');
+        if (e.code == StatusCode.unavailable || e.code == StatusCode.unknown) {
           return;
         }
+
+        _logger.severe('GRPC Error: ${e.message}');
       }
 
       print(e);
