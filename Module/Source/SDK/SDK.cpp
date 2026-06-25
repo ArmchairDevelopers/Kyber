@@ -7,9 +7,9 @@
 #include <Utilities/PlatformUtils.h>
 #include <Core/Program.h>
 #include <SDK/Fb/Entity.h>
-#include <SDK/fb/WS.h>
 #include <Misc/PlayerGameplayManager.h>
 #include <SDK/Fb/Soldier.h>
+#include <SDK/fb/WS.h>
 
 namespace Kyber
 {

@@ -19,7 +19,7 @@ void ClientPlayerGameplayManager::OnEvent(const Event& event)
         ClientGameContext::Get()->GetPlayerManager()->GetLocalPlayer(LocalPlayerId_0)->GetCharacterEntity()
             ->SetCooldownModifier(cooldownModifiedEvent.data);
 
-        KYBER_LOG(Info, "Set Client Cooldown Modifier To" << cooldownModifiedEvent.data);
+        KYBER_LOG(Debug, "Set Client Cooldown Modifier To" << cooldownModifiedEvent.data);
     }
 }
 
