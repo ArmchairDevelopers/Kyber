@@ -9,7 +9,7 @@
 #include <SDK/Fb/Entity.h>
 #include <Misc/PlayerGameplayManager.h>
 #include <SDK/Fb/Soldier.h>
-#include <SDK/fb/WS.h>
+#include <SDK/Fb/WS.h>
 
 namespace Kyber
 {
@@ -183,7 +183,7 @@ void ClientCharacterEntity::SetCooldownModifier(float modifier)
         return;
     }
 
-    abilitySetComponent->cooldownModifier = modifier;
+    abilitySetComponent->m_cooldownModifier = modifier;
 }
 
 void ServerCharacterEntity::SetCooldownModifier(float modifier)
@@ -197,9 +197,9 @@ void ServerCharacterEntity::SetCooldownModifier(float modifier)
         return;
     }
 
-    abilitySetComponent->cooldownModifier = modifier;
+    abilitySetComponent->m_cooldownModifier = modifier;
 
-    ServerPlayerGameplayManager::SyncCooldownModifier(this->GetPlayer(), modifier);
+    ServerPlayerGameplayManager::SyncCooldownModifier(GetPlayer(), modifier);
 }
 
 void ServerCharacterEntity::Kill()

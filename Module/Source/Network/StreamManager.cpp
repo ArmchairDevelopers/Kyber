@@ -101,11 +101,11 @@ void ServerStreamedEventManager::BroadcastInternal(std::type_index typeId, Kyber
 {
     for (auto& player : g_program->m_server->m_playerManager->m_players)
     {
-        ServerConnection* connection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+        ServerConnection* connection = g_program->m_server->GetServerGameContext()->m_serverPeer->GetConnectionForPlayer(player);
         SendInternal(connection, typeId, event);
     }
 
-    // for (auto& connection : g_program->m_server->GetServerGameContext()->serverPeer->m_connections)
+    // for (auto& connection : g_program->m_server->GetServerGameContext()->m_serverPeer->m_connections)
     //{
     //     SendInternal(connection, typeId, event);
     // }

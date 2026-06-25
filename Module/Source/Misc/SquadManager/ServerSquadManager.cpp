@@ -195,7 +195,7 @@ void ServerSquadManager::SendGroupUpdatedEvent(const ServerPlayer* player)
 
     KYBER_LOG(Debug, "[SquadManager] Sent group update to: " << player->m_name);
 
-    ServerConnection* connection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+    ServerConnection* connection = g_program->m_server->GetServerGameContext()->m_serverPeer->GetConnectionForPlayer(player);
     KyberSetGroupMembersEvent* groupAssignedEvent = new (FB_GLOBAL_ARENA) KyberSetGroupMembersEvent();
     groupAssignedEvent->m_groupMembers = m_activeGroups[groupId];
     ServerStreamedEventManager::Send(connection, groupAssignedEvent);

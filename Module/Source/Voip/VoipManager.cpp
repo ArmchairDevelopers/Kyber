@@ -345,7 +345,7 @@ void VoipManager::Call(ClientUpdatePass pass)
         return;
     }
 
-    if (entity->clientSoldierPrediction == nullptr)
+    if (entity->m_clientSoldierPrediction == nullptr)
     {
         m_location.valid = false;
         m_mutex.unlock();
@@ -355,7 +355,7 @@ void VoipManager::Call(ClientUpdatePass pass)
     LinearTransform cameraTransform;
     ClientCameraViewManager_getActiveCameraTransform(player->cameraViewManager, cameraTransform);
 
-    Vec3& location = entity->clientSoldierPrediction->Location;
+    Vec3& location = entity->m_clientSoldierPrediction->Location;
     // KYBER_LOG(Info, "Player X: " << location.x << " Y: " << location.y << " Z: " << location.z << " Yaw: " << entity->Yaw
     //                              << " Pitch: " << entity->Pitch << " " << std::hex << player);
     // KYBER_LOG(Info, "Camera X: " << cameraTransform.trans.x << " Y: " << cameraTransform.trans.y << " Z: " << cameraTransform.trans.z);

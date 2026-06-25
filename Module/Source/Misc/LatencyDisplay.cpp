@@ -28,7 +28,7 @@ public:
             return;
         }
 
-        if (ClientGameContext::Get()->onlineManager == nullptr)
+        if (ClientGameContext::Get()->m_onlineManager == nullptr)
         {
             return;
         }

@@ -66,7 +66,7 @@ static int CreatePlayerFunc(lua_State* L)
     const char* playerName = luaL_checkstring(L, 1);
 
     ServerPlayer* player = ServerPlayerManager_createPlayer(
-        g_program->m_server->GetServerGameContext()->serverPlayerManager, 0, playerName, LocalPlayerId_Invalid, 0xFFFFFFFF, false, false);
+        g_program->m_server->GetServerGameContext()->GetPlayerManager(), 0, playerName, LocalPlayerId_Invalid, 0xFFFFFFFF, false, false);
 
     player->SetTeam(2);
 
@@ -82,7 +82,7 @@ static int GetPlayerFunc(lua_State* L)
     }
     const char* playerName = luaL_checkstring(L, 1);
 
-    ServerPlayer* player = g_program->m_server->GetServerGameContext()->serverPlayerManager->GetPlayer(playerName);
+    ServerPlayer* player = g_program->m_server->GetServerGameContext()->GetPlayerManager()->GetPlayer(playerName);
     if (player == nullptr)
     {
         lua_pushnil(L);
@@ -104,7 +104,7 @@ static int GetPlayersFunc(lua_State* L)
         return 1;
     }
 
-    auto& playerList = serverGameContext->serverPlayerManager->m_players;
+    auto& playerList = serverGameContext->m_serverPlayerManager->m_players;
 
     lua_createtable(L, playerList.size(), 0);
 
@@ -328,6 +328,7 @@ static int ServerPlayerSetInvisible(lua_State* L)
     {
         return 0;
     }
+    
     bool setInvisible = lua_toboolean(L, 2);
 
     if (!player->GetCharacterEntity())
@@ -501,7 +502,7 @@ static int ServerPlayerSendSyncedSettings(lua_State* L)
         return 0;
     }
 
-    ServerConnection* playerConnection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+    ServerConnection* playerConnection = g_program->m_server->GetServerGameContext()->m_serverPeer->GetConnectionForPlayer(player);
     sendPlayerSyncedGameSettings(nullptr, playerConnection);
     return 0;
 }
@@ -536,6 +537,7 @@ static int ServerPlayerSetImmortal(lua_State* L)
     {
         return 0;
     }
+
     bool isImmortal = lua_toboolean(L, 2);
 
     static_cast<WSServerSoldierHealthComponent*>(player->GetCharacterEntity()->GetHealthComponent())->SetIsImmortal(isImmortal);
@@ -554,6 +556,7 @@ static int ServerPlayerSetFakeImmortal(lua_State* L)
     {
         return 0;
     }
+
     bool isFakeImmortal = lua_tonumber(L, 2);
 
     static_cast<WSServerSoldierHealthComponent*>(player->GetCharacterEntity()->GetHealthComponent())->SetIsFakeImmortal(isFakeImmortal);
@@ -572,6 +575,7 @@ static int SetExplosionDamageModifier(lua_State* L)
     {
         return 0;
     }
+
     float value = lua_tonumber(L, 2);
 
     static_cast<WSServerSoldierHealthComponent*>(player->GetCharacterEntity()->GetHealthComponent())->SetExplosionDamageModifier(value);
@@ -590,6 +594,7 @@ static int SetMoveSpeedMultiplier(lua_State* L)
     {
         return 0;
     }
+
     float value = lua_tonumber(L, 2);
 
     player->GetCharacterEntity()->SetMoveSpeedMultiplier(value);
@@ -608,6 +613,7 @@ static int SetCooldownModifier(lua_State* L)
     {
         return 0;
     }
+
     float value = lua_tonumber(L, 2);
 
     player->GetCharacterEntity()->SetCooldownModifier(value);

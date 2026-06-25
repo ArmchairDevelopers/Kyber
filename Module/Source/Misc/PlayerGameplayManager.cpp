@@ -5,7 +5,6 @@
 
 namespace Kyber
 {
-
 ClientPlayerGameplayManager::ClientPlayerGameplayManager(EventManager* clientEventManager)
 {
     clientEventManager->RegisterListener<CooldownModifierStreamedEvent>(this);
@@ -25,7 +24,7 @@ void ClientPlayerGameplayManager::OnEvent(const Event& event)
 
 void ServerPlayerGameplayManager::SyncCooldownModifier(ServerPlayer* player, float modifier)
 {
-    ServerConnection* connection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+    ServerConnection* connection = g_program->m_server->GetServerGameContext()->m_serverPeer->GetConnectionForPlayer(player);
     CooldownModifierStreamedEvent* groupAssignedEvent = new (FB_GLOBAL_ARENA) CooldownModifierStreamedEvent();
     groupAssignedEvent->data = modifier;
     ServerStreamedEventManager::Send(connection, groupAssignedEvent);

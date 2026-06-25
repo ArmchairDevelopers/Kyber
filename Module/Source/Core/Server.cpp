@@ -233,7 +233,7 @@ void Server::Start(const ServerCreationInfo& info, bool changeState)
 
 void Server::KickPlayer(ServerPlayer* player, const char* reason)
 {
-    ServerConnection* serverConnection = GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+    ServerConnection* serverConnection = GetServerGameContext()->m_serverPeer->GetConnectionForPlayer(player);
     serverConnection->SafeDisconnect(reason, SecureReason_KickedByAdmin);
 
     SendConsoleMessage(
@@ -328,7 +328,7 @@ void Server::SendChatMessage(ServerPlayer* player, const std::string& message)
     dummyPlayer.m_teamId = kServerTeamAdminMarker;
     memset(dummyPlayer.m_onlineId.m_id, 0, sizeof(OnlineId::m_id));
 
-    ServerConnection* serverConnection = GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+    ServerConnection* serverConnection = GetServerGameContext()->m_serverPeer->GetConnectionForPlayer(player);
     serverConnection->SendChatMessage(ChatChannel_Admin, message.c_str(), dummyPlayer.m_onlineId);
 }
 
@@ -513,7 +513,7 @@ void OnlineServerPlayerExtentUpdateHk(OnlineServerPlayerExtent* inst, float delt
             }
         }
 
-        ServerConnection* serverConnection = g_program->m_server->GetServerGameContext()->serverPeer->GetConnectionForPlayer(player);
+        ServerConnection* serverConnection = g_program->m_server->GetServerGameContext()->m_serverPeer->GetConnectionForPlayer(player);
         serverConnection->SafeDisconnect("AFK timeout threshold exceeded.", SecureReason_InteractivityTimeout);
 
         g_program->m_server->SendConsoleMessage(

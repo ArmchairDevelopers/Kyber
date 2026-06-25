@@ -125,7 +125,7 @@ eastl::string ConsoleRegistryExecuteConsoleCommandHk(const char* cmdString, bool
 void SendStatsCommand(ConsoleContext& cc)
 {
     KYBER_LOG(Info, "Dispatching message");
-    void* messageManager = g_program->m_server->GetServerGameContext()->messageManager;
+    void* messageManager = g_program->m_server->GetServerGameContext()->m_messageManager;
     __int64 test[7];
     SendStatProgressMessageCtorHk(test, 0x7C89B9B7, 0x933E652C, 0xFF);
     *test = (__int64)0x1431E06F0;
@@ -163,7 +163,7 @@ void ClientPlayerExtentDebugCommand(ConsoleContext& cc)
         return;
     }
 
-    ClientPlayer* player = ClientGameContext::Get()->clientPlayerManager->GetLocalPlayer(LocalPlayerId_0);
+    ClientPlayer* player = ClientGameContext::Get()->m_clientPlayerManager->GetLocalPlayer(LocalPlayerId_0);
     KYBER_LOG(Info, "----- Client Player Extents -----");
 
     PlayerExtentRegistration* extentRegistration = *reinterpret_cast<PlayerExtentRegistration**>(0x143EE7850);
@@ -235,8 +235,8 @@ void TestSetAbility(ConsoleContext& cc)
     message->abilityId = abilityId;
     message->playerAbilityCategory = slot;
 
-    g_program->m_server->GetServerGameContext()->serverPeer->SendMessage(message);
-    g_program->m_server->GetServerGameContext()->messageManager->QueueMessage(reinterpret_cast<Message*>(message), 0.0f);
+    g_program->m_server->GetServerGameContext()->m_serverPeer->SendMessage(message);
+    g_program->m_server->GetServerGameContext()->m_messageManager->QueueMessage(reinterpret_cast<Message*>(message), 0.0f);
 
     cc << "Done";
 }
@@ -290,7 +290,7 @@ void SaveLocationCommand(ConsoleContext& cc)
         return;
     }
 
-    Vec3 location = entity->clientSoldierPrediction->Location;
+    Vec3 location = entity->m_clientSoldierPrediction->Location;
     KYBER_LOG(Info, "Player X: " << location.x << " Y: " << location.y << " Z: " << location.z);
 
     std::ofstream outfile;
@@ -393,7 +393,7 @@ void FullTeamSwapCommand(ConsoleContext& cc)
         return;
     }
 
-    auto& playerList = g_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
+    auto& playerList = g_program->m_server->GetServerGameContext()->GetPlayerManager()->m_players;
     for (ServerPlayer* player : playerList)
     {
         if (player == nullptr || player->IsAIPlayer())
@@ -418,7 +418,7 @@ void ShuffleTeamsCommand(ConsoleContext& cc)
     eastl::vector<ServerPlayer*> players;
     players.reserve(64);
 
-    auto& playerList = g_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
+    auto& playerList = g_program->m_server->GetServerGameContext()->GetPlayerManager()->m_players;
     for (ServerPlayer* player : playerList)
     {
         if (player == nullptr || player->IsAIPlayer())
@@ -555,7 +555,7 @@ void TeleportCommand(ConsoleContext& cc)
         return;
     }
 
-    ServerPlayer* player = g_program->m_server->GetServerGameContext()->serverPlayerManager->GetPlayer(playerName.c_str());
+    ServerPlayer* player = g_program->m_server->GetServerGameContext()->GetPlayerManager()->GetPlayer(playerName.c_str());
     if (player == nullptr)
     {
         cc << "Couldn't find player " << playerName;
@@ -564,7 +564,7 @@ void TeleportCommand(ConsoleContext& cc)
 
     LinearTransform transform;
 
-    ServerPlayer* otherPlayer = g_program->m_server->GetServerGameContext()->serverPlayerManager->GetPlayer(otherPlayerOrX.c_str());
+    ServerPlayer* otherPlayer = g_program->m_server->GetServerGameContext()->GetPlayerManager()->GetPlayer(otherPlayerOrX.c_str());
     if (otherPlayer != nullptr)
     {
         SpatialEntity* otherPlayerEntity;

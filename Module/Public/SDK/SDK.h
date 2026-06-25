@@ -751,10 +751,10 @@ class ServerGameContext
 {
 public:
     char pad_0000[16];                        // 0x0000
-    MessageManager* messageManager;           // 0x0010
+    MessageManager* m_messageManager;           // 0x0010
     char pad_0018[64];                        // 0x0018
-    ServerPlayerManager* serverPlayerManager; // 0x0058
-    ServerPeer* serverPeer;                   // 0x0060
+    ServerPlayerManager* m_serverPlayerManager; // 0x0058
+    ServerPeer* m_serverPeer;                   // 0x0060
 
     static ServerGameContext* Get()
     {
@@ -763,12 +763,7 @@ public:
 
     ServerPlayerManager* GetPlayerManager()
     {
-        if (this != nullptr)
-        {
-            return this->serverPlayerManager;
-        }
-
-        return nullptr;
+        return m_serverPlayerManager;
     }
 }; // Size: 0x0890
 
@@ -1011,29 +1006,19 @@ public:
     char pad_0000[56];                          // 0x0000
     void* clientLevel;                          // 0x0038
     char pad_0040[24];                          // 0x0040
-    ClientPlayerManager* clientPlayerManager;   // 0x0058
-    OnlineManager* onlineManager;               // 0x0060
-    ClientGameView* gameViews[2];               // 0x0068
+    ClientPlayerManager* m_clientPlayerManager;   // 0x0058
+    OnlineManager* m_onlineManager;               // 0x0060
+    ClientGameView* m_gameViews[2];               // 0x0068
     char pad_0060[232];                         // 0x0068
 
     ClientPlayerManager* GetPlayerManager()
     {
-        if (this != nullptr)
-        {
-            return this->clientPlayerManager;
-        }
-
-        return nullptr;
+        return m_clientPlayerManager;
     }
 
     OnlineManager* GetOnlineManager()
     {
-        if (this != nullptr)
-        {
-            return this->onlineManager;
-        }
-
-        return nullptr;
+        return m_onlineManager;
     }
 
     static ClientGameContext* Get()
@@ -2100,14 +2085,14 @@ class WSClientPlayerAbilitySetComponent : public Component
 {
 public:
     char pad_0000[0x140];
-    float cooldownModifier;    // 0x160
+    float m_cooldownModifier;    // 0x160
 };
 
 class WSServerPlayerAbilitySetComponent : public Component
 {
 public:
     char pad_0000[0xC98];
-    float cooldownModifier;    // 0xCB8
+    float m_cooldownModifier;    // 0xCB8
 };
 
 class HealthComponent : public Component
@@ -2195,23 +2180,20 @@ class ClientCharacterEntity : public ComponentEntity
 {
 public:
     char pad_0000[640];                                               // 0x0048
-    class ClientSoldierHealthComponent* clientSoldierHealthComponent; // 0x02C8
+    class ClientSoldierHealthComponent* m_clientSoldierHealthComponent; // 0x02C8
     char pad_02D0[104];                                               // 0x02D0
-    class SoldierBlueprint* soldierBlueprint;                         // 0x0338
+    class SoldierBlueprint* m_soldierBlueprint;                         // 0x0338
     char pad_0340[632];                                               // 0x0340
     float N000001AE;                                                  // 0x05B8
     float Yaw;                                                        // 0x05BC
     float Pitch;                                                      // 0x05C0
     char pad_05C4[404];                                               // 0x05C4
-    ClientSoldierPrediction* clientSoldierPrediction;                 // 0x0758
+    ClientSoldierPrediction* m_clientSoldierPrediction;                 // 0x0758
     char pad_0760[2488];                                              // 0x0760
 
-    SoldierBlueprint* GetSoldierBlueprint()
-    {
-        if (this != nullptr && this->soldierBlueprint != nullptr)
-        {
-            return this->soldierBlueprint;
-        }
+    SoldierBlueprint* GetSoldierBlueprint() const 
+    { 
+        return m_soldierBlueprint; 
     }
 
     void SetCooldownModifier(float modifier);
