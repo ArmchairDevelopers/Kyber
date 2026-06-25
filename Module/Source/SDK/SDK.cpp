@@ -7,6 +7,8 @@
 #include <Utilities/PlatformUtils.h>
 #include <Core/Program.h>
 #include <SDK/Fb/Entity.h>
+#include <SDK/fb/WS.h>
+#include <Misc/PlayerGameplayManager.h>
 #include <SDK/Fb/Soldier.h>
 
 namespace Kyber
@@ -14,6 +16,8 @@ namespace Kyber
 void** g_entityWorld = (void**)0x143FCB370;
 GameWorld** g_gameWorld = (GameWorld**)0x143EEC298;
 void** g_gameContext = (void**)0x143EFABD0;
+
+PlayerExtentRegistration* ClientGamePlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143A8A3E0);
 
 PlayerExtentRegistration* ServerGamePlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143A8C2A0);
 PlayerExtentRegistration* OnlineServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB4F30);
@@ -26,7 +30,7 @@ TL_DECLARE_FUNC(0x140C45C30, __int64, ServerTeleportEntity_clearNewPosition, voi
     const LinearTransform& transform);
 
 TL_DECLARE_FUNC(
-    0x140AF1290, void, ClientCharacterEntity_onSetNetState, ClientSoldierEntity* inst, const CharacterEntityNetState& netState, __int64 a3);
+    0x140AF1290, void, ClientCharacterEntity_onSetNetState, ClientCharacterEntity* inst, const CharacterEntityNetState& netState, __int64 a3);
 
 TL_DECLARE_FUNC(0x148373280, void, WeaponFiring_setPrimaryAmmoMags, const WeaponFiring* inst, int mags);
 TL_DECLARE_FUNC(0x146C500C0, void, IServerNetworkable_stateChanged, void* gameContext, uint16_t flags);
@@ -117,6 +121,11 @@ void ServerPlayer::SendChatMessage(ChatChannel channel, const char* message) con
     Server_sendChatMessage(channel, message, this);
 }
 
+ClientCharacterEntity* ClientPlayer::GetCharacterEntity()
+{
+    return reinterpret_cast<ClientCharacterEntity*>(GetClientGamePlayerExtent()->GetCharacter());
+}
+
 ServerCharacterEntity* ServerPlayer::GetCharacterEntity()
 {
     return reinterpret_cast<ServerCharacterEntity*>(GetServerGamePlayerExtent()->GetCharacter());
@@ -127,12 +136,12 @@ ServerVehicleEntity* ServerPlayer::GetVehicleEntity()
     return reinterpret_cast<ServerVehicleEntity*>(GetServerGamePlayerExtent()->GetVehicle());
 }
 
-void ClientSoldierEntity::Teleport(const LinearTransform& transform)
+void ClientCharacterEntity::Teleport(const LinearTransform& transform)
 {
     CharacterEntityNetState netState;
     netState.m_dirtyStates = 1;
     netState.m_transform = transform;
-    ClientCharacterEntity_onSetNetState(reinterpret_cast<ClientSoldierEntity*>(reinterpret_cast<uintptr_t>(this) + 8), netState, 0);
+    ClientCharacterEntity_onSetNetState(reinterpret_cast<ClientCharacterEntity*>(reinterpret_cast<uintptr_t>(this) + 8), netState, 0);
 }
 
 bool ServerPlayer::Teleport(const LinearTransform& transform)
@@ -161,6 +170,37 @@ void ServerPlayer::ForceSendChatMessage(ChatChannel channel, const char* message
     Server_sendChatMessage(channel, message, this);
 }
 
+void ClientCharacterEntity::SetCooldownModifier(float modifier)
+{
+    KYBER_LOG(Info, "ClientCharacterEntity" << std::hex << this);
+
+    WSClientPlayerAbilitySetComponent* abilitySetComponent = 
+        static_cast<WSClientPlayerAbilitySetComponent*>(GetComponentByType(typeInfo_WSClientPlayerAbilitySetComponent));
+
+    if (abilitySetComponent == nullptr)
+    {
+        KYBER_LOG(Debug, "Failed to find WSClientPlayerAbilitySetComponent");
+        return;
+    }
+
+    abilitySetComponent->cooldownModifier = modifier;
+}
+
+void ServerCharacterEntity::SetCooldownModifier(float modifier)
+{
+    WSServerPlayerAbilitySetComponent* abilitySetComponent = 
+        static_cast<WSServerPlayerAbilitySetComponent*>(GetComponentByType(typeInfo_WSServerPlayerAbilitySetComponent));
+
+    if (abilitySetComponent == nullptr)
+    {
+        KYBER_LOG(Debug, "Failed to find WSServerPlayerAbilitySetComponent");
+        return;
+    }
+
+    abilitySetComponent->cooldownModifier = modifier;
+
+    ServerPlayerGameplayManager::SyncCooldownModifier(this->GetPlayer(), modifier);
+}
 
 void ServerCharacterEntity::Kill()
 {
@@ -222,23 +262,6 @@ void WeaponFiring::SetPrimaryAmmoMags(int mags) const
     WeaponFiring_setPrimaryAmmoMags(this, mags);
 }
 
-ServerPlayer* ServerPlayerManager::GetPlayerOrSpectator(uint64_t id)
-{
-    ServerPlayer* player = GetPlayer(id);
-    if (player != nullptr)
-    {
-        return player;
-    }
-
-    player = GetSpectator(id);
-    if (player != nullptr)
-    {
-        return player;
-    }
-
-    return nullptr;
-}
-
 void ComponentEntity::DebugLogAllComponents()
 {
     KYBER_ASSERT(IsComponent());
@@ -256,6 +279,65 @@ void ComponentEntity::DebugLogAllComponents()
     }
 
     KYBER_LOG(Info, "----- Debug Components List End -----");
+}
+
+ClientPlayer* ClientPlayerManager::GetPlayer(uint64_t id)
+{
+    for (const auto& player : m_players)
+    {
+        // client player ids need to be updated by blaze for this to work properly
+        if (player && player->m_onlineId.m_nativeData == id)
+        {
+            return player;
+        }
+    }
+
+    return nullptr;
+}
+
+ClientPlayer* ClientPlayerManager::GetPlayer(const char* name)
+{
+    for (const auto& player : m_players)
+    {
+        if (strcmp(player->m_name, name) != 0)
+        {
+            continue;
+        }
+
+        return player;
+    }
+
+    return nullptr;
+}
+
+ClientPlayer* ClientPlayerManager::GetLocalPlayer(LocalPlayerId localPlayerId)
+{
+    for (const auto& player : m_localPlayers)
+    {
+        if (player && player->m_localPlayerId == localPlayerId)
+        {
+            return player;
+        }
+    }
+
+    return nullptr;
+}
+
+ServerPlayer* ServerPlayerManager::GetPlayerOrSpectator(uint64_t id)
+{
+    ServerPlayer* player = GetPlayer(id);
+    if (player != nullptr)
+    {
+        return player;
+    }
+
+    player = GetSpectator(id);
+    if (player != nullptr)
+    {
+        return player;
+    }
+
+    return nullptr;
 }
 
 ServerPlayer* ServerPlayerManager::GetPlayerOrSpectator(const char* name)

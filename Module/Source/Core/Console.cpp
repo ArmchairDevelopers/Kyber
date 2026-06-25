@@ -163,7 +163,7 @@ void ClientPlayerExtentDebugCommand(ConsoleContext& cc)
         return;
     }
 
-    ClientPlayer* player = ClientGameContext::Get()->playerManager->GetLocalPlayer(LocalPlayerId_0);
+    ClientPlayer* player = ClientGameContext::Get()->clientPlayerManager->GetLocalPlayer(LocalPlayerId_0);
     KYBER_LOG(Info, "----- Client Player Extents -----");
 
     PlayerExtentRegistration* extentRegistration = *reinterpret_cast<PlayerExtentRegistration**>(0x143EE7850);
@@ -282,9 +282,9 @@ void LogMemoryLeakCommand(ConsoleContext& cc)
 
 void SaveLocationCommand(ConsoleContext& cc)
 {
-    // ClientSoldierEntity* entity = ClientGameContext::Get()->GetPlayerManager()->GetLocalPlayer()->controlledControllable;
+    // ClientCharacterEntity* entity = ClientGameContext::Get()->GetPlayerManager()->GetLocalPlayer()->controlledControllable;
 
-    ClientSoldierEntity* entity = nullptr;
+    ClientCharacterEntity* entity = nullptr;
     if (entity == nullptr)
     {
         return;

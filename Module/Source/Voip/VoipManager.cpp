@@ -330,7 +330,7 @@ void VoipManager::Call(ClientUpdatePass pass)
         return;
     }
 
-    ClientSoldierEntity* entity = player->controlledControllable;
+    ClientCharacterEntity* entity = player->controlledControllable;
     if (entity == nullptr)
     {
         m_location.valid = false;

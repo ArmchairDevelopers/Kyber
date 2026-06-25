@@ -23,6 +23,7 @@ Client::Client()
     , m_socketManager(nullptr)
     , m_eventManager(new EventManager())
     , m_squadManager(new ClientSquadManager(m_eventManager))
+    , m_gameplayManager(new ClientPlayerGameplayManager(m_eventManager))
     , m_clientState(ClientState_None)
 {
     m_eventManager->RegisterListener<MainLoopInitJoinServerEvent>(this);

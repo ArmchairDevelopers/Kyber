@@ -760,6 +760,16 @@ public:
     {
         return *reinterpret_cast<ServerGameContext**>(0x143EC7238);
     }
+
+    ServerPlayerManager* GetPlayerManager()
+    {
+        if (this != nullptr)
+        {
+            return this->serverPlayerManager;
+        }
+
+        return nullptr;
+    }
 }; // Size: 0x0890
 
 class VehicleEntityData
@@ -830,32 +840,6 @@ public:
     LinearTransform m_transform; // 0x0020
 };
 
-class ClientSoldierEntity : public TypeObject
-{
-public:
-    char pad_0000[704];                                               // 0x0000
-    class ClientSoldierHealthComponent* clientSoldierHealthComponent; // 0x02C8
-    char pad_02D0[104];                                               // 0x02D0
-    class SoldierBlueprint* soldierBlueprint;                         // 0x0338
-    char pad_0340[632];                                               // 0x0340
-    float N000001AE;                                                  // 0x05B8
-    float Yaw;                                                        // 0x05BC
-    float Pitch;                                                      // 0x05C0
-    char pad_05C4[404];                                               // 0x05C4
-    ClientSoldierPrediction* clientSoldierPrediction;                 // 0x0758
-    char pad_0760[2488];                                              // 0x0760
-
-    SoldierBlueprint* GetSoldierBlueprint()
-    {
-        if (this != nullptr && this->soldierBlueprint != nullptr)
-        {
-            return this->soldierBlueprint;
-        }
-    }
-
-    void Teleport(const LinearTransform& transform);
-}; // Size: 0x0840
-
 class AimingData3
 {
 public:
@@ -894,32 +878,85 @@ public:
     }
 }; // Size: 0x00C8
 
+class ClientPlayer;
+class ServerPlayerExtent;
+
+struct PlayerExtentRegistration
+{
+    using ctorFunc_t = ServerPlayerExtent* (*)(ServerPlayerExtent*);
+    using dtorFunc_t = ctorFunc_t;
+    
+    uint32_t offset;
+    uint32_t size;
+    uint32_t alignment;
+    char pad_0C[4];
+    const char* typeName;
+    const char* parentTypeName;
+    ctorFunc_t ctorFunc;
+    dtorFunc_t dtorFunc;
+    void* nullFunction;
+    PlayerExtentRegistration* next;
+};
+
+class ClientPlayerExtent : public TypeObject
+{};
+
+#define KB_DECLARE_CLIENTPLAYEREXTENT_MEMBERS()                                                                                            \
+    static PlayerExtentRegistration* s_registration;                                                                                       \
+    ClientPlayer* GetPlayer()                                                                                                              \
+    {                                                                                                                                      \
+        return reinterpret_cast<ClientPlayer*>(reinterpret_cast<uint8_t*>(this) - s_registration->offset);                                 \
+    }
+
+class ClientGamePlayerExtent : public ClientPlayerExtent
+{
+public:
+    KB_DECLARE_CLIENTPLAYEREXTENT_MEMBERS();
+
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1466C8020, TypeObject*, GetCharacter)
+};
+
+#define KB_DECLARE_CLIENTPLAYEREXTENT(name)                                                                                                \
+    inline name* Get##name() const                                                                                                         \
+    {                                                                                                                                      \
+        return reinterpret_cast<name*>(GetExtent(name::s_registration));                                                                   \
+    }
+
 class ClientPlayer
 {
 public:
     virtual void unk1() {};
-    class PlayerData* m_data;         // 0x0008
-    class MemoryArena* m_memoryArena; // 0x0010
-    const char* m_name;               // 0x0018
-    char pad_0020[24];                // 0x0020
-    LocalPlayerId m_localPlayerId;
-    uint32_t m_analogInputEnableMask;
-    uint64_t m_digitalInputEnableMask;
-    char pad_0048[16]; // 0x0048
-    int32_t m_teamId;  // 0x0058
-    char pad[4];
-    OnlineId m_onlineId;
-    char pad_005C[392];                               // 0x005C
-    class AttachedControllable* attachedControllable; // 0x0200
-    char pad_0208[8];                                 // 0x0208
+    class PlayerData* m_data;                           // 0x0008
+    class MemoryArena* m_memoryArena;                   // 0x0010
+    const char* m_name;                                 // 0x0018
+    char pad_0020[24];                                  // 0x0020
+    LocalPlayerId m_localPlayerId;                      // 0x0038
+    uint32_t m_analogInputEnableMask;                   // 0x003C
+    uint64_t m_digitalInputEnableMask;                  // 0x0040
+    char pad_0048[16];                                  // 0x0048
+    int32_t m_teamId;                                   // 0x0058
+    char pad[4];                                        // 0x005C
+    OnlineId m_onlineId;                                // 0x0060
+    char pad_005C[392];                                 // 0x005C
+    class AttachedControllable* attachedControllable;   // 0x0200
+    char pad_0208[8];                                   // 0x0208
 
     // Beware that this may not actually be a soldier entity.
     // Always check if the type equals "WSClientSoldierEntity"
     // before using fields specific to that type.
-    class ClientSoldierEntity* controlledControllable; // 0x0210
+    class ClientCharacterEntity* controlledControllable; // 0x0210
 
     char pad_0218[16];                                // 0x0218
     class ClientCameraViewManager* cameraViewManager; // 0x0228
+    
+    ClientCharacterEntity* GetCharacterEntity();
+
+    ClientPlayerExtent* GetExtent(const PlayerExtentRegistration* registrar) const
+    {
+        return reinterpret_cast<ClientPlayerExtent*>(reinterpret_cast<uintptr_t>(this) + registrar->offset);
+    }
+
+    KB_DECLARE_CLIENTPLAYEREXTENT(ClientGamePlayerExtent)
 }; // Size: 0x298
 
 class ClientPlayerManager
@@ -935,31 +972,10 @@ public:
     eastl::fixed_vector<ClientPlayer*, 64> m_spectators;   // 0x00C8
     eastl::fixed_vector<ClientPlayer*, 64> m_localPlayers; // 0x00C8
 
-    ClientPlayer* GetLocalPlayer(LocalPlayerId localPlayerId)
-    {
-        for (const auto& player : m_localPlayers)
-        {
-            if (player && player->m_localPlayerId == localPlayerId)
-            {
-                return player;
-            }
-        }
+    ClientPlayer* GetLocalPlayer(LocalPlayerId localPlayerId);
 
-        return nullptr;
-    }
-
-    ClientPlayer* GetPlayer(uint64_t playerId)
-    {
-        for (const auto& player : m_players)
-        {
-            if (player && player->m_onlineId.m_nativeData == playerId)
-            {
-                return player;
-            }
-        }
-
-        return nullptr;
-    }
+    ClientPlayer* GetPlayer(uint64_t id);
+    ClientPlayer* GetPlayer(const char* name);
 
 }; // Size: 0x2258
 
@@ -992,19 +1008,19 @@ public:
 class ClientGameContext
 {
 public:
-    char pad_0000[56];                  // 0x0000
-    void* clientLevel;                  // 0x0038
-    char pad_0040[24];                  // 0x0040
-    ClientPlayerManager* playerManager; // 0x0058
-    OnlineManager* onlineManager;       // 0x0060
-    ClientGameView* gameViews[2];       // 0x0068
-    char pad_0060[232];                 // 0x0068
+    char pad_0000[56];                          // 0x0000
+    void* clientLevel;                          // 0x0038
+    char pad_0040[24];                          // 0x0040
+    ClientPlayerManager* clientPlayerManager;   // 0x0058
+    OnlineManager* onlineManager;               // 0x0060
+    ClientGameView* gameViews[2];               // 0x0068
+    char pad_0060[232];                         // 0x0068
 
     ClientPlayerManager* GetPlayerManager()
     {
         if (this != nullptr)
         {
-            return this->playerManager;
+            return this->clientPlayerManager;
         }
 
         return nullptr;
@@ -1239,23 +1255,6 @@ class ServerVehicleEntity;
 class ServerPlayerExtent : public TypeObject
 {};
 
-struct PlayerExtentRegistration
-{
-    using ctorFunc_t = ServerPlayerExtent* (*)(ServerPlayerExtent*);
-    using dtorFunc_t = ctorFunc_t;
-    
-    uint32_t offset;
-    uint32_t size;
-    uint32_t alignment;
-    char pad_0C[4];
-    const char* typeName;
-    const char* parentTypeName;
-    ctorFunc_t ctorFunc;
-    dtorFunc_t dtorFunc;
-    void* nullFunction;
-    PlayerExtentRegistration* next;
-};
-
 #define KB_DECLARE_SERVERPLAYEREXTENT_MEMBERS()                                                                                            \
     static PlayerExtentRegistration* s_registration;                                                                                       \
     ServerPlayer* GetPlayer()                                                                                                              \
@@ -1453,6 +1452,7 @@ public:
 
     KB_DECLARE_GAMEMEMBERFUNC(0x140BE9C10, void, SetTeam, (teamId), int teamId)
     KB_DECLARE_GAMEMEMBERFUNC(0x14686C3A0, void, SetInputEnabled, (inputAction, enabled), int inputAction, bool enabled)
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x140BE2260, bool, IsAlive)
 
     ServerCharacterEntity* GetCharacterEntity();
     ServerVehicleEntity* GetVehicleEntity();
@@ -2089,11 +2089,25 @@ static_assert(sizeof(ComponentContainer) == 0x10);
 class ComponentEntity : public SpatialEntity
 {
 public:
-    KB_DECLARE_GAMEMEMBERFUNC(0x14116D630, Component*, GetComponentByType, (typeInfo), TypeInfo* typeInfo)
+    KB_DECLARE_GAMEMEMBERFUNC(0x14116D630, Component*, GetComponentByType, (typeInfo), const TypeInfo* typeInfo)
 
     void DebugLogAllComponents();
 
     ComponentContainer* m_componentContainer;
+};
+
+class WSClientPlayerAbilitySetComponent : public Component
+{
+public:
+    char pad_0000[0x140];
+    float cooldownModifier;    // 0x160
+};
+
+class WSServerPlayerAbilitySetComponent : public Component
+{
+public:
+    char pad_0000[0xC98];
+    float cooldownModifier;    // 0xCB8
 };
 
 class HealthComponent : public Component
@@ -2161,6 +2175,13 @@ public:
     float m_regenDelay;          // 0x0678
     char pad_067C[372];          // 0x067C
 
+    KB_DECLARE_GAMEMEMBERFUNC(0x148E6F1D0, void, SetIsImmortal, (isImmortal), bool isImmortal)
+    KB_DECLARE_GAMEMEMBERFUNC(0x148E6ED80, void, SetIsFakeImmortal, (isFakeImmortal), bool isFakeImmortal)
+    KB_DECLARE_GAMEMEMBERFUNC(0x148E6EC30, void, SetExplosionDamageModifier, (modifier), float modifier)
+
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x148E66FC0, bool, isDead)
+    KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x148E669F0, bool, isAlive)
+
     void SetStateChanged(int index);
     void SetMaxHealth(float value);
     void SetRegenerationPerSecond(float value);
@@ -2170,6 +2191,33 @@ public:
 class ClientSoldierHealthComponent : public HealthComponent
 {};
 
+class ClientCharacterEntity : public ComponentEntity
+{
+public:
+    char pad_0000[640];                                               // 0x0048
+    class ClientSoldierHealthComponent* clientSoldierHealthComponent; // 0x02C8
+    char pad_02D0[104];                                               // 0x02D0
+    class SoldierBlueprint* soldierBlueprint;                         // 0x0338
+    char pad_0340[632];                                               // 0x0340
+    float N000001AE;                                                  // 0x05B8
+    float Yaw;                                                        // 0x05BC
+    float Pitch;                                                      // 0x05C0
+    char pad_05C4[404];                                               // 0x05C4
+    ClientSoldierPrediction* clientSoldierPrediction;                 // 0x0758
+    char pad_0760[2488];                                              // 0x0760
+
+    SoldierBlueprint* GetSoldierBlueprint()
+    {
+        if (this != nullptr && this->soldierBlueprint != nullptr)
+        {
+            return this->soldierBlueprint;
+        }
+    }
+
+    void SetCooldownModifier(float modifier);
+    void Teleport(const LinearTransform& transform);
+}; // Size: 0x0840
+
 class ServerCharacterEntity : public ComponentEntity
 {
 public:
@@ -2178,8 +2226,15 @@ public:
         return *reinterpret_cast<HealthComponent**>(reinterpret_cast<intptr_t>(this) + 0x2C0);
     }
 
+    ServerPlayer* GetPlayer() const 
+    {
+        return *reinterpret_cast<ServerPlayer**>(reinterpret_cast<intptr_t>(this) + 0x2B8);
+    }
+
     KB_DECLARE_GAMEMEMBERFUNC(0x140C25490, void*, Teleport, (transform, a3), const LinearTransform& transform, bool a3)
-    KB_DECLARE_GAMEMEMBERFUNC(0x147ECBEC0, void, ForceInvisible, (forceInvisible), bool forceInvisible)
+    KB_DECLARE_GAMEMEMBERFUNC(0x147ECBEC0, void, SetInvisible, (forceInvisible), bool forceInvisible)
+    KB_DECLARE_GAMEMEMBERFUNC(0x1416BD470, void, SetMoveSpeedMultiplier, (multiplier), float multiplier)
+    KB_DECLARE_GAMEMEMBERFUNC(0x140C23950, void, DisableCollision, (unk0, unk1), int unk0, int unk1)
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x147ECA8E0, ServerSoldierWeapon*, GetCurrentWeapon)
 
     void Teleport(const LinearTransform& trans)
@@ -2187,6 +2242,7 @@ public:
         Teleport(trans, false);
     }
 
+    void SetCooldownModifier(float modifier);
     void Kill();
 };
 
