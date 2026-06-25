@@ -19,6 +19,7 @@ import 'package:kyber_launcher/features/download_manager/repositories/download_r
 import 'package:kyber_launcher/features/download_manager/services/download_orchestrator.dart';
 import 'package:kyber_launcher/features/download_manager/services/mod_bridge_service.dart';
 import 'package:kyber_launcher/features/kyber/helper/kyber_server_helper.dart';
+import 'package:kyber_launcher/features/kyber/providers/kyber_proxy_cubit.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_status_cubit.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_cubit.dart';
@@ -614,7 +615,7 @@ class SessionCubit extends Cubit<SessionState> {
           final _ = switch (data.whichBody()) {
             .partyEvent => _handlePartyEvent(data.partyEvent),
             .checkForUpdates => _handleUpdateCheck(),
-            .proxiesUpdated => null,
+            .proxiesUpdated => _handleProxiesEvent(data.proxiesUpdated),
             .queueEvent => _handleQueueEvent(data.queueEvent),
             _ => null,
           };
@@ -651,6 +652,31 @@ class SessionCubit extends Cubit<SessionState> {
       'Reconnecting in ${delay.inSeconds}s (attempt $_reconnectAttempts)',
     );
     Future.delayed(delay, _connectToStream);
+  }
+
+  void _handleProxiesEvent(ProxiesUpdatedEvent event) async {
+    final context = navigatorKey.currentContext;
+    if (context == null || !context.mounted) {
+      _logger.warning(
+        'Context is null or not mounted, cannot handle proxies update',
+      );
+      return;
+    }
+
+    _logger.info(
+      'Handling proxies update with ${event.proxies.length} proxies',
+    );
+
+    await context.read<KyberProxyCubit>().loadProxies(
+      initialProxies: event.proxies,
+    );
+
+    final gameInstance = sl.maybeGet<MaximaGameInstance>();
+    if (gameInstance == null) {
+      return;
+    }
+
+    // TODO: call module grpc client
   }
 
   void _handleUpdateCheck() async {
