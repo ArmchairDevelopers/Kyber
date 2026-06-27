@@ -41,7 +41,6 @@ static int MapRotationAddMapFunc(lua_State* L)
 static int MapRotationClearFunc(lua_State* L)
 {
     MapRotation& rotation = g_program->m_server->m_mapRotation;
-    rotation.Reset();
 
     // Clear with a required at least 1 entry, as there is no backup.
     std::string level = luaL_checkstring(L, 1);
@@ -59,6 +58,7 @@ static int MapRotationClearFunc(lua_State* L)
         return 0;
     }
 
+    rotation.Reset();
     rotation.AddEntry(level, mode);
     return 0;
 }
@@ -81,7 +81,7 @@ static int MapRotationRemoveNextMapFunc(lua_State* L)
 static int MapRotationGetCurrentEntryIndexFunc(lua_State* L)
 {
     const MapRotation& rotation = g_program->m_server->m_mapRotation;
-    lua_pushinteger(L, rotation.GetIndex());
+    lua_pushinteger(L, rotation.GetIndex() + 1);
     return 1;
 }
 
