@@ -129,7 +129,7 @@ static int ConsoleGetSettingsFunc(lua_State* L)
         return 0;
     }
     std::string name = luaL_checkstring(L, 1);
-    DataContainer* container = SettingsManager_getSettingsObject(g_program->GetSettingsManager(), name.c_str());
+    DataContainer* container = SettingsManager_getSettingsById(g_program->GetSettingsManager(), name.c_str());
     if (container == nullptr)
     {
         KYBER_LOG(Warning, ScriptManager::GetPlugin(L)->LogPrefix() << " Settings object not found: " << name);

@@ -25,6 +25,12 @@ public:
 
 KB_REGISTER_STREAMED_EVENT(CooldownModifierStreamedEvent);
 
+class ServerPlayerGameplayManager
+{
+public:
+    static void SyncCooldownModifier(ServerPlayer* player, float modifier);
+};
+
 class ClientPlayerGameplayManager : EventListener
 {
 public:
@@ -32,11 +38,5 @@ public:
     ~ClientPlayerGameplayManager() override = default;
 
     virtual void OnEvent(const Event& event) override;
-};
-
-class ServerPlayerGameplayManager
-{
-public:
-    static void SyncCooldownModifier(ServerPlayer* player, float modifier);
 };
 }

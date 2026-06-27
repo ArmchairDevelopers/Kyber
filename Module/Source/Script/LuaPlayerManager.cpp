@@ -538,6 +538,10 @@ static int ServerPlayerSetImmortal(lua_State* L)
         return 0;
     }
 
+    if (!lua_isboolean(L, 2))
+    {
+        return 0;
+    }
     bool isImmortal = lua_toboolean(L, 2);
 
     static_cast<WSServerSoldierHealthComponent*>(player->GetCharacterEntity()->GetHealthComponent())->SetIsImmortal(isImmortal);
@@ -557,13 +561,17 @@ static int ServerPlayerSetFakeImmortal(lua_State* L)
         return 0;
     }
 
-    bool isFakeImmortal = lua_tonumber(L, 2);
+    if (!lua_isboolean(L, 2))
+    {
+        return 0;
+    }
+    bool isFakeImmortal = lua_toboolean(L, 2);
 
     static_cast<WSServerSoldierHealthComponent*>(player->GetCharacterEntity()->GetHealthComponent())->SetIsFakeImmortal(isFakeImmortal);
     return 1;
 }
 
-static int SetExplosionDamageModifier(lua_State* L)
+static int ServerPlayerSetExplosionDamageModifier(lua_State* L)
 {
     ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
     if (player == nullptr)
@@ -576,13 +584,17 @@ static int SetExplosionDamageModifier(lua_State* L)
         return 0;
     }
 
+    if (!lua_isnumber(L, 2))
+    {
+        return 0;
+    }
     float value = lua_tonumber(L, 2);
 
     static_cast<WSServerSoldierHealthComponent*>(player->GetCharacterEntity()->GetHealthComponent())->SetExplosionDamageModifier(value);
     return 1;
 }
 
-static int SetMoveSpeedMultiplier(lua_State* L)
+static int ServerPlayerSetMoveSpeedMultiplier(lua_State* L)
 {
     ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
     if (player == nullptr)
@@ -595,13 +607,17 @@ static int SetMoveSpeedMultiplier(lua_State* L)
         return 0;
     }
 
+    if (!lua_isnumber(L, 2))
+    {
+        return 0;
+    }
     float value = lua_tonumber(L, 2);
 
     player->GetCharacterEntity()->SetMoveSpeedMultiplier(value);
     return 1;
 }
 
-static int SetCooldownModifier(lua_State* L)
+static int ServerPlayerSetCooldownModifier(lua_State* L)
 {
     ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
     if (player == nullptr)
@@ -609,16 +625,21 @@ static int SetCooldownModifier(lua_State* L)
         return 0;
     }
 
-    if (!player->IsAlive())
+    if (!player->IsAlive() || player->GetCharacterEntity() == nullptr)
     {
         return 0;
     }
 
+    if (!lua_isnumber(L, 2))
+    {
+        return 0;
+    }
     float value = lua_tonumber(L, 2);
 
     player->GetCharacterEntity()->SetCooldownModifier(value);
     return 1;
 }
+
 static int ServerPlayerIndex(lua_State* L)
 {
     ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
@@ -741,17 +762,17 @@ static int ServerPlayerIndex(lua_State* L)
     }
     else if (key == "SetExplosionDamageModifier")
     {
-        lua_pushcfunction(L, SetExplosionDamageModifier);
+        lua_pushcfunction(L, ServerPlayerSetExplosionDamageModifier);
         return 1;
     }
     else if (key == "SetMoveSpeedMultiplier")
     {
-        lua_pushcfunction(L, SetMoveSpeedMultiplier);
+        lua_pushcfunction(L, ServerPlayerSetMoveSpeedMultiplier);
         return 1;
     }
     else if (key == "SetCooldownModifier")
     {
-        lua_pushcfunction(L, SetCooldownModifier);
+        lua_pushcfunction(L, ServerPlayerSetCooldownModifier);
         return 1;
     }
     else if (key == "name")

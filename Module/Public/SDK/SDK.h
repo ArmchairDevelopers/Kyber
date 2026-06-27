@@ -903,6 +903,12 @@ class ClientPlayerExtent : public TypeObject
         return reinterpret_cast<ClientPlayer*>(reinterpret_cast<uint8_t*>(this) - s_registration->offset);                                 \
     }
 
+#define KB_DECLARE_CLIENTPLAYEREXTENT(name)                                                                                                \
+    inline name* Get##name() const                                                                                                         \
+    {                                                                                                                                      \
+        return reinterpret_cast<name*>(GetExtent(name::s_registration));                                                                   \
+    }
+
 class ClientGamePlayerExtent : public ClientPlayerExtent
 {
 public:
@@ -910,12 +916,6 @@ public:
 
     KB_DECLARE_GAMEMEMBERFUNC_NOARGS(0x1466C8020, TypeObject*, GetCharacter)
 };
-
-#define KB_DECLARE_CLIENTPLAYEREXTENT(name)                                                                                                \
-    inline name* Get##name() const                                                                                                         \
-    {                                                                                                                                      \
-        return reinterpret_cast<name*>(GetExtent(name::s_registration));                                                                   \
-    }
 
 class ClientPlayer
 {
