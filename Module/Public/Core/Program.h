@@ -26,7 +26,8 @@ namespace Kyber
 {
 extern void* s_mainLoop;
 
-TL_DECLARE_FUNC(0x1401F7BD0, DataContainer*, SettingsManager_getSettingsObject, void* inst, const char* identifier);
+TL_DECLARE_FUNC(0x1401F7BD0, DataContainer*, SettingsManager_getSettingsById, void* inst, const char* identifier);
+TL_DECLARE_FUNC(0x1401F7C70, DataContainer*, SettingsManager_getSettingsByTypeInfo, void* inst, class TypeInfo* typeInfo);
 
 const char* GetHostIdHk(__int64 inst);
 void MessageManagerDispatchMessageHk(void* pMessageManagerImpl, Message* pMessage);
@@ -60,7 +61,13 @@ public:
     template<typename T>
     T* GetSettingsObject(const char* identifier)
     {
-        return reinterpret_cast<T*>(SettingsManager_getSettingsObject(GetSettingsManager(), identifier));
+        return reinterpret_cast<T*>(SettingsManager_getSettingsById(GetSettingsManager(), identifier));
+    }
+
+    template<typename T>
+    T* GetSettingsObject(TypeInfo* typeInfo)
+    {
+        return reinterpret_cast<T*>(SettingsManager_getSettingsByTypeInfo(GetSettingsManager(), typeInfo));
     }
 
     API* GetAPI()
@@ -106,6 +113,10 @@ public:
     Settings(const char* identifier)
     {
         m_settings = g_program->GetSettingsObject<T>(identifier);
+    }
+    Settings(TypeInfo* typeInfo)
+    {
+        m_settings = g_program->GetSettingsObject<T>(typeInfo);
     }
 
     inline T* operator->()
