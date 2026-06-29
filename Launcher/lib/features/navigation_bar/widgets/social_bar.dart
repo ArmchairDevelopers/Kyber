@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:background_downloader/background_downloader.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Button;
 import 'package:flutter/material.dart' as mt;
@@ -15,7 +17,9 @@ import 'package:kyber_launcher/features/navigation_bar/widgets/exit_devplaytest_
 import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
+import 'package:logging/logging.dart';
 
 class SocialBar extends StatefulWidget {
   const SocialBar({super.key});
@@ -73,7 +77,7 @@ class _SocialBarState extends State<SocialBar> {
                 if (maximaState.isEntitled(.staff)) ...[
                   const VCardSection(),
                   _NavigationBarItem(
-                    icon: const Icon(mt.Icons.shield),
+                    icon: const _Reports(),
                     onClick: () => router.push('/staff/reports'),
                   ),
                 ],
@@ -392,6 +396,67 @@ class _FriendsBar extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _Reports extends StatefulWidget {
+  const _Reports({super.key});
+
+  @override
+  State<_Reports> createState() => _ReportsState();
+}
+
+class _ReportsState extends State<_Reports> {
+  late Timer _timer;
+  int reports = 0;
+
+  @override
+  void initState() {
+    loadReports();
+    _timer = Timer.periodic(
+      const Duration(minutes: 15),
+      (timer) async => loadReports(),
+    );
+    super.initState();
+  }
+
+  Future<void> loadReports() async {
+    try {
+      final req = await sl
+          .get<KyberGRPCService>()
+          .reportServiceClient
+          .listReports(Empty());
+
+      reports = req.reports.where((e) => e.state == ReportState.OPEN).length;
+    } catch (e, s) {
+      Logger.root.severe('Failed to request reports', e, s);
+      reports = -1;
+    } finally {
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const icon = Icon(mt.Icons.shield);
+
+    if (reports <= 0) {
+      return icon;
+    }
+
+    return mt.Badge(
+      backgroundColor: kActiveColor,
+      label: Text(reports.toString()),
+      child: icon,
     );
   }
 }
