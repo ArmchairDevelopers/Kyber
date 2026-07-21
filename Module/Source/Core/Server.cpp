@@ -208,6 +208,11 @@ void Server::Start(const ServerCreationInfo& info, bool changeState)
     char* gameMode = StringUtils::CopyWithArena("GameMode=" + info.mode);
     gameSettings->DefaultLayerInclusion = gameMode;
 
+    // Populate misc server details for potential usage in plugins
+    ServerSettings* serverSettings = Settings<ServerSettings>("Server");
+    serverSettings->ServerName = StringUtils::CopyWithArena(info.name.c_str());
+    serverSettings->ServerPassword = StringUtils::CopyWithArena(info.password.c_str());
+
     m_creationInfo = info;
 
     g_program->m_server->Register(true);
