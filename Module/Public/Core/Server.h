@@ -85,8 +85,10 @@ public:
     void DisableGameHooks();
     void InitializeGamePatches();
     void InitializeGameSettings();
+    void InitializeChatFilterPreset();
     void OnClientStartup();
 
+    // Note: Only to be ran for in-proc servers, not designed for dedicated.
     void Start(const ServerCreationInfo& info, bool changeState = true);
     void Stop();
 

@@ -405,7 +405,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     {
         CoreGameTimerMessage* msg = static_cast<CoreGameTimerMessage*>(message);
 
-        KYBER_LOG(Info, "Average TPS: (" << (float(msg->m_ticks) / msg->m_timeElapsed) << ") Average tick time: (" << msg->m_avgTickTime
+        KYBER_LOG(Debug, "Average TPS: (" << (float(msg->m_ticks) / msg->m_timeElapsed) << ") Average tick time: (" << msg->m_avgTickTime
                                          << ") Worst tick time: (" << msg->m_worstTickTime << ")");
 
         if (g_program->m_scriptManager != nullptr)
@@ -595,13 +595,18 @@ void GameSimulationInitDedicatedServerHk(void* inst, void* createInfo)
     if (g_program->m_server->m_onlineMode)
     {
         g_program->m_server->Register();
+        g_program->m_server->InitializeChatFilterPreset();
     }
+
+    ServerCreationInfo& info = *g_program->m_server->m_creationInfo;
+    ServerSettings* serverSettings = Settings<ServerSettings>("Server");
+    serverSettings->ServerName = StringUtils::CopyWithArena(info.name.c_str());
+    serverSettings->ServerPassword = StringUtils::CopyWithArena(info.password.c_str());
 
     g_program->m_server->m_socketSpawnInfo = SocketSpawnInfo(false, "", g_program->m_server->m_serverId, "");
 
     LevelSetup levelSetup;
-    InitLevelSetup(
-        &levelSetup, g_program->m_server->m_creationInfo->level.c_str(), g_program->m_server->m_creationInfo->mode.c_str(), "", "");
+    InitLevelSetup(&levelSetup, info.level.c_str(), info.mode.c_str(), "", "");
 
     WSGameSettings* wsSettings = Settings<WSGameSettings>("Whiteshark");
     wsSettings->AutoBalanceTeamsOnNeutral = true;

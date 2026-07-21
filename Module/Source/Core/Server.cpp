@@ -171,12 +171,6 @@ bool Server::IsRunning()
 void Server::Initialize()
 {
     InitializeGameHooks();
-
-    if (!g_program->m_isDedicatedServer)
-    {
-        DisableGameHooks();
-    }
-
     InitializeGamePatches();
 
     m_persistenceManager->Initialize();
@@ -337,6 +331,7 @@ void Server::SendChatMessage(ServerPlayer* player, const std::string& message)
     serverConnection->SendChatMessage(ChatChannel_Admin, message.c_str(), dummyPlayer.m_onlineId);
 }
 
+// Unused
 void Server::SetDedicatedCreationInfo(const ServerCreationInfo& info)
 {
     if (!g_program->m_isDedicatedServer)
@@ -887,6 +882,25 @@ void Server::InitializeGamePatches()
     MemoryUtils::Patch((void*)OFFSET_SERVER_PATCH, (void*)ptch, sizeof(ptch));
     BYTE ptch2[] = { 0x90, 0x90 };
     MemoryUtils::Patch((void*)(OFFSET_SERVER_PATCH + 0x5), (void*)ptch2, sizeof(ptch2));
+}
+
+void Server::InitializeChatFilterPreset()
+{
+    g_program->GetAPI()->GetClientServer()->GetChatFilter([this](std::optional<const ChatFilterResponse*> response) {
+        if (!response)
+        {
+            KYBER_LOG(Error, "[Server] Failed to get preset chat filter list!");
+            return;
+        }
+
+        MutexGuard<ChatFilter> chatFilter = m_chatFilter.Lock();
+        for (const auto& phrase : (*response)->phrases()) 
+        {
+            chatFilter->AddBlockedPhrase(phrase.c_str());
+        }
+
+        KYBER_LOG(Info, "[Server] Initialized chat filter preset");
+    });
 }
 
 void Server::InitializeGameSettings()
