@@ -368,7 +368,7 @@ void VoipManager::Call(ClientUpdatePass pass)
     m_location.cameraY = cameraTransform.trans.y;
     m_location.cameraZ = cameraTransform.trans.z;
 
-    ConvertOrientation(entity->Yaw, entity->Pitch);
+    ConvertOrientation(entity->m_yaw, entity->m_pitch);
 
     m_location.valid = true;
     m_mutex.unlock();

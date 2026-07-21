@@ -80,8 +80,11 @@ bool UDPSocket::Send(uint8_t* buffer, int bufferSize, unsigned int flags)
     //                     << inet_ntoa(((sockaddr_in*)addr)->sin_addr) << ":" << ntohs(((sockaddr_in*)addr)->sin_port));
 
     const char* ip = nullptr;
-    if (m_info.isProxied || (m_direction == ProtocolDirection::Clientbound && (ip = inet_ntoa(((sockaddr_in*)addr)->sin_addr)) &&
-                                strstr(ip, "0.1.1.") != nullptr))
+    if (m_info.isProxied || (
+        m_direction == ProtocolDirection::Clientbound && 
+            (ip = inet_ntoa(((sockaddr_in*)addr)->sin_addr)) && strstr(ip, "0.1.1.") != nullptr
+                            )
+                        )
     {
         int proxyIndex = 0;
 
@@ -262,6 +265,28 @@ bool UDPSocket::Listen(const SocketAddr& address, bool blocking)
     }
 
     return true;
+}
+
+void UDPSocket::UpdateProxies(const eastl::vector<kyber_api::ProxyInfo>& newList)
+{
+    for (const auto& proxyInfo : newList)
+    {
+        bool seen = false;
+        for (const auto& proxy : m_sockets) 
+        {
+            if (proxy.GetId() == proxyInfo.id())
+            {
+                seen = true;
+                break;
+            }
+        }
+
+        if (!seen)
+        {
+            m_sockets.push_back(WebSocket(proxyInfo.id(), m_sockets.size(), m_proxyQueue));
+            m_sockets.back().ConnectAsServer(proxyInfo.ip(), g_program->m_client->m_joinToken);
+        }
+    }
 }
 
 bool UDPSocket::Connect(const SocketAddr& address, bool blocking)

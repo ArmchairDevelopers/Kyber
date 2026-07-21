@@ -6,6 +6,8 @@
 #include <SDK/SDK.h>
 #include <Network/WebSocket.h>
 
+#include <Proto/kyber_api.grpc.pb.h>
+
 #include <cstring>
 #include <cstdint>
 #include <list>
@@ -151,11 +153,10 @@ public:
     virtual intptr_t NativeSocket() const override;
     virtual int Port() const override;
     virtual const SocketAddr* Address() const override;
+    void UpdateProxies(const eastl::vector<kyber_api::ProxyInfo>& newList);
 
 private:
     friend class SocketManager;
-
-    void showError();
 
     SocketAddr m_broadcastAddress;
     SocketAddr m_peerAddress;

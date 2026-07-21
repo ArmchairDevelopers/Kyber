@@ -38,6 +38,11 @@ public:
     void Close();
     bool Send(const uint8_t* buffer, int bufferSize, unsigned int flags = 0);
 
+    const std::string& GetId() const
+    {
+        return m_id;
+    }
+
 private:
     void Start();
 

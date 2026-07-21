@@ -2179,17 +2179,17 @@ class ClientSoldierHealthComponent : public HealthComponent
 class ClientCharacterEntity : public ComponentEntity
 {
 public:
-    char pad_0000[640];                                               // 0x0048
+    char pad_0000[640];                                                 // 0x0048
     class ClientSoldierHealthComponent* m_clientSoldierHealthComponent; // 0x02C8
-    char pad_02D0[104];                                               // 0x02D0
+    char pad_02D0[104];                                                 // 0x02D0
     class SoldierBlueprint* m_soldierBlueprint;                         // 0x0338
-    char pad_0340[632];                                               // 0x0340
-    float N000001AE;                                                  // 0x05B8
-    float Yaw;                                                        // 0x05BC
-    float Pitch;                                                      // 0x05C0
-    char pad_05C4[404];                                               // 0x05C4
+    char pad_0340[632];                                                 // 0x0340
+    float N000001AE;                                                    // 0x05B8
+    float m_yaw;                                                        // 0x05BC
+    float m_pitch;                                                      // 0x05C0
+    char pad_05C4[404];                                                 // 0x05C4
     ClientSoldierPrediction* m_clientSoldierPrediction;                 // 0x0758
-    char pad_0760[2488];                                              // 0x0760
+    char pad_0760[2488];                                                // 0x0760
 
     SoldierBlueprint* GetSoldierBlueprint() const 
     { 

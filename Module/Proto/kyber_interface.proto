@@ -173,7 +173,7 @@ message ServerState {
 }
 
 message SetProxyListRequest {
-  repeated ProxyList proxyList = 1;
+  kyber_api.ProxyList proxyList = 1;
 }
 
 message RunCommandRequest {

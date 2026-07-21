@@ -19,5 +19,7 @@ public:
         kyber_interface::ServerState* response) override;
     ServerUnaryReactor* LoadLevel(
         CallbackServerContext* context, const kyber_interface::LoadLevelRequest* request, kyber_common::Empty* response) override;
+    ServerUnaryReactor* SetProxyList(
+        CallbackServerContext* context, const kyber_interface::SetProxyListRequest* request, kyber_common::Empty* response) override;
 };
 } // namespace Kyber
