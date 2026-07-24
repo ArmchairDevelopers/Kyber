@@ -108,6 +108,15 @@ class KyberStatusCubit extends Cubit<KyberStatusState> {
       } else if (data.hasServer()) {
         emit(KyberStatusHosting(serverState: data.server, server: server));
       } else {
+        // getInfo() reported no client and no server, but the game instance
+        // is still registered (we passed the isRegistered guard above).
+        // If we're already hosting or playing, stay in the current state
+        // rather than transitioning to Normal — a single anomalous
+        // getInfo() response shouldn't tear down the hosted-server
+        // connection and reset all configuration.
+        if (state is KyberStatusHosting || state is KyberStatusPlaying) {
+          return;
+        }
         emit(KyberStatusNormal());
       }
     } catch (e) {
