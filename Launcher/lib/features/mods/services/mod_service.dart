@@ -8,6 +8,7 @@ import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/mods/constants/categories.dart';
 import 'package:kyber_launcher/features/mods/services/level_declaration_service.dart';
+import 'package:kyber_launcher/features/mods/services/mod_manifest_backfill_service.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart';
@@ -26,6 +27,9 @@ class ModService with ChangeNotifier {
     if (Preferences.general.setup) {
       watchDirectory();
     }
+
+    // Fire manifest backfill for pre-existing mods (retries until GQL ready)
+    ModManifestBackfillService.backfillAll(_mods);
   }
 
   static final Logger _logger = Logger('mod_service');
@@ -137,6 +141,10 @@ class ModService with ChangeNotifier {
     }
 
     notifyListeners();
+
+    // Fire-and-forget manifest backfill for pre-existing mods
+    _logger.info('Triggering manifest backfill for ${_mods.length} mods');
+    ModManifestBackfillService.backfillAll(_mods);
   }
 
   void watchDirectory() {
