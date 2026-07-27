@@ -815,6 +815,11 @@ static int ServerPlayerIndex(lua_State* L)
         lua_pushinteger(L, player->GetPersistenceServerPlayerExtent()->m_deaths);
         return 1;
     }
+    else if (key == "afkTime")
+    {
+        lua_pushnumber(L, player->GetOnlineServerPlayerExtent()->m_inactivityTime);
+        return 1;
+    }
     else if (key == "characterEntity")
     {
         LuaUtils::Push(L, reinterpret_cast<NativeEntity*>(player->GetCharacterEntity()));
