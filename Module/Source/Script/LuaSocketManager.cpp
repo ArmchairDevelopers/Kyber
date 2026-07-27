@@ -87,15 +87,13 @@ static int WinSocketCreate(lua_State* L)
     LuaUtils::Push(L, winSock);
     return 1;
 }
-
 static int WinSocketCreateConnect(lua_State* L)
 {
-    if (!lua_isinteger(L, 1))
+    if (!lua_isstring(L, 1))
     {
-        luaL_error(L, "Expected integer for port");
+        luaL_error(L, "Expected string for uri");
         return 0;
     }
-
     std::string uri = luaL_checkstring(L, 1);
 
     // For now, we only let plugins connect to local servers
@@ -105,11 +103,33 @@ static int WinSocketCreateConnect(lua_State* L)
         return 0;
     }
 
-    int port = luaL_checknumber(L, 2);
+    if (!lua_isinteger(L, 2))
+    {
+        luaL_error(L, "Expected integer for port");
+        return 0;
+    }
+    int port = luaL_checkinteger(L, 2);
 
-    SOCKET winSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    // resolve target host
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    addrinfo* result = nullptr;
+    
+    // not technically needed rn afaik since we do localhost only, but for future use
+    int errorCode = getaddrinfo(uri.c_str(), std::to_string(port).c_str(), &hints, &result);
+    if (errorCode != 0)
+    {
+        luaL_error(L, "Failed to get address info of given uri: %d", errorCode);
+        return 0;
+    }
+
+    SOCKET winSock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     if (winSock == INVALID_SOCKET)
     {
+        freeaddrinfo(result);
         luaL_error(L, "Failed to create socket");
         return 0;
     }
@@ -117,32 +137,76 @@ static int WinSocketCreateConnect(lua_State* L)
     u_long mode = 1;
     ioctlsocket(winSock, FIONBIO, &mode);
 
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(0); // Auto-assign
-
-    if (bind(winSock, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR)
+    if (connect(winSock, result->ai_addr, result->ai_addrlen) == SOCKET_ERROR)
     {
-        closesocket(winSock);
-        luaL_error(L, "Failed to bind socket");
-        return 0;
+        int errorCode = WSAGetLastError();
+        if (errorCode != WSAEWOULDBLOCK)
+        {
+            closesocket(winSock);
+            freeaddrinfo(result);
+            luaL_error(L, "Failed to connect on socket: %d", errorCode);
+            return 0;
+        }
     }
 
-    sockaddr_in serverAddr;
-
-    serverAddr.sin_family = AF_INET;
-    InetPton(AF_INET, uri.data(), &serverAddr.sin_addr.s_addr);
-    serverAddr.sin_port = htons(port);
-
-    if (connect(winSock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
-    {
-        closesocket(winSock);
-        luaL_error(L, "Failed to listen on socket");
-        return 0;
-    }
+    freeaddrinfo(result);
 
     LuaUtils::Push(L, winSock);
+    return 1;
+}
+
+enum ConnectStatus
+{
+    Pending = 0,
+    Connected = 1,
+    Failed = 2
+};
+
+static int WinSocketPollConnectionStatus(lua_State* L)
+{
+    SOCKET socket = LuaSocketManager::GetSocket(L, 1);
+
+    fd_set writeSet, exceptSet;
+    FD_ZERO(&writeSet);
+    FD_ZERO(&exceptSet);
+    FD_SET(socket, &writeSet);
+    FD_SET(socket, &exceptSet);
+
+    timeval timeout{ 0, 0 }; // zero timeout, no blocking
+
+    int selResult = select(0, nullptr, &writeSet, &exceptSet, &timeout);
+    if (selResult == 0)
+    {
+        lua_pushinteger(L, ConnectStatus::Pending);
+        return 1;
+    }
+
+    if (selResult == SOCKET_ERROR || FD_ISSET(socket, &exceptSet))
+    {
+        lua_pushinteger(L, ConnectStatus::Failed);
+        return 1;
+    }
+
+    if (FD_ISSET(socket, &writeSet))
+    {
+        int sockErr = 0;
+        int optLen = sizeof(sockErr);
+        getsockopt(socket, SOL_SOCKET, SO_ERROR, (char*)&sockErr, &optLen);
+        lua_pushinteger(L, (sockErr == 0) ? ConnectStatus::Connected : ConnectStatus::Failed);
+        return 1;
+    }
+
+    lua_pushinteger(L, ConnectStatus::Pending);
+    return 1;
+}
+
+static int WinSocketIsOutgoingConnectionUsable(lua_State* L)
+{
+    SOCKET socket = LuaSocketManager::GetSocket(L, 1);
+
+    int sockErr = 0;
+    int optLen = sizeof(sockErr);
+    lua_pushboolean(L, getsockopt(socket, SOL_SOCKET, SO_ERROR, (char*)&sockErr, &optLen) == 0);
     return 1;
 }
 
@@ -179,11 +243,19 @@ static int WinSocketRecv(lua_State* L)
     char* buffer = arenaBuffer != nullptr ? arenaBuffer : stackbuf;
 
     int result = recv(socket, buffer, length, 0);
-    if (result == SOCKET_ERROR || WSAGetLastError() == WSAEWOULDBLOCK)
+    int errorStatus = WSAGetLastError();
+    if (result == SOCKET_ERROR && errorStatus != WSAEWOULDBLOCK)
     {
         bufferArena->free(arenaBuffer);
-        luaL_error(L, "Failed to recv from socket: %d", WSAGetLastError());
+        luaL_error(L, "Failed to recv from socket: %d", errorStatus);
         return 0;
+    }
+    else if (result == SOCKET_ERROR && errorStatus == WSAEWOULDBLOCK)
+    {
+        // Intentionally push nil to signify it isn't ready yet
+        bufferArena->free(arenaBuffer);
+        lua_pushnil(L);
+        return 1;
     }
     else if (result == 0)
     {
@@ -278,6 +350,16 @@ static int WinSocketIndex(lua_State* L)
     else if (key == "Shutdown")
     {
         lua_pushcfunction(L, WinSocketShutdown);
+        return 1;
+    }
+    else if (key == "PollConnectionStatus")
+    {
+        lua_pushcfunction(L, WinSocketPollConnectionStatus);
+        return 1;
+    }
+    else if (key == "IsOutgoingConnectionUsable")
+    {
+        lua_pushcfunction(L, WinSocketIsOutgoingConnectionUsable);
         return 1;
     }
     else if (key == "ShutdownSend")
