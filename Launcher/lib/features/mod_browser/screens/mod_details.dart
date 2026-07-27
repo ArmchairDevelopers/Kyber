@@ -513,22 +513,16 @@ class _VersionFileGroup {
   int get totalFiles => files.length;
 }
 
-/// Groups files by (version, date) so files uploaded together in the same
-/// batch are displayed as a single versioned group. Expects input already
-/// sorted by date descending.
+/// Groups files by version so all files sharing the same version are
+/// displayed as a single group. Expects input already sorted by date
+/// descending (newest version first).
 List<_VersionFileGroup> _groupByVersionBatch(
   List<Query$modFiles$modFiles> files,
 ) {
   final groups = <_VersionFileGroup>[];
   for (final file in files) {
-    final version = file.version;
-    final date = file.date;
-    final category = file.category;
     final existing = groups.cast<_VersionFileGroup?>().firstWhere(
-      (g) =>
-          g!.version == version &&
-          g.date == date &&
-          g.category == category,
+      (g) => g!.version == file.version,
       orElse: () => null,
     );
     if (existing != null) {
@@ -536,9 +530,9 @@ List<_VersionFileGroup> _groupByVersionBatch(
     } else {
       groups.add(
         _VersionFileGroup(
-          version: version,
-          date: date,
-          category: category,
+          version: file.version,
+          date: file.date,
+          category: file.category,
           files: [file],
         ),
       );
