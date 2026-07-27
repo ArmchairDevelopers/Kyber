@@ -727,7 +727,9 @@ class _FileListState extends State<_FileList> {
                                           ),
                                           if (group.files.length > 1)
                                             Text(
-                                              'Part of v${group.version} batch (${group.totalFiles} files)',
+                                              DateFormat.yMd().add_jm().format(
+                                                DateTime.fromMillisecondsSinceEpoch(group.date * 1000),
+                                              ),
                                               style: const .new(
                                                 fontSize: 10,
                                                 color: kGrayColor,
