@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/features/mods/constants/categories.dart';
@@ -75,7 +72,7 @@ class ModsListCubit extends Cubit<ModsListState> {
 
     final all = List<FrostyMod>.of(sl<ModService>().mods);
     final filtered = _applyFilter(all, filter);
-    final groups = _buildGroups(filtered);
+    final groups = await _buildGroups(filtered);
 
     emit(
       ModsListLoaded(
@@ -91,44 +88,23 @@ class ModsListCubit extends Cubit<ModsListState> {
   /// Groups mods by their NexusMods mod ID from the manifest.
   /// Mods not in the manifest remain as individual (unnamed) groups.
   /// Groups are sorted by title, interleaved with unnamed mods alphabetically.
-  List<ModListGroup> _buildGroups(List<FrostyMod> mods) {
+  Future<List<ModListGroup>> _buildGroups(List<FrostyMod> mods) async {
     // Read the manifest
-    Map<String, int> fileToModId;
-    Map<int, String> modIdToTitle;
-    Map<int, Map<String, dynamic>> modIdToMeta;
-    try {
-      final manifestFile = File(
-        join(ModService.getBasePath(), 'nexus_mod_manifest.json'),
-      );
-      if (manifestFile.existsSync()) {
-        final manifest =
-            jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
-        final files =
-            manifest['files'] as Map<String, dynamic>? ?? {};
-        final modEntries =
-            manifest['mods'] as Map<String, dynamic>? ?? {};
+    final manifest = await ModService.readManifest();
+    final files = manifest['files'] as Map<String, dynamic>? ?? {};
+    final modEntries = manifest['mods'] as Map<String, dynamic>? ?? {};
 
-        fileToModId = {};
-        for (final e in files.entries) {
-          fileToModId[e.key] = (e.value as num).toInt();
-        }
-        modIdToTitle = {};
-        modIdToMeta = {};
-        for (final e in modEntries.entries) {
-          final meta = e.value as Map<String, dynamic>?;
-          final id = int.parse(e.key);
-          modIdToTitle[id] = meta?['title'] as String? ?? '';
-          modIdToMeta[id] = meta ?? {};
-        }
-      } else {
-        fileToModId = {};
-        modIdToTitle = {};
-        modIdToMeta = {};
-      }
-    } catch (_) {
-      fileToModId = {};
-      modIdToTitle = {};
-      modIdToMeta = {};
+    final fileToModId = <String, int>{};
+    for (final e in files.entries) {
+      fileToModId[e.key] = (e.value as num).toInt();
+    }
+    final modIdToTitle = <int, String>{};
+    final modIdToMeta = <int, Map<String, dynamic>>{};
+    for (final e in modEntries.entries) {
+      final meta = e.value as Map<String, dynamic>?;
+      final id = int.parse(e.key);
+      modIdToTitle[id] = meta?['title'] as String? ?? '';
+      modIdToMeta[id] = meta ?? {};
     }
 
     // Group mods by modId; unmanifested mods go in their own bucket

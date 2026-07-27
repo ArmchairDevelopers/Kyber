@@ -103,42 +103,33 @@ class _ModInfoBoxState extends State<ModInfoBox> {
   /// If neither source provides an ID the button is hidden.
   Future<void> _resolveNexusModId() async {
     // 1. Check global manifest file
-    try {
-      final manifestFile = File(
-        join(ModService.getBasePath(), 'nexus_mod_manifest.json'),
-      );
-      if (await manifestFile.exists()) {
-        final manifest =
-            jsonDecode(await manifestFile.readAsString())
-                as Map<String, dynamic>;
-        final normalizedName = basename(widget.mod.filename);
-        final files = manifest['files'] as Map<String, dynamic>?;
-        final id = files != null
-            ? (files[widget.mod.filename] ?? files[normalizedName])
-            : (manifest[widget.mod.filename] ?? manifest[normalizedName]);
-        if (id != null) {
-          final modId = (id as num).toInt();
+    final manifest = await ModService.readManifest();
+    final normalizedName = basename(widget.mod.filename);
+    final files = manifest['files'] as Map<String, dynamic>?;
+    final id = files != null
+        ? (files[widget.mod.filename] ?? files[normalizedName])
+        : null;
+    if (id != null) {
+      final modId = (id as num).toInt();
+      if (mounted) setState(() => _nexusModId = modId);
+      _lookupDone = true;
+      return;
+    }
+    // Fallback: match by mod title in the "mods" section
+    final modsSection = manifest['mods'] as Map<String, dynamic>?;
+    if (modsSection != null) {
+      final modName = widget.mod.details.name;
+      for (final entry in modsSection.entries) {
+        final meta = entry.value as Map<String, dynamic>?;
+        final title = meta?['title'] as String? ?? '';
+        if (title.toLowerCase() == modName.toLowerCase()) {
+          final modId = int.parse(entry.key);
           if (mounted) setState(() => _nexusModId = modId);
           _lookupDone = true;
           return;
         }
-        // Fallback: match by mod title in the "mods" section
-        final modsSection = manifest['mods'] as Map<String, dynamic>?;
-        if (modsSection != null) {
-          final modName = widget.mod.details.name;
-          for (final entry in modsSection.entries) {
-            final meta = entry.value as Map<String, dynamic>?;
-            final title = meta?['title'] as String? ?? '';
-            if (title.toLowerCase() == modName.toLowerCase()) {
-              final modId = int.parse(entry.key);
-              if (mounted) setState(() => _nexusModId = modId);
-              _lookupDone = true;
-              return;
-            }
-          }
-        }
       }
-    } catch (_) {}
+    }
 
     // 2. Try extracting from the link field and backfill the manifest
     final link = widget.mod.details.link;
@@ -156,30 +147,14 @@ class _ModInfoBoxState extends State<ModInfoBox> {
   }
 
   /// Writes a resolved modId to the manifest so future lookups are instant.
-  void _writeManifestEntry(int modId) {
+  Future<void> _writeManifestEntry(int modId) async {
     try {
-      final manifestFile = File(
-        join(ModService.getBasePath(), 'nexus_mod_manifest.json'),
-      );
-      Map<String, dynamic> manifest;
-      if (manifestFile.existsSync()) {
-        try {
-          manifest =
-              jsonDecode(manifestFile.readAsStringSync())
-                  as Map<String, dynamic>;
-        } catch (_) {
-          manifest = <String, dynamic>{};
-        }
-      } else {
-        manifest = <String, dynamic>{};
-      }
+      final manifest = await ModService.readManifest();
 
       final files =
-          (manifest['files'] as Map<String, dynamic>?) ??
-          <String, dynamic>{};
+          (manifest['files'] as Map<String, dynamic>?) ?? <String, dynamic>{};
       final mods =
-          (manifest['mods'] as Map<String, dynamic>?) ??
-          <String, dynamic>{};
+          (manifest['mods'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
       files[basename(widget.mod.filename)] = modId;
       mods[modId.toString()] = <String, dynamic>{
@@ -191,10 +166,8 @@ class _ModInfoBoxState extends State<ModInfoBox> {
       manifest['files'] = files;
       manifest['mods'] = mods;
 
-      manifestFile.writeAsStringSync(jsonEncode(manifest));
-      _log.info(
-        'Backfilled manifest: ${widget.mod.filename} → $modId',
-      );
+      await ModService.writeManifest(manifest);
+      _log.info('Backfilled manifest: ${widget.mod.filename} → $modId');
     } catch (e) {
       _log.warning('Failed to write manifest entry: $e');
     }

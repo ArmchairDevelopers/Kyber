@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
@@ -40,23 +37,8 @@ class ModManifestBackfillService {
         return;
       }
 
-      final manifestFile = File(
-        join(ModService.getBasePath(), 'nexus_mod_manifest.json'),
-      );
-
       // Read current manifest
-      Map<String, dynamic> manifest;
-      if (manifestFile.existsSync()) {
-        try {
-          manifest =
-              jsonDecode(manifestFile.readAsStringSync())
-                  as Map<String, dynamic>;
-        } catch (_) {
-          manifest = <String, dynamic>{};
-        }
-      } else {
-        manifest = <String, dynamic>{};
-      }
+      final manifest = await ModService.readManifest();
 
       final files =
           (manifest['files'] as Map<String, dynamic>?) ??
@@ -113,7 +95,7 @@ class ModManifestBackfillService {
           backfilled++;
           manifest['files'] = files;
           manifest['mods'] = mods;
-          manifestFile.writeAsStringSync(jsonEncode(manifest));
+          await ModService.writeManifest(manifest);
         }
       }
 
@@ -148,13 +130,13 @@ class ModManifestBackfillService {
     }.where((q) => q.isNotEmpty).toList();
 
     for (final query in queries) {
-      final result = await _trySearch(client, query, modName, installedVersion);
+      final result = await _searchModAndMatchVersion(client, query, modName, installedVersion);
       if (result != null) return result;
     }
     return null;
   }
 
-  static Future<int?> _trySearch(
+  static Future<int?> _searchModAndMatchVersion(
     GraphQLClient client,
     String query,
     String originalName,
@@ -224,7 +206,9 @@ class ModManifestBackfillService {
           continue;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      _log.fine('GQL search failed for query "$query": $e');
+    }
 
     return null;
   }
