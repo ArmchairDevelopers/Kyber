@@ -75,6 +75,12 @@ class _FileDownloadDialogState extends State<FileDownloadDialog> {
               link:
                   'https://www.nexusmods.com/starwarsbattlefront22017/mods/${widget.modId}?tab=files&file_id=${widget.file.fileId}',
               displayName: widget.file.name,
+              metadata: {
+                'name': widget.file.name,
+                'version': widget.file.version,
+                'modId': int.parse(widget.modId),
+                'fileSize': int.tryParse(widget.file.sizeInBytes ?? '0') ?? 0,
+              },
             );
 
             await sl.get<DownloadOrchestrator>().enqueueDownload(request);

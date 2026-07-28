@@ -286,6 +286,7 @@ class _ModListView extends StatelessWidget {
 
     return ModList(
       mods: state.mods,
+      groups: state.groups,
       selectedMods: state.selectedMods,
       onModSelected: (mod) => onModSelected(mod, state, cubit),
       onModTap: cubit.setSelectedMod,

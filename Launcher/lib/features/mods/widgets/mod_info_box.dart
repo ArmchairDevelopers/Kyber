@@ -8,6 +8,7 @@ import 'package:flutter/material.dart' as mt;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
+import 'package:kyber_launcher/core/routing/app_router.dart';
 import 'package:kyber_launcher/features/mod_browser/widgets/mod_details/mod_images.dart';
 import 'package:kyber_launcher/features/mods/helper/frosty_mod_extension.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
@@ -17,6 +18,7 @@ import 'package:kyber_launcher/shared/ui/cards/kyber_container.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_dropdown.dart';
 import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
 import 'package:kyber_launcher/shared/ui/utils/button_builder.dart';
+import 'package:logging/logging.dart';
 import 'package:path/path.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 import 'package:url_launcher/url_launcher_string.dart';
@@ -32,9 +34,13 @@ class ModInfoBox extends StatefulWidget {
 }
 
 class _ModInfoBoxState extends State<ModInfoBox> {
+  static final _log = Logger('mod_info_box');
+
   List<Uint8List> screenshots = <Uint8List>[];
   Map<String, List<String>>? affectedFiles;
   bool affectedFilesExpanded = false;
+  int? _nexusModId;
+  bool _lookupDone = false;
 
   @override
   void initState() {
@@ -57,6 +63,7 @@ class _ModInfoBoxState extends State<ModInfoBox> {
         });
       }
     });
+    _resolveNexusModId();
     super.initState();
   }
 
@@ -80,7 +87,90 @@ class _ModInfoBoxState extends State<ModInfoBox> {
       });
     }
 
+    if (oldWidget.mod.details.name != widget.mod.details.name ||
+        oldWidget.mod.details.link != widget.mod.details.link) {
+      _nexusModId = null;
+      _lookupDone = false;
+      _resolveNexusModId();
+    }
+
     super.didUpdateWidget(oldWidget);
+  }
+
+  /// Resolves the NexusMods ID for this installed mod. Checks in order:
+  /// 1. Global `nexus_mod_manifest.json` (written at download time)
+  /// 2. Frosty mod `link` field → backfills manifest if found
+  /// If neither source provides an ID the button is hidden.
+  Future<void> _resolveNexusModId() async {
+    // 1. Check global manifest file
+    final manifest = await ModService.readManifest();
+    final normalizedName = basename(widget.mod.filename);
+    final files = manifest['files'] as Map<String, dynamic>?;
+    final id = files != null
+        ? (files[widget.mod.filename] ?? files[normalizedName])
+        : null;
+    if (id != null) {
+      final modId = (id as num).toInt();
+      if (mounted) setState(() => _nexusModId = modId);
+      _lookupDone = true;
+      return;
+    }
+    // Fallback: match by mod title in the "mods" section
+    final modsSection = manifest['mods'] as Map<String, dynamic>?;
+    if (modsSection != null) {
+      final modName = widget.mod.details.name;
+      for (final entry in modsSection.entries) {
+        final meta = entry.value as Map<String, dynamic>?;
+        final title = meta?['title'] as String? ?? '';
+        if (title.toLowerCase() == modName.toLowerCase()) {
+          final modId = int.parse(entry.key);
+          if (mounted) setState(() => _nexusModId = modId);
+          _lookupDone = true;
+          return;
+        }
+      }
+    }
+
+    // 2. Try extracting from the link field and backfill the manifest
+    final link = widget.mod.details.link;
+    if (link != null && link.isNotEmpty) {
+      final id = _extractNexusModId(link);
+      if (id != null) {
+        _writeManifestEntry(id);
+        if (mounted) setState(() => _nexusModId = id);
+        _lookupDone = true;
+        return;
+      }
+    }
+
+    _lookupDone = true;
+  }
+
+  /// Writes a resolved modId to the manifest so future lookups are instant.
+  Future<void> _writeManifestEntry(int modId) async {
+    try {
+      final manifest = await ModService.readManifest();
+
+      final files =
+          (manifest['files'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final mods =
+          (manifest['mods'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+
+      files[basename(widget.mod.filename)] = modId;
+      mods[modId.toString()] = <String, dynamic>{
+        'title': widget.mod.details.name,
+        'latestVersion': widget.mod.details.version,
+        'lastDownloaded': DateTime.now().toIso8601String(),
+      };
+
+      manifest['files'] = files;
+      manifest['mods'] = mods;
+
+      await ModService.writeManifest(manifest);
+      _log.info('Backfilled manifest: ${widget.mod.filename} → $modId');
+    } catch (e) {
+      _log.warning('Failed to write manifest entry: $e');
+    }
   }
 
   Future<void> readAffectedFiles() async {
@@ -298,6 +388,25 @@ class _ModInfoBoxState extends State<ModInfoBox> {
                                     ),
                                   ],
                                 ),
+                              ),
+                              Builder(
+                                builder: (builderContext) {
+                                  final modId = _nexusModId;
+                                  if (modId == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: KyberIconButton(
+                                      onPressed: () {
+                                        router.go(
+                                          '/mods/mod_browser/$modId',
+                                        );
+                                      },
+                                      iconData: mt.Icons.open_in_new,
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -526,6 +635,16 @@ class _ModInfoBoxState extends State<ModInfoBox> {
       ),
     );
   }
+}
+
+/// Extracts the numeric mod ID from a NexusMods URL. Handles formats like:
+/// - https://www.nexusmods.com/starwarsbattlefront22017/mods/12345
+/// - https://www.nexusmods.com/starwarsbattlefront22017/mods/12345?tab=files
+/// Returns null if the URL doesn't match the expected pattern.
+int? _extractNexusModId(String url) {
+  final match =
+      RegExp(r'nexusmods\.com/\w+/mods/(\d+)').firstMatch(url);
+  return match != null ? int.tryParse(match.group(1)!) : null;
 }
 
 class _AffectedFileEntry {
