@@ -473,7 +473,7 @@ static int ServerPlayerSendChatMessage(lua_State* L)
         return 0;
     }
 
-    const char* message = luaL_checkstring(L, 3);
+    const char* message = luaL_checkstring(L, 2);
 
     g_program->m_server->SendChatMessage(player, message);
     return 0;
