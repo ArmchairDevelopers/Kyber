@@ -2,7 +2,9 @@
 
 #define _WINSOCKAPI_
 #include <Script/LuaPlayerManager.h>
+#include <Script/LuaDataContainer.h>
 #include <Hook/HookManager.h>
+#include <SDK/Fb/Core.h>
 
 #include <Core/Program.h>
 #include <SDK/Funcs.h>
@@ -640,6 +642,88 @@ static int ServerPlayerSetCooldownModifier(lua_State* L)
     return 1;
 }
 
+static int ServerPlayerTeleport(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!player->IsAlive())
+    {
+        return 0;
+    }
+
+    LinearTransform newPos;
+    if (lua_isuserdata(L, 2))
+    {
+        const LuaValueTypeData* luaData = LuaDataContainer::GetValueType(L, 2);
+        if (!luaData->type->isKindOf(typeInfo_LinearTransform))
+        {
+            luaL_error(L, "Userdata provided was not a LinearTransform or number! You need to give a transform to teleport to.");
+            return 0;
+        }
+
+        newPos = *static_cast<LinearTransform*>(luaData->value);
+    }
+    else 
+    {
+        // Parse 3 args as x, y, z
+        float x = lua_tonumber(L, 2);
+        float y = lua_tonumber(L, 3);
+        float z = lua_tonumber(L, 4);
+
+        // get existing transform so keep rotation but change pos
+        if (player->GetServerGamePlayerExtent()->IsInVehicle())
+        {
+            if (ServerVehicleEntity* vehicle = player->GetVehicleEntity())
+            {
+                vehicle->GetTransform(newPos);
+            }
+        }
+        else if (SpatialEntity* character = player->GetCharacterEntity())
+        {
+            character->GetTransform(newPos);
+        }
+
+        newPos.trans = Vec3(x, y, z);
+    }
+
+    // teleport the player
+    player->Teleport(newPos);
+    return 0;
+}
+
+static int ServerPlayerGetPosition(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!player->IsAlive())
+    {
+        return 0;
+    }
+
+    LinearTransform* transform = static_cast<LinearTransform*>(LuaDataContainer::ValueTypeCreate(L, typeInfo_LinearTransform));
+    if (player->GetServerGamePlayerExtent()->IsInVehicle())
+    {
+        if (ServerVehicleEntity* vehicle = player->GetVehicleEntity())
+        {
+            vehicle->GetTransform(*transform);
+        }
+    }
+    else if (SpatialEntity* character = player->GetCharacterEntity())
+    {
+        character->GetTransform(*transform);
+    }
+
+    return 1; // from LuaDataContainer::ValueTypeCreate
+}
+
 static int ServerPlayerIndex(lua_State* L)
 {
     ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
@@ -773,6 +857,16 @@ static int ServerPlayerIndex(lua_State* L)
     else if (key == "SetCooldownModifier")
     {
         lua_pushcfunction(L, ServerPlayerSetCooldownModifier);
+        return 1;
+    }
+    else if (key == "Teleport")
+    {
+        lua_pushcfunction(L, ServerPlayerTeleport);
+        return 1;
+    }
+    else if (key == "GetPosition")
+    {
+        lua_pushcfunction(L, ServerPlayerGetPosition);
         return 1;
     }
     else if (key == "name")
