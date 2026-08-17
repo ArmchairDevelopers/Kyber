@@ -163,80 +163,8 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
                                               ),
                                               KyberButton(
                                                 text: 'Select Image',
-                                                onPressed: () async {
-                                                  final result = await FilePicker
-                                                      .platform
-                                                      .pickFiles(
-                                                        allowedExtensions: [
-                                                          'jpg',
-                                                          'jpeg',
-                                                          'png',
-                                                          'gif',
-                                                        ],
-                                                        dialogTitle:
-                                                            'Select a background image',
-                                                        type: FileType.custom,
-                                                      );
-
-                                                  if (result == null) {
-                                                    return;
-                                                  }
-
-                                                  if (result.files.single.size >
-                                                      1024 * 1024 * 10) {
-                                                    NotificationService.showNotification(
-                                                      message:
-                                                          'The file is too large. Please select a file smaller than 10MB',
-                                                      severity:
-                                                          InfoBarSeverity.error,
-                                                    );
-                                                    return;
-                                                  }
-
-                                                  final file = File(
-                                                    result.files.single.path!,
-                                                  );
-                                                  final bytes = await file
-                                                      .readAsBytes();
-                                                  final image =
-                                                      await decodeImageFromList(
-                                                        bytes,
-                                                      );
-                                                  if (image.width < 1920 ||
-                                                      image.height < 1080) {
-                                                    NotificationService.showNotification(
-                                                      message:
-                                                          'The image resolution is too low. Please select an image with a resolution of at least 1920x1080',
-                                                      severity:
-                                                          InfoBarSeverity.error,
-                                                    );
-                                                    return;
-                                                  }
-
-                                                  NotificationService.info(
-                                                    message: 'Copying image...',
-                                                  );
-                                                  if (Preferences
-                                                      .customization
-                                                      .customBackground) {
-                                                    imageCache
-                                                      ..clear()
-                                                      ..clearLiveImages();
-                                                  }
-
-                                                  File(
-                                                    join(
-                                                      FileHelper.getLauncherDirectory()
-                                                          .path,
-                                                      'background',
-                                                    ),
-                                                  ).writeAsBytesSync(bytes);
-                                                  Preferences
-                                                          .customization
-                                                          .customBackground =
-                                                      true;
-                                                  Navigator.of(context).pop();
-                                                },
+                                                onPressed: () =>
+                                                    _selectImage(context),
                                               ),
                                             ],
                                           ),
@@ -290,6 +218,69 @@ class _BackgroundSelectorState extends State<BackgroundSelector> {
         ),
       ],
     );
+  }
+
+  void _selectImage(BuildContext context) async {
+    final result = await FilePicker.pickFiles(
+      allowedExtensions: [
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+      ],
+      dialogTitle: 'Select a background image',
+      type: .custom,
+    );
+
+    if (result.isEmpty) {
+      return;
+    }
+
+    final pFile = result.single;
+    final size = await pFile.length();
+
+    if (size > 1024 * 1024 * 10) {
+      NotificationService.showNotification(
+        message:
+            'The file is too large. Please select a file smaller than 10MB',
+        severity: .error,
+      );
+      return;
+    }
+
+    final file = File(
+      pFile.path!,
+    );
+    final bytes = await file.readAsBytes();
+    final image = await decodeImageFromList(
+      bytes,
+    );
+    if (image.width < 1920 || image.height < 1080) {
+      NotificationService.showNotification(
+        message:
+            'The image resolution is too low. Please select an image with a resolution of at least 1920x1080',
+        severity: InfoBarSeverity.error,
+      );
+      return;
+    }
+
+    NotificationService.info(
+      message: 'Copying image...',
+    );
+    if (Preferences.customization.customBackground) {
+      imageCache
+        ..clear()
+        ..clearLiveImages();
+    }
+
+    File(
+      join(
+        FileHelper.getLauncherDirectory().path,
+        'background',
+      ),
+    ).writeAsBytesSync(bytes);
+    Preferences.customization.customBackground = true;
+    Navigator.of(context).pop();
   }
 }
 

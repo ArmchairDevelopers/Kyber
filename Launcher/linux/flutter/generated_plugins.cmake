@@ -7,6 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   dart_discord_rpc
   desktop_webview_window
   file_selector_linux
+  flutter_inappwebview_linux
   flutter_js
   flutter_secure_storage_linux
   irondash_engine_context

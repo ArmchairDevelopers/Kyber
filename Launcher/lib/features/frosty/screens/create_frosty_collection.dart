@@ -54,20 +54,18 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                       KyberButton(
                         text: 'LOAD MODS',
                         onPressed: () async {
-                          final result = await FilePicker.platform.pickFiles(
+                          final result = await FilePicker.pickFiles(
                             allowedExtensions: ['fbmod'],
                             allowMultiple: true,
                             dialogTitle: 'Select mods',
-                            type: FileType.custom,
+                            type: .custom,
                           );
 
-                          if (result == null) {
+                          if (result.isEmpty) {
                             return;
                           }
 
-                          final paths = result.files
-                              .map((e) => e.path!)
-                              .toList();
+                          final paths = result.map((e) => e.path!).toList();
 
                           for (final path in List<String>.from(paths)) {
                             if (mods.map((e) => e.filename).contains(path)) {
@@ -119,13 +117,17 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                           //  fileName: 'collection.fbcollection',
                           //  type: FileType.custom,
                           //);
-                          final targetFileZip = await FilePicker.platform
-                              .saveFile(
-                                dialogTitle: 'Save collection',
-                                allowedExtensions: ['zip'],
-                                fileName: 'collection.zip',
-                                type: FileType.custom,
-                              );
+                          final targetFileZip = await FilePicker.saveFile(
+                            dialogTitle: 'Save collection',
+                            allowedExtensions: ['zip'],
+                            fileName: 'collection.zip',
+                            bytes: Uint8List(0),
+                            type: FileType.custom,
+                          );
+                          if (targetFileZip == null) {
+                            return;
+                          }
+
                           final paths = mods.map((e) => e.filename).toList();
 
                           final data = FrostyCollectionWriter(
@@ -152,7 +154,7 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                             context: context,
                             builder: (_) => _ExportCollectionDialog(
                               filePaths: paths,
-                              targetFile: targetFileZip!,
+                              targetFile: targetFileZip!.path,
                               collectionData: data,
                               title: nameController.text,
                             ),
@@ -307,17 +309,17 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                   children: [
                     ButtonBuilder(
                       onClick: () async {
-                        final result = await FilePicker.platform.pickFiles(
+                        final result = await FilePicker.pickFiles(
                           allowedExtensions: ['png', 'jpg', 'jpeg'],
                           dialogTitle: 'Select icon',
                           type: FileType.custom,
                         );
 
-                        if (result == null) {
+                        if (result.isEmpty) {
                           return;
                         }
 
-                        final file = File(result.files.single.path!);
+                        final file = File(result.single.path!);
                         icon = await file.readAsBytes();
                         setState(() {});
                       },

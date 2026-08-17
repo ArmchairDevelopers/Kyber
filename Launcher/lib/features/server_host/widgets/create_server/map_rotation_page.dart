@@ -13,8 +13,8 @@ import 'package:kyber_launcher/features/kyber/models/mode.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_status_cubit.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/map_rotation/dialogs/export_rotation_dialog.dart';
-import 'package:kyber_launcher/features/map_rotation/providers/map_rotation_cubit.dart';
 import 'package:kyber_launcher/features/map_rotation/models/map_rotation_entry.dart';
+import 'package:kyber_launcher/features/map_rotation/providers/map_rotation_cubit.dart';
 import 'package:kyber_launcher/features/mods/services/level_declaration_service.dart';
 import 'package:kyber_launcher/features/server_host/providers/host_collection_cubit.dart';
 import 'package:kyber_launcher/features/server_host/providers/host_search_cubit.dart';
@@ -106,18 +106,17 @@ class _MapRotationPageState extends State<MapRotationPage> {
                         HeaderButton(
                           title: 'Import',
                           onClick: () async {
-                            final filePath = await FilePicker.platform
-                                .pickFiles(
-                                  allowedExtensions: ['txt', 'json'],
-                                  dialogTitle: 'Import Map Rotation',
-                                  type: FileType.custom,
-                                );
+                            final filePath = await FilePicker.pickFiles(
+                              allowedExtensions: ['txt', 'json'],
+                              dialogTitle: 'Import Map Rotation',
+                              type: FileType.custom,
+                            );
 
-                            if (filePath == null) {
+                            if (filePath.isEmpty) {
                               return;
                             }
 
-                            final file = filePath.files.first;
+                            final file = filePath.first;
                             if (file.path == null) {
                               return;
                             }

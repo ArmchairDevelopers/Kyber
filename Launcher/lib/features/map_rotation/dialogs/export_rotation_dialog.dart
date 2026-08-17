@@ -60,18 +60,19 @@ class _ExportRotationDialogState extends State<ExportRotationDialog> {
         KyberButton(
           icon: const Icon(mt.Icons.save),
           onPressed: () async {
-            final filePath = await FilePicker.platform.saveFile(
+            final filePath = await FilePicker.saveFile(
               allowedExtensions: ['txt'],
               dialogTitle: 'Export Map Rotation',
               fileName: 'map_rotation.txt',
-              type: FileType.custom,
+              bytes: Uint8List(0),
+              type: .custom,
             );
 
             if (filePath != null) {
               final data = generateData(
                 _ExportType.values[selectedExportTypeIndex],
               );
-              await File(filePath).writeAsString(data);
+              await File(filePath.path).writeAsString(data);
               NotificationService.info(message: 'File saved');
               Navigator.of(context).pop();
             }

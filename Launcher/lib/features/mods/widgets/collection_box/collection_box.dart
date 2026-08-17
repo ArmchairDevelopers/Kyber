@@ -59,17 +59,17 @@ class _CollectionBoxState extends State<CollectionBox> {
       return;
     }
 
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
       dialogTitle: 'Select Collection Icon',
-      type: FileType.custom,
+      type: .custom,
     );
 
-    if (result == null || result.files.isEmpty) {
+    if (result.isEmpty) {
       return;
     }
 
-    final file = File(result.files.first.path!);
+    final file = File(result.first.path!);
     final bytes = await file.readAsBytes();
     final imageCropResult = switch (extension(file.path)) {
       '.gif' => bytes,

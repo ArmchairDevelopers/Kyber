@@ -396,7 +396,7 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
           KyberButton(
             text: 'LOCATE',
             onPressed: () async {
-              final result = await FilePicker.platform.pickFiles(
+              final result = await FilePicker.pickFiles(
                 allowedExtensions: ['exe'],
                 dialogTitle: 'Select the Frosty Mod Manager executable',
                 type: FileType.custom,
@@ -410,10 +410,10 @@ class _FrostyImportDialogState extends State<FrostyImportDialog> {
 
               try {
                 _logger.info(
-                  'Located Frosty Mod Manager executable at ${result.files.single.path}',
+                  'Located Frosty Mod Manager executable at ${result.single.path}',
                 );
                 final directory = Directory(
-                  p.dirname(result.files.single.path!),
+                  p.dirname(result.single.path!),
                 );
                 final modsDirectory = Directory(
                   p.join(directory.path, 'Mods', 'starwarsbattlefrontii'),

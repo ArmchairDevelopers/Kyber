@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -126,15 +127,15 @@ class _CollectionExportDialogState extends State<CollectionExportDialog> {
             onPressed: () async {
               total = modFiles.length - 1;
               await Future<void>.value().then((_) async {
-                print('Exporting collection with files');
-                final file = await FilePicker.platform.saveFile(
+                final file = await FilePicker.saveFile(
                   allowedExtensions: ['tar'],
                   dialogTitle: 'Export Collection',
-                  type: FileType.custom,
+                  fileName: 'collection.tar',
+                  bytes: Uint8List(0),
+                  type: .custom,
                 );
 
                 if (file == null) {
-                  print('User cancelled');
                   return;
                 }
 
@@ -145,7 +146,6 @@ class _CollectionExportDialogState extends State<CollectionExportDialog> {
                   tempDir.path,
                   '${widget.collection.title}.kbcollection',
                 );
-                print('Exporting collection to $tempCollectionFile');
                 await exportCollection(File(tempCollectionFile));
                 await Future.delayed(Duration(seconds: 1));
 
@@ -155,7 +155,7 @@ class _CollectionExportDialogState extends State<CollectionExportDialog> {
                   ..add(tempCollectionFile);
                 compressTar(
                   filePaths: paths,
-                  targetFile: file,
+                  targetFile: file.path,
                 ).listen(
                   (event) {
                     setState(() {

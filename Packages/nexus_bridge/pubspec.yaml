@@ -25,7 +25,7 @@ dependency_overrides:
       path: retrofit
 
 dependencies:
-  csv: ^6.0.0
+  csv: ^8.0.0
   dio: ^5.4.0
   html: ^0.15.4
   logger: any

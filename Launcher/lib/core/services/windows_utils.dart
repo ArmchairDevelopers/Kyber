@@ -16,43 +16,35 @@ class WindowsUtils {
     }
 
     final ntdll = DynamicLibrary.open('ntdll.dll');
-    final RtlGetVersion = ntdll
+    final rtlGetVersion = ntdll
         .lookupFunction<_RtlGetVersionC, _RtlGetVersionDart>('RtlGetVersion');
-    final osVersionInfo = calloc<OSVERSIONINFO>();
 
-    try {
-      osVersionInfo.ref.dwOSVersionInfoSize = sizeOf<OSVERSIONINFO>();
-      final result = RtlGetVersion(osVersionInfo);
+    return using((arena) {
+      final info = arena<OSVERSIONINFO>()
+        ..ref.dwOSVersionInfoSize = sizeOf<OSVERSIONINFO>();
 
-      if (result == 0) {
-        final major = osVersionInfo.ref.dwMajorVersion;
-        final minor = osVersionInfo.ref.dwMinorVersion;
-
-        if (major == 6 && minor == 1) {
-          return true;
-        }
+      if (rtlGetVersion(info) != 0) {
+        return false;
       }
 
+      return info.ref.dwMajorVersion == 6 && info.ref.dwMinorVersion == 1;
+    });
+  }
+
+  static bool _isDllPresent(String dllName) => using((arena) {
+    final result = LoadLibraryEx(
+      arena.pcwstr(dllName),
+      LOAD_LIBRARY_SEARCH_SYSTEM32,
+    );
+
+    if (result.value.isNull) {
       return false;
-    } finally {
-      calloc.free(osVersionInfo);
-      ntdll.close();
     }
-  }
 
-  static bool _isDllPresent(String dllName) {
-    final ptr = dllName.toNativeUtf16();
-    final hModule = LoadLibraryEx(ptr, 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
-    calloc.free(ptr);
+    FreeLibrary(result.value);
+    return true;
+  });
 
-    if (hModule != NULL) {
-      FreeLibrary(hModule);
-      return true;
-    }
-    return false;
-  }
-
-  static bool get isVcRuntimeInstalled {
-    return _isDllPresent('vcruntime140.dll') || _isDllPresent('msvcp140.dll');
-  }
+  static bool get isVcRuntimeInstalled =>
+      _isDllPresent('vcruntime140.dll') || _isDllPresent('msvcp140.dll');
 }
