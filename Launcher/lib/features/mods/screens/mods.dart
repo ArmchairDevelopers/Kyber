@@ -28,6 +28,7 @@ import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
 import 'package:kyber_launcher/shared/ui/elements/filter_dropdown.dart';
+import 'package:kyber_launcher/shared/ui/elements/kyber_page_selector.dart';
 import 'package:kyber_launcher/shared/ui/layout/bordered_content.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
@@ -646,7 +647,7 @@ class _QuickActions extends StatelessWidget {
       width: 80,
       child: KyberTabBar(
         selectedIndex: -1,
-        onChanged: (value) => _handleAction(value),
+        onChanged: _handleAction,
         tabs: [
           const Icon(mt.Icons.folder),
           const Icon(mt.Icons.settings),
@@ -674,19 +675,16 @@ class _BrowserPagination extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 150,
+      width: 125,
+      height: 35,
       child: BlocBuilder<ModBrowserCubit, ModBrowserState>(
         builder: (context, state) {
           final (page, totalPages) = _getPageInfo(context, state);
 
-          return KyberTabBar(
-            selectedIndex: -1,
-            onChanged: (value) => _handlePageChange(context, value),
-            tabs: [
-              const Icon(mt.Icons.arrow_back_ios_new_rounded),
-              Text('$page/$totalPages'.toUpperCase()),
-              const Icon(mt.Icons.arrow_forward_ios_rounded),
-            ],
+          return KyberPageSelector(
+            current: page,
+            total: totalPages,
+            onPageChanged: (value) => _handlePageChange(context, value),
           );
         },
       ),
@@ -705,7 +703,7 @@ class _BrowserPagination extends StatelessWidget {
       totalPages = state.totalPages;
     }
 
-    final searchState = context.watch<ModSearchCubit>().state;
+    final searchState = context.read<ModSearchCubit>().state;
     if (searchState is! SearchInitial) {
       return (1, 1);
     }
@@ -714,12 +712,7 @@ class _BrowserPagination extends StatelessWidget {
   }
 
   void _handlePageChange(BuildContext context, int value) {
-    final cubit = context.read<ModBrowserCubit>();
-    if (value == 0) {
-      cubit.previousPage();
-    } else if (value == 2) {
-      cubit.nextPage();
-    }
+    context.read<ModBrowserCubit>().loadPage(page: value);
   }
 }
 

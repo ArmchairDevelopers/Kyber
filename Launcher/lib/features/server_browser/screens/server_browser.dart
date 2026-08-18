@@ -136,6 +136,7 @@ class _HeaderBar extends StatelessWidget {
             BlocBuilder<ServerListCubit, ServerListState>(
               builder: (context, state) => SizedBox(
                 height: 35,
+                width: 110,
                 child: KyberPageSelector(
                   current: state.page ?? 0,
                   total: state.pages ?? 0,
