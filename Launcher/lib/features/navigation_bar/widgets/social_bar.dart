@@ -319,6 +319,7 @@ class _DownloadInfo extends StatelessWidget {
       children: [
         DefaultTextStyle(
           style: const TextStyle(
+            fontFamily: FontFamily.battlefrontUI,
             fontSize: 18,
             height: 1,
             fontFeatures: [.tabularFigures()],
@@ -328,6 +329,7 @@ class _DownloadInfo extends StatelessWidget {
         ),
         DefaultTextStyle(
           style: const TextStyle(
+            fontFamily: FontFamily.battlefrontUI,
             fontSize: 12,
             height: 1,
             fontFeatures: [.tabularFigures()],
