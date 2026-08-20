@@ -240,9 +240,7 @@ class _DownloadManagerButton extends StatelessWidget {
     final extractingTotal = state.extractionProgressUpdate?.total ?? 0;
     final extractingCurrent = state.extractionProgressUpdate?.extracted ?? 0;
 
-    final isCopyingFiles = state.currentDownload?.task is CallbackTask;
-
-    if (isExtracting || isCopyingFiles) {
+    if (isExtracting) {
       if (extractingTotal > 0) {
         progress = extractingCurrent / extractingTotal;
       } else {
@@ -283,7 +281,7 @@ class _DownloadManagerButton extends StatelessWidget {
             top: 0,
             child: Builder(
               builder: (context) {
-                if (isExtracting || isCopyingFiles) {
+                if (isExtracting) {
                   return _DownloadInfo(
                     title: const Icon(mt.Icons.file_copy),
                     text: Text(
