@@ -1,16 +1,22 @@
+import 'package:background_downloader/background_downloader.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
+import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
+import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
+import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/background_image.dart';
+import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
+import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_page_selector.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 
@@ -231,7 +237,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                               ),
                             _Badge(
                               text:
-                              '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
+                                  '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
                             ),
                             if (showInstances)
                               _PageSelector(
@@ -280,19 +286,19 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                       padding: const .symmetric(horizontal: 25),
                       child: Row(
                         children: [
-                          KyberButton.withChild(
-                            // TODO: add disabled state
-                            onPressed:
-                                widget.onServerSelected ??
-                                context.read<ServerBrowserCubit>().joinServer,
-                            padding: const .symmetric(
-                              horizontal: 25,
-                              vertical: 8,
-                            ),
-                            child: Text(
-                              widget.moderationMode ? 'MODERATE' : 'PLAY',
-                            ),
-                          ),
+                          if (widget.onServerSelected != null)
+                            KyberButton.withChild(
+                              onPressed: widget.onServerSelected,
+                              padding: const .symmetric(
+                                horizontal: 25,
+                                vertical: 8,
+                              ),
+                              child: Text(
+                                widget.moderationMode ? 'MODERATE' : 'PLAY',
+                              ),
+                            )
+                          else
+                            _JoinButton(serverInfo: serverInfo),
                           const Spacer(),
                           KOutlinedButton.icon(
                             child: Assets.icons.kblCollection.svg(),
@@ -347,63 +353,215 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
   }
 }
 
-class _ModsDropdown extends StatefulWidget {
-  const _ModsDropdown({required this.serverInfo, super.key});
+class _JoinButton extends StatelessWidget {
+  const _JoinButton({required this.serverInfo, super.key});
 
   final Server serverInfo;
 
   @override
-  State<_ModsDropdown> createState() => _ModsDropdownState();
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: sl.get<ModService>(),
+      builder: (context, _) {
+        return BlocBuilder<ServerBrowserCubit, ServerBrowserState>(
+          buildWhen: (previous, current) =>
+              previous.joiningServer != current.joiningServer,
+          builder: (context, state) {
+            final hasAllMods = serverInfo.mods.every(
+              (mod) => ModHelper.isInstalled(mod.name, mod.version),
+            );
+            final downloading = state.joiningServer != null;
+
+            return KyberButton.withChild(
+              onPressed: downloading
+                  ? null
+                  : context.read<ServerBrowserCubit>().joinServer,
+              padding: const .symmetric(
+                horizontal: 25,
+                vertical: 8,
+              ),
+              child: Text(hasAllMods ? 'PLAY' : 'DOWNLOAD MODS'),
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
-class _ModsDropdownState extends State<_ModsDropdown> {
-  late int _installedMods;
+class _ModsDropdown extends StatelessWidget {
+  const _ModsDropdown({required this.serverInfo, super.key});
 
-  @override
-  void initState() {
-    _setInstalledMods();
-    super.initState();
-  }
+  final Server serverInfo;
 
-  @override
-  void didChangeDependencies() {
-    _setInstalledMods();
-    super.didChangeDependencies();
-  }
+  bool _isModDownloading(TaskRecord? download, ServerMod mod) {
+    if (download == null || download.task.metaData.isEmpty) {
+      return false;
+    }
 
-  void _setInstalledMods() {
-    final count = widget.serverInfo.mods
-        .where((e) => ModHelper.isInstalled(e.name, e.version))
-        .length;
-
-    setState(() {
-      _installedMods = count;
-    });
+    try {
+      final metadata = ServerMod.fromJson(download.task.metaData);
+      return metadata.name == mod.name && metadata.version == mod.version;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final modCount = widget.serverInfo.mods.length;
+    return ListenableBuilder(
+      listenable: sl.get<ModService>(),
+      builder: (context, _) {
+        final installedMods = serverInfo.mods
+            .where((e) => ModHelper.isInstalled(e.name, e.version))
+            .length;
 
-    return _Dropdown(
-      title: Row(
-        spacing: 10,
-        children: [
-          Text('MODS - $_installedMods/$modCount'),
-          const Expanded(
-            child: SizedBox(
-              height: 2,
-              child: ColoredBox(color: decoColor),
+        return _Dropdown(
+          title: Row(
+            spacing: 10,
+            children: [
+              Text('MODS - $installedMods/${serverInfo.mods.length}'),
+              const Expanded(
+                child: SizedBox(
+                  height: 2,
+                  child: ColoredBox(color: decoColor),
+                ),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const .only(top: 12, bottom: 25),
+            child: BlocBuilder<DownloadCubit, DownloadState>(
+              buildWhen: (previous, current) {
+                final prev = previous is DownloadLoaded
+                    ? previous.currentDownload
+                    : null;
+                final curr = current is DownloadLoaded
+                    ? current.currentDownload
+                    : null;
+                return prev?.taskId != curr?.taskId;
+              },
+              builder: (context, state) {
+                final currentDownload = state is DownloadLoaded
+                    ? state.currentDownload
+                    : null;
+
+                return Column(
+                  spacing: 6,
+                  children: [
+                    for (final mod in serverInfo.mods)
+                      _ModTile(
+                        mod: mod,
+                        downloading: _isModDownloading(currentDownload, mod),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const .only(top: 12, bottom: 25),
-        child: Column(
-          spacing: 6,
+        );
+      },
+    );
+  }
+}
+
+class _ModTile extends StatelessWidget {
+  const _ModTile({required this.mod, this.downloading = false, super.key});
+
+  final ServerMod mod;
+  final bool downloading;
+
+  @override
+  Widget build(BuildContext context) {
+    final installed = ModHelper.isInstalled(mod.name, mod.version);
+
+    final color = downloading
+        ? kActiveColor
+        : installed
+        ? Colors.green
+        : Colors.red;
+
+    return KyberTooltip(
+      message: '${mod.name} ${mod.version}',
+      child: Container(
+        clipBehavior: .antiAlias,
+        decoration: BoxDecoration(
+          color: kControlBackgroundColor,
+          border: .all(color: kButtonBorder, width: 1.5),
+          borderRadius: .circular(kDefaultInnerBorderRadius),
+        ),
+        child: Stack(
           children: [
-            for (final mod in widget.serverInfo.mods) _ModTile(mod: mod),
+            Padding(
+              padding: const .symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                mainAxisAlignment: .spaceBetween,
+                spacing: 10,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          margin: const .only(right: 15),
+                          padding: const .all(3),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.15),
+                            borderRadius: .circular(4),
+                            border: .all(color: color, width: 1.5),
+                          ),
+                          child: Icon(
+                            downloading
+                                ? mt.Icons.download
+                                : installed
+                                ? mt.Icons.check
+                                : mt.Icons.close,
+                            size: 16,
+                            color: color,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            mod.name,
+                            style: const TextStyle(
+                              fontFamily: FontFamily.battlefrontUI,
+                              fontSize: 16,
+                              color: kWhiteColor,
+                            ),
+                            overflow: .ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        Text(
+                          ' (${mod.version})',
+                          style: const TextStyle(
+                            fontFamily: FontFamily.battlefrontUI,
+                            fontSize: 14,
+                            color: kWhiteColor1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (mod.fileSize > 0) ...[
+                    Text(
+                      formatBytes(mod.fileSize.toInt(), 1),
+                      style: const TextStyle(
+                        fontFamily: FontFamily.battlefrontUI,
+                        fontSize: 12,
+                        color: kWhiteColor1,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (downloading)
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _ModDownloadProgress(),
+              ),
           ],
         ),
       ),
@@ -411,67 +569,33 @@ class _ModsDropdownState extends State<_ModsDropdown> {
   }
 }
 
-class _ModTile extends StatelessWidget {
-  const _ModTile({required this.mod, super.key});
-
-  final ServerMod mod;
+class _ModDownloadProgress extends StatelessWidget {
+  const _ModDownloadProgress({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final installed = ModHelper.isInstalled(mod.name, mod.version);
+    return BlocBuilder<DownloadCubit, DownloadState>(
+      builder: (context, state) {
+        final progress = state is DownloadLoaded
+            ? (state.progressUpdate?.progress ?? 0).clamp(0.0, 1.0)
+            : 0.0;
 
-    final color = installed ? Colors.green : Colors.red;
-
-    // TODO: show download progress
-
-    return KyberTooltip(
-      message: '${mod.name} ${mod.version}',
-      child: Container(
-        padding: const .symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: kControlBackgroundColor,
-          border: .all(color: kButtonBorder, width: 1.5),
-          borderRadius: .circular(kDefaultInnerBorderRadius),
-        ),
-        child: Row(
-          children: [
-            Container(
-              margin: const .only(right: 15),
-              padding: const .all(3),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: .circular(4),
-                border: .all(color: color, width: 1.5),
-              ),
-              child: Icon(
-                installed ? mt.Icons.check : mt.Icons.close,
-                size: 16,
-                color: color,
-              ),
+        return Container(
+          height: 3,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                kActiveColor,
+                Colors.transparent,
+              ],
+              stops: [
+                progress,
+                progress,
+              ],
             ),
-            Flexible(
-              child: Text(
-                mod.name,
-                style: const TextStyle(
-                  fontFamily: FontFamily.battlefrontUI,
-                  fontSize: 16,
-                  color: kWhiteColor,
-                ),
-                overflow: .ellipsis,
-                maxLines: 1,
-              ),
-            ),
-            Text(
-              ' (${mod.version})',
-              style: const TextStyle(
-                fontFamily: FontFamily.battlefrontUI,
-                fontSize: 14,
-                color: kWhiteColor1,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
