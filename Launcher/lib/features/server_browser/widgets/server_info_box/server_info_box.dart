@@ -655,7 +655,7 @@ class _Badge extends StatelessWidget {
     assert(text != null || icon != null, 'Badge must have either text or icon');
 
     return Container(
-      padding: const .symmetric(horizontal: 10, vertical: 8),
+      padding: const .symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: kControlBackgroundColor,
         border: .all(color: kButtonBorder, width: 1.5),
@@ -672,7 +672,7 @@ class _Badge extends StatelessWidget {
               fontSize: 13,
               fontWeight: .w700,
               fontFamily: FontFamily.battlefrontUI,
-              height: 1.2,
+              height: 1,
               color: kWhiteColor,
               fontFeatures: [
                 .tabularFigures(),
