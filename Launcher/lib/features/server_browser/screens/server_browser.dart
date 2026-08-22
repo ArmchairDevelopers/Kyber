@@ -5,6 +5,7 @@ import 'package:kyber_launcher/features/kyber/helper/kyber_status_helper.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_api_status_cubit.dart';
 import 'package:kyber_launcher/features/lightswitch/models/status.dart';
 import 'package:kyber_launcher/features/server_browser/constants/modes.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_list_state.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
@@ -57,8 +58,8 @@ class _ServerBrowserState extends State<ServerBrowser> {
 
                 final serverId = selectedServer.serverInfo.id;
                 final stillPresent = state.servers.any(
-                  (s) => s is ServerGroup
-                      ? (s as ServerGroup).servers.any(
+                  (s) => s is GroupedServer
+                      ? s.group.servers.any(
                           (i) => i.id == serverId,
                         )
                       : s.serverInfo.id == serverId,
