@@ -6,6 +6,7 @@ import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
+import 'package:kyber_launcher/features/kyber/providers/kyber_proxy_cubit.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
@@ -41,6 +42,7 @@ class ServerInfoBox extends StatefulWidget {
 class _ServerInfoBoxState extends State<ServerInfoBox> {
   late Server serverInfo;
   ServerRegion? selectedRegion;
+  bool _regionResolved = false;
 
   KyberMap? get map => MapHelper.getMap(
     serverInfo.levelSetup.mode,
@@ -80,7 +82,6 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
   @override
   void initState() {
     serverInfo = widget.server.serverInfo;
-    setPreferredRegion(widget.server);
     super.initState();
   }
 
@@ -91,6 +92,10 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
 
     final server = widget.server as GroupedServer;
     selectedRegion = server.group.getPreferredRegion();
+
+    if (!_instances.contains(serverInfo)) {
+      serverInfo = _instances.first;
+    }
   }
 
   @override
@@ -98,7 +103,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
     if (oldWidget.server != widget.server) {
       selectedRegion = null;
       serverInfo = widget.server.serverInfo;
-      setPreferredRegion(widget.server);
+      _regionResolved = false;
     }
 
     super.didUpdateWidget(oldWidget);
@@ -124,6 +129,12 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
 
   @override
   Widget build(BuildContext context) {
+    final proxiesLoading = context.watch<KyberProxyCubit>().state.loading;
+    if (!proxiesLoading && !_regionResolved) {
+      _regionResolved = true;
+      setPreferredRegion(widget.server);
+    }
+
     final modeName = serverInfo.levelSetup.modeName.isNotEmpty
         ? serverInfo.levelSetup.modeName
         : MapHelper.getMode(serverInfo.levelSetup.mode)?.name ??
@@ -159,204 +170,215 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
               right: 0,
               child: ServerBackgroundImage(map: map?.map ?? ''),
             ),
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 25),
-                child: Column(
-                  crossAxisAlignment: .stretch,
-                  children: [
-                    Padding(
-                      padding: const .only(left: 25, right: 70),
-                      child: DefaultTextStyle(
-                        style: const TextStyle(
-                          fontFamily: FontFamily.battlefrontUI,
-                          fontSize: 24,
-                          color: Colors.white,
-                          shadows: [
-                            .new(
-                              color: Colors.black,
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: .start,
-                          children: [
-                            Text(
-                              serverInfo.levelSetup.mode,
-                              style: const .new(
-                                fontSize: 12,
-                                color: kInactiveColor,
-                                fontFamily: FontFamily.aurebesh,
-                              ),
-                            ),
-                            Text(
-                              serverInfo.name.toUpperCase(),
-                              style: const .new(
-                                fontWeight: .w700,
-                              ),
-                            ),
-                            Text(
-                              '$modeName - $mapName',
-                              style: const .new(
-                                fontSize: 18,
-                                color: kInactiveColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Padding(
-                      padding: const .symmetric(horizontal: 25),
-                      child: SizedBox(
-                        height: 30,
-                        child: Row(
-                          spacing: 8,
-                          crossAxisAlignment: .stretch,
-                          children: [
-                            if (serverInfo.official)
-                              _Badge(
-                                icon: Assets.icons.greyKyberLogo.svg(
-                                  height: 14,
-                                  width: 14,
-                                ),
-                              )
-                            else if (serverInfo.creator.isNotEmpty)
-                              Flexible(
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    if (constraints.maxWidth < 60) {
-                                      return const SizedBox.shrink();
-                                    }
-
-                                    return Align(
-                                      alignment: .centerLeft,
-                                      widthFactor: 1,
-                                      child: IntrinsicWidth(
-                                        child: SizedBox(
-                                          height: double.infinity,
-                                          child: _Badge(
-                                            text: serverInfo.creator,
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            SizedBox(
-                              width: 55,
-                              child: _Badge(
-                                text:
-                                    '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
-                              ),
-                            ),
-                            if (serverInfo.region.isNotEmpty &&
-                                (selectedRegion == null ||
-                                    selectedRegion == .all))
-                              SizedBox(
-                                width: 40,
-                                child: _Badge(
-                                  text: serverInfo.region.toUpperCase(),
-                                ),
-                              ),
-                            if (regions.length > 1) ...[
-                              const Spacer(),
-                              if (showInstances)
-                                _PageSelector(
-                                  current: instances.indexOf(serverInfo) + 1,
-                                  total: instances.length,
-                                  onPageChanged: _switchInstance,
-                                ),
-                              _RegionSelector(
-                                regions: regions,
-                                selected: selectedRegion,
-                                onChanged: _switchRegion,
+            if (!_regionResolved)
+              const Positioned.fill(
+                child: Center(
+                  child: SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: ProgressRing(),
+                  ),
+                ),
+              )
+            else
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 25),
+                  child: Column(
+                    crossAxisAlignment: .stretch,
+                    children: [
+                      Padding(
+                        padding: const .only(left: 25, right: 70),
+                        child: DefaultTextStyle(
+                          style: const TextStyle(
+                            fontFamily: FontFamily.battlefrontUI,
+                            fontSize: 24,
+                            color: Colors.white,
+                            shadows: [
+                              .new(
+                                color: Colors.black,
+                                blurRadius: 4,
                               ),
                             ],
-                          ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: .start,
+                            children: [
+                              Text(
+                                serverInfo.levelSetup.mode,
+                                style: const .new(
+                                  fontSize: 12,
+                                  color: kInactiveColor,
+                                  fontFamily: FontFamily.aurebesh,
+                                ),
+                              ),
+                              Text(
+                                serverInfo.name.toUpperCase(),
+                                style: const .new(
+                                  fontWeight: .w700,
+                                ),
+                              ),
+                              Text(
+                                '$modeName - $mapName',
+                                style: const .new(
+                                  fontSize: 18,
+                                  color: kInactiveColor,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    if (showInstances) ...[
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const .symmetric(horizontal: 25),
+                        child: SizedBox(
+                          height: 30,
+                          child: Row(
+                            spacing: 8,
+                            crossAxisAlignment: .stretch,
+                            children: [
+                              if (serverInfo.official)
+                                _Badge(
+                                  icon: Assets.icons.greyKyberLogo.svg(
+                                    height: 14,
+                                    width: 14,
+                                  ),
+                                )
+                              else if (serverInfo.creator.isNotEmpty)
+                                Flexible(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      if (constraints.maxWidth < 60) {
+                                        return const SizedBox.shrink();
+                                      }
+
+                                      return Align(
+                                        alignment: .centerLeft,
+                                        widthFactor: 1,
+                                        child: IntrinsicWidth(
+                                          child: SizedBox(
+                                            height: double.infinity,
+                                            child: _Badge(
+                                              text: serverInfo.creator,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              SizedBox(
+                                width: 55,
+                                child: _Badge(
+                                  text:
+                                      '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
+                                ),
+                              ),
+                              if (serverInfo.region.isNotEmpty &&
+                                  (selectedRegion == null ||
+                                      selectedRegion == .all))
+                                SizedBox(
+                                  width: 40,
+                                  child: _Badge(
+                                    text: serverInfo.region.toUpperCase(),
+                                  ),
+                                ),
+                              if (regions.length > 1) ...[
+                                const Spacer(),
+                                if (showInstances)
+                                  _PageSelector(
+                                    current: instances.indexOf(serverInfo) + 1,
+                                    total: instances.length,
+                                    onPageChanged: _switchInstance,
+                                  ),
+                                _RegionSelector(
+                                  regions: regions,
+                                  selected: selectedRegion,
+                                  onChanged: _switchRegion,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (showInstances) ...[
+                        const SizedBox(height: 10),
+                        Padding(
+                          padding: const .symmetric(horizontal: 25),
+                          child: Row(
+                            spacing: 8,
+                            children: [
+                              for (final instance in instances)
+                                Expanded(
+                                  child: Container(
+                                    height: 3,
+                                    decoration: BoxDecoration(
+                                      color: instance == serverInfo
+                                          ? kActiveColor
+                                          : kButtonBorder,
+                                      borderRadius: .circular(1.5),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 25),
                       Padding(
                         padding: const .symmetric(horizontal: 25),
                         child: Row(
-                          spacing: 8,
                           children: [
-                            for (final instance in instances)
-                              Expanded(
-                                child: Container(
-                                  height: 3,
-                                  decoration: BoxDecoration(
-                                    color: instance == serverInfo
-                                        ? kActiveColor
-                                        : kButtonBorder,
-                                    borderRadius: .circular(1.5),
-                                  ),
+                            if (widget.onServerSelected != null)
+                              KyberButton.withChild(
+                                onPressed: widget.onServerSelected,
+                                padding: const .symmetric(
+                                  horizontal: 25,
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  widget.moderationMode ? 'MODERATE' : 'PLAY',
+                                ),
+                              )
+                            else
+                              _JoinButton(serverInfo: serverInfo),
+                            const Spacer(),
+                            KOutlinedButton.icon(
+                              child: Assets.icons.kblCollection.svg(),
+                              onPressed: () => null,
+                            ),
+                            const SizedBox(width: 10),
+                            KOutlinedButton.icon(
+                              child: const Icon(mt.Icons.camera_alt),
+                              onPressed: () => null,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          padding: const .only(left: 25, right: 25, top: 20),
+                          children: [
+                            if (serverInfo.description.isNotEmpty) ...[
+                              Text(
+                                serverInfo.description,
+                                style: const TextStyle(
+                                  fontFamily: FontFamily.battlefrontUI,
+                                  fontSize: 14,
+                                  color: kWhiteColor1,
                                 ),
                               ),
+                              const SizedBox(height: 20),
+                            ],
+                            _ModsDropdown(serverInfo: serverInfo),
                           ],
                         ),
                       ),
                     ],
-                    const SizedBox(height: 25),
-                    Padding(
-                      padding: const .symmetric(horizontal: 25),
-                      child: Row(
-                        children: [
-                          if (widget.onServerSelected != null)
-                            KyberButton.withChild(
-                              onPressed: widget.onServerSelected,
-                              padding: const .symmetric(
-                                horizontal: 25,
-                                vertical: 8,
-                              ),
-                              child: Text(
-                                widget.moderationMode ? 'MODERATE' : 'PLAY',
-                              ),
-                            )
-                          else
-                            _JoinButton(serverInfo: serverInfo),
-                          const Spacer(),
-                          KOutlinedButton.icon(
-                            child: Assets.icons.kblCollection.svg(),
-                            onPressed: () => null,
-                          ),
-                          const SizedBox(width: 10),
-                          KOutlinedButton.icon(
-                            child: const Icon(mt.Icons.camera_alt),
-                            onPressed: () => null,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView(
-                        padding: const .only(left: 25, right: 25, top: 20),
-                        children: [
-                          if (serverInfo.description.isNotEmpty) ...[
-                            Text(
-                              serverInfo.description,
-                              style: const TextStyle(
-                                fontFamily: FontFamily.battlefrontUI,
-                                fontSize: 14,
-                                color: kWhiteColor1,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                          _ModsDropdown(serverInfo: serverInfo),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
             Positioned(
               top: 25,
               right: 25,
