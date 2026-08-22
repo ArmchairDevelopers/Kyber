@@ -45,6 +45,34 @@ extension ServerTypeExtension on ServerRegion {
   }
 }
 
+const kProxyRegions = <String, ServerRegion>{
+  'us-ashburn': .na,
+  'us-chicago': .na,
+  'de-nuremberg': .eu,
+  'au-sydney': .oc,
+};
+
+ServerRegion? _parseRegion(String value) {
+  if (value.isEmpty) return null;
+
+  final region = ServerRegion.values.firstWhereOrNull(
+    (r) => r.name == value.toLowerCase(),
+  );
+  return region == ServerRegion.all ? null : region;
+}
+
+extension ProxyRegionExtension on ProxyInfo {
+  ServerRegion? get serverRegion => _parseRegion(region) ?? kProxyRegions[id];
+}
+
+extension ServerRegionExtension on Server {
+  ServerRegion? get serverRegion {
+    final pinnedProxyId = meta['pinned_proxy_id'];
+    return _parseRegion(region) ??
+        (pinnedProxyId == null ? null : kProxyRegions[pinnedProxyId]);
+  }
+}
+
 enum GameType {
   all,
   modded,
@@ -100,12 +128,8 @@ class ServerGroup {
     final mappings = <String, ServerRegion>{};
 
     for (final server in servers) {
-      if (server.region.isEmpty) continue;
-
-      final region = ServerRegion.values.firstWhereOrNull(
-        (r) => r.name == server.region.toLowerCase(),
-      );
-      if (region == null || region == ServerRegion.all) continue;
+      final region = server.serverRegion;
+      if (region == null) continue;
 
       final proxyId = server.meta['pinned_proxy_id'];
       if (proxyId == null) continue;
@@ -117,16 +141,7 @@ class ServerGroup {
   }
 
   Set<ServerRegion> get regions {
-    return servers
-        .where((e) => e.region.isNotEmpty)
-        .map(
-          (e) => ServerRegion.values.firstWhereOrNull(
-            (r) => r.name == e.region.toLowerCase(),
-          ),
-        )
-        .whereType<ServerRegion>()
-        .where((r) => r != ServerRegion.all)
-        .toSet();
+    return servers.map((e) => e.serverRegion).nonNulls.toSet();
   }
 
   ServerRegion getPreferredRegion() {
@@ -145,18 +160,23 @@ class ServerGroup {
       throw Exception('No pinned proxies found for server group $groupName');
     }
 
+    final KyberProxy? proxy;
     if (pinnedProxies.length == 1) {
       final proxyId = pinnedProxies.first;
-      final proxy = proxies.firstWhereOrNull((e) => e.proxy.id == proxyId);
+      proxy = proxies.firstWhereOrNull((e) => e.proxy.id == proxyId);
       if (proxy == null) {
         throw Exception('Unknown pinned proxy id: $proxyId');
       }
-
-      return ServerRegion.values.byName(proxy.proxy.region);
+    } else {
+      proxy = proxies.firstWhere((e) => pinnedProxies.contains(e.proxy.id));
     }
 
-    final proxy = proxies.firstWhere((e) => pinnedProxies.contains(e.proxy.id));
-    return ServerRegion.values.byName(proxy.proxy.region);
+    final region = proxy.proxy.serverRegion;
+    if (region == null) {
+      throw Exception('Unknown region for proxy ${proxy.proxy.id}');
+    }
+
+    return region;
   }
 
   List<Server> getForRegion(ServerRegion region) {
@@ -165,13 +185,12 @@ class ServerGroup {
       return s;
     }
 
-    s.removeWhere((e) => e.region.toLowerCase() != region.name);
+    s.removeWhere((e) => e.serverRegion != region);
 
     return s;
   }
 
   bool isMultiRegion() {
-    final regions = servers.map((e) => e.region).toSet();
     return regions.length > 1;
   }
 

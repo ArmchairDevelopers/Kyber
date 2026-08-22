@@ -61,7 +61,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
     var instances = group.getSorted();
     if (selectedRegion != null) {
       instances = instances
-          .where((e) => e.region.toLowerCase() == selectedRegion!.name)
+          .where((e) => e.serverRegion == selectedRegion)
           .toList();
     }
 
@@ -80,7 +80,17 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
   @override
   void initState() {
     serverInfo = widget.server.serverInfo;
+    setPreferredRegion(widget.server);
     super.initState();
+  }
+
+  void setPreferredRegion(ServerEntry serverEntry) {
+    if (serverEntry is! GroupedServer) {
+      return;
+    }
+
+    final server = widget.server as GroupedServer;
+    selectedRegion = server.group.getPreferredRegion();
   }
 
   @override
@@ -88,6 +98,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
     if (oldWidget.server != widget.server) {
       selectedRegion = null;
       serverInfo = widget.server.serverInfo;
+      setPreferredRegion(widget.server);
     }
 
     super.didUpdateWidget(oldWidget);
@@ -202,7 +213,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                       child: SizedBox(
                         height: 30,
                         child: Row(
-                          spacing: 10,
+                          spacing: 8,
                           crossAxisAlignment: .stretch,
                           children: [
                             if (serverInfo.official)
@@ -235,25 +246,36 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                                   },
                                 ),
                               ),
-                            _Badge(
-                              text:
-                                  '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
+                            SizedBox(
+                              width: 55,
+                              child: _Badge(
+                                text:
+                                    '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
+                              ),
                             ),
-                            if (showInstances)
-                              _PageSelector(
-                                current: instances.indexOf(serverInfo) + 1,
-                                total: instances.length,
-                                onPageChanged: _switchInstance,
+                            if (serverInfo.region.isNotEmpty &&
+                                (selectedRegion == null ||
+                                    selectedRegion == .all))
+                              SizedBox(
+                                width: 40,
+                                child: _Badge(
+                                  text: serverInfo.region.toUpperCase(),
+                                ),
                               ),
                             if (regions.length > 1) ...[
                               const Spacer(),
+                              if (showInstances)
+                                _PageSelector(
+                                  current: instances.indexOf(serverInfo) + 1,
+                                  total: instances.length,
+                                  onPageChanged: _switchInstance,
+                                ),
                               _RegionSelector(
                                 regions: regions,
                                 selected: selectedRegion,
                                 onChanged: _switchRegion,
                               ),
-                            ] else if (serverInfo.region.isNotEmpty)
-                              _Badge(text: serverInfo.region.toUpperCase()),
+                            ],
                           ],
                         ),
                       ),
@@ -263,7 +285,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                       Padding(
                         padding: const .symmetric(horizontal: 25),
                         child: Row(
-                          spacing: 10,
+                          spacing: 8,
                           children: [
                             for (final instance in instances)
                               Expanded(
@@ -654,7 +676,7 @@ class _PageSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 100,
+      width: 90,
       child: KyberPageSelector(
         tinted: true,
         current: current,
