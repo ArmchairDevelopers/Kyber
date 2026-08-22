@@ -10,12 +10,14 @@ class KyberPageSelector extends StatelessWidget {
     required this.current,
     required this.total,
     required this.onPageChanged,
+    this.tinted = false,
     super.key,
   });
 
   final int current;
   final int total;
   final ValueChanged<int>? onPageChanged;
+  final bool tinted;
 
   @override
   Widget build(BuildContext context) {
@@ -36,11 +38,13 @@ class KyberPageSelector extends StatelessWidget {
                 onPressed: onPageChanged == null
                     ? null
                     : () => onPageChanged!(current > 1 ? current - 1 : total),
+                tinted: tinted,
               ),
               Flexible(
                 child: Container(
+                  color: kControlBackgroundColor,
                   padding: const .symmetric(
-                    horizontal: 14,
+                    horizontal: 8,
                     vertical: 4,
                   ),
                   alignment: .center,
@@ -62,6 +66,7 @@ class KyberPageSelector extends StatelessWidget {
               ),
               _Arrow(
                 isFirst: false,
+                tinted: tinted,
                 onPressed: onPageChanged == null
                     ? null
                     : () => onPageChanged!(current < total ? current + 1 : 1),
@@ -75,9 +80,14 @@ class KyberPageSelector extends StatelessWidget {
 }
 
 class _Arrow extends StatelessWidget {
-  const _Arrow({required this.isFirst, required this.onPressed});
+  const _Arrow({
+    required this.isFirst,
+    required this.onPressed,
+    required this.tinted,
+  });
 
   final bool isFirst;
+  final bool tinted;
   final VoidCallback? onPressed;
 
   @override
@@ -87,14 +97,19 @@ class _Arrow extends StatelessWidget {
     return ButtonBuilder(
       onClick: onPressed,
       builder: (context, hovered) {
-        return Container(
-          color: const Color(0xFFD9D9D9).withOpacity(
+        final color = switch (tinted) {
+          true => kControlBackgroundColor,
+          false => const Color(0xFFD9D9D9).withOpacity(
             !enabled
                 ? 0.4
                 : hovered
                 ? 0.2
                 : 0.1,
           ),
+        };
+
+        return Container(
+          color: color,
           padding: const .symmetric(horizontal: 9, vertical: 5),
           child: Transform.rotate(
             angle: !isFirst ? 0 : 3.14,

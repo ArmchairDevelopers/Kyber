@@ -13,6 +13,7 @@ const kButtonBorder = Color(0xFF5C5C5C);
 const kGrayColor = Color(0xFF6D767B);
 const kWhiteBackgroundColor = Color.fromRGBO(67, 73, 76, 1);
 const decoColor = Color.fromRGBO(56, 65, 69, 1);
+const kControlBackgroundColor = Color.fromRGBO(0, 0, 0, 0.5);
 
 const kDefaultPadding = EdgeInsets.all(15);
 const kDefaultBorder = BorderSide(color: decoColor, width: 2);
