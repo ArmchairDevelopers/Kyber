@@ -43,6 +43,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
   late Server serverInfo;
   ServerRegion? selectedRegion;
   bool _regionResolved = false;
+  bool _modsLoaded = false;
 
   KyberMap? get map => MapHelper.getMap(
     serverInfo.levelSetup.mode,
@@ -82,6 +83,9 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
   @override
   void initState() {
     serverInfo = widget.server.serverInfo;
+    sl.isReady<ModService>().then(
+      (_) => mounted ? setState(() => _modsLoaded = true) : null,
+    );
     super.initState();
   }
 
@@ -170,7 +174,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
               right: 0,
               child: ServerBackgroundImage(map: map?.map ?? ''),
             ),
-            if (!_regionResolved)
+            if (!_regionResolved || !_modsLoaded)
               const Positioned.fill(
                 child: Center(
                   child: SizedBox(
