@@ -5,15 +5,15 @@ publish_to: none
 resolution: workspace
 
 environment:
-  sdk: ">=3.6.0 <4.0.0"
+  sdk: ^3.8.0
 
 dev_dependencies:
   build_runner: ^2.4.8
   mocktail: ^1.0.0
   test: ^1.19.2
   very_good_analysis: ^10.0.0
-  hive_ce_generator: any
-  freezed: ^3.0.4
+  hive_ce_generator: ^1.11.3
+  freezed: ^4.0.1
   json_serializable: ^6.7.1
 
 dependencies:
@@ -21,7 +21,7 @@ dependencies:
   crypto: ^3.0.6
   freezed_annotation: ^3.0.0
   hive_ce: ^2.2.3
-  json_annotation: ^4.8.1
+  json_annotation: ^4.12.0
   path: ^1.9.0
   slugify: ^2.0.0
   uuid: ^4.3.3
