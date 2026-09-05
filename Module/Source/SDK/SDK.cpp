@@ -35,14 +35,14 @@ TL_DECLARE_FUNC(
 TL_DECLARE_FUNC(0x148373280, void, WeaponFiring_setPrimaryAmmoMags, const WeaponFiring* inst, int mags);
 TL_DECLARE_FUNC(0x146C500C0, void, IServerNetworkable_stateChanged, void* gameContext, uint16_t flags);
 
-TL_DECLARE_FUNC(0x141128770, bool, SimpleEntityOwner_internalDestroyEntity, void* inst, NativeEntity* entity);
+TL_DECLARE_FUNC(0x141128770, bool, SimpleEntityOwner_internalDestroyEntity, void* inst, EntityBase* entity);
 TL_DECLARE_FUNC(0x1470BC9B0, bool, SimpleEntityOwner_destroyOwnedEntities, void* inst, Realm realm);
 TL_DECLARE_FUNC(0x1470BC620, void, SimpleEntityOwner_deinitOwnedEntities, void* inst, void* info);
 
 typedef __int64(__fastcall* SpatialEntity_getTransform_t)(const void* inst, LinearTransform& transform);
 typedef __int64(__fastcall* SpatialEntity_setTransform_t)(void* inst, const LinearTransform& transform);
 
-TL_DECLARE_FUNC(0x14116F610, bool, Entity_init, NativeEntity* inst, EntityInitInfo* info);
+TL_DECLARE_FUNC(0x14116F610, bool, Entity_init, EntityBase* inst, EntityInitInfo* info);
 TL_DECLARE_FUNC(0x1469DAF40, EntityInitInfo*, EntityInitInfo_ctor, EntityInitInfo* inst, Realm realm, void* context);
 
 TL_DECLARE_FUNC(0x14114C290, void, FullEntityBus_internalFireEvent, EntityBus* inst, const DataContainer* data, EntityEvent* event);
@@ -494,10 +494,10 @@ void EntityBase::Event(EntityEvent* event)
     EventAndPropertyModificationQueue_registerEvent(GetRealm(), this, event);
 }
 
-void NativeEntity::Init()
+void EntityBase::Init()
 {
     EntityInitInfo info;
-    EntityInitInfo_ctor(&info, m_entityBus->GetRealm(), nullptr);
+    EntityInitInfo_ctor(&info, GetEntityBus()->GetRealm(), nullptr);
     Entity_init(this, &info);
 }
 
@@ -590,7 +590,7 @@ eastl::vector<NativeEntity*> EntityOwner::GetOwnedEntitiesRecursively()
     return entities;
 }
 
-void EntityOwner::DestroyEntity(NativeEntity* entity)
+void EntityOwner::DestroyEntity(EntityBase* entity)
 {
     SimpleEntityOwner_internalDestroyEntity(this, entity);
 }

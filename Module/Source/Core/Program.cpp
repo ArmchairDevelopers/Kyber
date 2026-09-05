@@ -95,6 +95,7 @@ void Program::Uninitialize() const
 {
     HookManager::RemoveHooks();
     delete m_server;
+    delete m_client;
 }
 
 spdlog::level::level_enum DecideLogLevel()
@@ -635,8 +636,8 @@ void GameSimulationInitHk(GameSimulation* inst, void* createInfo)
     static const auto trampoline = HookManager::Call(GameSimulationInitHk);
     KYBER_LOG(Info, "[GameSim] Initializing Game Simulation");
 
-    double newFpsCap = 1.f / 500.f;
-    MemoryUtils::Patch(reinterpret_cast<void*>(0x142EF7668), &newFpsCap, sizeof(newFpsCap));
+    //double newFpsCap = 1.f / 500.f;
+    //MemoryUtils::Patch(reinterpret_cast<void*>(0x142EF7668), &newFpsCap, sizeof(newFpsCap));
 
     if (g_program->m_isDedicatedServer)
     {

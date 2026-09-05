@@ -41,7 +41,7 @@ class GameWorld
 {
 public:
     char pad_0000[8];                   // 0x0000
-    void* m_arena;                      // 0x0008
+    MemoryArena* m_arena;               // 0x0008
     float halfSizeXZ;                   // 0x0010
     float minY;                         // 0x0014
     void* m_firstRemovedEntity;         // 0x0018
@@ -74,6 +74,13 @@ extern void** g_gameContext;
     inline returnType name()                                                                                                               \
     {                                                                                                                                      \
         return reinterpret_cast<returnType(__fastcall*)(void*)>(ptr)(this);                                                                \
+    }
+
+#define KB_DECLARE_VIRTUALFUNC(index, returnType, name, args, ...)                                                                         \
+    inline returnType name(__VA_ARGS__)                                                                                                    \
+    {                                                                                                                                      \
+        return reinterpret_cast<returnType(__fastcall*)(void*, __VA_ARGS__)>(*(*reinterpret_cast<intptr_t**>(this) + index))(              \
+            this, STRIP_PARENS args);                                                                                                      \
     }
 
 class TypeInfo;
@@ -1750,11 +1757,15 @@ public:
     bool IsSpatial() const;
     bool IsComponent() const;
 
+    void Init();
+
     class EntityBus* GetEntityBus() const;
     const GameObjectData* GetData() const;
 
     void FireEvent(EntityEvent* event);
     void Event(EntityEvent* event);
+    KB_DECLARE_VIRTUALFUNC(5, void, PropertyChanged, (modification), struct PropertyModification* modification)
+    KB_DECLARE_VIRTUALFUNC(5, void, PropertyChanged, (modification), const struct PropertyModification* modification)
 
     Realm GetRealm() const
     {
@@ -1771,8 +1782,6 @@ public:
     // Research:
     // isAIPlayer: vtable 14
     // isAlive: vtable 6
-
-    void Init();
 };
 
 class SpatialEntity : public EntityBase
@@ -1806,7 +1815,7 @@ struct EntityOwner
     eastl::vector<NativeEntity*> GetOwnedEntities(EntityBus* bus = nullptr);
     eastl::vector<NativeEntity*> GetOwnedEntitiesRecursively();
 
-    void DestroyEntity(NativeEntity* entity);
+    void DestroyEntity(EntityBase* entity);
 
     void DeinitOwnedEntities(void* info);
 
