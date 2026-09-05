@@ -129,7 +129,7 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
 
     try {
       channel = IOWebSocketChannel.connect(
-        Uri.parse('wss://$host/ping'),
+        Uri.parse('ws://$host/ping'),
         customClient: _pingClient,
       );
       await channel.ready.timeout(_kConnectTimeout);
