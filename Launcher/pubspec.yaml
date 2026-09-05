@@ -82,7 +82,7 @@ dependencies:
   protocol_handler:
     git:
       url: https://github.com/ArmchairDevelopers/protocol_handler.git
-      ref: main
+      ref: 0819503ebd07861c80485c52f6e89bbf9352a14f
       path: 'packages/protocol_handler'
   path: ^1.9.0
   path_provider: ^2.0.9

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:async/async.dart';
 import 'package:collection/collection.dart';
@@ -22,12 +23,20 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
 
   final _logger = Logger('proxy_cubit');
 
+  final _pingClient = HttpClient()..findProxy = null;
+
   Future<void>? _ready;
   bool _loading = true;
 
   bool get isLoading => _loading;
 
   Future<void> ensureReady() => _ready ?? Future<void>.value();
+
+  @override
+  Future<void> close() {
+    _pingClient.close(force: true);
+    return super.close();
+  }
 
   void selectProxy(String proxyId) {
     Preferences.general.proxy = proxyId;
@@ -119,7 +128,10 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
     StreamQueue? queue;
 
     try {
-      channel = IOWebSocketChannel.connect(Uri.parse('wss://$host/ping'));
+      channel = IOWebSocketChannel.connect(
+        Uri.parse('wss://$host/ping'),
+        customClient: _pingClient,
+      );
       await channel.ready.timeout(_kConnectTimeout);
 
       queue = StreamQueue(channel.stream.asBroadcastStream());

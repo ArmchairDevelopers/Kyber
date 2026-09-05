@@ -11,21 +11,13 @@ dev_dependencies:
   mocktail: ^1.0.0
   test: ^1.19.2
   very_good_analysis: ^10.0.0
-  retrofit_generator:
-    git:
-      url: https://github.com/trevorwang/retrofit.dart.git
-      path: generator
+  retrofit_generator: ^10.2.6
   build_runner: '>=2.3.0 <4.0.0'
   json_serializable: ^6.6.2
 
-dependency_overrides:
-  retrofit:
-    git:
-      url: https://github.com/trevorwang/retrofit.dart.git
-      path: retrofit
-
 dependencies:
   csv: ^6.0.0
+  retrofit: ^4.9.2
   dio: ^5.4.0
   html: ^0.15.4
   logger: any
