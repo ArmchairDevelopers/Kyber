@@ -205,7 +205,7 @@ void Server::Start(const ServerCreationInfo& info, bool changeState)
     // Populate misc server details for potential usage in plugins
     ServerSettings* serverSettings = Settings<ServerSettings>("Server");
     serverSettings->ServerName = StringUtils::CopyWithArena(info.name.c_str());
-    serverSettings->ServerPassword = StringUtils::CopyWithArena(info.password.c_str());
+    //serverSettings->ServerPassword = StringUtils::CopyWithArena(info.password.c_str());
 
     m_creationInfo = info;
 
