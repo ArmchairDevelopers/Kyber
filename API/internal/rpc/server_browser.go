@@ -697,10 +697,9 @@ func (s *ServerBrowserServer) CanJoinServer(ctx context.Context, req *pbapi.CanJ
 	}
 
 	if server.Password != nil && *server.Password != req.GetPassword() {
-		reason := "Invalid Password"
 		return &pbapi.CanJoinServerResponse{
-			CanJoin: false,
-			Reason:  &reason,
+			CanJoin:      false,
+			DeniedReason: util.ToPtr(pbapi.JoinDeniedReason_INVALID_PASSWORD),
 		}, nil
 	}
 
@@ -710,11 +709,24 @@ func (s *ServerBrowserServer) CanJoinServer(ctx context.Context, req *pbapi.CanJ
 	}
 
 	if ban != nil {
-		reason := fmt.Sprintf("You are banned from this server: %s", *ban.Reason)
-		return &pbapi.CanJoinServerResponse{
+		banReason := ""
+		if ban.Reason != nil {
+			banReason = *ban.Reason
+		}
+
+		resp := &pbapi.CanJoinServerResponse{
 			CanJoin: false,
-			Reason:  &reason,
-		}, nil
+			BanInfo: &pbapi.BanInfo{
+				Reason: banReason,
+			},
+			DeniedReason: util.ToPtr(pbapi.JoinDeniedReason_BANNED),
+		}
+
+		if ban.ExpiresAt != nil {
+			resp.BanInfo.ExpiresAt = util.ToPtr(ban.ExpiresAt.Unix())
+		}
+
+		return resp, nil
 	}
 
 	shouldQueue, err := s.queues.ShouldQueue(ctx, server)
@@ -756,12 +768,12 @@ func (s *ServerBrowserServer) CanJoinServer(ctx context.Context, req *pbapi.CanJ
 			}
 
 			if reserved == nil && !hasToken {
-				reason := "Server is full"
 				canQueue := true
+				// TODO: this should probably return true??
 				return &pbapi.CanJoinServerResponse{
-					CanJoin:  false,
-					Reason:   &reason,
-					CanQueue: &canQueue,
+					CanJoin:      false,
+					CanQueue:     &canQueue,
+					DeniedReason: util.ToPtr(pbapi.JoinDeniedReason_SERVER_FULL),
 				}, nil
 			}
 		}

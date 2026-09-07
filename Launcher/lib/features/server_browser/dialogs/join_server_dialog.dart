@@ -88,12 +88,17 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
   Future<void> checkPassword() async {
     try {
       final service = sl.get<KyberGRPCService>();
-      final result = await service.serverBrowserClient.canJoinServer(CanJoinServerRequest(
+      final result = await service.serverBrowserClient.canJoinServer(.new(
         id: serverInfo.id,
         password: password,
       ));
 
-      if (result.canJoin) {
+      if (result.deniedReason == .BANNED) {
+        // TODO: show ban info dialog
+        return;
+      }
+
+      if (result.canJoin || result.deniedReason == .SERVER_FULL) {
         return setState(() {
           correctPassword = true;
         });
@@ -415,15 +420,16 @@ class _CosmeticModsDialogState extends State<CosmeticModsDialog> {
               if (!serverInfo.requiresPassword) {
                 try {
                   final result = await sl.get<KyberGRPCService>().serverBrowserClient.canJoinServer(
-                    CanJoinServerRequest(
+                    .new(
                       id: serverInfo.id,
                       password: password,
                     ),
                   );
 
-                  if (!result.canJoin) {
+                  if (!result.canJoin && result.hasBanInfo()) {
+                    // TODO: show ban info dialog
                     NotificationService.showNotification(
-                      message: result.reason,
+                      message: 'You are banned from this server. Reason: ${result.banInfo.reason}',
                       severity: InfoBarSeverity.error,
                     );
                     return;

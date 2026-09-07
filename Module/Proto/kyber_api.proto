@@ -960,13 +960,26 @@ message CanJoinServerRequest {
   string password = 2;
 }
 
+enum JoinDeniedReason {
+  INVALID_PASSWORD = 0;
+  BANNED = 1;
+  SERVER_FULL = 2;
+}
+
+message BanInfo {
+  string reason = 1;
+  optional int64 expiresAt = 2;
+}
+
 message CanJoinServerResponse {
   // Whether the user can join the server
   bool canJoin = 1;
-  // The reason the user can't join the server
-  optional string reason = 2;
   // set when the server is full but the user can queue for it
-  optional bool canQueue = 3;
+  optional bool canQueue = 2;
+  // ban info
+  optional BanInfo banInfo = 3;
+  // Why the join was denied
+  optional JoinDeniedReason deniedReason = 4;
 }
 
 message Server {
