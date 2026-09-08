@@ -10,6 +10,7 @@ import 'package:kyber_launcher/features/kyber/providers/kyber_proxy_cubit.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
+import 'package:kyber_launcher/features/server_browser/dialogs/server_password_dialog.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
@@ -406,6 +407,30 @@ class _JoinButton extends StatelessWidget {
 
   final Server serverInfo;
 
+  void _joinServer(BuildContext context, ServerBrowserState state) async {
+    final hasAllMods = serverInfo.mods.every(
+          (mod) => ModHelper.isInstalled(mod.name, mod.version),
+    );
+    final downloading = state.joiningServer != null;
+
+
+    if (downloading) {
+      return;
+    }
+
+    String? password;
+    if (serverInfo.requiresPassword) {
+      password = await ServerPasswordDialog.show(
+        context,
+        serverInfo: serverInfo,
+      );
+    }
+
+    // TODO: pass password to joinServer method
+
+    context.read<ServerBrowserCubit>().joinServer();
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -418,12 +443,9 @@ class _JoinButton extends StatelessWidget {
             final hasAllMods = serverInfo.mods.every(
               (mod) => ModHelper.isInstalled(mod.name, mod.version),
             );
-            final downloading = state.joiningServer != null;
 
             return KyberButton.withChild(
-              onPressed: downloading
-                  ? null
-                  : context.read<ServerBrowserCubit>().joinServer,
+              onPressed: () => _joinServer(context, state),
               padding: const .symmetric(
                 horizontal: 25,
                 vertical: 8,

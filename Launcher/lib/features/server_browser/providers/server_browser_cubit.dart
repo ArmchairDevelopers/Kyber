@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:background_downloader/background_downloader.dart';
 import 'package:collection/collection.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:grpc/grpc.dart' hide Server;
@@ -26,6 +27,7 @@ import 'package:kyber_launcher/features/nexusmods/dialogs/nexusmods_login.dart';
 import 'package:kyber_launcher/features/nexusmods/exceptions/missing_nexus_auth_exception.dart';
 import 'package:kyber_launcher/features/nexusmods/services/mod_finder_service.dart';
 import 'package:kyber_launcher/features/server_browser/dialogs/join_server_dialog.dart';
+import 'package:kyber_launcher/features/server_browser/dialogs/server_ban_dialog.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
 import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
@@ -66,14 +68,25 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
         }
 
         if (sessionState.party.leaderId != userId) {
-          NotificationService.showNotification(
+          NotificationService.warning(
             message: 'Only the party leader can join a server!',
-            severity: InfoBarSeverity.warning,
           );
           return;
         }
 
+        final banInfo = await _isBanned();
+        if (banInfo != null) {
+          await ServerBanDialog.show(context, banInfo: banInfo);
+          return;
+        }
+
         await _startPartyJoinGame();
+        return;
+      }
+
+      final banInfo = await _isBanned();
+      if (banInfo != null) {
+        await ServerBanDialog.show(context, banInfo: banInfo);
         return;
       }
     }
@@ -88,6 +101,24 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
       );
       _startDownloads();
     }
+  }
+
+  Future<BanInfo?> _isBanned() async {
+    final server = state.selectedServer;
+
+    if (server == null || server.serverInfo.requiresPassword) {
+      return null;
+    }
+
+    final serverInfo = server.serverInfo;
+    final response = await sl
+        .get<KyberGRPCService>()
+        .serverBrowserClient
+        .canJoinServer(
+          .new(id: serverInfo.id),
+        );
+
+    return response.hasBanInfo() ? response.banInfo : null;
   }
 
   Future<void> _startPartyJoinGame() async {
@@ -125,6 +156,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
       final server = state.selectedServer!;
       final initialServerData = state.selectedServer!.serverInfo;
 
+      // TODO: don't use JoinServerDialog anymore
       showKyberDialog<JoinDialogResult?>(
         context: navigatorKey.currentContext!,
         builder: (context) => CosmeticModsDialog(
