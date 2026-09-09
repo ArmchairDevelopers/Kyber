@@ -827,29 +827,31 @@ class _DropdownState extends State<_Dropdown> {
       children: [
         ButtonBuilder(
           onClick: () => setState(() => expanded = !expanded),
-          builder: (_, _) => DefaultTextStyle(
-            style: const TextStyle(
-              fontFamily: FontFamily.battlefrontUI,
-              fontSize: 16,
-              fontWeight: .w700,
-              color: kWhiteColor,
-            ),
-            child: Row(
-              spacing: 10,
-              children: [
-                Transform.rotate(
-                  angle: expanded ? 0.5 * 3.14 : 0,
-                  child: Assets.icons.kblPlay.svg(
-                    height: 12,
-                    width: 12,
-                    colorFilter: const .mode(
-                      kWhiteColor,
-                      .srcIn,
+          builder: (_, hovered) => AbsorbPointer(
+            child: DefaultTextStyle(
+              style: TextStyle(
+                fontFamily: FontFamily.battlefrontUI,
+                fontSize: 16,
+                fontWeight: .w700,
+                color: !hovered ? kWhiteColor : kActiveColor,
+              ),
+              child: Row(
+                spacing: 10,
+                children: [
+                  Transform.rotate(
+                    angle: expanded ? 0.5 * 3.14 : 0,
+                    child: Assets.icons.kblPlay.svg(
+                      height: 12,
+                      width: 12,
+                      colorFilter: const .mode(
+                        kWhiteColor,
+                        .srcIn,
+                      ),
                     ),
                   ),
-                ),
-                Expanded(child: widget.title),
-              ],
+                  Expanded(child: widget.title),
+                ],
+              ),
             ),
           ),
         ),
