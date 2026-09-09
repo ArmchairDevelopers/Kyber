@@ -26,7 +26,8 @@ func Connect(uri string) (*mongo.Client, error) {
 			SetMinPoolSize(0).
 			SetMaxConnIdleTime(30 * time.Second).
 			SetConnectTimeout(2 * time.Second).
-			SetServerSelectionTimeout(3 * time.Second)
+			SetServerSelectionTimeout(3 * time.Second).
+			SetTimeout(10 * time.Second)
 
 		clientSingleton, err = mongo.Connect(clientOpts)
 		if err != nil {

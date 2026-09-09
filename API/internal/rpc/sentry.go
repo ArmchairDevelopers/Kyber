@@ -16,6 +16,7 @@ type SentryOptions struct {
 	Repanic         bool
 	WaitForDelivery bool
 	Timeout         time.Duration
+	ReportOn        func(error) bool
 }
 
 func defaultSentryOptions() SentryOptions {
@@ -23,7 +24,37 @@ func defaultSentryOptions() SentryOptions {
 		Repanic:         false,
 		WaitForDelivery: false,
 		Timeout:         2 * time.Second,
+		ReportOn:        reportServerErrors,
 	}
+}
+
+func reportServerErrors(err error) bool {
+	switch status.Code(err) {
+	case codes.OK,
+		codes.Canceled,
+		codes.InvalidArgument,
+		codes.NotFound,
+		codes.AlreadyExists,
+		codes.PermissionDenied,
+		codes.FailedPrecondition,
+		codes.OutOfRange,
+		codes.Unauthenticated:
+		return false
+	default:
+		return true
+	}
+}
+
+func (o SentryOptions) shouldReport(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if o.ReportOn == nil {
+		return reportServerErrors(err)
+	}
+
+	return o.ReportOn(err)
 }
 
 func recoverWithSentry(hub *sentry.Hub, ctx context.Context, o SentryOptions) {
@@ -62,7 +93,7 @@ func SentryUnaryServerInterceptor(opts SentryOptions) grpc.UnaryServerIntercepto
 		defer recoverWithSentry(hub, ctx, opts)
 
 		resp, err := handler(ctx, req)
-		if err != nil {
+		if opts.shouldReport(err) {
 			hub.CaptureException(err)
 			tx.Sampled = sentry.SampledTrue
 		}
@@ -99,7 +130,7 @@ func SentryStreamServerInterceptor(opts SentryOptions) grpc.StreamServerIntercep
 		defer recoverWithSentry(hub, ctx, opts)
 
 		err := handler(srv, wrapped)
-		if err != nil {
+		if opts.shouldReport(err) {
 			hub.CaptureException(err)
 			tx.Sampled = sentry.SampledTrue
 		}

@@ -155,13 +155,13 @@ func main() {
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			rpc.SentryUnaryServerInterceptor(sentryOpts),
-			logging.UnaryServerInterceptor(grpcLogger),
+			logging.UnaryServerInterceptor(grpcLogger, logging.WithLogOnEvents(logging.FinishCall)),
 			recovery.UnaryServerInterceptor(),
 			rpc.NewAuthHandler(store).NewAuthInterceptor(),
 		),
 		grpc.ChainStreamInterceptor(
 			rpc.SentryStreamServerInterceptor(sentryOpts),
-			logging.StreamServerInterceptor(grpcLogger),
+			logging.StreamServerInterceptor(grpcLogger, logging.WithLogOnEvents(logging.FinishCall)),
 			recovery.StreamServerInterceptor(),
 		),
 	)
