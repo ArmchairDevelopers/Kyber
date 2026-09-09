@@ -28,6 +28,12 @@ class General {
 
   set enabledPreloadMods(bool value) => box.put('enabledPreloadMods', value);
 
+  bool get incrementalDownloadsEnabled =>
+      box.get('incrementalDownloadsEnabled', defaultValue: true) as bool;
+
+  set incrementalDownloadsEnabled(bool value) =>
+      box.put('incrementalDownloadsEnabled', value);
+
   String? get currentVersion => box.get('currentVersion') as String?;
 
   set currentVersion(String? value) => box.put('currentVersion', value);

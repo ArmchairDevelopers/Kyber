@@ -46,7 +46,9 @@ class ArchiveExtractor {
         onProgress: onProgress,
       );
 
-      final files = Directory(tmpDir).listSync().whereType<File>();
+      final files = Directory(tmpDir)
+          .listSync(recursive: true)
+          .whereType<File>();
       final isFrostyCollection = files.any(
         (e) => e.path.endsWith('.fbcollection'),
       );
@@ -171,25 +173,42 @@ class ArchiveExtractor {
       final mainDirFiles = Directory(basePath).listSync();
       final extractedFiles = <String>[];
 
+      final fileNames = <String>{};
+      final fileMappings = <File, String>{};
+
       for (final file in files) {
-        final mod = ModReader(file.openSync(), basename(file.path)).readMod();
+        final fileName = basename(file.path);
+
+        if (fileNames.contains(fileName)) {
+          final uuid = const Uuid().v4();
+          final nameWithoutExt = basenameWithoutExtension(fileName);
+          final ext = extension(fileName);
+
+          fileMappings[file] = '${nameWithoutExt}_$uuid$ext';
+        } else {
+          fileNames.add(fileName);
+        }
+      }
+
+      for (final file in files) {
+        final outName = fileMappings[file] ?? basename(file.path);
 
         final existingMod = mainDirFiles.firstWhereOrNull(
-          (e) => basename(e.path) == basename(file.path),
+          (e) => basename(e.path) == outName,
         );
 
         if (existingMod != null && extension(file.path) != '.dll') {
           _logger.info(
-            'Mod ${mod?.details.name} ${mod?.details.version} already exists',
+            'File ${existingMod.path} already exists, skipping ${file.path}',
           );
           continue;
         } else if (existingMod != null && extension(file.path) == '.dll') {
           await existingMod.delete();
-          final newPath = join(basePath, basename(file.path));
+          final newPath = join(basePath, outName);
           await file.rename(newPath);
           extractedFiles.add(newPath);
         } else {
-          final newPath = join(basePath, basename(file.path));
+          final newPath = join(basePath, outName);
           await file.rename(newPath);
           extractedFiles.add(newPath);
         }

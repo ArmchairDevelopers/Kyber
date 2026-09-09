@@ -56,7 +56,7 @@ melos:
         - mkdir "./Launcher/lib/gen/rust"
         - mkdir "./CLI/lib/src/gen"
         - dart pub global activate protoc_plugin 25.0.0
-        - cargo install flutter_rust_bridge_codegen
+        - cargo install flutter_rust_bridge_codegen@2.11.1
         - flutter pub global activate index_generator
 
   command:

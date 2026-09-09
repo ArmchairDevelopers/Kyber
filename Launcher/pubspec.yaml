@@ -112,7 +112,7 @@ dependencies:
   window_to_front: ^0.0.3
   windows_taskbar: ^1.1.2
   win32_registry: ^2.1.0
-  flutter_rust_bridge: any
+  flutter_rust_bridge: 2.11.1
   pool: ^1.5.2
   native_toolchain_rust: ^1.0.0+1
   hive: ^2.2.3

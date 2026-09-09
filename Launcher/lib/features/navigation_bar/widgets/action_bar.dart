@@ -7,15 +7,15 @@ class ActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Spacer(),
-          RepaintBoundary(child: MaximaNavigationBarWidget()),
-          WindowButtons(),
-        ],
-      ),
+    return const Row(
+      mainAxisAlignment: .end,
+      crossAxisAlignment: .start,
+      children: [
+        RepaintBoundary(
+          child: MaximaNavigationBarWidget(),
+        ),
+        WindowButtons(),
+      ],
     );
   }
 }

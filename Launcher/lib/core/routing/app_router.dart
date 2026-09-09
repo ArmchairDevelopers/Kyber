@@ -20,6 +20,7 @@ import 'package:kyber_launcher/features/navigation_bar/screens/navigation_bar.da
 import 'package:kyber_launcher/features/reports/providers/report_list_cubit.dart';
 import 'package:kyber_launcher/features/reports/screens/report_view.dart';
 import 'package:kyber_launcher/features/reports/screens/reports.dart';
+import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/screens/ingame_view.dart';
 import 'package:kyber_launcher/features/server_browser/screens/server_browser.dart';
 import 'package:kyber_launcher/features/server_host/providers/host_collection_cubit.dart';
@@ -276,6 +277,10 @@ final router = GoRouter(
         GoRoute(
           path: '/home',
           name: 'home',
+          onExit: (context, state) {
+            context.read<ServerListCubit>().clearSearch();
+            return true;
+          },
           pageBuilder: (context, state) {
             return buildCustomPage(
               state: state,

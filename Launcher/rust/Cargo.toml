@@ -9,6 +9,7 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 flutter_rust_bridge = { version = "=2.11.1", default-features = false, features = ["anyhow", "user-utils", "dart-opaque", "backtrace", "thread-pool", "rust-async", "uuid"] }
 tokio = { version = "1.36.0", features = ["full", "rt", "rt-multi-thread", "time", "net"] }
+tokio-util = "0.7"
 log = "0.4.20"
 maxima-lib = { path = "../../ThirdParty/Maxima/maxima-lib" }
 lazy_static = "1.4.0"

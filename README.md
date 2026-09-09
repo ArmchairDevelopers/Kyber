@@ -25,6 +25,27 @@ KYBER is developed using a monorepo structure and contains multiple projects and
 
 See [BUILDING.md](BUILDING.md) for build instructions.
 
+## Code signing policy
+
+<table>
+<tr>
+<td align="center"><img src="https://signpath.org/assets/favicon.png" width="40"></td>
+<td>Free code signing on Windows provided by <a href="https://signpath.io">SignPath.io</a>, certificate by <a href="https://signpath.org">SignPath Foundation</a></td>
+</tr>
+</table>
+
+**Team roles**
+
+All changes, including those from team members, require review and approval
+by another team member before being merged. No one can merge their own changes.
+
+- Reviewers: [@MagixGames](https://github.com/MagixGames), [@7reax](https://github.com/7reax)
+- Approvers: [@MagixGames](https://github.com/MagixGames), [@7reax](https://github.com/7reax)
+
+**Privacy**
+
+See the [KYBER Terms of Service](https://kyber.gg/about/tos/).
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.

@@ -27,11 +27,18 @@ class KyberServerHelper {
     String? password,
   }) async {
     final localMods = sl.get<ModService>().mods;
-    final mods = server.mods.map(
-      (e) => localMods.firstWhere(
-        (element) => element.toKyberString() == '${e.name} (${e.version})',
-      ),
-    );
+    final mods = server.mods.map((e) {
+      final matches = localMods
+          .where(
+            (element) => element.toKyberString() == '${e.name} (${e.version})',
+          )
+          .toList();
+
+      return matches.firstWhereOrNull(
+            (m) => !m.isCollection || !m.isCorrupted(),
+          ) ??
+          matches.first;
+    });
     final collectionMods = <CollectionMod>[];
     for (final mod in mods) {
       if (mod.isCollection) {
@@ -69,10 +76,13 @@ class KyberServerHelper {
       serverIp = '127.0.0.1';
     }
 
-    final proxies = navigatorKey.currentContext!
-        .read<KyberProxyCubit>()
-        .state
-        .proxies;
+    final proxyCubit = navigatorKey.currentContext!.read<KyberProxyCubit>();
+    if (proxyCubit.isLoading) {
+      NotificationService.info(message: 'Waiting for proxies to load...');
+    }
+
+    await proxyCubit.ensureReady();
+    final proxies = proxyCubit.state.proxies;
     var selectedProxy = proxies.firstWhereOrNull(
       (p) => p.proxy.id == Preferences.general.proxy,
     );

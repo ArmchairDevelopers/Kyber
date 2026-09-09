@@ -216,6 +216,7 @@ class FrostyMod {
     this.dataOffset = 0,
     this.screenshotOffset = 0,
     this.mods,
+    this.modVersions,
     this.icon,
     this.customFrostyData,
   });
@@ -233,6 +234,7 @@ class FrostyMod {
   @Uint8ListConverter()
   Uint8List? icon;
   List<String>? mods;
+  List<String>? modVersions;
   FrostyModDetails details;
 
   Map<String, dynamic> toJson() => _$FrostyModToJson(this);

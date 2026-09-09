@@ -101,7 +101,7 @@ func (s *ClientServer) CreateJoinToken(ctx context.Context, req *pbapi.JoinToken
 
 	isModerator := server.CanManage(host, user) || user.Entitled(models.EntitlementAdmin)
 	isFull := server.PlayerCount >= server.MaxPlayerCount
-	if !isModerator && isFull {
+	if !isModerator && !user.Entitled(models.EntitlementBypassPlayerLimit) && isFull {
 		return nil, status.Error(codes.ResourceExhausted, "Server is full")
 	}
 

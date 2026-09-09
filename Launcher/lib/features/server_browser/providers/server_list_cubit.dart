@@ -67,6 +67,13 @@ class ServerListCubit extends Cubit<ServerListState> {
     }
   }
 
+  void clearSearch() {
+    if (filter.query?.isNotEmpty ?? false) {
+      filter = filter.copyWith(query: '');
+      _needsUpdate = true;
+    }
+  }
+
   void setFilter(ServerFilter filter) {
     if (filter == this.filter) {
       return;
