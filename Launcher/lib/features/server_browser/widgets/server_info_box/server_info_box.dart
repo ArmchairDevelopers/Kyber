@@ -415,11 +415,7 @@ class _JoinButton extends StatelessWidget {
   final Server serverInfo;
 
   void _joinServer(BuildContext context, ServerBrowserState state) async {
-    final hasAllMods = serverInfo.mods.every(
-          (mod) => ModHelper.isInstalled(mod.name, mod.version),
-    );
     final downloading = state.joiningServer != null;
-
 
     if (downloading) {
       return;
@@ -433,9 +429,7 @@ class _JoinButton extends StatelessWidget {
       );
     }
 
-    // TODO: pass password to joinServer method
-
-    context.read<ServerBrowserCubit>().joinServer();
+    context.read<ServerBrowserCubit>().joinServer(serverPassword: password);
   }
 
   @override

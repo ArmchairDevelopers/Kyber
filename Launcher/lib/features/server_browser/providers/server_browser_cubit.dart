@@ -57,7 +57,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     emit(.new(joiningServer: state.joiningServer));
   }
 
-  Future<void> joinServer({bool enabledDownload = true}) async {
+  Future<void> joinServer({bool enabledDownload = true, String? serverPassword}) async {
     final context = navigatorKey.currentContext;
     if (context != null) {
       final sessionState = context.read<SessionCubit>().state;
@@ -150,68 +150,15 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     );
   }
 
-  Future<void> _joinServer() async {
+  Future<void> _joinServer({String? serverPassword}) async {
     try {
-      final dialogCompleted = Completer<JoinDialogResult?>();
       final server = state.selectedServer!;
-      final initialServerData = state.selectedServer!.serverInfo;
 
-      // TODO: don't use JoinServerDialog anymore
-      showKyberDialog<JoinDialogResult?>(
-        context: navigatorKey.currentContext!,
-        builder: (context) => CosmeticModsDialog(
-          server: server,
-        ),
-      ).then(dialogCompleted.complete);
-
-      await sl
-          .get<KyberGRPCService>()
-          .serverBrowserClient
-          .getServer(ServerRequest(id: initialServerData.id))
-          .then((_) => null)
-          .onError((e, s) {
-            if (dialogCompleted.isCompleted) {
-              return;
-            }
-
-            if (e is GrpcError && e.code == StatusCode.notFound) {
-              BlocProvider.of<ServerListCubit>(
-                navigatorKey.currentContext!,
-              ).loadServers();
-              Navigator.pop(navigatorKey.currentContext!);
-              NotificationService.showNotification(
-                message: 'Server not found!',
-                severity: InfoBarSeverity.error,
-              );
-            } else {
-              Navigator.pop(navigatorKey.currentContext!);
-              NotificationService.showNotification(
-                title: 'Error joining server!',
-                message: e.toString(),
-                severity: InfoBarSeverity.error,
-              );
-            }
-          });
-
-      await dialogCompleted.future;
-      final result = await dialogCompleted.future;
-
-      if (result == null) {
-        emit(.new(selectedServer: server));
-        return;
-      }
-
-      final selectedServer = switch (server) {
-        SingleServer(:final server) => server,
-        GroupedServer(:final group) => group.servers.firstWhere(
-          (e) => e.meta['instance_id'] == result.instanceId,
-        ),
-      };
       await KyberServerHelper.joinServer(
-        selectedServer,
-        selectedCollection: result.collection,
-        spectator: result.spectator,
-        password: result.password,
+        server.serverInfo,
+        //selectedCollection: result.collection,
+        //spectator: result.spectator,
+        password: serverPassword,
         queueIfFull: true,
       );
 
