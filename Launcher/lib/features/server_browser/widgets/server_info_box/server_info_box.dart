@@ -584,79 +584,83 @@ class _ModTile extends StatelessWidget {
           border: .all(color: kButtonBorder, width: 1.5),
           borderRadius: .circular(kDefaultInnerBorderRadius),
         ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const .symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                mainAxisAlignment: .spaceBetween,
-                spacing: 10,
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Container(
-                          margin: const .only(right: 15),
-                          padding: const .all(3),
-                          decoration: BoxDecoration(
-                            color: color.withOpacity(0.15),
-                            borderRadius: .circular(4),
-                            border: .all(color: color, width: 1.5),
+        child: ClipRRect(
+          borderRadius: .circular(kDefaultInnerBorderRadius - 1.5),
+          child: Stack(
+            clipBehavior: .antiAliasWithSaveLayer,
+            children: [
+              Padding(
+                padding: const .symmetric(horizontal: 12, vertical: 10),
+                child: Row(
+                  mainAxisAlignment: .spaceBetween,
+                  spacing: 10,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            margin: const .only(right: 15),
+                            padding: const .all(3),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.15),
+                              borderRadius: .circular(4),
+                              border: .all(color: color, width: 1.5),
+                            ),
+                            child: Icon(
+                              downloading
+                                  ? mt.Icons.download
+                                  : installed
+                                  ? mt.Icons.check
+                                  : mt.Icons.close,
+                              size: 16,
+                              color: color,
+                            ),
                           ),
-                          child: Icon(
-                            downloading
-                                ? mt.Icons.download
-                                : installed
-                                ? mt.Icons.check
-                                : mt.Icons.close,
-                            size: 16,
-                            color: color,
+                          Flexible(
+                            child: Text(
+                              mod.name,
+                              style: const TextStyle(
+                                fontFamily: FontFamily.battlefrontUI,
+                                fontSize: 16,
+                                color: kWhiteColor,
+                              ),
+                              overflow: .ellipsis,
+                              maxLines: 1,
+                            ),
                           ),
-                        ),
-                        Flexible(
-                          child: Text(
-                            mod.name,
+                          Text(
+                            ' (${mod.version})',
                             style: const TextStyle(
                               fontFamily: FontFamily.battlefrontUI,
-                              fontSize: 16,
-                              color: kWhiteColor,
+                              fontSize: 14,
+                              color: kWhiteColor1,
                             ),
-                            overflow: .ellipsis,
-                            maxLines: 1,
                           ),
-                        ),
-                        Text(
-                          ' (${mod.version})',
-                          style: const TextStyle(
-                            fontFamily: FontFamily.battlefrontUI,
-                            fontSize: 14,
-                            color: kWhiteColor1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (mod.fileSize > 0) ...[
-                    Text(
-                      formatBytes(mod.fileSize.toInt(), 1),
-                      style: const TextStyle(
-                        fontFamily: FontFamily.battlefrontUI,
-                        fontSize: 12,
-                        color: kWhiteColor1,
+                        ],
                       ),
                     ),
+                    if (mod.fileSize > 0) ...[
+                      Text(
+                        formatBytes(mod.fileSize.toInt(), 1),
+                        style: const TextStyle(
+                          fontFamily: FontFamily.battlefrontUI,
+                          fontSize: 12,
+                          color: kWhiteColor1,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            if (downloading)
-              const Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _ModDownloadProgress(),
-              ),
-          ],
+              if (downloading)
+                const Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _ModDownloadProgress(),
+                ),
+            ],
+          ),
         ),
       ),
     );
