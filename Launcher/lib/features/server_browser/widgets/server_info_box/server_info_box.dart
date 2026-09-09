@@ -466,9 +466,10 @@ class _JoinButton extends StatelessWidget {
             final hasAllMods = serverInfo.mods.every(
               (mod) => ModHelper.isInstalled(mod.name, mod.version),
             );
+            final downloading = state.joiningServer != null;
 
             return KyberButton.withChild(
-              onPressed: () => _joinServer(context, state),
+              onPressed: downloading ? null : () => _joinServer(context, state),
               padding: const .symmetric(
                 horizontal: 25,
                 vertical: 8,
