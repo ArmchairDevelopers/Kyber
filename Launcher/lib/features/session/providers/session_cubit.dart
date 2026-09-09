@@ -39,9 +39,7 @@ import 'package:web_socket_channel/io.dart';
 part 'session_state.dart';
 
 class SessionCubit extends Cubit<SessionState> {
-  SessionCubit() : super(PartyInitial()) {
-    _connectToStream();
-  }
+  SessionCubit() : super(PartyInitial());
 
   final _logger = Logger('session_cubit');
   late final KyberGRPCService _service = sl<KyberGRPCService>();
@@ -538,7 +536,7 @@ class SessionCubit extends Cubit<SessionState> {
     _startDownloadProgressTracker(mods);
   }
 
-  Future<void> _connectToStream() async {
+  Future<void> connect() async {
     final userId = _userId;
     if (userId == null) {
       _logger.warning('User ID is null, cannot connect to session');
@@ -651,7 +649,7 @@ class SessionCubit extends Cubit<SessionState> {
     _logger.info(
       'Reconnecting in ${delay.inSeconds}s (attempt $_reconnectAttempts)',
     );
-    Future.delayed(delay, _connectToStream);
+    Future.delayed(delay, connect);
   }
 
   void _handleProxiesEvent(ProxiesUpdatedEvent event) async {

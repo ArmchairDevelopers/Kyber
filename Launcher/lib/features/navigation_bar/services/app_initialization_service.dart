@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:grpc/grpc.dart';
 import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/core/services/module_version_service.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
@@ -31,6 +32,7 @@ import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 import 'package:logging/logging.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 class AppInitializationService {
   static final _logger = Logger('app_initialization_service');
@@ -46,13 +48,36 @@ class AppInitializationService {
     sl.get<RichPresence>().start();
   }
 
+  static void _connectToSessionService(BuildContext context) async {
+    if (!context.mounted) return;
+
+    try {
+      await context.read<SessionCubit>().connect();
+    } on GrpcError catch (e) {
+      _logger.severe('Failed to connect to session service: ${e.message}');
+      NotificationService.error(
+        message: 'Failed to connect to session service: ${e.message}',
+      );
+    } on WebSocketChannelException catch (e) {
+      _logger.severe('Failed to connect to session service: ${e.message}');
+      NotificationService.error(
+        message:
+            'Failed to connect to session service. Some features may not work properly.',
+      );
+    } catch (e) {
+      _logger.severe('Failed to connect to session service: $e');
+      NotificationService.error(
+        message: 'Failed to connect to session service: $e',
+      );
+    }
+  }
+
   static Future<void> startServices(BuildContext context) async {
     await StorageHelper.saveCurrentVersion();
 
     if (!context.mounted) return;
 
     context.read<ModerationServersCubit>();
-    context.read<SessionCubit>();
 
     unawaited(
       sl.isReady<ModService>().then((_) {
@@ -73,6 +98,8 @@ class AppInitializationService {
     }
 
     await ProtocolHelper.initialize();
+
+    _connectToSessionService(context);
 
     await _checkCompatibilityMode(context);
     await _checkForUpdates(context);
