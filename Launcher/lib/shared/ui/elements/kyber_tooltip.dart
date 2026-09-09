@@ -15,17 +15,18 @@ class KyberTooltip extends StatelessWidget {
       message: message,
       style: TooltipThemeData(
         decoration: BoxDecoration(
-          border: Border.all(
+          border: .all(
             color: decoColor.darken(5),
           ),
           color: Colors.black.withOpacity(0.95),
-          borderRadius: BorderRadius.circular(2),
+          borderRadius: .circular(2),
         ),
         textStyle: const TextStyle(
           color: kWhiteColor,
           fontSize: 14,
+          fontFamily: FontFamily.battlefrontUI,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const .symmetric(horizontal: 8, vertical: 4),
       ),
       child: child,
     );

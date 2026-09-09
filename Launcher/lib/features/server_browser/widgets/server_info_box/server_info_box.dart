@@ -349,14 +349,21 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                             else
                               _JoinButton(serverInfo: serverInfo),
                             const Spacer(),
-                            KOutlinedButton.icon(
-                              child: Assets.icons.kblCollection.svg(),
-                              onPressed: () => null,
+                            KyberTooltip(
+                              message:
+                                  'Select a cosmetic collection to use on this server',
+                              child: KOutlinedButton.icon(
+                                child: Assets.icons.kblCollection.svg(),
+                                onPressed: () => null,
+                              ),
                             ),
                             const SizedBox(width: 10),
-                            KOutlinedButton.icon(
-                              child: const Icon(mt.Icons.camera_alt),
-                              onPressed: () => null,
+                            KyberTooltip(
+                              message: 'Join as a spectator',
+                              child: KOutlinedButton.icon(
+                                child: const Icon(mt.Icons.camera_alt),
+                                onPressed: () => null,
+                              ),
                             ),
                           ],
                         ),
