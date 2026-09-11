@@ -3,6 +3,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:intl/intl.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/routing/app_router.dart';
+import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
@@ -87,6 +88,39 @@ class NMBModTile extends StatelessWidget {
                       fadeInDuration: Duration.zero,
                     ),
                   ),
+                ),
+                // Installed version badge
+                Builder(
+                  builder: (context) {
+                    final installedVersion =
+                        ModHelper.getInstalledVersion(mod.name);
+                    if (installedVersion == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: kActiveColor.withOpacity(.85),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'v$installedVersion',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                            fontFamily: FontFamily.battlefrontUI,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 Positioned.fill(
                   child: AnimatedOpacity(

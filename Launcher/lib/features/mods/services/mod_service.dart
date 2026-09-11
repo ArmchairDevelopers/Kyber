@@ -8,6 +8,7 @@ import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/mods/constants/categories.dart';
 import 'package:kyber_launcher/features/mods/services/level_declaration_service.dart';
+import 'package:kyber_launcher/features/mods/services/mod_manifest_backfill_service.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart';
@@ -61,6 +62,44 @@ class ModService with ChangeNotifier {
 
   static Directory getBasePathAsDir() =>
       Directory(Preferences.general.modsPath);
+
+  /// Path to the shared mod manifest that maps installed mod filenames to
+  /// their NexusMods IDs and metadata.
+  static String get manifestPath =>
+      join(getBasePath(), 'nexus_mod_manifest.json');
+
+  /// Reads the mod manifest and returns it as a decoded map, or an empty map
+  /// if the file doesn't exist or is malformed.
+  static Future<Map<String, dynamic>> readManifest() async {
+    try {
+      final file = File(manifestPath);
+      if (!await file.exists()) return <String, dynamic>{};
+      final content = await file.readAsString();
+      return jsonDecode(content) as Map<String, dynamic>;
+    } catch (_) {
+      return <String, dynamic>{};
+    }
+  }
+
+  /// Reads the [section] from the manifest (e.g. 'files' or 'mods'),
+  /// returning an empty map if the section is missing or the manifest
+  /// can't be read.
+  static Future<Map<String, dynamic>> readManifestSection(
+    String section,
+  ) async {
+    final manifest = await readManifest();
+    return (manifest[section] as Map<String, dynamic>?) ?? <String, dynamic>{};
+  }
+
+  /// Writes the full manifest to disk. Merging/updating individual entries
+  /// is the caller's responsibility.
+  static Future<void> writeManifest(Map<String, dynamic> manifest) async {
+    try {
+      await File(manifestPath).writeAsString(jsonEncode(manifest));
+    } catch (e) {
+      _logger.warning('Failed to write mod manifest: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -137,6 +176,10 @@ class ModService with ChangeNotifier {
     }
 
     notifyListeners();
+
+    // Fire-and-forget manifest backfill for pre-existing mods
+    _logger.info('Triggering manifest backfill for ${_mods.length} mods');
+    ModManifestBackfillService.backfillAll(_mods);
   }
 
   void watchDirectory() {

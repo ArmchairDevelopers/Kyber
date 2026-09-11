@@ -12,6 +12,7 @@ import 'package:kyber_launcher/features/mod_browser/widgets/mod_details/mod_desc
 import 'package:kyber_launcher/features/mod_browser/widgets/mod_image_viewer.dart';
 import 'package:kyber_launcher/features/mod_browser/widgets/nexus_mod_page/mod_author_info.dart';
 import 'package:kyber_launcher/features/mod_browser/widgets/nexus_mod_page/mod_header.dart';
+import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dart';
 import 'package:kyber_launcher/features/nexusmods/widgets/graphql_provider.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
@@ -25,7 +26,6 @@ import 'package:kyber_launcher/shared/ui/utils/button_builder.dart';
 import 'package:logging/logging.dart';
 import 'package:nexus_bridge/nexus_bridge.dart';
 import 'package:nexus_gql/nexus_gql.dart';
-import 'package:super_sliver_list/super_sliver_list.dart';
 
 class ModInfo extends StatefulWidget {
   const ModInfo({required this.id, super.key});
@@ -428,17 +428,30 @@ class _ModInfoState extends State<ModInfo> {
                                 }
 
                                 final files = result.parsedData!.modFiles;
-                                final mainFiles = files
-                                    .where((e) => e.category == .MAIN)
+
+                                // Sort by date descending (newest first)
+                                final sorted = [...files]..sort(
+                                  (a, b) => b.date.compareTo(a.date),
+                                );
+
+                                // Group files by (version, date) — files with
+                                // the same version uploaded at the same time
+                                // are part of the same upload batch.
+                                final groups = _groupByVersionBatch(sorted);
+
+                                final mainFiles = groups
+                                    .where((g) => g.category == .MAIN)
                                     .toList();
-                                final optionalFiles = files
-                                    .where((e) => e.category == .OPTIONAL)
+                                final optionalFiles = groups
+                                    .where((g) => g.category == .OPTIONAL)
                                     .toList();
-                                final miscFiles = files
-                                    .where((e) => e.category == .MISCELLANEOUS)
+                                final miscFiles = groups
+                                    .where(
+                                      (g) => g.category == .MISCELLANEOUS,
+                                    )
                                     .toList();
-                                final archivedFiles = files
-                                    .where((e) => e.category == .ARCHIVED)
+                                final archivedFiles = groups
+                                    .where((g) => g.category == .ARCHIVED)
                                     .toList();
                                 return SingleChildScrollView(
                                   child: Column(
@@ -447,22 +460,22 @@ class _ModInfoState extends State<ModInfo> {
                                       _FileList(
                                         title: 'MAIN FILES',
                                         initialExpanded: true,
-                                        files: mainFiles,
+                                        groups: mainFiles,
                                       ),
                                       if (miscFiles.isNotEmpty)
                                         _FileList(
                                           title: 'MISCELLANEOUS FILES',
-                                          files: miscFiles,
+                                          groups: miscFiles,
                                         ),
                                       if (optionalFiles.isNotEmpty)
                                         _FileList(
                                           title: 'OPTIONAL FILES',
-                                          files: optionalFiles,
+                                          groups: optionalFiles,
                                         ),
                                       if (archivedFiles.isNotEmpty)
                                         _FileList(
                                           title: 'ARCHIVED FILES',
-                                          files: archivedFiles,
+                                          groups: archivedFiles,
                                         ),
                                     ],
                                   ),
@@ -483,16 +496,61 @@ class _ModInfoState extends State<ModInfo> {
   }
 }
 
+/// A group of mod files uploaded together as a version batch.
+class _VersionFileGroup {
+  _VersionFileGroup({
+    required this.version,
+    required this.date,
+    required this.category,
+    required this.files,
+  });
+
+  final String version;
+  final int date;
+  final Enum$ModFileCategory category;
+  final List<Query$modFiles$modFiles> files;
+
+  int get totalFiles => files.length;
+}
+
+/// Groups files by version so all files sharing the same version are
+/// displayed as a single group. Expects input already sorted by date
+/// descending (newest version first).
+List<_VersionFileGroup> _groupByVersionBatch(
+  List<Query$modFiles$modFiles> files,
+) {
+  final groups = <_VersionFileGroup>[];
+  for (final file in files) {
+    final existing = groups.cast<_VersionFileGroup?>().firstWhere(
+      (g) => g!.version == file.version,
+      orElse: () => null,
+    );
+    if (existing != null) {
+      existing.files.add(file);
+    } else {
+      groups.add(
+        _VersionFileGroup(
+          version: file.version,
+          date: file.date,
+          category: file.category,
+          files: [file],
+        ),
+      );
+    }
+  }
+  return groups;
+}
+
 class _FileList extends StatefulWidget {
   const _FileList({
     required this.title,
-    required this.files,
+    required this.groups,
     this.initialExpanded = false,
   });
 
   final String title;
   final bool initialExpanded;
-  final List<Query$modFiles$modFiles> files;
+  final List<_VersionFileGroup> groups;
 
   @override
   State<_FileList> createState() => _FileListState();
@@ -500,6 +558,9 @@ class _FileList extends StatefulWidget {
 
 class _FileListState extends State<_FileList> {
   late bool _expanded;
+
+  int get totalFiles =>
+      widget.groups.fold(0, (sum, g) => sum + g.totalFiles);
 
   @override
   void initState() {
@@ -542,7 +603,7 @@ class _FileListState extends State<_FileList> {
                           vertical: 2.5,
                         ),
                         child: Text(
-                          '${widget.title.toUpperCase()} (${widget.files.length})',
+                          '${widget.title.toUpperCase()} ($totalFiles)',
                           style: const .new(
                             fontFamily: FontFamily.battlefrontUI,
                             fontSize: 15,
@@ -568,73 +629,159 @@ class _FileListState extends State<_FileList> {
         if (_expanded)
           ColoredBox(
             color: Colors.black.withOpacity(.4),
-            child: SuperListView.separated(
-              itemBuilder: (context, index) {
-                if (index == widget.files.length) {
-                  return const SizedBox.shrink();
-                }
-
-                final file = widget.files[index];
-                return ButtonBuilder(
-                  onClick: () {
-                    showKyberDialog(
-                      context: context,
-                      builder: (_) => FileDownloadDialog(
-                        file: file,
-                        modId: file.modId.toString(),
-                      ),
-                    );
-                  },
-                  builder: (context, hovered) {
-                    return AbsorbPointer(
-                      child: AnimatedDefaultTextStyle(
-                        duration: const .new(milliseconds: 150),
-                        style: TextStyle(
-                          fontFamily: FontFamily.battlefrontUI,
-                          color: hovered ? kActiveColor : kWhiteColor,
+            child: ListView.builder(
+              padding: .zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: widget.groups.length,
+              itemBuilder: (context, groupIndex) {
+                final group = widget.groups[groupIndex];
+                final formattedDate = DateFormat.yMd().add_jm().format(
+                  DateTime.fromMillisecondsSinceEpoch(group.date * 1000),
+                );
+                return Column(
+                  crossAxisAlignment: .stretch,
+                  children: [
+                    // Group header: version + date
+                    ColoredBox(
+                      color: Colors.white.withOpacity(.05),
+                      child: Padding(
+                        padding: const .symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
-                        child: Container(
-                          padding: const .symmetric(
-                            horizontal: 12,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                FluentIcons.download,
-                                color: kWhiteColor,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: AutoSizeText(
-                                  file.name,
-                                  maxLines: 1,
-                                  minFontSize: 16,
-                                ),
-                              ),
-                              Text(
-                                formatBytes(
-                                  int.parse(file.sizeInBytes ?? '0'),
-                                  1,
-                                ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'v${group.version}',
                                 style: const .new(
+                                  fontFamily: FontFamily.battlefrontUI,
+                                  fontSize: 13,
                                   color: kGrayColor,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            Text(
+                              formattedDate,
+                              style: const .new(
+                                fontFamily: FontFamily.battlefrontUI,
+                                fontSize: 11,
+                                color: kGrayColor,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  },
+                    ),
+                    const ContainerSeparator(),
+                    // Individual files within the version group
+                    ...group.files.map((file) {
+                      final isInstalled = ModHelper.isInstalled(
+                        file.name,
+                        file.version,
+                      );
+                      return ButtonBuilder(
+                        onClick: () {
+                          showKyberDialog(
+                            context: context,
+                            builder: (_) => FileDownloadDialog(
+                              file: file,
+                              modId: file.modId.toString(),
+                            ),
+                          );
+                        },
+                        builder: (context, hovered) {
+                          return AbsorbPointer(
+                            child: AnimatedDefaultTextStyle(
+                              duration: const .new(milliseconds: 150),
+                              style: TextStyle(
+                                fontFamily: FontFamily.battlefrontUI,
+                                color: hovered ? kActiveColor : kWhiteColor,
+                              ),
+                              child: Container(
+                                padding: const .symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      FluentIcons.download,
+                                      color:
+                                          isInstalled
+                                              ? kActiveColor.withOpacity(.6)
+                                              : kWhiteColor,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: .start,
+                                        children: [
+                                          AutoSizeText(
+                                            file.name,
+                                            maxLines: 1,
+                                            minFontSize: 14,
+                                          ),
+                                          if (group.files.length > 1)
+                                            Text(
+                                              DateFormat.yMd().add_jm().format(
+                                                DateTime.fromMillisecondsSinceEpoch(group.date * 1000),
+                                              ),
+                                              style: const .new(
+                                                fontSize: 10,
+                                                color: kGrayColor,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (isInstalled)
+                                      Container(
+                                        margin: const .only(right: 8),
+                                        padding: const .symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: kActiveColor.withOpacity(.15),
+                                          borderRadius: .circular(4),
+                                          border: .all(
+                                            color: kActiveColor.withOpacity(.3),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'INSTALLED',
+                                          style: .new(
+                                            fontSize: 10,
+                                            color: kActiveColor,
+                                            fontFamily:
+                                                FontFamily.battlefrontUI,
+                                          ),
+                                        ),
+                                      ),
+                                    Text(
+                                      formatBytes(
+                                        int.parse(file.sizeInBytes ?? '0'),
+                                        1,
+                                      ),
+                                      style: const .new(color: kGrayColor),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }),
+                    if (groupIndex < widget.groups.length - 1)
+                      const ContainerSeparator(),
+                  ],
                 );
               },
-              separatorBuilder: (context, index) => const ContainerSeparator(),
-              padding: .zero,
-              itemCount: widget.files.length + 1,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
             ),
           ),
       ],
