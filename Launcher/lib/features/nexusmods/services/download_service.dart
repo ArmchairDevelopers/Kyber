@@ -41,7 +41,11 @@ class NexusDownloadService {
           );
 
       final downloadLink = Uri.parse(downloadLinks.first.uri);
-      final filename = downloadLink.pathSegments.last;
+      final filename = await resolveNexusFileName(
+        modId: int.parse(uri.pathSegments.last),
+        fileId: int.parse(uri.queryParameters['file_id']!),
+        urlFallback: downloadLink.toString(),
+      );
       return (downloadLink.toString(), filename);
     }
 
@@ -97,12 +101,12 @@ class NexusDownloadService {
         const .new(seconds: 15),
       );
 
-      final filename = uri
-          .split('/')
-          .last
-          .split('?')
-          .first
-          .replaceAll('%', '_');
+      final originalUri = Uri.parse(downloadUrl);
+      final filename = await resolveNexusFileName(
+        modId: int.parse(originalUri.pathSegments.last),
+        fileId: int.parse(originalUri.queryParameters['file_id']!),
+        urlFallback: uri,
+      );
 
       return (uri, filename);
     } on TimeoutException catch (e, s) {
@@ -134,5 +138,64 @@ class NexusDownloadService {
       Logger.root.info('Disposing WebView');
       await webView.dispose();
     }
+  }
+
+  static Future<String> resolveNexusFileName({
+    required int modId,
+    required int fileId,
+    required String urlFallback,
+  }) async {
+    final log = Logger('download_service');
+
+    try {
+      final apiClient = sl.get<NexusModsService>().nexusBridge.apiClient;
+      final modFiles = await apiClient.getModFiles(
+        'starwarsbattlefront22017',
+        modId,
+      );
+
+      final file = modFiles.files.firstWhere((f) => f.fileId == fileId);
+      if (file.fileName.isNotEmpty) {
+        return file.fileName;
+      }
+    } catch (e, s) {
+      log.warning(
+        'Could not resolve filename from Nexus API for file $fileId, '
+        'falling back to the download URL',
+        e,
+        s,
+      );
+    }
+
+    try {
+      final resp = await Dio().head<void>(urlFallback);
+      final disposition = resp.headers.value('content-disposition');
+
+      if (disposition != null) {
+        final match = RegExp('filename="?([^";]+)"?').firstMatch(disposition);
+        final filename = match?.group(1)?.trim();
+
+        if (filename != null) {
+          return _ensureArchiveExtension(filename);
+        }
+      }
+    } catch (_) {
+      // ignore and fall back to URL-based naming
+    }
+
+    final cleanUrl = urlFallback.split('?').first.split('/').last;
+    final fromUrl = cleanUrl.replaceAll('%', '_');
+
+    return _ensureArchiveExtension(fromUrl);
+  }
+
+  static String _ensureArchiveExtension(String name) {
+    const archiveExtensions = ['.zip', '.rar', '.7z'];
+    final lower = name.toLowerCase();
+
+    if (archiveExtensions.any(lower.endsWith)) {
+      return name;
+    }
+    return '$name.zip';
   }
 }
