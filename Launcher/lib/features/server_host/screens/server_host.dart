@@ -20,7 +20,6 @@ import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_input.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_tab_bar.dart';
 import 'package:kyber_launcher/shared/ui/layout/bordered_content.dart';
-import 'package:kyber_launcher/shared/ui/utils/background_blur.dart';
 import 'package:logging/logging.dart';
 
 class ServerHost extends StatefulWidget {
@@ -69,10 +68,9 @@ class _ServerHostState extends State<ServerHost> {
           Expanded(
             flex: 6,
             child: BorderedContent(
-              overlappingBorder: !createServer &&! context
-                  .watch<ModerationCubit>()
-                  .state
-                  .selected,
+              overlappingBorder:
+                  !createServer &&
+                  !context.watch<ModerationCubit>().state.selected,
               header: BlocBuilder<ModerationCubit, ModerationServerState>(
                 builder: (context, state) {
                   return Row(
@@ -201,6 +199,9 @@ class _ServerHostState extends State<ServerHost> {
                   );
                 },
               ),
+              divider:
+                  createServer ||
+                  context.watch<ModerationCubit>().state.selected,
               content: BlocBuilder<ModerationCubit, ModerationServerState>(
                 builder: (context, state) {
                   if (createServer) {

@@ -41,7 +41,6 @@ class _ModerationServerListState extends State<ModerationServerList> {
               if (state is ModerationServersLoading) {
                 return const Column(
                   children: [
-                    _Header(),
                     Expanded(child: Center(child: ProgressBar())),
                   ],
                 );
@@ -50,7 +49,6 @@ class _ModerationServerListState extends State<ModerationServerList> {
               if (state is ModerationServersLoaded) {
                 return Column(
                   children: [
-                    const _Header(),
                     Expanded(
                       child: FadeIn(
                         curve: Curves.easeOut,
@@ -75,11 +73,7 @@ class _ModerationServerListState extends State<ModerationServerList> {
                             return SuperListView.builder(
                               shrinkWrap: true,
                               itemBuilder: (context, index) {
-                                if (index == 0 || index == servers.length + 1) {
-                                  return const SizedBox.shrink();
-                                }
-
-                                final server = servers[index - 1];
+                                final server = servers[index];
                                 final mode =
                                     modes
                                         .where(
@@ -100,7 +94,7 @@ class _ModerationServerListState extends State<ModerationServerList> {
 
                                 return ServerListEntry(
                                   server: SingleServer(server: server),
-                                  index: index - 1,
+                                  index: index,
                                   hoveredIndex: hoverIndex ?? -1,
                                   isLast: index == servers.length,
                                   withoutQuickJoin: true,
@@ -114,7 +108,7 @@ class _ModerationServerListState extends State<ModerationServerList> {
                                   map: map,
                                 );
                               },
-                              itemCount: servers.length + 1,
+                              itemCount: servers.length,
                             );
                           },
                         ),
