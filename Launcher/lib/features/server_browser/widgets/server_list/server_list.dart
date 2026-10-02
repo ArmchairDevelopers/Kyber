@@ -4,7 +4,6 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_list_state.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
-import 'package:kyber_launcher/features/server_browser/widgets/server_list/server_list_header.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/table_server_list.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
@@ -38,7 +37,6 @@ class _ServerListState extends State<ServerListWidget> {
         if (state is ServerListLoading) {
           return const Column(
             children: [
-              ServerListHeader(),
               Expanded(child: Center(child: ProgressBar())),
             ],
           );

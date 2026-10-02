@@ -44,6 +44,7 @@ class _ServerBrowserState extends State<ServerBrowser> {
           flex: 6,
           child: BorderedContent(
             overlappingBorder: true,
+            divider: false,
             header: BlocListener<ServerListCubit, ServerListState>(
               listener: (context, state) {
                 state as ServerListLoaded;

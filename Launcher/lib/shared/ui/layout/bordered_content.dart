@@ -7,12 +7,14 @@ class BorderedContent extends StatelessWidget {
     required this.header,
     required this.content,
     this.overlappingBorder = false,
+    this.divider = true,
     super.key,
   });
 
   final Widget header;
   final Widget content;
   final bool overlappingBorder;
+  final bool divider;
 
   @override
   Widget build(BuildContext context) {
@@ -29,9 +31,15 @@ class BorderedContent extends StatelessWidget {
             borderRadius: borderRadius,
             child: BackgroundBlur(
               child: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   borderRadius: borderRadius,
-                  border: .fromBorderSide(kDefaultBorder),
+                  border: divider
+                      ? const .fromBorderSide(kDefaultBorder)
+                      : .fromLTRB(
+                          top: kDefaultBorder,
+                          left: kDefaultBorder,
+                          right: kDefaultBorder,
+                        ),
                 ),
                 child: ClipRRect(
                   borderRadius: const .only(
