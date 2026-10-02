@@ -21,12 +21,12 @@ import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:tinycolor2/tinycolor2.dart';
 
 final Map<String, String> regionIcons = {
-  'na': Assets.icons.regions.kblPlayRegionNa.path,
-  'eu': Assets.icons.regions.kblPlayRegionEu.path,
-  'as': Assets.icons.regions.kblPlayRegionAs.path,
-  'af': Assets.icons.regions.kblPlayRegionAf.path,
-  'sa': Assets.icons.regions.kblPlayRegionSa.path,
-  'oc': Assets.icons.regions.kblPlayRegionOc.path,
+  'na': Assets.icons.regions.kblNaRegionIcon.path,
+  'eu': Assets.icons.regions.kblEuRegionIcon.path,
+  'as': Assets.icons.regions.kblAsRegionIcon.path,
+  'af': Assets.icons.regions.kblAfRegionIcon.path,
+  'sa': Assets.icons.regions.kblSaRegionIcon.path,
+  'oc': Assets.icons.regions.kblOcRegionIcon.path,
 };
 
 class ServerListEntry extends StatelessWidget {
