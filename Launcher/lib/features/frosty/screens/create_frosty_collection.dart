@@ -5,6 +5,7 @@ import 'package:archive/archive_io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' as mt;
 import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
@@ -166,7 +167,7 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                 ),
                 const CardSection(),
                 Expanded(
-                  child: ReorderableListView.builder(
+                  child: mt.ReorderableListView.builder(
                     itemExtent: 42,
                     proxyDecorator: (child, index, animation) {
                       return child;

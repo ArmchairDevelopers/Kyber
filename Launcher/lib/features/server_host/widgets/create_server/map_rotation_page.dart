@@ -207,7 +207,7 @@ class _MapRotationPageState extends State<MapRotationPage> {
                       return Column(
                         children: [
                           Expanded(
-                            child: ReorderableListView.builder(
+                            child: mt.ReorderableListView.builder(
                               onReorder: (oldIndex, newIndex) {
                                 context.read<MapRotationCubit>().moveMap(
                                   oldIndex,
