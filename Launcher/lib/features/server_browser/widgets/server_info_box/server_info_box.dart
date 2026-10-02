@@ -1,24 +1,32 @@
 import 'package:background_downloader/background_downloader.dart';
+import 'package:collection/collection.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kyber/kyber.dart';
+import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
+import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_proxy_cubit.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
+import 'package:kyber_launcher/features/mod_collections/extensions/mod_collection_extension.dart';
 import 'package:kyber_launcher/features/mods/helper/mod_helper.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
+import 'package:kyber_launcher/features/mods/widgets/collection_list/collection_icon.dart';
 import 'package:kyber_launcher/features/server_browser/dialogs/server_password_dialog.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/widgets/server_info_box/background_image.dart';
+import 'package:kyber_launcher/features/server_browser/widgets/server_list/entry.dart';
 import 'package:kyber_launcher/features/settings/dialogs/chromium_download_dialog.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/injection_container.dart';
+import 'package:kyber_launcher/main.dart';
 import 'package:kyber_launcher/shared/ui/elements/kyber_page_selector.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 
@@ -45,6 +53,9 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
   ServerRegion? selectedRegion;
   bool _regionResolved = false;
   bool _modsLoaded = false;
+
+  List<ModCollectionMetaData> collections = [];
+  ModCollectionMetaData? selectedCollection;
 
   KyberMap? get map => MapHelper.getMap(
     serverInfo.levelSetup.mode,
@@ -85,8 +96,16 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
   void initState() {
     serverInfo = widget.server.serverInfo;
     sl.isReady<ModService>().then(
-      (_) => mounted ? setState(() => _modsLoaded = true) : null,
+      (_) {
+        if (!mounted) return;
+
+        setState(() {
+          _modsLoaded = true;
+          _setCollectionData();
+        });
+      },
     );
+
     super.initState();
   }
 
@@ -100,7 +119,41 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
 
     if (!_instances.contains(serverInfo)) {
       serverInfo = _instances.first;
+      _setCollectionData();
     }
+  }
+
+  void _setCollectionData() {
+    if (!_modsLoaded) return;
+
+    final mods = serverInfo.mods
+        .map(
+          (e) => CollectionMod(name: e.name, version: e.version, link: e.link),
+        )
+        .toList();
+    collections = [];
+    for (final collection in collectionBox.values) {
+      final gameplayMods = collection
+          .getLocalMods(
+            onlyGameplay: true,
+            expandCollections: true,
+            expandGameplayCollections: false,
+          )
+          .whereType<FrostyMod>()
+          .map((e) => e.toCollectionMod())
+          .toList();
+
+      if (const ListEquality<CollectionMod>().equals(gameplayMods, mods) ||
+          collection.isCosmetic ||
+          gameplayMods.isEmpty) {
+        collections.add(collection);
+      }
+    }
+
+    final selectedCollectionId = Preferences.general.selectedCosmeticCollection;
+    selectedCollection = Preferences.general.useCosmetics
+        ? collections.firstWhereOrNull((x) => x.localId == selectedCollectionId)
+        : null;
   }
 
   @override
@@ -109,6 +162,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
       selectedRegion = null;
       serverInfo = widget.server.serverInfo;
       _regionResolved = false;
+      _setCollectionData();
     }
 
     super.didUpdateWidget(oldWidget);
@@ -117,6 +171,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
   void _switchInstance(int page) {
     setState(() {
       serverInfo = _instances[page - 1];
+      _setCollectionData();
     });
   }
 
@@ -129,6 +184,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
       } else if (!_instances.contains(serverInfo)) {
         serverInfo = _instances.first;
       }
+      _setCollectionData();
     });
   }
 
@@ -371,21 +427,10 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                             else
                               _JoinButton(serverInfo: serverInfo),
                             const Spacer(),
-                            KyberTooltip(
-                              message:
-                                  'Select a cosmetic collection to use on this server',
-                              child: KOutlinedButton.icon(
-                                child: Assets.icons.kblCollection.svg(),
-                                onPressed: () => null,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            KyberTooltip(
-                              message: 'Join as a spectator',
-                              child: KOutlinedButton.icon(
-                                child: const Icon(mt.Icons.camera_alt),
-                                onPressed: () => null,
-                              ),
+                            SizedBox(
+                              width: 200,
+                              height: 37,
+                              child: _buildActionRow(),
                             ),
                           ],
                         ),
@@ -429,6 +474,91 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
       ),
     );
   }
+
+  Widget _buildActionRow() => _ActionDropdown<ModCollectionMetaData?>(
+    items: [
+      DropdownItem(value: null, label: 'No Cosmetics'),
+      ...collections.map((e) => DropdownItem(value: e, label: e.title)),
+    ],
+    selectedItem: selectedCollection,
+    onChanged: (value) {
+      setState(() => selectedCollection = value);
+      Preferences.general.useCosmetics = value != null;
+      if (value != null) {
+        Preferences.general.selectedCosmeticCollection = value.localId;
+      }
+    },
+    itemBuilder: (item) => Row(
+      children: [
+        SizedBox(
+          height: 40,
+          width: 40,
+          child: item.value != null
+              ? CollectionIcon(collection: item.value!)
+              : const Icon(mt.Icons.block, size: 20),
+        ),
+        Container(
+          width: 2,
+          height: 40,
+          color: decoColor,
+        ),
+        Expanded(
+          child: Padding(
+            padding: const .symmetric(
+              horizontal: 10,
+            ),
+            child: Text(
+              item.label,
+              style: const TextStyle(
+                fontFamily: FontFamily.battlefrontUI,
+                fontSize: 17,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+    actions: [
+      KyberTooltip(
+        message: 'Share this server',
+        child: CustomIconButton(
+          size: 21,
+          iconData: mt.Icons.share,
+          onPressed: () => null,
+        ),
+      ),
+      KyberTooltip(
+        message: 'Join as a spectator',
+        child: CustomIconButton(
+          size: 21,
+          iconData: mt.Icons.camera_alt_sharp,
+          onPressed: () => null,
+        ),
+      ),
+      Row(
+        spacing: 10,
+        children: [
+          KyberTooltip(
+            message: 'Select a cosmetic collection to use on this server',
+            child: CustomSvgButton(
+              size: 19,
+              path: Assets.icons.kblCollection.path,
+              color: kWhiteColor1,
+              onPressed: null,
+            ),
+          ),
+          Text(
+            selectedCollection?.mods.length.toString() ?? '0',
+            style: const .new(
+              fontFamily: FontFamily.battlefrontUI,
+              color: kWhiteColor1,
+              fontSize: 19,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
 }
 
 class _JoinButton extends StatelessWidget {
@@ -778,54 +908,70 @@ class _RegionSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = <(String, ServerRegion?)>[
-      ('ALL', null),
       for (final region in regions) (region.name.toUpperCase(), region),
     ];
 
-    return Container(
-      clipBehavior: .hardEdge,
-      decoration: BoxDecoration(
-        color: kControlBackgroundColor,
-        border: .all(color: kButtonBorder, width: 1.5),
-        borderRadius: .circular(kDefaultInnerBorderRadius),
-      ),
-      child: ClipRRect(
-        borderRadius: .circular(kDefaultInnerBorderRadius - 1.5),
-        child: Row(
-          crossAxisAlignment: .stretch,
-          children: [
-            for (final (label, value) in items)
-              ButtonBuilder(
-                onClick: () => onChanged(value),
-                builder: (context, hovered) {
-                  final active = value == selected;
+    const border = BorderSide(color: kButtonBorder, width: 1.5);
 
-                  return AnimatedContainer(
-                    duration: kDefaultDuration,
-                    padding: const .symmetric(horizontal: 12, vertical: 4),
-                    alignment: .center,
-                    color: hovered
-                        ? kActiveColor
-                        : active
-                        ? kWhiteColor
-                        : Colors.transparent,
-                    child: AnimatedDefaultTextStyle(
-                      duration: kDefaultDuration,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: .w700,
-                        fontFamily: FontFamily.battlefrontUI,
-                        height: 1,
-                        color: hovered || active ? Colors.black : kWhiteColor,
-                      ),
-                      child: Text(label),
-                    ),
-                  );
-                },
-              ),
-          ],
+    return Stack(
+      children: [
+        Container(
+          padding: const .only(left: 15),
+          margin: const .only(left: 17),
+          clipBehavior: .hardEdge,
+          decoration: BoxDecoration(
+            color: kControlBackgroundColor,
+            border: .fromLTRB(top: border, bottom: border, right: border),
+            borderRadius: .horizontal(
+              right: const .circular(kDefaultInnerBorderRadius),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: .circular(kDefaultInnerBorderRadius - 1.5),
+            child: Row(
+              crossAxisAlignment: .stretch,
+              children: [
+                for (final (label, value) in items)
+                  ButtonBuilder(
+                    onClick: () => onChanged(value),
+                    builder: (context, hovered) {
+                      final active = value == selected;
+
+                      return AnimatedContainer(
+                        duration: kDefaultDuration,
+                        padding: const .symmetric(horizontal: 12, vertical: 4),
+                        alignment: .center,
+                        child: AnimatedDefaultTextStyle(
+                          duration: kDefaultDuration,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: .w700,
+                            fontFamily: FontFamily.battlefrontUI,
+                            height: 1,
+                            color: hovered || active
+                                ? kActiveColor
+                                : kWhiteColor,
+                          ),
+                          child: Builder(
+                            builder: (context) {
+                              return Text(label);
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
         ),
-      ),
+        Positioned(
+          child: SvgPicture.asset(
+            regionIcons[selected?.name]!,
+            height: 35,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -884,6 +1030,221 @@ class _DropdownState extends State<_Dropdown> {
         ),
         if (expanded) widget.child,
       ],
+    );
+  }
+}
+
+class _ActionDropdown<T> extends StatefulWidget {
+  const _ActionDropdown({
+    required this.items,
+    required this.selectedItem,
+    required this.onChanged,
+    required this.itemBuilder,
+    this.actions = const [],
+    super.key,
+  });
+
+  final List<DropdownItem<T>> items;
+  final T? selectedItem;
+  final ValueChanged<T> onChanged;
+  final Widget Function(DropdownItem<T> item) itemBuilder;
+  final List<Widget> actions;
+
+  @override
+  State<_ActionDropdown<T>> createState() => _ActionDropdownState<T>();
+}
+
+class _ActionDropdownState<T> extends State<_ActionDropdown<T>>
+    with SingleTickerProviderStateMixin {
+  bool isOpen = false;
+  late final AnimationController _animationController = AnimationController(
+    duration: const Duration(milliseconds: 100),
+    vsync: this,
+  );
+  late final Animation<double> _animation = CurvedAnimation(
+    parent: _animationController,
+    curve: Curves.easeOut,
+  );
+
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+
+  @override
+  void didUpdateWidget(covariant _ActionDropdown<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_overlayEntry != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _overlayEntry?.markNeedsBuild(),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _removeOverlay();
+    super.dispose();
+  }
+
+  void _toggleDropdown() => isOpen ? _closeDropdown() : _openDropdown();
+
+  void _openDropdown() {
+    _overlayEntry = _createOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+    _animationController.forward();
+    setState(() => isOpen = true);
+  }
+
+  Future<void> _closeDropdown() async {
+    await _animationController.reverse();
+    _removeOverlay();
+    if (mounted) setState(() => isOpen = false);
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  Widget _buildItem(DropdownItem<T> item) {
+    final selected = item.value == widget.selectedItem;
+
+    return ButtonBuilder(
+      onClick: () async {
+        widget.onChanged(item.value);
+        await _closeDropdown();
+      },
+      builder: (context, hovered) => AnimatedDefaultTextStyle(
+        duration: const Duration(milliseconds: 150),
+        style: TextStyle(
+          fontFamily: FontFamily.battlefrontUI,
+          color: hovered || selected ? kActiveColor : kWhiteColor,
+        ),
+        child: ColoredBox(
+          color: mt.Colors.black38,
+          child: Row(
+            children: [
+              Expanded(child: widget.itemBuilder(item)),
+              if (selected)
+                Padding(
+                  padding: const .only(right: 12),
+                  child: Icon(mt.Icons.check, size: 18, color: kActiveColor),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  OverlayEntry _createOverlayEntry() {
+    final renderBox = context.findRenderObject()! as RenderBox;
+    final size = renderBox.size;
+
+    return OverlayEntry(
+      builder: (context) => GestureDetector(
+        onTap: _closeDropdown,
+        behavior: .translucent,
+        child: Stack(
+          clipBehavior: .none,
+          children: [
+            Positioned(
+              width: size.width,
+              child: CompositedTransformFollower(
+                link: _layerLink,
+                showWhenUnlinked: false,
+                offset: Offset(0, size.height),
+                child: ClipRRect(
+                  borderRadius: const .vertical(
+                    bottom: .circular(kDefaultInnerBorderRadius),
+                  ),
+                  child: BackgroundBlur(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: kDefaultBorder,
+                          left: kDefaultBorder,
+                          right: kDefaultBorder,
+                        ),
+                        borderRadius: .vertical(
+                          bottom: .circular(kDefaultInnerBorderRadius),
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: const .vertical(
+                          bottom: .circular(
+                            kDefaultInnerBorderRadius - 2,
+                          ),
+                        ),
+                        child: SizeTransition(
+                          sizeFactor: _animation,
+                          alignment: .bottomCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 300),
+                            child: ListView.separated(
+                              padding: .zero,
+                              shrinkWrap: true,
+                              separatorBuilder: (_, _) => const CardSection(),
+                              itemCount: widget.items.length,
+                              itemBuilder: (_, index) =>
+                                  _buildItem(widget.items[index]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: ButtonBuilder(
+        onClick: _toggleDropdown,
+        builder: (context, hovered) => AnimatedContainer(
+          height: 48,
+          padding: const .only(left: 15, right: 10),
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            color: kControlBackgroundColor,
+            border: .all(
+              color: kDefaultBorder.color,
+              width: kDefaultBorder.width,
+            ),
+            borderRadius: !isOpen
+                ? .circular(kDefaultInnerBorderRadius)
+                : const .vertical(
+                    top: .circular(kDefaultInnerBorderRadius),
+                  ),
+          ),
+          child: Row(
+            mainAxisAlignment: .spaceBetween,
+            children: [
+              if (widget.actions.isNotEmpty)
+                ...widget.actions.sublist(0, widget.actions.length - 1),
+              Row(
+                mainAxisSize: .min,
+                spacing: 4,
+                children: [
+                  ?widget.actions.lastOrNull,
+                  Icon(
+                    isOpen ? mt.Icons.arrow_drop_up : mt.Icons.arrow_drop_down,
+                    size: 22,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
