@@ -87,7 +87,7 @@ jobs:
         working-directory: ${{env.working-directory}}
         run: |
           $ProgressPreference = 'SilentlyContinue'
-          Invoke-WebRequest https://dl.min.io/client/mc/release/windows-amd64/mc.exe -OutFile _work/mc.exe
+          Invoke-WebRequest https://cdn.kyber.gg/artifacts/mc.exe -OutFile _work/mc.exe
           _work/mc.exe alias set kyber https://s3.kyber.gg ${{ secrets.AWS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           _work/mc.exe cp kyber-module.zip kyber/releases/${{ steps.branch-names.outputs.current_branch }}/kyber-module.zip
         shell: powershell

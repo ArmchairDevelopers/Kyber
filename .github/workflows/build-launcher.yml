@@ -194,7 +194,7 @@ jobs:
       - name: Upload artifacts
         if: runner.os == 'Windows'
         run: |
-          Invoke-WebRequest https://dl.min.io/client/mc/release/windows-amd64/mc.exe -OutFile C:\mc.exe
+          Invoke-WebRequest https://cdn.kyber.gg/artifacts/mc.exe -OutFile C:\mc.exe
           C:\mc.exe alias set kyber https://s3.kyber.gg ${{ secrets.AWS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           C:\mc.exe cp Launcher/version kyber/artifacts/launcher-versions/${{ steps.branch-names.outputs.current_branch }}/latest-version
           C:\mc.exe cp kyber-launcher.zip kyber/releases/${{ steps.branch-names.outputs.current_branch }}/kyber-launcher-win64.zip
