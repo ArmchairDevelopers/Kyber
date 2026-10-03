@@ -316,10 +316,9 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                       Padding(
                         padding: const .symmetric(horizontal: 25),
                         child: SizedBox(
-                          height: 30,
+                          height: 40,
                           child: Row(
                             spacing: 8,
-                            crossAxisAlignment: .stretch,
                             children: [
                               if (serverInfo.official)
                                 _Badge(
@@ -340,11 +339,8 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                                         alignment: .centerLeft,
                                         widthFactor: 1,
                                         child: IntrinsicWidth(
-                                          child: SizedBox(
-                                            height: double.infinity,
-                                            child: _Badge(
-                                              text: serverInfo.creator,
-                                            ),
+                                          child: _Badge(
+                                            text: serverInfo.creator,
                                           ),
                                         ),
                                       );
@@ -845,24 +841,27 @@ class _Badge extends StatelessWidget {
         border: .all(color: kButtonBorder, width: 1.5),
         borderRadius: .circular(kDefaultInnerBorderRadius),
       ),
-      alignment: .center,
-      child:
-          icon ??
-          Text(
-            text!,
-            overflow: .ellipsis,
-            maxLines: 1,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: .w700,
-              fontFamily: FontFamily.battlefrontUI,
-              height: 1,
-              color: kWhiteColor,
-              fontFeatures: [
-                .tabularFigures(),
-              ],
+      child: Align(
+        widthFactor: 1,
+        heightFactor: 1,
+        child:
+            icon ??
+            Text(
+              text!,
+              overflow: .ellipsis,
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: .w700,
+                fontFamily: FontFamily.battlefrontUI,
+                height: 1,
+                color: kWhiteColor,
+                fontFeatures: [
+                  .tabularFigures(),
+                ],
+              ),
             ),
-          ),
+      ),
     );
   }
 }
@@ -916,8 +915,9 @@ class _RegionSelector extends StatelessWidget {
     return Stack(
       children: [
         Container(
+          height: 30,
           padding: const .only(left: 15),
-          margin: const .only(left: 17),
+          margin: const .only(left: 17, top: 2.5),
           clipBehavior: .hardEdge,
           decoration: BoxDecoration(
             color: kControlBackgroundColor,
@@ -965,11 +965,9 @@ class _RegionSelector extends StatelessWidget {
             ),
           ),
         ),
-        Positioned(
-          child: SvgPicture.asset(
-            regionIcons[selected?.name]!,
-            height: 35,
-          ),
+        SvgPicture.asset(
+          regionIcons[selected?.name]!,
+          height: 37.5,
         ),
       ],
     );
@@ -1211,7 +1209,7 @@ class _ActionDropdownState<T> extends State<_ActionDropdown<T>>
         onClick: _toggleDropdown,
         builder: (context, hovered) => AnimatedContainer(
           height: 48,
-          padding: const .only(left: 15, right: 10),
+          padding: const .only(left: 10, right: 10),
           duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(
             color: kControlBackgroundColor,

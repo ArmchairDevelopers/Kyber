@@ -20,23 +20,26 @@ class KyberBadge extends StatelessWidget {
         border: .all(color: kButtonBorder, width: 1.5),
         borderRadius: .circular(4),
       ),
-      alignment: .center,
-      child:
-          icon ??
-          Text(
-            text!,
-            maxLines: 1,
-            style: const TextStyle(
-              fontWeight: .w700,
-              fontSize: 12,
-              fontFamily: FontFamily.battlefrontUI,
-              //height: 1,
-              color: kWhiteColor,
-              fontFeatures: [
-                .tabularFigures(),
-              ],
+      child: Align(
+        widthFactor: 1,
+        heightFactor: 1,
+        child:
+            icon ??
+            Text(
+              text!,
+              maxLines: 1,
+              style: const TextStyle(
+                fontWeight: .w700,
+                fontSize: 12,
+                fontFamily: FontFamily.battlefrontUI,
+                //height: 1,
+                color: kWhiteColor,
+                fontFeatures: [
+                  .tabularFigures(),
+                ],
+              ),
             ),
-          ),
+      ),
     );
   }
 }

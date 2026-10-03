@@ -13,7 +13,6 @@ import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/helpers/server_browser_helper.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
-import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
@@ -199,17 +198,21 @@ class ServerListEntry extends StatelessWidget {
                     Container(
                       margin: const .only(right: 20),
                       width: 200,
-                      height: 26,
                       child: Row(
                         spacing: 15,
                         mainAxisAlignment: .end,
                         children: [
-                          if (server is GroupedServer) ...[
-                            for (final region
-                                in (server as GroupedServer).group.regions) ...[
-                              _RegionBadge(region: region.name),
-                            ],
-                          ] else _RegionBadge(region: serverInfo.region),
+                          if (server case GroupedServer(:final group)) ...[
+                            Row(
+                              spacing: 6,
+
+                              children: [
+                                for (final region in group.regions)
+                                  _RegionBadge(region: region.name),
+                              ],
+                            ),
+                          ] else if (serverInfo.hasRegion())
+                            _RegionBadge(region: serverInfo.region),
                           SizedBox(
                             width: 45,
                             child: Builder(
@@ -255,20 +258,22 @@ class _RegionBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
+      alignment: .centerLeft,
+      clipBehavior: .none,
       children: [
         Padding(
           padding: const .only(left: 15),
           child: KyberBadge(
-            padding: const EdgeInsets.symmetric(
+            padding: const .symmetric(
               horizontal: 4,
               vertical: 4,
-            ).copyWith(left: 18, right: 8),
+            ).copyWith(left: 20.5, right: 8),
             text: region.toUpperCase(),
           ),
         ),
         SvgPicture.asset(
           regionIcons[region.toLowerCase()]!,
-          height: 35,
+          height: 32.5,
         ),
       ],
     );
