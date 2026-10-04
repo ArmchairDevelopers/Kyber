@@ -1126,6 +1126,8 @@ message RegisterServerRequest {
   map<string, string> meta = 9;
   // Contains "normal" mods and all mods from collections
   repeated kyber_common.ServerMod explodedMods = 10;
+  // Optional. Can be used to re-register a server with the same ID. Only allowed if the ID was originally created by the same user
+  optional string id = 11;
 }
 
 message UpdateServerRequest {

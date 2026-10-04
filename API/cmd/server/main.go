@@ -124,12 +124,10 @@ func main() {
 	partyPub := mq.NewPartyEventPublisher(mqClient)
 	queuePub := mq.NewQueueEventPublisher(mqClient)
 
-	statsCache := cache.NewStatsCache(redisClient, 10*time.Minute)
-	patronsCache := cache.NewPatronsCache(redisClient, time.Hour)
-	discordCache := cache.NewDiscordAuthCache(redisClient, 5*time.Minute)
+	caches := cache.New(redisClient)
 
 	dockerAuth := api.NewDockerAuthState(store)
-	discordAuth := api.NewDiscordAuthState(store, discordCache)
+	discordAuth := api.NewDiscordAuthState(store, caches)
 
 	jwtService, err := jwts.NewService()
 	if err != nil {
@@ -148,7 +146,7 @@ func main() {
 	featureFlags := featureflags.New(os.Getenv("LIGHTSWITCH_URL"), os.Getenv("ENVIRONMENT"))
 	queueManager := queue.NewManager(store, queuePub, featureFlags)
 	sessionManager := ws.NewSessionManager(store, partyPub, queueManager)
-	serverManager := ws.NewServerManager(ctx, amqpURL, store)
+	serverManager := ws.NewServerManager(ctx, amqpURL, store, caches)
 	serverManager.OnPlayerCountUpdated = func(serverID string) {
 		go queueManager.Advance(context.Background(), serverID)
 	}
@@ -202,11 +200,11 @@ func main() {
 
 	reflection.Register(grpcServer)
 	pbapi.RegisterAuthenticationServer(grpcServer, rpc.NewAuthenticationServer(ctx, store, mqClient))
-	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, serverManager, mqClient, jwtService, sessionManager, partyPub, queueManager))
+	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, serverManager, mqClient, jwtService, sessionManager, partyPub, queueManager, caches))
 	pbapi.RegisterClientServerServer(grpcServer, rpc.NewClientServer(store, jwtService, queueManager))
-	pbapi.RegisterLauncherServer(grpcServer, rpc.NewLauncherServer(store, minioClient, patronsCache))
+	pbapi.RegisterLauncherServer(grpcServer, rpc.NewLauncherServer(store, minioClient, caches))
 	pbapi.RegisterServerManagementServer(grpcServer, rpc.NewServerManagementServer(store, serverManager))
-	pbapi.RegisterStatisticsServer(grpcServer, rpc.NewStatisticsServer(ctx, store, statsCache))
+	pbapi.RegisterStatisticsServer(grpcServer, rpc.NewStatisticsServer(ctx, store, caches))
 	pbapi.RegisterVoipServer(grpcServer, rpc.NewVoipServer(store))
 	pbapi.RegisterProxyServer(grpcServer, rpc.NewProxyServer())
 	pbapi.RegisterReportServiceServer(grpcServer, rpc.NewReportServer(store, serverManager, mqClient))

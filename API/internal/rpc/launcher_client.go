@@ -84,7 +84,7 @@ type LauncherServer struct {
 	pbapi.UnimplementedLauncherServer
 }
 
-func NewLauncherServer(store *db.Store, minio *minio.Client, patronsCache *cache.PatronsCache) *LauncherServer {
+func NewLauncherServer(store *db.Store, minio *minio.Client, caches *cache.Caches) *LauncherServer {
 	launcherConfig := &LauncherConfig{}
 	err := util.LoadConfig("launcher-config.yaml", launcherConfig)
 	if err != nil {
@@ -124,7 +124,7 @@ func NewLauncherServer(store *db.Store, minio *minio.Client, patronsCache *cache
 	return &LauncherServer{
 		store:          store,
 		minio:          minio,
-		patronsCache:   patronsCache,
+		patronsCache:   caches.Patrons,
 		launcherConfig: launcherConfig,
 		amqpCh:         amqpCh,
 		wc:             wc,

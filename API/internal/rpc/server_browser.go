@@ -10,6 +10,7 @@ import (
 
 	"github.com/ArmchairDevelopers/Kyber/API/api/v1/pbapi"
 	"github.com/ArmchairDevelopers/Kyber/API/api/v1/pbcommon"
+	"github.com/ArmchairDevelopers/Kyber/API/internal/cache"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/db"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/jwts"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
@@ -37,6 +38,7 @@ type ServerBrowserServer struct {
 	mqClient *mq.Client
 	partyPub *mq.PartyEventPublisher
 	queues   *queue.Manager
+	caches   *cache.Caches
 	pbapi.UnimplementedServerBrowserServer
 }
 
@@ -130,7 +132,7 @@ func (s *ServerBrowserServer) cleanupStaleServers() {
 	}
 }
 
-func NewServerBrowserServer(store *db.Store, sm *ws.ServerManager, client *mq.Client, jwt *jwts.Service, sessions *ws.SessionManager, partyPub *mq.PartyEventPublisher, queues *queue.Manager) *ServerBrowserServer {
+func NewServerBrowserServer(store *db.Store, sm *ws.ServerManager, client *mq.Client, jwt *jwts.Service, sessions *ws.SessionManager, partyPub *mq.PartyEventPublisher, queues *queue.Manager, caches *cache.Caches) *ServerBrowserServer {
 	srv := &ServerBrowserServer{
 		store:    store,
 		sm:       sm,
@@ -139,6 +141,7 @@ func NewServerBrowserServer(store *db.Store, sm *ws.ServerManager, client *mq.Cl
 		sessions: sessions,
 		partyPub: partyPub,
 		queues:   queues,
+		caches:   caches,
 	}
 
 	go srv.cleanupStaleServers()
@@ -510,6 +513,35 @@ func (s *ServerBrowserServer) RegisterServer(ctx context.Context, req *pbapi.Reg
 		return nil, status.Error(codes.PermissionDenied, "User is not entitled to use meta data")
 	}
 
+	serverID := util.GenerateToken()
+	if len(req.GetId()) > 0 {
+		owner, err := s.caches.ServerID.Get(ctx, req.GetId())
+		if err != nil {
+			logger.L().Error("Failed to get server ID from cache", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get server ID from cache")
+		}
+
+		if owner == nil {
+			return nil, status.Error(codes.InvalidArgument, "Invalid server ID")
+		}
+
+		if *owner != user.ID {
+			return nil, status.Error(codes.PermissionDenied, "User is not entitled to use this server ID")
+		}
+
+		existingServer, err := s.store.Servers.GetByID(ctx, req.GetId())
+		if err != nil {
+			logger.L().Error(err.Error())
+			return nil, status.Error(codes.Internal, "Failed to get server by ID")
+		}
+
+		if existingServer != nil {
+			return nil, status.Error(codes.InvalidArgument, "A server with that ID already exists")
+		}
+
+		serverID = req.GetId()
+	}
+
 	mods := make([]models.ServerModModel, 0)
 	for _, mod := range req.GetMods() {
 		link := mod.GetLink()
@@ -544,8 +576,6 @@ func (s *ServerBrowserServer) RegisterServer(ctx context.Context, req *pbapi.Reg
 
 		imageHash, err = s.getServerMapImage(ctx, req.GetLevelSetup(), cnvMods)
 	}
-
-	serverID := util.GenerateToken()
 
 	serverJWT := &models.ServerJWT{
 		UserID:   user.ID,
@@ -634,6 +664,10 @@ func (s *ServerBrowserServer) RegisterServer(ctx context.Context, req *pbapi.Reg
 	}
 
 	s.publishKronosUpdate(ctx, models.KronosServerUpdate{ServerCreated: &server})
+
+	if err := s.caches.ServerID.Set(ctx, serverID, server.HostID); err != nil {
+		logger.L().Error("Failed to set server ID cache", zap.Error(err))
+	}
 
 	logger.L().Info("Created server", zap.String("id", server.ID))
 	return ConvertServerToProto(&server), nil
