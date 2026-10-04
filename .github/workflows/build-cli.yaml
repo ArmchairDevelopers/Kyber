@@ -130,7 +130,7 @@ jobs:
         working-directory: ${{env.working-directory}}
 
       - name: Build CLI
-        run: dart build cli bin/kyber_cli.dart
+        run: dart build cli
         working-directory: ${{env.working-directory}}
 
       - name: Download Maxima Wine Helper
