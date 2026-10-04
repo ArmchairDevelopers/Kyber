@@ -7,6 +7,7 @@ import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/core/routing/app_router.dart';
 import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
+import 'package:kyber_launcher/features/kyber/providers/kyber_api_status_cubit.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_proxy_cubit.dart';
 import 'package:kyber_launcher/features/maxima/dialogs/maxima_start_game_dialog.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
@@ -111,7 +112,9 @@ class KyberServerHelper {
           ),
         );
       } on GrpcError catch (e) {
-        if (queueIfFull && e.code == StatusCode.resourceExhausted) {
+        if (queueIfFull &&
+            e.code == StatusCode.resourceExhausted &&
+            LightswitchCubit.isFeatureEnabled(.queues)) {
           await _joinQueueForServer(
             server,
             selectedCollection: selectedCollection,

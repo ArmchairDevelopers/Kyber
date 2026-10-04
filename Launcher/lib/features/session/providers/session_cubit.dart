@@ -19,6 +19,7 @@ import 'package:kyber_launcher/features/download_manager/repositories/download_r
 import 'package:kyber_launcher/features/download_manager/services/download_orchestrator.dart';
 import 'package:kyber_launcher/features/download_manager/services/mod_bridge_service.dart';
 import 'package:kyber_launcher/features/kyber/helper/kyber_server_helper.dart';
+import 'package:kyber_launcher/features/kyber/providers/kyber_api_status_cubit.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_proxy_cubit.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_status_cubit.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
@@ -68,6 +69,10 @@ class SessionCubit extends Cubit<SessionState> {
   }
 
   Future<void> inviteToParty(String userId) {
+    if (!LightswitchCubit.isFeatureEnabled(.parties)) {
+      throw const GrpcError.unavailable('Parties are temporarily disabled');
+    }
+
     return _service.partyServiceClient.invitePlayer(.new(userId: userId));
   }
 
@@ -694,6 +699,11 @@ class SessionCubit extends Cubit<SessionState> {
     final userId = _userId;
 
     if (event.hasInviteReceived()) {
+      if (!LightswitchCubit.isFeatureEnabled(.parties)) {
+        _logger.info('Ignoring invite, parties are disabled');
+        return;
+      }
+
       final invite = event.inviteReceived;
       final isFriend =
           navigatorKey.currentContext?.read<MaximaRtmCubit>().state.friends.any(
