@@ -85,6 +85,7 @@ class SessionCubit extends Cubit<SessionState> {
   }
 
   void leaveGame() {
+    gameJoined = false;
     _channel?.sink.add(
       SessionClientEvent(
         gameLeft: .new(),
@@ -196,6 +197,10 @@ class SessionCubit extends Cubit<SessionState> {
         password: password,
       ),
     );
+
+    if (_inParty != null) {
+      unawaited(_syncState());
+    }
 
     return status;
   }
@@ -558,58 +563,19 @@ class SessionCubit extends Cubit<SessionState> {
       await sl.isReady<ModService>();
     }
 
-    _service.partyServiceClient
-        .getParty(.new())
-        .then((response) {
-          if (isClosed || !response.hasParty()) return;
-
-          _logger.info(
-            'Currently in party with ${response.party.members.length} members',
-          );
-
-          JoinGameInfo? joinGameInfo;
-          if (response.party.hasJoinGameState()) {
-            joinGameInfo = _buildJoinGameInfoFromState(
-              response.party.joinGameState,
-              response.party.leaderId,
-            );
-          }
-
-          _emitInParty(
-            response.party,
-            joinGameInfo: joinGameInfo,
-            queueInfo: _queueInfoFromParty(response.party),
-          );
-
-          if (joinGameInfo != null) {
-            _checkAndReportModStatus(joinGameInfo.mods);
-            showJoinGameDialog();
-          }
-        })
-        .catchError((error) {
-          _logger.warning('Failed to get current party', error);
-        });
-
-    _service.serverQueueClient
-        .getQueueStatus(.new())
-        .then((response) {
-          if (isClosed || !response.hasStatus()) return;
-          if (_queueInfo != null) return;
-
-          _setQueueInfo(_queueInfoFromStatus(response.status));
-          _loadQueueServer(response.status.serverId);
-        })
-        .catchError((error) {
-          _logger.warning('Failed to get queue status', error);
-        });
-
     _channel = IOWebSocketChannel.connect(
       'wss://api.${Preferences.admin.apiEnv}.kyber.gg/ws/session',
       headers: {'Authorization': sl.get<KyberGRPCService>().token},
       connectTimeout: const Duration(seconds: 10),
     );
 
-    await _channel?.ready;
+    try {
+      await _channel?.ready;
+    } catch (e) {
+      _logger.warning('Failed to connect to session stream', e);
+      _reconnect();
+      rethrow;
+    }
 
     _channel?.stream.listen(
       (event) {
@@ -641,6 +607,71 @@ class SessionCubit extends Cubit<SessionState> {
       (_) async => _channel?.sink.add(''),
     );
     _reconnectAttempts = 0;
+
+    unawaited(_syncState());
+  }
+
+  Future<void> _syncState() async {
+    try {
+      final partyResponse = await _service.partyServiceClient.getParty(.new());
+      final queueResponse = await _service.serverQueueClient.getQueueStatus(
+        .new(),
+      );
+      if (isClosed) return;
+
+      final pendingInvite = switch (state) {
+        PartyInitial(:final pendingInvite) => pendingInvite,
+        InParty(:final pendingInvite) => pendingInvite,
+      };
+
+      final queueInfo = queueResponse.hasStatus()
+          ? _queueInfoFromStatus(queueResponse.status)
+          : null;
+
+      if (!partyResponse.hasParty()) {
+        _partyDownloadChecker?.cancel();
+        _partyDownloadChecker = null;
+        emit(PartyInitial(pendingInvite: pendingInvite, queueInfo: queueInfo));
+      } else {
+        final party = partyResponse.party;
+        _logger.info(
+          'Currently in party with ${party.members.length} members',
+        );
+
+        final previousServerId = _inParty?.joinGameInfo?.serverId;
+
+        JoinGameInfo? joinGameInfo;
+        if (party.hasJoinGameState()) {
+          joinGameInfo = _buildJoinGameInfoFromState(
+            party.joinGameState,
+            party.leaderId,
+          );
+        }
+
+        emit(
+          InParty(
+            _sortMembers(party),
+            pendingInvite: pendingInvite,
+            joinGameInfo: joinGameInfo,
+            queueInfo: _queueInfoFromParty(party) ?? queueInfo,
+          ),
+        );
+
+        if (joinGameInfo != null) {
+          _checkAndReportModStatus(joinGameInfo.mods);
+          if (joinGameInfo.serverId != previousServerId) {
+            showJoinGameDialog();
+          }
+        }
+      }
+
+      final info = _queueInfo;
+      if (info != null && info.serverName.isEmpty) {
+        _loadQueueServer(info.serverId);
+      }
+    } catch (e) {
+      _logger.warning('Failed to sync session state', e);
+    }
   }
 
   void _reconnect() {
@@ -654,7 +685,7 @@ class SessionCubit extends Cubit<SessionState> {
     _logger.info(
       'Reconnecting in ${delay.inSeconds}s (attempt $_reconnectAttempts)',
     );
-    Future.delayed(delay, connect);
+    Future.delayed(delay, () => connect().catchError((Object _) {}));
   }
 
   void _handleProxiesEvent(ProxiesUpdatedEvent event) async {

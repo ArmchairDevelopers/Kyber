@@ -130,7 +130,7 @@ func (s *ClientServer) CreateJoinToken(ctx context.Context, req *pbapi.JoinToken
 		}
 
 		if reservedEntry == nil {
-			shouldQueue, err := s.queues.ShouldQueue(ctx, server)
+			shouldQueue, err := s.queues.ShouldQueue(ctx, server, 1)
 			if err != nil {
 				logger.L().Error("Failed to check queue requirement", zap.Error(err))
 				return nil, status.Error(codes.Internal, "Failed to check queue")
@@ -175,6 +175,10 @@ func (s *ClientServer) CreateJoinToken(ctx context.Context, req *pbapi.JoinToken
 	if err != nil {
 		logger.L().Error(err.Error())
 		return nil, status.Error(codes.Internal, "Failed to create join token")
+	}
+
+	if reservedEntry != nil {
+		s.queues.MarkSlotClaimed(ctx, reservedEntry, user.ID)
 	}
 
 	logger.L().Info(fmt.Sprintf("Created join token for user (id: %s, name: %s) on server (id: %s, name: %s)", user.ID, user.Name, server.ID, server.Name))

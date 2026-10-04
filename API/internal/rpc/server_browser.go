@@ -763,7 +763,32 @@ func (s *ServerBrowserServer) CanJoinServer(ctx context.Context, req *pbapi.CanJ
 		return resp, nil
 	}
 
-	shouldQueue, err := s.queues.ShouldQueue(ctx, server)
+	size := 1
+	session, err := s.store.Sessions.GetByUserID(ctx, user.ID)
+	if err != nil {
+		logger.L().Error("Failed to get session", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get session")
+	}
+
+	if session != nil && session.PartyID != nil {
+		party, err := s.store.Parties.GetByID(ctx, *session.PartyID)
+		if err != nil {
+			logger.L().Error("Failed to get party", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get party")
+		}
+
+		if party != nil && party.LeaderID == user.ID && (party.JoinGameState == nil || party.JoinGameState.ServerID != server.ID) {
+			members, err := s.store.Sessions.CountByPartyID(ctx, party.ID)
+			if err != nil {
+				logger.L().Error("Failed to count party members", zap.Error(err))
+				return nil, status.Error(codes.Internal, "Failed to count party members")
+			}
+
+			size = max(int(members), 1)
+		}
+	}
+
+	shouldQueue, err := s.queues.ShouldQueue(ctx, server, size)
 	if err != nil {
 		logger.L().Error("Failed to check queue requirement", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Failed to check queue")

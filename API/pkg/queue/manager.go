@@ -40,7 +40,7 @@ func (m *Manager) Enabled() bool {
 	return m.flags.Enabled(featureflags.Queues)
 }
 
-func (m *Manager) ShouldQueue(ctx context.Context, server *models.ServerModel) (bool, error) {
+func (m *Manager) ShouldQueue(ctx context.Context, server *models.ServerModel, size int) (bool, error) {
 	free, err := m.freeSlots(ctx, server)
 	if err != nil {
 		return false, err
@@ -52,6 +52,10 @@ func (m *Manager) ShouldQueue(ctx context.Context, server *models.ServerModel) (
 
 	if !m.Enabled() {
 		return false, nil
+	}
+
+	if size > free {
+		return true, nil
 	}
 
 	active, err := m.store.Queues.HasWaitingOrReserved(ctx, server.ID, time.Now())
@@ -384,7 +388,12 @@ func (m *Manager) freeSlots(ctx context.Context, server *models.ServerModel) (in
 		reserved += entry.ReservedSlots(now)
 	}
 
-	occupancy := max(int(server.PlayerCount), int(server.PlayerCount))
+	tokens, err := m.store.JoinTokens.GetByServerID(ctx, server.ID)
+	if err != nil {
+		return 0, err
+	}
+
+	occupancy := max(int(server.PlayerCount), int(server.ConnectedCount)+len(tokens))
 
 	return int(server.MaxPlayerCount) - occupancy - reserved, nil
 }

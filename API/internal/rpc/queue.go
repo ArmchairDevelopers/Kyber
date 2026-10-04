@@ -67,6 +67,7 @@ func (s *QueueService) JoinQueue(ctx context.Context, req *pbapi.JoinQueueReques
 	}
 
 	var partyId *uint64
+	size := 1
 	if session != nil && session.PartyID != nil {
 		party, err := s.store.Parties.GetByID(ctx, *session.PartyID)
 		if err != nil {
@@ -74,29 +75,50 @@ func (s *QueueService) JoinQueue(ctx context.Context, req *pbapi.JoinQueueReques
 			return nil, status.Error(codes.Internal, "Failed to get party")
 		}
 
-		if party == nil {
-			return nil, status.Error(codes.NotFound, "Party not found")
-		}
-
-		if party.LeaderID != user.ID {
-			return nil, status.Error(codes.FailedPrecondition, "Only the party leader can queue for a server")
-		}
-
-		if party.JoinGameState == nil || party.JoinGameState.ServerID != req.GetServerId() {
-			return nil, status.Error(codes.FailedPrecondition, "Party is not in the correct join game state")
-		}
-
-		activeInvites, err := s.store.PartyInvites.GetActiveInvitesByPartyID(ctx, *session.PartyID)
+		members, err := s.store.Sessions.CountByPartyID(ctx, *session.PartyID)
 		if err != nil {
-			logger.L().Error("Failed to get party invites", zap.Error(err))
-			return nil, status.Error(codes.Internal, "Failed to get party invites")
+			logger.L().Error("Failed to count party members", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to count party members")
 		}
 
-		if len(activeInvites) > 0 {
-			return nil, status.Error(codes.FailedPrecondition, "All party invites must be accepted or declined before joining a queue")
+		if party != nil {
+			activeInvites, err := s.store.PartyInvites.GetActiveInvitesByPartyID(ctx, party.ID)
+			if err != nil {
+				logger.L().Error("Failed to get party invites", zap.Error(err))
+				return nil, status.Error(codes.Internal, "Failed to get party invites")
+			}
+
+			if len(activeInvites) > 0 {
+				return nil, status.Error(codes.FailedPrecondition, "All party invites must be accepted or declined before joining a queue")
+			}
 		}
 
-		partyId = session.PartyID
+		if party == nil || members <= 1 {
+			if party != nil {
+				if err := s.store.Parties.Delete(ctx, party.ID); err != nil {
+					logger.L().Error("Failed to delete empty party", zap.Error(err))
+					return nil, status.Error(codes.Internal, "Failed to leave party")
+				}
+
+				s.queues.RemoveByPartyID(ctx, party.ID, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
+			}
+
+			if err := s.store.Sessions.SetPartyID(ctx, user.ID, nil); err != nil {
+				logger.L().Error("Failed to clear party ID", zap.Error(err))
+				return nil, status.Error(codes.Internal, "Failed to leave party")
+			}
+		} else {
+			if party.LeaderID != user.ID {
+				return nil, status.Error(codes.FailedPrecondition, "Only the party leader can queue for a server")
+			}
+
+			if party.JoinGameState == nil || party.JoinGameState.ServerID != req.GetServerId() {
+				return nil, status.Error(codes.FailedPrecondition, "Party is not in the correct join game state")
+			}
+
+			partyId = session.PartyID
+			size = int(members)
+		}
 	}
 
 	server, err := getJoinableServer(ctx, s.store, user, req.GetServerId(), req.GetPassword())
@@ -124,7 +146,7 @@ func (s *QueueService) JoinQueue(ctx context.Context, req *pbapi.JoinQueueReques
 		s.queues.RemoveEntry(ctx, existing, pbapi.QueueRemovedReason_QUEUE_REMOVED_LEFT)
 	}
 
-	shouldQueue, err := s.queues.ShouldQueue(ctx, server)
+	shouldQueue, err := s.queues.ShouldQueue(ctx, server, size)
 	if err != nil {
 		logger.L().Error("Failed to check queue requirement", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Failed to check queue requirement")
