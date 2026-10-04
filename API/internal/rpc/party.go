@@ -717,6 +717,10 @@ func (s *PartyService) StartJoinGame(ctx context.Context, req *pbapi.StartJoinGa
 	}
 
 	queueEntry := existingEntry
+	if !s.queues.Enabled() {
+		queueEntry = nil
+	}
+
 	if queueEntry == nil {
 		shouldQueue, err := s.queues.ShouldQueue(ctx, server)
 		if err != nil {
@@ -725,6 +729,10 @@ func (s *PartyService) StartJoinGame(ctx context.Context, req *pbapi.StartJoinGa
 		}
 
 		if shouldQueue {
+			if !s.queues.Enabled() {
+				return nil, status.Error(codes.ResourceExhausted, "Server is full")
+			}
+
 			queueEntry, err = s.queues.Enqueue(ctx, server, &party.ID, nil)
 			if err != nil {
 				logger.L().Error("Failed to create queue entry", zap.Error(err))

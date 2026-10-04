@@ -6,6 +6,7 @@ import (
 
 	"github.com/ArmchairDevelopers/Kyber/API/api/v1/pbapi"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/db"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/featureflags"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
@@ -20,17 +21,23 @@ const (
 type Manager struct {
 	store *db.Store
 	pub   *mq.QueueEventPublisher
+	flags *featureflags.Flags
 }
 
-func NewManager(store *db.Store, pub *mq.QueueEventPublisher) *Manager {
+func NewManager(store *db.Store, pub *mq.QueueEventPublisher, flags *featureflags.Flags) *Manager {
 	m := &Manager{
 		store: store,
 		pub:   pub,
+		flags: flags,
 	}
 
 	go m.sweepLoop()
 
 	return m
+}
+
+func (m *Manager) Enabled() bool {
+	return m.flags.Enabled(featureflags.Queues)
 }
 
 func (m *Manager) ShouldQueue(ctx context.Context, server *models.ServerModel) (bool, error) {
@@ -41,6 +48,10 @@ func (m *Manager) ShouldQueue(ctx context.Context, server *models.ServerModel) (
 
 	if free <= 0 {
 		return true, nil
+	}
+
+	if !m.Enabled() {
+		return false, nil
 	}
 
 	active, err := m.store.Queues.HasWaitingOrReserved(ctx, server.ID, time.Now())
@@ -92,6 +103,10 @@ func (m *Manager) Status(ctx context.Context, entry *models.QueueEntryModel) *pb
 }
 
 func (m *Manager) Advance(ctx context.Context, serverID string) {
+	if !m.Enabled() {
+		return
+	}
+
 	waiting, err := m.store.Queues.GetWaitingByServer(ctx, serverID)
 	if err != nil {
 		logger.L().Error("Failed to get waiting queue entries", zap.Error(err), zap.String("server_id", serverID))

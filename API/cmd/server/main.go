@@ -13,6 +13,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/internal/api"
 	"github.com/ArmchairDevelopers/Kyber/API/internal/cache"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/db"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/featureflags"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/jwts"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
@@ -144,7 +145,8 @@ func main() {
 
 	downloadManager := api.NewDownloadManager(minioClient)
 	imageManager := api.NewImageManager(store)
-	queueManager := queue.NewManager(store, queuePub)
+	featureFlags := featureflags.New(os.Getenv("LIGHTSWITCH_URL"), os.Getenv("ENVIRONMENT"))
+	queueManager := queue.NewManager(store, queuePub, featureFlags)
 	sessionManager := ws.NewSessionManager(store, partyPub, queueManager)
 	serverManager := ws.NewServerManager(ctx, amqpURL, store)
 	serverManager.OnPlayerCountUpdated = func(serverID string) {
@@ -184,6 +186,7 @@ func main() {
 			),
 			grpc_zap.UnaryServerInterceptor(zapLogger),
 			grpc_recovery.UnaryServerInterceptor(),
+			rpc.NewFeatureInterceptor(featureFlags),
 			rpc.NewAuthHandler(store).NewAuthInterceptor(),
 		)),
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(

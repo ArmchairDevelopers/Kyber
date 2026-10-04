@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/db"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/featureflags"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"go.uber.org/zap"
@@ -103,6 +104,23 @@ func (a *AuthHandler) NewAuthStreamInterceptor() grpc.StreamServerInterceptor {
 
 		return handler(srv, wrapped)
 	}
+}
+
+func NewFeatureInterceptor(flags *featureflags.Flags) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+		if feature, ok := featureMethods[info.FullMethod]; ok && !flags.Enabled(feature) {
+			return nil, status.Error(codes.Unavailable, "This feature is temporarily disabled")
+		}
+
+		return handler(ctx, req)
+	}
+}
+
+var featureMethods = map[string]featureflags.Feature{
+	"/kyber_api.Party/InvitePlayer":    featureflags.Parties,
+	"/kyber_api.Party/AcceptInvite":    featureflags.Parties,
+	"/kyber_api.Party/StartJoinGame":   featureflags.Parties,
+	"/kyber_api.ServerQueue/JoinQueue": featureflags.Queues,
 }
 
 var optionalAuthMethods = map[string]bool{
