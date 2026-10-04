@@ -19,7 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"google.golang.org/protobuf/proto"
 )
 

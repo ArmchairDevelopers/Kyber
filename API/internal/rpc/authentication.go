@@ -22,7 +22,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"github.com/ArmchairDevelopers/patreon-go"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"

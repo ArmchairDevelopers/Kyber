@@ -2,8 +2,9 @@ package util
 
 import (
 	"fmt"
+
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func ToBson(v interface{}) bson.M {
