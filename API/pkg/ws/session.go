@@ -14,7 +14,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
 	"github.com/gorilla/websocket"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"

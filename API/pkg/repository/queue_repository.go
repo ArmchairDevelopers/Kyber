@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type QueueRepository interface {
@@ -163,7 +163,7 @@ func (r *mongoQueueRepo) AcquireServerLock(ctx context.Context, key string, owne
 			"expires_at": now.Add(ttl),
 			"owner":      owner,
 		},
-	}, options.Update().SetUpsert(true))
+	}, options.UpdateOne().SetUpsert(true))
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			return false, nil
@@ -193,8 +193,8 @@ func (r *mongoQueueRepo) findOne(ctx context.Context, filter bson.M) (*models.Qu
 	return &entry, nil
 }
 
-func (r *mongoQueueRepo) find(ctx context.Context, filter bson.M, opts *options.FindOptions) ([]*models.QueueEntryModel, error) {
-	cursor, err := r.col.Find(ctx, filter, opts)
+func (r *mongoQueueRepo) find(ctx context.Context, filter bson.M, opts ...options.Lister[options.FindOptions]) ([]*models.QueueEntryModel, error) {
+	cursor, err := r.col.Find(ctx, filter, opts...)
 	if err != nil {
 		return nil, err
 	}

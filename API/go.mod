@@ -9,19 +9,19 @@ require (
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/elastic/go-elasticsearch/v9 v9.5.2
 	github.com/getsentry/sentry-go v0.49.0
-	github.com/go-playground/validator/v10 v10.30.4
+	github.com/go-playground/validator/v10 v10.30.5
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.4
 	github.com/minio/minio-go/v7 v7.3.0
-	github.com/rabbitmq/amqp091-go v1.14.0
-	github.com/redis/go-redis/v9 v9.22.0
-	go.mongodb.org/mongo-driver/v2 v2.9.0
+	github.com/rabbitmq/amqp091-go v1.15.0
+	github.com/redis/go-redis/v9 v9.23.0
+	go.mongodb.org/mongo-driver/v2 v2.9.1
 	go.uber.org/zap v1.28.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.23.0
-	google.golang.org/grpc v1.83.2
+	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -54,7 +54,7 @@ require (
 	go.opentelemetry.io/otel v1.46.0 // indirect
 	go.opentelemetry.io/otel/metric v1.46.0 // indirect
 	go.opentelemetry.io/otel/trace v1.46.0 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/atomic v1.12.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
