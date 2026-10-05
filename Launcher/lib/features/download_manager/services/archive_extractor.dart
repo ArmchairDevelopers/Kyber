@@ -26,6 +26,29 @@ class ArchiveExtractor {
     return archiveExtensions.contains(extension(filename));
   }
 
+  Future<String?> findArchiveExtension(String filename) async {
+    final archiveFile = await File(join(basePath, filename)).open();
+
+    try {
+      final header = await archiveFile.read(6);
+      bool startsWith(List<int> magicBytes) =>
+          header.length >= magicBytes.length &&
+          Iterable<int>.generate(
+            magicBytes.length,
+          ).every((i) => header[i] == magicBytes[i]);
+
+      // PK\x03\x04
+      if (startsWith(const [0x50, 0x4B, 0x03, 0x04])) return '.zip';
+      // Rar!\x1A\x07
+      if (startsWith(const [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07])) return '.rar';
+      // 7z\xBC\xAF\x27\x1C
+      if (startsWith(const [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C])) return '.7z';
+      return null;
+    } finally {
+      await archiveFile.close();
+    }
+  }
+
   Future<ExtractionResult> extract(
     String filename, {
     bool deleteSource = true,

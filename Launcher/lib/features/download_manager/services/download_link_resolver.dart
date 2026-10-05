@@ -26,7 +26,7 @@ class ResolvedDownload {
 class DownloadLinkResolver {
   DownloadLinkResolver({
     ModBridgeGRPCService? modBridgeService,
-  })  : _modBridgeService = modBridgeService ?? sl.get<ModBridgeGRPCService>();
+  }) : _modBridgeService = modBridgeService ?? sl.get<ModBridgeGRPCService>();
 
   final ModBridgeGRPCService _modBridgeService;
   final Logger _logger = Logger('download_link_resolver');
@@ -50,8 +50,16 @@ class DownloadLinkResolver {
   Future<ResolvedDownload> _resolveNxmLink(DownloadRequest request) async {
     try {
       final uri = Uri.parse(request.link);
-      final downloadUrl = await sl.get<NexusModsService>().generateDownloadLink(uri);
-      final filename = downloadUrl.split('/').last.split('?').first;
+      final downloadUrl = await sl.get<NexusModsService>().generateDownloadLink(
+        uri,
+      );
+      final filename =
+          request.filename ??
+          await NexusDownloadService.resolveNexusFileName(
+            modId: int.parse(uri.pathSegments[1]),
+            fileId: int.parse(uri.pathSegments.last),
+            urlFallback: downloadUrl,
+          );
 
       _logger.info('Resolved NXM link to: $filename');
 
@@ -88,7 +96,8 @@ class DownloadLinkResolver {
   }
 
   Future<ResolvedDownload> _resolveDirectLink(DownloadRequest request) async {
-    var filename = request.filename ?? request.link.split('/').last.split('?').first;
+    var filename =
+        request.filename ?? request.link.split('/').last.split('?').first;
     var size = request.size;
 
     if (filename.isEmpty || !filename.contains('.') || size == null) {
