@@ -13,7 +13,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/ws"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -287,7 +287,7 @@ func (s *ServerManagement) BanPlayer(ctx context.Context, req *pbapi.ServerBanPl
 	}
 
 	var expiresAt *time.Time
-	if req.Duration != nil {
+	if req.Duration != nil && req.GetDuration() > 0 {
 		expiresAt = new(time.Time)
 		*expiresAt = time.Now().Add(time.Duration(*req.Duration) * time.Second)
 	}

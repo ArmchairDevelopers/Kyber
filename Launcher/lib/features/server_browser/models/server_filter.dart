@@ -245,6 +245,9 @@ extension ServerBrowserExtension on Server {
 
     if (context == null) return true;
 
-    return !context.read<MaximaCubit>().state.isEntitled(.admin);
+    return !context.read<MaximaCubit>().state.isEntitledAny([
+      .admin,
+      .bypassPlayerLimit,
+    ]);
   }
 }

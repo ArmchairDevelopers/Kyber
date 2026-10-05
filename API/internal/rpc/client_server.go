@@ -14,7 +14,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"github.com/golang-jwt/jwt/v5"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

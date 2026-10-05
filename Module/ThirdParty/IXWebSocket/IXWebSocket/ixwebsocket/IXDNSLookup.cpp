@@ -56,7 +56,7 @@ namespace ix
         struct addrinfo hints;
         memset(&hints, 0, sizeof(hints));
         hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV;
-        hints.ai_family = AF_UNSPEC;
+        hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_STREAM;
 
         std::string sport = std::to_string(port);

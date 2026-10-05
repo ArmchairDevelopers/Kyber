@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: windows-latest-l
+    runs-on: ${{ (github.ref == 'refs/heads/stable') && 'windows-2022' || 'windows-latest-l' }}
 
     env:
       working-directory: ./Launcher
@@ -160,11 +160,89 @@ jobs:
         run: |
           cp "_work/vivoxsdk.dll" "build/windows/x64/runner/Release/vivoxsdk.dll"
 
+      - name: Stage binaries for signing
+        if: github.ref == 'refs/heads/stable'
+        working-directory: ${{ env.working-directory }}
+        run: |
+          $release = "build/windows/x64/runner/Release"
+          New-Item -Path _signing -ItemType Directory -Force | Out-Null
+          Copy-Item "$release/kyber_launcher.exe" "_signing/kyber_launcher.exe"
+          Copy-Item "$release/rust_lib.dll" "_signing/rust_lib.dll"
+        shell: powershell
+
+      - name: Upload unsigned launcher artifact
+        if: github.ref == 'refs/heads/stable'
+        id: upload-unsigned-launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-unsigned
+          path: ${{ env.working-directory }}/_signing/*
+
+      - name: Submit signing request
+        if: github.ref == 'refs/heads/stable'
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORG_ID }}'
+          project-slug: 'kyber'
+          signing-policy-slug: 'release-signing'
+          artifact-configuration-slug: 'launcher-binaries'
+          github-artifact-id: '${{ steps.upload-unsigned-launcher.outputs.artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: '${{ env.working-directory }}/_signed'
+          wait-for-completion-timeout-in-seconds: 1800
+
+      - name: Copy signed binaries back
+        if: github.ref == 'refs/heads/stable'
+        working-directory: ${{ env.working-directory }}
+        run: |
+          $release = "build/windows/x64/runner/Release"
+          Copy-Item -Force "_signed/kyber_launcher.exe" "$release/kyber_launcher.exe"
+          Copy-Item -Force "_signed/rust_lib.dll" "$release/rust_lib.dll"
+        shell: powershell
+
       - name: Generate Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
         with:
           path: Launcher/installer/installer.iss
           options: /O+
+
+      - name: Stage installer for signing
+        if: github.ref == 'refs/heads/stable'
+        working-directory: ${{ env.working-directory }}
+        run: |
+          New-Item -Path _signing_installer -ItemType Directory -Force | Out-Null
+          Copy-Item "installer/KyberLauncherInstaller.exe" "_signing_installer/KyberLauncherInstaller.exe"
+        shell: powershell
+
+      - name: Upload unsigned installer artifact
+        if: github.ref == 'refs/heads/stable'
+        id: upload-unsigned-installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-unsigned
+          path: ${{ env.working-directory }}/_signing_installer/*
+
+      - name: Submit installer signing request
+        if: github.ref == 'refs/heads/stable'
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORG_ID }}'
+          project-slug: 'kyber'
+          signing-policy-slug: 'release-signing'
+          artifact-configuration-slug: 'installer'
+          github-artifact-id: '${{ steps.upload-unsigned-installer.outputs.artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: '${{ env.working-directory }}/_signed_installer'
+          wait-for-completion-timeout-in-seconds: 1800
+
+      - name: Copy signed installer back
+        if: github.ref == 'refs/heads/stable'
+        working-directory: ${{ env.working-directory }}
+        run: |
+          Copy-Item -Force "_signed_installer/KyberLauncherInstaller.exe" "installer/KyberLauncherInstaller.exe"
+        shell: powershell
 
       - name: Generate Version File
         run: |

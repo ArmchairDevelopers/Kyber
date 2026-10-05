@@ -22,12 +22,24 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
 
   final _logger = Logger('proxy_cubit');
 
+  Future<void>? _ready;
+  bool _loading = true;
+
+  bool get isLoading => _loading;
+
+  Future<void> ensureReady() => _ready ?? Future<void>.value();
+
   void selectProxy(String proxyId) {
     Preferences.general.proxy = proxyId;
     emit(state.copyWith(selectedProxy: proxyId));
   }
 
-  Future<void> loadProxies({List<ProxyInfo>? initialProxies}) async {
+  Future<void> loadProxies({List<ProxyInfo>? initialProxies}) {
+    return _ready = _loadProxies(initialProxies: initialProxies)
+        .whenComplete(() => _loading = false);
+  }
+
+  Future<void> _loadProxies({List<ProxyInfo>? initialProxies}) async {
     emit(state.copyWith(loading: true));
 
     try {
@@ -51,8 +63,13 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
       final results = await Future.wait(
         proxyList.map(
           (p) async => pool.withResource(() async {
-            final ping = await _measurePing(p.ip);
-            return (info: p, ping: ping);
+            try {
+              final ping = await _measurePing(p.ip);
+              return (info: p, ping: ping);
+            } catch (e, s) {
+              _logger.warning('Ping failed for ${p.ip}', e, s);
+              return (info: p, ping: null);
+            }
           }),
         ),
       );
@@ -100,6 +117,7 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
       }
     } catch (e, s) {
       _logger.severe('Failed to load proxies', e, s);
+      emit(state.copyWith(proxies: [], selectedProxy: '', loading: false));
     } finally {
       if (!isClosed) {
         emit(state.copyWith(loading: false));
@@ -142,8 +160,12 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
       _logger.warning('Ping failed for $host: $e');
       return null;
     } finally {
-      await queue?.cancel();
-      await channel?.sink.close();
+      try {
+        await queue?.cancel();
+      } catch (_) {}
+      try {
+        await channel?.sink.close().timeout(_kPingTimeout);
+      } catch (_) {}
     }
   }
 

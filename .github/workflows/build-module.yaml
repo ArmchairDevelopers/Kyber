@@ -19,7 +19,7 @@ on:
 
 jobs:
   build:
-    runs-on: blacksmith-16vcpu-windows-2025
+    runs-on: ${{ (github.ref == 'refs/heads/stable') && 'windows-latest' || 'windows-latest-l' }}
 
     env:
       working-directory: ./Module
@@ -70,10 +70,36 @@ jobs:
         shell: powershell
 
       - name: Copy DLL
-        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         working-directory: ${{env.working-directory}}
         run: |
           cp "bazel-bin/Kyber.dll" "_work/Kyber.dll"
+
+      - name: upload-unsigned-artifact
+        if: github.ref == 'refs/heads/stable'
+        id: upload-unsigned-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{env.working-directory}}/bazel-bin/Kyber.dll
+
+      - id: optional_step_id
+        if: github.ref == 'refs/heads/stable'
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORG_ID }}'
+          project-slug: 'kyber'
+          signing-policy-slug: 'release-signing'
+          github-artifact-id: '${{ steps.upload-unsigned-artifact.outputs.artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: '${{env.working-directory}}/_signed'
+          wait-for-completion-timeout-in-seconds: 36288000
+
+      - name: Copy DLL
+        if: github.ref == 'refs/heads/stable'
+        working-directory: ${{env.working-directory}}
+        run: |
+          cp -Force "_signed/Kyber.dll" "_work/Kyber.dll"
 
       - name: Zip files
         if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
