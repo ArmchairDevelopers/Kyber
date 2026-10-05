@@ -124,6 +124,7 @@ dependencies:
       path: media_kit_video
   crop_your_image: ^2.0.0
   rhttp: 0.15.1
+  mime: ^2.1.0
 
 dependency_overrides:
   media_kit:
