@@ -176,7 +176,7 @@ class NexusDownloadService {
         final filename = match?.group(1)?.trim();
 
         if (filename != null) {
-          return _ensureArchiveExtension(filename);
+          return filename;
         }
       }
     } catch (_) {
@@ -184,18 +184,6 @@ class NexusDownloadService {
     }
 
     final cleanUrl = urlFallback.split('?').first.split('/').last;
-    final fromUrl = cleanUrl.replaceAll('%', '_');
-
-    return _ensureArchiveExtension(fromUrl);
-  }
-
-  static String _ensureArchiveExtension(String name) {
-    const archiveExtensions = ['.zip', '.rar', '.7z'];
-    final lower = name.toLowerCase();
-
-    if (archiveExtensions.any(lower.endsWith)) {
-      return name;
-    }
-    return '$name.zip';
+    return cleanUrl.replaceAll('%', '_');
   }
 }
