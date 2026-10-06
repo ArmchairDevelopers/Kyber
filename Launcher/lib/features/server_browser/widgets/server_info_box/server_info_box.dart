@@ -970,6 +970,7 @@ class _RegionSelector extends StatelessWidget {
                       final active = value == selected;
 
                       return AnimatedContainer(
+                        color: Colors.transparent,
                         duration: kDefaultDuration,
                         padding: const .symmetric(horizontal: 12, vertical: 4),
                         alignment: .center,
