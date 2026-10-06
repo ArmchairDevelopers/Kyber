@@ -7,7 +7,7 @@ on:
       - 'dev/launcher'
       - 'develop'
     paths:
-      - '.github/workflows/build-launcher.yaml'
+      - '.github/workflows/build-launcher.yml'
       - 'Launcher/**/*'
 
 concurrency:
