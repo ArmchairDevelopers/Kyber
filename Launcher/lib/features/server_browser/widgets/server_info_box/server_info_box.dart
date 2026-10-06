@@ -575,6 +575,10 @@ class _JoinButton extends StatelessWidget {
         context,
         serverInfo: serverInfo,
       );
+
+      if (password == null || !context.mounted) {
+        return;
+      }
     }
 
     context.read<ServerBrowserCubit>().joinServer(serverPassword: password);

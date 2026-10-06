@@ -42,6 +42,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
 
   Timer? _downloadChecker;
   bool _running = false;
+  String? _joiningPassword;
 
   @override
   Future<void> close() {
@@ -80,7 +81,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
           return;
         }
 
-        await _startPartyJoinGame();
+        await _startPartyJoinGame(serverPassword: serverPassword);
         return;
       }
 
@@ -92,8 +93,9 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     }
 
     if (hasAllRequiredMods()) {
-      _joinServer();
+      _joinServer(serverPassword: serverPassword);
     } else if (enabledDownload) {
+      _joiningPassword = serverPassword;
       emit(
         state.copyWith(
           joiningServer: state.selectedServer!.serverInfo,
@@ -121,17 +123,16 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     return response.hasBanInfo() ? response.banInfo : null;
   }
 
-  Future<void> _startPartyJoinGame() async {
+  Future<void> _startPartyJoinGame({String? serverPassword}) async {
     final server = state.selectedServer;
     if (server == null) return;
 
     final serverInfo = server.serverInfo;
 
     try {
-      // TODO: handle password protected servers
       await navigatorKey.currentContext!.read<SessionCubit>().startJoinGame(
         serverId: serverInfo.id,
-        password: '',
+        password: serverPassword ?? '',
       );
     } catch (e) {
       Logger('server_browser').severe('Error starting party join game', e);
@@ -424,7 +425,9 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
         selectServer(server);
       }
 
-      await _joinServer();
+      final serverPassword = _joiningPassword;
+      _joiningPassword = null;
+      await _joinServer(serverPassword: serverPassword);
     });
   }
 }
