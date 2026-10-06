@@ -427,12 +427,14 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                                 serverInfo: serverInfo,
                                 onPressed: _joinServer,
                               ),
-                            const Spacer(),
-                            SizedBox(
-                              width: 200,
-                              height: 37,
-                              child: _buildActionRow(),
-                            ),
+                            if (!widget.moderationMode) ...[
+                              const Spacer(),
+                              SizedBox(
+                                width: 200,
+                                height: 37,
+                                child: _buildActionRow(),
+                              ),
+                            ],
                           ],
                         ),
                       ),
