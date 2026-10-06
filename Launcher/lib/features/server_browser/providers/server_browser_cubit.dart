@@ -43,6 +43,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
   Timer? _downloadChecker;
   bool _running = false;
   String? _joiningPassword;
+  bool _joining = false;
 
   @override
   Future<void> close() {
@@ -59,6 +60,23 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
   }
 
   Future<void> joinServer({bool enabledDownload = true, String? serverPassword}) async {
+    if (_joining) return;
+
+    _joining = true;
+    try {
+      await _doJoinServer(
+        enabledDownload: enabledDownload,
+        serverPassword: serverPassword,
+      );
+    } finally {
+      _joining = false;
+    }
+  }
+
+  Future<void> _doJoinServer({
+    required bool enabledDownload,
+    String? serverPassword,
+  }) async {
     final context = navigatorKey.currentContext;
     if (context != null) {
       final sessionState = context.read<SessionCubit>().state;
@@ -93,7 +111,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     }
 
     if (hasAllRequiredMods()) {
-      _joinServer(serverPassword: serverPassword);
+      await _joinServer(serverPassword: serverPassword);
     } else if (enabledDownload) {
       _joiningPassword = serverPassword;
       emit(

@@ -48,6 +48,7 @@ class SessionCubit extends Cubit<SessionState> {
   Timer? _keepAliveTimer;
   Timer? _partyDownloadChecker;
   bool gameJoined = false;
+  bool _leftGame = false;
   int _reconnectAttempts = 0;
 
   InParty? get _inParty => state is InParty ? state as InParty : null;
@@ -86,6 +87,7 @@ class SessionCubit extends Cubit<SessionState> {
 
   void leaveGame() {
     gameJoined = false;
+    _leftGame = true;
     _channel?.sink.add(
       SessionClientEvent(
         gameLeft: .new(),
@@ -669,6 +671,10 @@ class SessionCubit extends Cubit<SessionState> {
       if (info != null && info.serverName.isEmpty) {
         _loadQueueServer(info.serverId);
       }
+
+      if (info != null && info.isReserved) {
+        await _onQueueReserved(info);
+      }
     } catch (e) {
       _logger.warning('Failed to sync session state', e);
     }
@@ -679,7 +685,7 @@ class SessionCubit extends Cubit<SessionState> {
     _keepAliveTimer?.cancel();
 
     final delay = Duration(
-      seconds: math.min(2 << _reconnectAttempts, 30),
+      seconds: math.min(2 << math.min(_reconnectAttempts, 4), 30),
     );
     _reconnectAttempts++;
     _logger.info(
@@ -866,6 +872,7 @@ class SessionCubit extends Cubit<SessionState> {
         );
       }
     } else if (event.hasJoinGame()) {
+      _leftGame = false;
       final jg = event.joinGame;
       final existing = _inParty?.joinGameInfo;
       final isSameServer = existing?.serverId == jg.serverId;
@@ -927,7 +934,7 @@ class SessionCubit extends Cubit<SessionState> {
         joinGameInfo: info.copyWith(memberStatuses: statuses),
       );
 
-      if (gameJoined) return;
+      if (gameJoined || _leftGame) return;
       if (_isWaitingInQueue(info.serverId)) return;
 
       final myStatus = statuses[userId];
@@ -1098,7 +1105,15 @@ class SessionCubit extends Cubit<SessionState> {
         continue;
       }
       for (final task in downloads) {
-        final meta = ServerMod.fromJson(task.task.metaData);
+        if (task.task.metaData.isEmpty) continue;
+
+        final ServerMod meta;
+        try {
+          meta = ServerMod.fromJson(task.task.metaData);
+        } catch (_) {
+          continue;
+        }
+
         if (meta.hasName() &&
             meta.name == mod.name &&
             meta.version == mod.version) {

@@ -159,6 +159,7 @@ class ServerListCubit extends Cubit<ServerListState> {
         port: e.port,
         description: e.description,
         creator: e.creator,
+        creatorId: e.creatorId,
         requiresPassword: e.requiresPassword,
         official: e.official,
         ip: e.ip,
