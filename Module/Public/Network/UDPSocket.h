@@ -154,6 +154,7 @@ public:
     virtual int Port() const override;
     virtual const SocketAddr* Address() const override;
     void UpdateProxies(const eastl::vector<kyber_api::ProxyInfo>& newList);
+    void ReconnectProxies();
 
 private:
     friend class SocketManager;

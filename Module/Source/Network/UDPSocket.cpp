@@ -289,6 +289,21 @@ void UDPSocket::UpdateProxies(const eastl::vector<kyber_api::ProxyInfo>& newList
     }
 }
 
+void UDPSocket::ReconnectProxies()
+{
+    if (m_direction != ProtocolDirection::Clientbound)
+    {
+        return;
+    }
+
+    KYBER_LOG(Info, "[Network] Reconnecting to " << m_sockets.size() << " proxies");
+
+    for (auto& proxy : m_sockets)
+    {
+        proxy.Reconnect(g_program->m_client->m_joinToken);
+    }
+}
+
 bool UDPSocket::Connect(const SocketAddr& address, bool blocking)
 {
     return false;

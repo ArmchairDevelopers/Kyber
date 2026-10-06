@@ -93,7 +93,7 @@ public:
     void Stop();
 
     void Heartbeat(const UpdateParameters& params);
-    void Register(bool force = false);
+    void Register(bool force = false, bool reuseId = false);
 
     void OnEvent(const Event& event) override;
 

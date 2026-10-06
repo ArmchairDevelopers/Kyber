@@ -60,7 +60,7 @@ std::optional<kyber_api::Server> ServerBrowserAPI::GetServer(const std::string& 
     return response;
 }
 
-std::optional<std::string> ServerBrowserAPI::RegisterServer(const ServerCreationInfo& serverInfo) const
+std::optional<std::string> ServerBrowserAPI::RegisterServer(const ServerCreationInfo& serverInfo, const std::string& serverId) const
 {
     ClientContext context;
     context.AddMetadata("authorization", m_token);
@@ -100,6 +100,11 @@ std::optional<std::string> ServerBrowserAPI::RegisterServer(const ServerCreation
     }
 
     *request.mutable_meta() = ParseMeta();
+
+    if (!serverId.empty())
+    {
+        request.set_id(serverId);
+    }
 
     kyber_api::RegisterServerResponse response;
     Status status = m_stub->RegisterServer(&context, request, &response);

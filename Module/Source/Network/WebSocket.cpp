@@ -64,6 +64,21 @@ bool WebSocket::ConnectAsClient(const std::string& proxyAddress, const std::stri
     return true;
 }
 
+void WebSocket::Reconnect(const std::string& joinToken)
+{
+    Close();
+
+    ix::WebSocketHttpHeaders headers;
+    headers["Compression"] = "None";
+    headers["X-KProxy"] = "true";
+    headers["Authorization"] = joinToken;
+    m_socket->setExtraHeaders(headers);
+
+    InterlockedExchange(&m_failedAttempts, 0);
+
+    Start();
+}
+
 void WebSocket::Start()
 {
     KYBER_LOG(Debug, "Connecting to " << m_socket->getUrl());

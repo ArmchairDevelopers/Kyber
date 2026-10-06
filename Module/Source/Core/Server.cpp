@@ -733,7 +733,7 @@ void Server::Heartbeat(const UpdateParameters& params)
     g_program->GetAPI()->GetServerManagement()->SendKeepAlive();
 }
 
-void Server::Register(bool force)
+void Server::Register(bool force, bool reuseId)
 {
     if (!force && (!IsRunning() || !m_creationInfo || !m_onlineMode))
     {
@@ -742,12 +742,31 @@ void Server::Register(bool force)
 
     KYBER_LOG(Info, "[Server] Attempting to register server");
 
-    std::optional<std::string> response = g_program->GetAPI()->GetServerBrowser()->RegisterServer(m_creationInfo.value());
+    const std::string previousId = m_serverId;
+    std::optional<std::string> response;
+
+    if (reuseId && !previousId.empty())
+    {
+        response = g_program->GetAPI()->GetServerBrowser()->RegisterServer(m_creationInfo.value(), previousId);
+        if (!response)
+        {
+            KYBER_LOG(Warning, "[Server] Failed to re-register server under id " << previousId << ", registering as a new server");
+        }
+    }
+
+    if (!response)
+    {
+        response = g_program->GetAPI()->GetServerBrowser()->RegisterServer(m_creationInfo.value());
+    }
+
     if (!response)
     {
         KYBER_LOG(Error, "[Server] Failed to register server! Retrying...");
-        m_onlineMode = false;
-        g_threadExecutor->QueueDelaySecs(GameThread_Server, 0.5, [this, force]() { Register(force); });
+        if (!reuseId)
+        {
+            m_onlineMode = false;
+        }
+        g_threadExecutor->QueueDelaySecs(GameThread_Server, 0.5, [this, force, reuseId]() { Register(force, reuseId); });
         return;
     }
 
@@ -757,6 +776,20 @@ void Server::Register(bool force)
     KYBER_LOG(Info, "[Server] Registered server successfully, id: " << m_serverId);
 
     g_program->GetAPI()->GetServerManagement()->Connect(m_serverId);
+
+    if (reuseId && !previousId.empty() && previousId != m_serverId)
+    {
+        m_socketSpawnInfo = SocketSpawnInfo(false, "", m_serverId, "");
+
+        if (m_socketManager != nullptr && !m_socketManager->m_sockets.empty())
+        {
+            UDPSocket* socket = m_socketManager->m_sockets.back();
+            if (socket != m_natClient)
+            {
+                socket->ReconnectProxies();
+            }
+        }
+    }
 }
 
 void Server::OnEvent(const Event& event)

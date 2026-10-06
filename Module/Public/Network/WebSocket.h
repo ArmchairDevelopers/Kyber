@@ -34,6 +34,7 @@ public:
 
     bool ConnectAsServer(const std::string& proxyAddress, const std::string& joinToken);
     bool ConnectAsClient(const std::string& proxyAddress, const std::string& joinToken);
+    void Reconnect(const std::string& joinToken);
 
     void Close();
     bool Send(const uint8_t* buffer, int bufferSize, unsigned int flags = 0);
