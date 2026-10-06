@@ -13,28 +13,39 @@
     - Joining a full server now places you in a queue instead of failing
     - Your queue position is shown live in the launcher and a slot is reserved for you as soon as one frees up
     - Parties queue as a group and get reserved slots for the whole party once every member has the required mods
-    - Party invites can't be sent or accepted while queueing, so a queue spot can't be shared with players who weren't in the party when it was queued
+    - Party invites are disabled while queueing, so a reserved spot can't be passed to players who joined the party later
 - Replaced the navigation bar with a new social bar
     - Shows your friends, your party and download progress at a glance
+- Redesigned the server browser
+    - Redesigned the server list with badges and new region icons
+    - Servers are now grouped by region
+    - Redesigned the server info box
+        - Your preferred region is selected automatically for server groups with multiple regions
+        - You can switch between the instances of a server group
+    - Joining a server you are banned from now shows a dialog with the ban reason and expiry
+    - The search is now cleared when switching tabs
 - Added incremental mod downloads
-    - Now when downloading a new version of a mod collection, only mods that have been updated need to be downloaded.
-- Added in-game AFK kicking. Configure timeout with `Whiteshark.NoInteractivityTimeoutTime` in seconds. To disable, set to 0
+    - When updating a mod collection, only the mods that changed are downloaded
+- Added in-game AFK kicking
+    - Configure the timeout in seconds in the in-game settings page or with `Whiteshark.NoInteractivityTimeoutTime`. Set it to 0 to disable it
 - Added in-game chat filtering
-    - Messages sent are filtered from a list of phrases, with a default one set for every server
-    - Plugin developers can configure this list, the filter character, & functionality with the `ChatFilter` interface.
-    - Set console setting `Kyber.LogFilteredChatMessages` to true to enable in-depth logs of filtered messages
+    - Chat messages are filtered against a list of blocked phrases. Every server starts with a default list
+    - Plugin developers can configure this list, the filter character and the functionality with the `ChatFilter` interface
+    - Set the console setting `Kyber.LogFilteredChatMessages` to true to enable in-depth logs of filtered messages
 - Increased the mod limit from 247 to 1739
-- Redesigned the server info box
-- Servers are now grouped by region in the server browser
 - Added a token reset flow for Kyber tokens
 - Added a bypass player limit entitlement that allows joining full servers
 - The launcher now warns about corrupted collections and prefers a working duplicate when available
-- Battlepoints can now be interacted with via console commands `Kyber.SetBattlepoints <username> <value>` & `Kyber.GiveBattlepoints`
+- The launcher window can now be dragged from the full width of the title bar
+- The mod browser has a new page selector and the unused posts tab was removed
+- The Launcher and Module are now code signed
+- Running servers now pick up proxy list changes without a restart
+- Battlepoints can now be interacted with via console commands `Kyber.SetBattlepoints <username> <value>` & `Kyber.GiveBattlepoints <username> <value>`
 - Added new KYBER Plugin features:
     - Plugins can now be hot-reloaded with `Kyber.HotReloadLua server`
     - Official API documentation is now available at https://docs.kyber.gg/g/pluginref
     - `MapRotation` Library: modify & read the current map rotation at runtime
-    - `ChatFilter` Library: modify the chat filter blocked phrases list & toggle functionality.
+    - `ChatFilter` Library: modify the chat filter blocked phrases list & toggle functionality
     - Certain events can now be cancelled via `EventManager.SetCancelled(true)` in the event callback context
     - `FBArray`s can now be fully read and processed
     - Fixed DataContainer reading
@@ -47,7 +58,7 @@
     - Renamed event `Server:PlayerJoined` to `ServerPlayer:Joined`
 - Optimized launcher avatar loading
 - Many Module stability and performance improvements
-    - Many API requests made were before synchonous and took up processing across 14 threads, and now only take 2 and are properly asynchronous
+    - Many API requests were previously synchronous and took up processing across 14 threads, and now only take 2 and are properly asynchronous
         - This fix/performance improvement should fix a good amount of random startup crashes & lower FPS spikes
     - Optimized ModLoader array extension allocations
     - Optimized player persistence instantiation
@@ -56,7 +67,11 @@
 - Added new time entities:
     - `KyberCurrentTimeEntity`: Get current `Time` field
     - `KyberTimeSplitterEntity`: Input `Time` float from the previous entity to get the current day, month, year, second, minute, and hour
-- In-game friendly fire now fully works
+- Fixed automatic mod downloads from Nexus Mods not working
+    - The launcher could not determine the file extension of a download. The filename is now read from the response headers
+- Fixed in-game friendly fire not fully working
+- Fixed an issue where servers were not joinable after they got disconnected from the server management connection
+    - Servers can now re-register under the same ID
 - Fixed an issue where collections would display the wrong mod count
 - Fixed shift-selection in the mods list
 - Fixed an issue where proxies were not reachable for users with IPv6
@@ -69,11 +84,10 @@
 - Fixed `LocalizedStringIdPickerEntity` not reading the property connection `Sid` to have the output field `StringId` changed at outside of instantiation
 - Fixed in-game team chat not working
 - Fixed joining a server while having the game already open
-- Fixed certain console commands being able to be ran on the client, causing a crash
-- The server browser search is now cleared when switching tabs
-- The launcher window can now be dragged from the full width of the title bar
+- Fixed certain console commands being able to be run on the client, causing a crash
 - Fixed punished players missing their user information on the server moderation page
     - This fixes the issue where it would not be possible to unban a player
+- Fixed an issue where a ban with a duration of 0 would expire instantly instead of being permanent
 - Banning a player that is already banned no longer creates a duplicate punishment
 
 ## [2.0.0-beta9] - [??/??/????]
