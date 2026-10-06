@@ -1,4 +1,3 @@
-import 'package:auto_size_text/auto_size_text.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
@@ -48,19 +47,22 @@ class KyberPageSelector extends StatelessWidget {
                     vertical: 4,
                   ),
                   alignment: .center,
-                  child: AutoSizeText(
-                    '$current/$total',
-                    style: const TextStyle(
-                      fontFamily: FontFamily.battlefrontUI,
-                      fontSize: 13,
-                      fontWeight: .bold,
-                      height: 1.1,
-                      color: kWhiteColor,
-                      fontFeatures: [
-                        .tabularFigures(),
-                      ],
+                  child: FittedBox(
+                    fit: .scaleDown,
+                    child: Text(
+                      '$current/$total',
+                      style: const TextStyle(
+                        fontFamily: FontFamily.battlefrontUI,
+                        fontSize: 13,
+                        fontWeight: .bold,
+                        height: 1.1,
+                        color: kWhiteColor,
+                        fontFeatures: [
+                          .tabularFigures(),
+                        ],
+                      ),
+                      maxLines: 1,
                     ),
-                    maxLines: 1,
                   ),
                 ),
               ),
