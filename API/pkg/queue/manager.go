@@ -133,7 +133,7 @@ func (m *Manager) Advance(ctx context.Context, serverID string) {
 	}
 
 	defer func() {
-		if err := m.store.Queues.ReleaseServerLock(ctx, serverID, owner); err != nil {
+		if err := m.store.Queues.ReleaseServerLock(context.WithoutCancel(ctx), serverID, owner); err != nil {
 			logger.L().Error("Failed to release queue advance lock", zap.Error(err), zap.String("server_id", serverID))
 		}
 	}()

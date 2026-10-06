@@ -121,26 +121,21 @@ func (s *ClientServer) CreateJoinToken(ctx context.Context, req *pbapi.JoinToken
 	isModerator := server.CanManage(host, user) || user.Entitled(models.EntitlementAdmin)
 	canBypass := isModerator || user.Entitled(models.EntitlementBypassPlayerLimit)
 
-	var reservedEntry *models.QueueEntryModel
-	if !canBypass {
-		reservedEntry, err = s.store.Queues.GetReservedForUser(ctx, server.ID, user.ID)
+	reservedEntry, err := s.store.Queues.GetReservedForUser(ctx, server.ID, user.ID)
+	if err != nil {
+		logger.L().Error("Failed to get reserved queue entry", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to check queue")
+	}
+
+	if !canBypass && reservedEntry == nil {
+		shouldQueue, err := s.queues.ShouldQueue(ctx, server, 1)
 		if err != nil {
-			logger.L().Error("Failed to get reserved queue entry", zap.Error(err))
+			logger.L().Error("Failed to check queue requirement", zap.Error(err))
 			return nil, status.Error(codes.Internal, "Failed to check queue")
 		}
 
-		if reservedEntry == nil {
-			shouldQueue, err := s.queues.ShouldQueue(ctx, server, 1)
-			if err != nil {
-				logger.L().Error("Failed to check queue requirement", zap.Error(err))
-				return nil, status.Error(codes.Internal, "Failed to check queue")
-			}
-
-			// TODO: add check if party size is greater than max server capacity
-
-			if shouldQueue {
-				return nil, status.Error(codes.ResourceExhausted, "Server is full")
-			}
+		if shouldQueue {
+			return nil, status.Error(codes.ResourceExhausted, "Server is full")
 		}
 	}
 
@@ -273,8 +268,7 @@ func (s *ClientServer) ConsumeJoinToken(ctx context.Context, req *pbapi.ConsumeJ
 
 	session, err := s.store.Sessions.GetByUserID(ctx, user.ID)
 	if err != nil {
-		logger.L().Error(err.Error())
-		return nil, status.Error(codes.Internal, "Failed to get session")
+		logger.L().Error("Failed to get session", zap.Error(err))
 	}
 
 	var groupId *uint64

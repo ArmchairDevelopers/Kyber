@@ -390,6 +390,10 @@ func (s *PartyService) AcceptInvite(ctx context.Context, req *pbapi.AcceptInvite
 		return nil, status.Error(codes.Internal, "Failed to get session")
 	}
 
+	if session == nil {
+		return nil, status.Error(codes.FailedPrecondition, "You have no active session")
+	}
+
 	var soloParty *models.PartyModel
 	if session != nil && session.PartyID != nil {
 		existingParty, err := s.store.Parties.GetByID(ctx, *session.PartyID)

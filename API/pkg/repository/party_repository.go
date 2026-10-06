@@ -142,6 +142,11 @@ func (r *mongoPartyRepo) SetMemberJoinState(ctx context.Context, partyID uint64,
 		elseBranch = existingStatuses
 	}
 
+	merge := bson.M{"joined": joined}
+	if joined {
+		merge["has_mods"] = true
+	}
+
 	pipeline := bson.A{
 		bson.M{"$set": bson.M{
 			"join_game_state.member_statuses": bson.M{"$cond": bson.M{
@@ -156,7 +161,7 @@ func (r *mongoPartyRepo) SetMemberJoinState(ctx context.Context, partyID uint64,
 						"if": bson.M{"$eq": bson.A{"$$s.user_id", userID}},
 						"then": bson.M{"$mergeObjects": bson.A{
 							"$$s",
-							bson.M{"has_mods": true, "joined": joined},
+							merge,
 						}},
 						"else": "$$s",
 					}},

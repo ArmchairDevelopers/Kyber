@@ -130,5 +130,13 @@ func setupIndexes(ctx context.Context, client *mongo.Client) {
 		zap.L().Error("failed to create sessions party_id index", zap.Error(err))
 	}
 
+	partyJoiningServerIdx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "join_game_state.server_id", Value: 1}},
+		Options: options.Index().SetName("join_game_state_server_id_idx").SetSparse(true),
+	}
+	if _, err := db.Collection("parties").Indexes().CreateOne(ctx, partyJoiningServerIdx); err != nil {
+		zap.L().Error("failed to create parties join_game_state.server_id index", zap.Error(err))
+	}
+
 	// TODO: create indexes for hosted mods
 }

@@ -190,6 +190,7 @@ func main() {
 			rpc.SentryStreamServerInterceptor(sentryOpts),
 			logging.StreamServerInterceptor(grpcLogger, logging.WithLogOnEvents(logging.FinishCall)),
 			recovery.StreamServerInterceptor(),
+			rpc.NewAuthHandler(store).NewAuthStreamInterceptor(),
 		),
 	)
 

@@ -46,7 +46,11 @@ func getJoinableServer(ctx context.Context, store *db.Store, user *models.UserMo
 	}
 
 	if punishment != nil {
-		reason := fmt.Sprintf("You are banned from this server: %s", *punishment.Reason)
+		reason := "You are banned from this server"
+		if punishment.Reason != nil {
+			reason = fmt.Sprintf("You are banned from this server: %s", *punishment.Reason)
+		}
+
 		return nil, status.Error(codes.PermissionDenied, reason)
 	}
 

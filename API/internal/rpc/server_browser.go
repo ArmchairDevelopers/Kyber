@@ -801,6 +801,10 @@ func (s *ServerBrowserServer) CanJoinServer(ctx context.Context, req *pbapi.CanJ
 			return nil, status.Error(codes.Internal, "Failed to get server host")
 		}
 
+		if host == nil {
+			return nil, status.Error(codes.NotFound, "Server host not found")
+		}
+
 		canBypass := server.CanManage(host, user) || user.Entitled(models.EntitlementBypassPlayerLimit)
 
 		if !canBypass {

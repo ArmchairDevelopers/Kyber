@@ -292,7 +292,13 @@ func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 	version := r.Header.Get("X-Launcher-Version")
 
 	now := time.Now()
-	existing, _ := s.store.Sessions.GetByUserID(r.Context(), user.ID)
+	existing, err := s.store.Sessions.GetByUserID(r.Context(), user.ID)
+	if err != nil {
+		logger.L().Error("Failed to get existing session:", zap.Error(err))
+		conn.Close()
+		return
+	}
+
 	if existing != nil {
 		existing.IP = ip
 		existing.Version = version
