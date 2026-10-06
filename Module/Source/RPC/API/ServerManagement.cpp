@@ -19,6 +19,7 @@ ServerManagementAPI::ServerManagementAPI(const std::string& apiUri, std::string 
         : m_token(token)
         , m_apiUri(apiUri)
         , m_connectionEstablished(false)
+        , m_reregisterPending(false)
 {
     m_webSocket = std::make_shared<ix::WebSocket>();
 
@@ -31,6 +32,7 @@ void ServerManagementAPI::Connect(const std::string& serverId)
     m_webSocket->stop();
 
     m_serverId = serverId;
+    m_reregisterPending = false;
 
     m_webSocket->setUrl("ws://" + m_apiUri + "/ws/server/" + serverId);
 
@@ -79,10 +81,10 @@ void ServerManagementAPI::Receive(const ix::WebSocketMessagePtr& msg)
         break;
     case ix::WebSocketMessageType::Error:
         KYBER_LOG(Error, "[Network] Server Management Connection Error: " << msg->errorInfo.http_status << " " << msg->errorInfo.reason);
-        if (msg->errorInfo.http_status == 410)
+        if (msg->errorInfo.http_status == 410 && !m_reregisterPending.exchange(true))
         {
             g_threadExecutor->Queue(GameThread_Server, []() { 
-                g_program->m_server->Register();
+                g_program->m_server->Register(false, true);
             });
         }
         break;

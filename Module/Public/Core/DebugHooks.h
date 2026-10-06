@@ -20,12 +20,25 @@ struct Color32
     uint8_t b;
     uint8_t a;
 
-    Color32(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
+    constexpr Color32(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
         : r(r)
         , g(g)
         , b(b)
         , a(a)
     {}
+};
+
+class Colors
+{
+public:
+    inline static constexpr Color32 RED = Color32(0xFF, 0x00, 0x00);
+    inline static constexpr Color32 GREEN = Color32(0x00, 0xFF, 0x00);
+    inline static constexpr Color32 BLUE = Color32(0x00, 0x00, 0xFF);
+    inline static constexpr Color32 PURPLE = Color32(0xFF, 0x00, 0xFF);
+    inline static constexpr Color32 YELLOW = Color32(0xFF, 0xFF, 0);
+    inline static constexpr Color32 TEAL = Color32(0x00, 0xFF, 0xFF);
+    inline static constexpr Color32 WHITE = Color32(0xFF, 0xFF, 0xFF);
+    inline static constexpr Color32 BLACK = Color32(0x00, 0x00, 0x00);
 };
 
 TL_DECLARE_FUNC(0x1454863E0, void*, DebugRenderer_current);
@@ -98,7 +111,7 @@ public:
 };
 
 #define KB_REGISTER_GENERIC_UPDATE_LISTENER(name, type) \
-    static GenericUpdateListenerStaticRegistrar _##name##_genericUpdateRegistrar(type, &name);
+    static GenericUpdateListenerStaticRegistrar _##name##_genericUpdateRegistrar(type, &name)
 
 void InitializeDebugHooks();
 

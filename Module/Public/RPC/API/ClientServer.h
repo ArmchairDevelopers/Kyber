@@ -6,7 +6,7 @@
 
 #include <Proto/kyber_api.grpc.pb.h>
 
-#include <grpcpp/grpcpp.h>
+#include <grpcpp/channel.h>
 
 #include <memory>
 #include <string>
@@ -26,7 +26,8 @@ public:
     void ConsumeJoinToken(const std::string& serverId, const std::string& token,
         std::function<void(std::optional<const ConsumeJoinTokenResponse*>)> callback) const;
     std::optional<std::vector<std::string>> GetBlacklist() const;
-    
+    void GetChatFilter(std::function<void(std::optional<const ChatFilterResponse*>)> callback) const;
+
 private:
     std::shared_ptr<ClientServer::Stub> m_stub;
     AsyncRPCManager* m_asyncManager;

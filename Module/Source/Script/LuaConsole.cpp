@@ -122,14 +122,14 @@ static int ConsoleExecuteFunc(lua_State* L)
     return 0;
 }
 
-static int GetSettingsFunc(lua_State* L)
+static int ConsoleGetSettingsFunc(lua_State* L)
 {
     if (!lua_isstring(L, 1))
     {
         return 0;
     }
     std::string name = luaL_checkstring(L, 1);
-    DataContainer* container = SettingsManager_getSettingsObject(g_program->GetSettingsManager(), name.c_str());
+    DataContainer* container = SettingsManager_getSettingsById(g_program->GetSettingsManager(), name.c_str());
     if (container == nullptr)
     {
         KYBER_LOG(Warning, ScriptManager::GetPlugin(L)->LogPrefix() << " Settings object not found: " << name);
@@ -144,10 +144,19 @@ static int GetSettingsFunc(lua_State* L)
     return 1;
 }
 
-void RegisterConsoleTable(lua_State* L)
+// clang-format off
+static const luaL_Reg s_consoleTableFuncs[] = { 
+    { "Register", ConsoleRegisterFunc }, 
+    { "Execute", ConsoleExecuteFunc }, 
+    { "GetSettings", ConsoleGetSettingsFunc },
+    { NULL, NULL } 
+};
+// clang-format on
+
+static void RegisterConsoleTable(lua_State* L)
 {
-    luaL_Reg funcs[] = { { "Register", ConsoleRegisterFunc }, { "Execute", ConsoleExecuteFunc }, { "GetSettings", GetSettingsFunc },
-        { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(L, "Console", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "Console", s_consoleTableFuncs);
 }
+
+KB_REGISTER_LUA_CONTENT(RegisterConsoleTable);
 } // namespace Kyber::Script

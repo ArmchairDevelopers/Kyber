@@ -21,10 +21,12 @@ public:
     bool RenderPropertyDebug;
     bool RenderCameraDebug;
     bool EnableUnlimitedPowerEvent;
+    bool LogFilteredChatMessages;
+    bool RenderServerPerformance;
+    bool RenderLatencyDisplay;
     float BundleDebugFontSize;
     int32_t unused1;
     int32_t unused2;
     int32_t unused3;
-    int32_t unused4;
 };
 } // namespace Kyber

@@ -8,7 +8,9 @@
 #include <Utilities/ErrorUtils.h>
 #include <Utilities/PlatformUtils.h>
 #include <Utilities/StringUtils.h>
+#include <SDK/Funcs.h>
 
+#include <winnt.h>
 #include <winsock.h>
 #include <ws2tcpip.h>
 
@@ -25,6 +27,7 @@ WebSocket::WebSocket(std::string id, uint32_t index, std::shared_ptr<ReceiveQueu
     : m_id(id)
     , m_index(index)
     , m_receiveQueue(queue)
+    , m_failedAttempts(0)
 {
     m_socket = std::make_shared<ix::WebSocket>();
 }
@@ -61,6 +64,21 @@ bool WebSocket::ConnectAsClient(const std::string& proxyAddress, const std::stri
     return true;
 }
 
+void WebSocket::Reconnect(const std::string& joinToken)
+{
+    Close();
+
+    ix::WebSocketHttpHeaders headers;
+    headers["Compression"] = "None";
+    headers["X-KProxy"] = "true";
+    headers["Authorization"] = joinToken;
+    m_socket->setExtraHeaders(headers);
+
+    InterlockedExchange(&m_failedAttempts, 0);
+
+    Start();
+}
+
 void WebSocket::Start()
 {
     KYBER_LOG(Debug, "Connecting to " << m_socket->getUrl());
@@ -80,25 +98,37 @@ void WebSocket::Receive(const ix::WebSocketMessagePtr& msg)
     switch (msg->type)
     {
     case ix::WebSocketMessageType::Message: {
-        WebSocketMessage message;
-        message.socketId = m_index;
-        message.size = msg->str.size();
-        if (message.size > sizeof(message.data))
+        // Reset closes
+        if (InterlockedCompareExchange(&m_failedAttempts, 0, 0))
         {
-            KYBER_LOG(Error, "[Network] Proxy Connection '" << m_id << "' received message larger than buffer size: " << message.size);
+            InterlockedExchange(&m_failedAttempts, 0);
+        }
+
+        WebSocketMessage* message = new (FB_GLOBAL_ARENA) WebSocketMessage;
+        message->socketId = m_index;
+        message->timestamp = NetTick();
+        message->size = msg->str.size();
+        if (message->size > sizeof(message->data))
+        {
+            KYBER_LOG(Error, "[Network] Proxy Connection '" << m_id << "' received message larger than buffer size: " << message->size);
             return;
         }
         
-        memcpy(message.data, msg->str.data(), message.size);
+        memcpy(message->data, msg->str.data(), message->size);
         m_receiveQueue->enqueue(message);
         break;
     }
     case ix::WebSocketMessageType::Open:
         KYBER_LOG(Info, "[Network] Proxy Connection '" << m_id << "' Opened");
         break;
-    case ix::WebSocketMessageType::Close:
+    case ix::WebSocketMessageType::Close: {
         KYBER_LOG(Info, "[Network] Proxy Connection '" << m_id << "' Closed: " << msg->closeInfo.code << " " << msg->closeInfo.reason);
+
+        // Count how many closes we get
+        uint32_t failedAttempts = _InterlockedExchangeAdd(&m_failedAttempts, 1);
+        m_socket->setMinWaitBetweenReconnectionRetries((1 << failedAttempts) * 100);
         break;
+    }
     case ix::WebSocketMessageType::Error:
         KYBER_LOG(Info, "[Network] Proxy Connection '" << m_id << "' Error: " << msg->errorInfo.http_status << " " << msg->errorInfo.reason);
         break;

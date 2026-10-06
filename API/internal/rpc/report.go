@@ -35,12 +35,12 @@ type ReportServiceServer struct {
 	store      *db.Store
 	sm         *ws.ServerManager
 	minio      *minio.Client
-	mqClient   mq.Client
+	mqClient   *mq.Client
 	bucketName string
 	pbapi.UnimplementedReportServiceServer
 }
 
-func NewReportServer(store *db.Store, sm *ws.ServerManager, client mq.Client) *ReportServiceServer {
+func NewReportServer(store *db.Store, sm *ws.ServerManager, client *mq.Client) *ReportServiceServer {
 	minioEndpoint := os.Getenv("R2_HOST")
 	accessKey := os.Getenv("R2_ACCESS_KEY")
 	secretKey := os.Getenv("R2_SECRET_KEY")
@@ -265,7 +265,7 @@ func (s *ReportServiceServer) ApproveReports(ctx context.Context, req *pbapi.App
 		return nil, status.Error(codes.Internal, "Failed to update reports")
 	}
 
-	err = s.mqClient.Channel.Publish("reports", "", false, false, amqp.Publishing{
+	err = s.mqClient.Publish("reports", "", amqp.Publishing{
 		Body:        []byte(ids[0]),
 		ContentType: "text/plain",
 	})
@@ -477,7 +477,7 @@ func (s *ReportServiceServer) CreateReport(ctx context.Context, req *pbapi.Creat
 		return nil, status.Error(codes.Internal, "Failed to create report")
 	}
 
-	err = s.mqClient.Channel.Publish("reports", "", false, false, amqp.Publishing{
+	err = s.mqClient.Publish("reports", "", amqp.Publishing{
 		Body:        []byte(reportModel.ID),
 		ContentType: "text/plain",
 	})

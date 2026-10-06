@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,11 +5,11 @@ import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/routing/app_router.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
+import 'package:kyber_launcher/features/maxima/widgets/maxima_avatar.dart';
 import 'package:kyber_launcher/features/reports/models/report_list_state.dart';
 import 'package:kyber_launcher/features/reports/providers/report_list_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
-import 'package:kyber_launcher/gen/rust/api/maxima.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/buttons/custom_icon_button.dart';
 import 'package:kyber_launcher/shared/ui/cards/kyber_container.dart';
@@ -461,37 +460,7 @@ class _ReportsState extends State<Reports> {
                                   borderRadius: BorderRadius.circular(
                                     kDefaultInnerBorderRadius - 2,
                                   ),
-                                  child: FutureBuilder(
-                                    future: getUser(
-                                      pd: selectedReport!.targetUserId,
-                                    ),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return const Center(
-                                          child: ProgressRing(),
-                                        );
-                                      }
-
-                                      if (snapshot.hasError) {
-                                        return const Center(
-                                          child: Text('Error loading user'),
-                                        );
-                                      }
-
-                                      final user = snapshot.data;
-                                      if (user == null) {
-                                        return const Center(
-                                          child: Text('User not found'),
-                                        );
-                                      }
-
-                                      return CachedNetworkImage(
-                                        imageUrl:
-                                            snapshot.data!.avatar!.medium.path,
-                                      );
-                                    },
-                                  ),
+                                  child: MaximaAvatar(pd: selectedReport!.targetUserId),
                                 ),
                               ),
                             ),

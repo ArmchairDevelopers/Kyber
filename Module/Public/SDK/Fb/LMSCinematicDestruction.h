@@ -1,0 +1,39 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(CinematicDestructionPoolBufferEntityData, 0x14458DE10);
+_KB_DECLARE_TYPEINFO(CinematicDestructionControllerEntityData, 0x14458DE90);
+_KB_DECLARE_TYPEINFO(CinematicDestructionPlaybackSequence, 0x14458E590);
+_KB_DECLARE_TYPEINFO(CinematicDestructionBakedSegmentGroupOrder, 0x14458E5E0);
+_KB_DECLARE_TYPEINFO(CinematicDestructionSegmentGroupOrder, 0x14458E630);
+_KB_DECLARE_TYPEINFO(CinematicDestructionEmitterOutputPipeResult, 0x14458DF10);
+_KB_DECLARE_TYPEINFO(CinematicDestructionEmitterOutputPipeAttribute, 0x14458E680);
+_KB_DECLARE_TYPEINFO(CinematicDestructionEmitterOutputPipeEntityData, 0x14458DF90);
+_KB_DECLARE_TYPEINFO(CinematicDestructionAutoMeshOutputPipeEntityData, 0x14458E010);
+_KB_DECLARE_TYPEINFO(CinematicDestructionManualMeshOutputPipeEntityData, 0x14458E090);
+_KB_DECLARE_TYPEINFO(CinematicDestructionMeshOutputPipeEntityData, 0x14458E110);
+_KB_DECLARE_TYPEINFO(CinematicDestructionMeshOutputPipeResult, 0x14458E190);
+_KB_DECLARE_TYPEINFO(CinematicDestructionAutoMeshGeneratedIndexBuffer, 0x14458DDC0);
+_KB_DECLARE_TYPEINFO(CinematicDestructionAutoMeshGeneratedTextureAttribute, 0x14458E6D0);
+_KB_DECLARE_TYPEINFO(CinematicDestructionAutoMeshGeneratedVertexAttribute, 0x14458E720);
+_KB_DECLARE_TYPEINFO(EffectDataAttributeCpuParameter, 0x14458E210);
+_KB_DECLARE_TYPEINFO(EffectDataAttributeParameter, 0x14458E290);
+_KB_DECLARE_TYPEINFO(MeshDataReplaceTextureAttribute, 0x14458E310);
+_KB_DECLARE_TYPEINFO(MeshDataReplaceVertexAttribute, 0x14458E390);
+_KB_DECLARE_TYPEINFO(MeshDataReplaceAttribute, 0x14458E410);
+_KB_DECLARE_TYPEINFO(CinematicDestructionOutputPipeEntityData, 0x14458DD40);
+_KB_DECLARE_TYPEINFO(CinematicDestructionOutputPipeResult, 0x14458E490);
+_KB_DECLARE_TYPEINFO(CinematicDestructionTextureReplaceUsage, 0x14458DD00);
+_KB_DECLARE_TYPEINFO(CinematicDestructionAsset, 0x14458E510);
+_KB_DECLARE_TYPEINFO(ClientCinematicDestructionPoolBufferEntity, 0x14458E840);
+_KB_DECLARE_TYPEINFO(ClientCinematicDestructionMeshOutputPipeEntity, 0x14458E910);
+_KB_DECLARE_TYPEINFO(ClientCinematicDestructionManualMeshOutputPipeEntity, 0x14458E9E0);
+_KB_DECLARE_TYPEINFO(ClientCinematicDestructionAutoMeshOutputPipeEntity, 0x14458EAB0);
+_KB_DECLARE_TYPEINFO(ClientCinematicDestructionEmitterOutputPipeEntity, 0x14458EB80);
+_KB_DECLARE_TYPEINFO(ClientCinematicDestructionControllerEntity, 0x14458EC50);
+_KB_DECLARE_TYPEINFO(ClientCinematicDestructionOutputPipeEntity, 0x14458E770);
+
+#undef _KB_DECLARE_TYPEINFO
+}

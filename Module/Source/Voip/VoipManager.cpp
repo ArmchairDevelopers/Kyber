@@ -3,6 +3,7 @@
 #include <Core/Console.h>
 #include <Core/Program.h>
 #include <SDK/Funcs.h>
+#include <SDK/Fb/WS.h>
 
 #include <Vxc.h>
 #include <VxcErrors.h>
@@ -329,7 +330,7 @@ void VoipManager::Call(ClientUpdatePass pass)
         return;
     }
 
-    ClientSoldierEntity* entity = player->controlledControllable;
+    ClientCharacterEntity* entity = player->controlledControllable;
     if (entity == nullptr)
     {
         m_location.valid = false;
@@ -344,7 +345,7 @@ void VoipManager::Call(ClientUpdatePass pass)
         return;
     }
 
-    if (entity->clientSoldierPrediction == nullptr)
+    if (entity->m_clientSoldierPrediction == nullptr)
     {
         m_location.valid = false;
         m_mutex.unlock();
@@ -354,7 +355,7 @@ void VoipManager::Call(ClientUpdatePass pass)
     LinearTransform cameraTransform;
     ClientCameraViewManager_getActiveCameraTransform(player->cameraViewManager, cameraTransform);
 
-    Vec3& location = entity->clientSoldierPrediction->Location;
+    Vec3& location = entity->m_clientSoldierPrediction->Location;
     // KYBER_LOG(Info, "Player X: " << location.x << " Y: " << location.y << " Z: " << location.z << " Yaw: " << entity->Yaw
     //                              << " Pitch: " << entity->Pitch << " " << std::hex << player);
     // KYBER_LOG(Info, "Camera X: " << cameraTransform.trans.x << " Y: " << cameraTransform.trans.y << " Z: " << cameraTransform.trans.z);
@@ -367,7 +368,7 @@ void VoipManager::Call(ClientUpdatePass pass)
     m_location.cameraY = cameraTransform.trans.y;
     m_location.cameraZ = cameraTransform.trans.z;
 
-    ConvertOrientation(entity->Yaw, entity->Pitch);
+    ConvertOrientation(entity->m_yaw, entity->m_pitch);
 
     m_location.valid = true;
     m_mutex.unlock();

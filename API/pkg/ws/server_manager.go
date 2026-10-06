@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ArmchairDevelopers/Kyber/API/internal/cache"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/db"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
@@ -35,20 +36,22 @@ type OwnedClient struct {
 }
 
 type ServerManager struct {
-	ownedServers   map[string]*OwnedServer
-	ownedClients   map[string]map[string]*OwnedClient
-	playerCache    map[string][]*pbcommon.ServerPlayer
-	amqpConn       *amqp.Connection
-	amqpChannel    *amqp.Channel
-	exchangeName   string
-	exchangeType   string
-	subscriberDone chan bool
-	ctx            context.Context
-	mu             sync.RWMutex
-	store          *db.Store
+	ownedServers         map[string]*OwnedServer
+	ownedClients         map[string]map[string]*OwnedClient
+	playerCache          map[string][]*pbcommon.ServerPlayer
+	amqpConn             *amqp.Connection
+	amqpChannel          *amqp.Channel
+	exchangeName         string
+	exchangeType         string
+	subscriberDone       chan bool
+	ctx                  context.Context
+	mu                   sync.RWMutex
+	store                *db.Store
+	OnPlayerCountUpdated func(serverID string)
+	caches               *cache.Caches
 }
 
-func NewServerManager(ctx context.Context, amqpURL string, store *db.Store) *ServerManager {
+func NewServerManager(ctx context.Context, amqpURL string, store *db.Store, caches *cache.Caches) *ServerManager {
 	conn, err := amqp.Dial(amqpURL)
 	if err != nil {
 		logger.L().Panic("Failed to connect to RabbitMQ:", zap.Error(err))
@@ -74,6 +77,7 @@ func NewServerManager(ctx context.Context, amqpURL string, store *db.Store) *Ser
 		subscriberDone: make(chan bool),
 		ctx:            ctx,
 		store:          store,
+		caches:         caches,
 	}
 	go mgr.rabbitSubscriber()
 	return mgr
@@ -437,6 +441,8 @@ func (sm *ServerManager) HandleServerWS(w http.ResponseWriter, r *http.Request) 
 			defer cancelUpdate()
 			sm.store.Servers.UpdateByID(ctx, id, bson.M{"$set": bson.M{"last_updated": time.Now()}})
 
+			_ = sm.caches.ServerID.Set(ctx, server.ID, server.HostID)
+
 			conn.Close()
 		}()
 
@@ -459,6 +465,10 @@ func (sm *ServerManager) HandleServerWS(w http.ResponseWriter, r *http.Request) 
 			if err != nil {
 				logger.L().Error("Failed to set read deadline:", zap.Error(err))
 				return
+			}
+
+			if err := sm.caches.ServerID.Set(connCtx, server.ID, server.HostID); err != nil {
+				logger.L().Error("Failed to set server ID cache:", zap.Error(err))
 			}
 
 			if len(msgBytes) == 0 {
@@ -542,11 +552,16 @@ func (sm *ServerManager) processServerSocketEvent(serverID string, evt *pbapi.Se
 
 		if err := sm.store.Servers.UpdateByID(updateCtx, serverID, bson.M{
 			"$set": bson.M{
-				"player_count": len(players) + len(existingTokens),
-				"last_updated": time.Now(),
+				"player_count":    len(players) + len(existingTokens),
+				"connected_count": len(players),
+				"last_updated":    time.Now(),
 			},
 		}); err != nil {
 			return fmt.Errorf("failed to update player count: %w", err)
+		}
+
+		if sm.OnPlayerCountUpdated != nil {
+			sm.OnPlayerCountUpdated(serverID)
 		}
 
 		pmPlayers := make([]ServerPlayerModel, 0)

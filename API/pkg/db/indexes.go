@@ -63,10 +63,31 @@ func setupIndexes(ctx context.Context, client *mongo.Client) {
 		Keys: bson.D{{Key: "created", Value: 1}},
 		Options: options.Index().
 			SetName("created_ttl_idx").
-			SetExpireAfterSeconds(15 * 60),
+			SetExpireAfterSeconds(5 * 60),
 	}
 	if _, err := db.Collection("join_tokens").Indexes().CreateOne(ctx, jtTTLIdx); err != nil {
 		zap.L().Error("failed to create servers TTL index", zap.Error(err))
+	}
+
+	ptiTTLIdx := mongo.IndexModel{
+		Keys: bson.D{{Key: "created_at", Value: 1}},
+		Options: options.Index().
+			SetName("created_ttl_idx").
+			SetExpireAfterSeconds(60),
+	}
+	if _, err := db.Collection("party_invites").Indexes().CreateOne(ctx, ptiTTLIdx); err != nil {
+		zap.L().Error("failed to create party_invites TTL index", zap.Error(err))
+	}
+
+	ptiInviteeIdx := mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "party_id", Value: 1},
+			{Key: "invitee_id", Value: 1},
+		},
+		Options: options.Index().SetName("party_invitee_idx").SetUnique(true),
+	}
+	if _, err := db.Collection("party_invites").Indexes().CreateOne(ctx, ptiInviteeIdx); err != nil {
+		zap.L().Error("failed to create party_invites party/invitee index", zap.Error(err))
 	}
 
 	imageHashIdx := mongo.IndexModel{
@@ -91,6 +112,30 @@ func setupIndexes(ctx context.Context, client *mongo.Client) {
 	}
 	if _, err := db.Collection("servers").Indexes().CreateOne(ctx, hostIDIdx); err != nil {
 		zap.L().Error("failed to create servers.host_id index", zap.Error(err))
+	}
+
+	sessionUpdatedIdx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "updated_at", Value: 1}},
+		Options: options.Index().SetName("updated_at_idx"),
+	}
+	if _, err := db.Collection("sessions").Indexes().CreateOne(ctx, sessionUpdatedIdx); err != nil {
+		zap.L().Error("failed to create sessions updated_at index", zap.Error(err))
+	}
+
+	sessionPartyIdx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "party_id", Value: 1}},
+		Options: options.Index().SetName("party_id_idx"),
+	}
+	if _, err := db.Collection("sessions").Indexes().CreateOne(ctx, sessionPartyIdx); err != nil {
+		zap.L().Error("failed to create sessions party_id index", zap.Error(err))
+	}
+
+	partyJoiningServerIdx := mongo.IndexModel{
+		Keys:    bson.D{{Key: "join_game_state.server_id", Value: 1}},
+		Options: options.Index().SetName("join_game_state_server_id_idx").SetSparse(true),
+	}
+	if _, err := db.Collection("parties").Indexes().CreateOne(ctx, partyJoiningServerIdx); err != nil {
+		zap.L().Error("failed to create parties join_game_state.server_id index", zap.Error(err))
 	}
 
 	// TODO: create indexes for hosted mods

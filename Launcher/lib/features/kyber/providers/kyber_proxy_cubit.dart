@@ -16,7 +16,7 @@ const _kSamples = 10;
 const _kMaxConcurrentHosts = 2;
 
 class KyberProxyCubit extends Cubit<KyberProxyState> {
-  KyberProxyCubit() : super(KyberProxyState(proxies: [])) {
+  KyberProxyCubit() : super(KyberProxyState(loading: true)) {
     loadProxies();
   }
 
@@ -34,16 +34,23 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
     emit(state.copyWith(selectedProxy: proxyId));
   }
 
-  Future<void> loadProxies() {
-    return _ready = _loadProxies().whenComplete(() => _loading = false);
+  Future<void> loadProxies({List<ProxyInfo>? initialProxies}) {
+    return _ready = _loadProxies(initialProxies: initialProxies)
+        .whenComplete(() => _loading = false);
   }
 
-  Future<void> _loadProxies() async {
+  Future<void> _loadProxies({List<ProxyInfo>? initialProxies}) async {
+    emit(state.copyWith(loading: true));
+
     try {
-      final resp = await sl.get<KyberGRPCService>().proxyClient.getList(
-        Empty(),
-      );
-      final proxyList = List<ProxyInfo>.from(resp.proxies);
+      var proxyList = initialProxies;
+      if (proxyList == null) {
+        final resp = await sl.get<KyberGRPCService>().proxyClient.getList(
+          Empty(),
+        );
+
+        proxyList = List<ProxyInfo>.from(resp.proxies);
+      }
 
       if (proxyList.isEmpty) {
         _logger.warning('No proxies returned');
@@ -110,7 +117,11 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
       }
     } catch (e, s) {
       _logger.severe('Failed to load proxies', e, s);
-      emit(state.copyWith(proxies: [], selectedProxy: ''));
+      emit(state.copyWith(proxies: [], selectedProxy: '', loading: false));
+    } finally {
+      if (!isClosed) {
+        emit(state.copyWith(loading: false));
+      }
     }
   }
 
@@ -182,15 +193,26 @@ class KyberProxy {
 }
 
 class KyberProxyState {
-  KyberProxyState({this.proxies = const [], this.selectedProxy = ''});
+  KyberProxyState({
+    this.proxies = const [],
+    this.selectedProxy = '',
+    this.loading = false,
+  });
 
   List<KyberProxy> proxies;
   String selectedProxy;
 
-  KyberProxyState copyWith({List<KyberProxy>? proxies, String? selectedProxy}) {
+  bool loading;
+
+  KyberProxyState copyWith({
+    List<KyberProxy>? proxies,
+    String? selectedProxy,
+    bool? loading,
+  }) {
     return KyberProxyState(
       proxies: proxies ?? this.proxies,
       selectedProxy: selectedProxy ?? this.selectedProxy,
+      loading: loading ?? this.loading,
     );
   }
 }

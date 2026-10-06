@@ -7,7 +7,7 @@
 
 #include <Proto/kyber_api.grpc.pb.h>
 
-#include <grpcpp/grpcpp.h>
+#include <grpcpp/channel.h>
 
 #include <memory>
 #include <string>
@@ -25,7 +25,7 @@ public:
 
     std::optional<kyber_api::Server> GetServer(const std::string& serverId) const;
 
-    std::optional<std::string> RegisterServer(const ServerCreationInfo& serverInfo) const;
+    std::optional<std::string> RegisterServer(const ServerCreationInfo& serverInfo, const std::string& serverId = "") const;
     void HeartbeatServer(const std::string& serverId, std::function<void(grpc::StatusCode)> callback) const;
 
     void UpdateServerLevelSetup(const std::string& serverId, const std::string& map, const std::string& mode) const;

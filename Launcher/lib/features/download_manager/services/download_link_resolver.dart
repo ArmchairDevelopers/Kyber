@@ -1,3 +1,5 @@
+import 'dart:io' show HeaderValue;
+
 import 'package:dio/dio.dart';
 import 'package:kyber/gen/Proto/mod_bridge.pb.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_link_type.dart';
@@ -7,7 +9,6 @@ import 'package:kyber_launcher/features/nexusmods/services/download_service.dart
 import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:logging/logging.dart';
-import 'package:path/path.dart';
 
 class ResolvedDownload {
   const ResolvedDownload({
@@ -87,31 +88,28 @@ class DownloadLinkResolver {
     }
   }
 
+  static Future<(String?, int?, String?)> getFileMetadata(String url) async {
+    final resp = await Dio().head<void>(url);
+    final contentType = resp.headers.value('content-type');
+    final size = int.tryParse(resp.headers.value('content-length') ?? '');
+    final contentDisposition = resp.headers.value('content-disposition');
+    if (contentDisposition == null) {
+      return (null, size, contentType);
+    }
+
+    final params = HeaderValue.parse(contentDisposition).parameters;
+    return (params['filename'], size, contentType);
+  }
+
   Future<ResolvedDownload> _resolveDirectLink(DownloadRequest request) async {
     var filename = request.filename ?? request.link.split('/').last.split('?').first;
     var size = request.size;
 
     if (filename.isEmpty || !filename.contains('.') || size == null) {
       try {
-        _logger.info('HEAD request: ${request.link}');
-        final resp = await Dio().head<void>(
-          request.link,
-          options: Options(),
-        );
-
-        size ??= int.tryParse(resp.headers.value('content-length') ?? '');
-
-        final contentDisposition = resp.headers.value('content-disposition');
-        if (contentDisposition != null) {
-          final match = RegExp(
-            'filename="(.+)"',
-          ).firstMatch(contentDisposition);
-          if (match != null) {
-            filename = match.group(1)!;
-          }
-        }
-
-        _logger.info('Resolved direct link - Size: $size, Filename: $filename');
+        final (file, fileSize, _) = await getFileMetadata(request.link);
+        filename = file ?? filename;
+        size = fileSize ?? size;
       } catch (e, s) {
         _logger.warning('HEAD request failed, using fallback filename', e, s);
       }

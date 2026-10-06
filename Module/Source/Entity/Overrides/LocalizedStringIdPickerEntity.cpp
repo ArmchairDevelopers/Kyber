@@ -4,6 +4,7 @@
 
 #include <Entity/KyberSettings.h>
 #include <Core/Program.h>
+#include <SDK/Fb/UIIncubatorShared.h>
 
 namespace Kyber
 {
@@ -12,7 +13,10 @@ KB_IMPLEMENT_ENTITY_OVERRIDE(LocalizedStringIdPickerEntity, LocalizedStringIdPic
 LocalizedStringIdPickerEntity::LocalizedStringIdPickerEntity(EntityManager* entityManager, NativeEntity* entity, LocalizedStringIdPickerEntityData* data)
     : KyberEntity(entity, data)
 {
-    m_localizedStringId = CreateFieldOverride<LocalizedStringId>("StringId", g_program->m_entityManager->GetNativeType("LocalizedStringId"));
+    LocalizedStringId* defaultValue = g_program->m_entityManager->CreateContainer<LocalizedStringId>(typeInfo_LocalizedStringId);
+    defaultValue->StringHash = CalcStringHash("ID_DBG_LOREM_IPSUM");
+    m_localizedStringId = CreateFieldOverride<LocalizedStringId>("StringId", typeInfo_LocalizedStringId, defaultValue);
+
     GetLocalized();
 }
 
@@ -24,24 +28,18 @@ void LocalizedStringIdPickerEntity::PropertyChanged(PropertyModification* modifi
 // Gets the Sid input to the entity either from a connection or the entity data and creates a LocalizedStringId instance to output to StringId
 void LocalizedStringIdPickerEntity::GetLocalized()
 {
+    if (!m_localizedStringId.HasConnection())
+    {
+        return;
+    }
+
     auto sidField = GetFieldReader<char*>("Sid");
     std::string id = sidField.HasConnection() && sidField.HasConnectionValue() ? sidField.Get() : GetData()->Sid;
     int32_t stringHash = CalcStringHash(id);
 
-    LocalizedStringId* container = g_program->m_entityManager->CreateContainer<LocalizedStringId>("LocalizedStringId");
+    LocalizedStringId* container = g_program->m_entityManager->CreateContainer<LocalizedStringId>(typeInfo_LocalizedStringId);
     container->StringHash = stringHash;
 
     m_localizedStringId = container;
-}
-
-// Strings in Frostbite are referenced by a hash of a unique ID for each string, This calculates that hash for a given ID and returns it
-int32_t LocalizedStringIdPickerEntity::CalcStringHash(const std::string& string)
-{
-    int32_t result = 0xFFFFFFFF; 
-    for (int i = 0; i < string.length(); i++)
-    {
-        result = string[i] + 33 * result;
-    }
-    return result;
 }
 } // namespace Kyber

@@ -1,0 +1,22 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(Dx12NvRvmBackendConfig, 0x1445923A0);
+_KB_DECLARE_TYPEINFO(Dx12NvRvmRootSignature, 0x143FE9A00);
+_KB_DECLARE_TYPEINFO(Dx12NvRvmConstantBufferAssemblyInstructionFactory, 0x1445924A0);
+_KB_DECLARE_TYPEINFO(Dx12NvRvmLegacyDrawStateBuilderInstructionFactory, 0x144592520);
+_KB_DECLARE_TYPEINFO(Dx12NvRvmDescriptorTableAssemblyInstructionFactory, 0x1445925A0);
+_KB_DECLARE_TYPEINFO(Dx12NvRvmDispatchInstructionFactory, 0x144592620);
+_KB_DECLARE_TYPEINFO(Dx12NvRvmDatabaseLoader, 0x1445926A0);
+_KB_DECLARE_TYPEINFO(Dx12NvRvmDatabase, 0x144592420);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12NvDescriptorTableAssemblyInstructionData, 0x143FE97A0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12NvLegacyDrawStateBuilderInstructionBatchData, 0x143FE9710);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12NvLegacyDrawStateBuilderInstructionData, 0x143FE9610);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12NvConstantBufferAssemblyInstructionData, 0x143FE9580);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12NvDescriptorTable, 0x143FE9480);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx12NvRvmRootSignature, 0x143FE93F0);
+
+#undef _KB_DECLARE_TYPEINFO
+}

@@ -39,6 +39,46 @@ class IngameSettings extends StatelessWidget {
           },
         ),
         KyberTableItem.custom(
+          title: 'Inactivity Timeout',
+          builder: (hovered) {
+            return FormBuilderField<Duration>(
+              name: 'inactivityTimeout',
+              initialValue: .zero,
+              builder: (field) {
+                return KyberTableSelector<Duration>(
+                  items: const [
+                    KyberSelectorItem(title: 'Disabled', value: .zero),
+                    KyberSelectorItem(
+                      title: '30 seconds',
+                      value: .new(seconds: 30),
+                    ),
+                    KyberSelectorItem(
+                      title: '1 minute',
+                      value: .new(minutes: 1),
+                    ),
+                    KyberSelectorItem(
+                      title: '3 minutes',
+                      value: .new(minutes: 3),
+                    ),
+                    KyberSelectorItem(
+                      title: '5 minutes',
+                      value: .new(minutes: 5),
+                    ),
+                  ],
+                  value: field.value,
+                  hover: hovered,
+                  onChanged: (value) {
+                    field.didChange(value);
+                    context.read<ModerationCubit>().sendCommand(
+                      '/Whiteshark.NoInteractivityTimeoutTime ${value.inSeconds}',
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
+        KyberTableItem.custom(
           title: 'Bot Difficulty',
           builder: (hovered) {
             return FormBuilderField<int>(

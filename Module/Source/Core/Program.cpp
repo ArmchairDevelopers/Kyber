@@ -16,6 +16,7 @@
 #include <Utilities/PlatformUtils.h>
 #include <Core/ThreadExecutor.h>
 #include <Entity/KyberSettings.h>
+#include <Network/StreamManager.h>
 
 #include <MinHook.h>
 
@@ -94,6 +95,7 @@ void Program::Uninitialize() const
 {
     HookManager::RemoveHooks();
     delete m_server;
+    delete m_client;
 }
 
 spdlog::level::level_enum DecideLogLevel()
@@ -375,7 +377,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
 
         if (g_program->m_server->IsRunning())
         {
-            KYBER_LOG(Info, msg->requestedName << " joined the server");
+            // KYBER_LOG(Info, "[Server] " << msg->requestedName << " is attempting to join the server");
         }
     }
     else if (name == "ServerLevelCompletedMessage")
@@ -400,6 +402,19 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     {
         KYBER_LOG(Info, "[Server] Spawning server entities...");
     }
+    else if (name == "CoreGameTimerMessage")
+    {
+        CoreGameTimerMessage* msg = static_cast<CoreGameTimerMessage*>(message);
+
+        KYBER_LOG(Debug, "Average TPS: (" << (float(msg->m_ticks) / msg->m_timeElapsed) << ") Average tick time: (" << msg->m_avgTickTime
+                                         << ") Worst tick time: (" << msg->m_worstTickTime << ")");
+
+        if (g_program->m_scriptManager != nullptr)
+        {
+            g_program->m_scriptManager->GetEventManager().Fire("DedicatedServer:PerformanceStatsMessage",
+                double(msg->m_ticks) / msg->m_timeElapsed, msg->m_avgTickTime, msg->m_worstTickTime);
+        }
+    }
     else if (name == "ServerPlayerDisconnectMessage")
     {
         ServerPlayerDisconnectMessage* msg = (ServerPlayerDisconnectMessage*)message;
@@ -411,6 +426,10 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
             g_program->GetAPI()->GetServerManagement()->SendPlayerList();
             g_program->GetAPI()->GetServerManagement()->SendConsoleMessage(
                 StringUtils::Format("%s (%llu) left the server", msg->m_player->m_name, msg->m_player->m_onlineId.m_nativeData));
+
+            ServerPlayerDisconnectedEvent* disconnectedEvent = new (FB_SERVER_ARENA) ServerPlayerDisconnectedEvent();
+            disconnectedEvent->player = msg->m_player;
+            g_program->m_server->m_eventManager->QueueEvent(disconnectedEvent);
 
             if (g_program->m_scriptManager != nullptr)
             {
@@ -577,15 +596,18 @@ void GameSimulationInitDedicatedServerHk(void* inst, void* createInfo)
     if (g_program->m_server->m_onlineMode)
     {
         g_program->m_server->Register();
+        g_program->m_server->InitializeChatFilterPreset();
     }
+
+    ServerCreationInfo& info = *g_program->m_server->m_creationInfo;
+    ServerSettings* serverSettings = Settings<ServerSettings>("Server");
+    serverSettings->ServerName = StringUtils::CopyWithArena(info.name.c_str());
+    serverSettings->ServerPassword = StringUtils::CopyWithArena(info.password.c_str());
 
     g_program->m_server->m_socketSpawnInfo = SocketSpawnInfo(false, "", g_program->m_server->m_serverId, "");
 
-    MapRotationEntry rotation = g_program->m_server->m_mapRotation.GetNextEntry();
-
     LevelSetup levelSetup;
-    InitLevelSetup(
-        &levelSetup, g_program->m_server->m_creationInfo->level.c_str(), g_program->m_server->m_creationInfo->mode.c_str(), "", "");
+    InitLevelSetup(&levelSetup, info.level.c_str(), info.mode.c_str(), "", "");
 
     WSGameSettings* wsSettings = Settings<WSGameSettings>("Whiteshark");
     wsSettings->AutoBalanceTeamsOnNeutral = true;
@@ -607,13 +629,20 @@ public:
     uint32_t m_looping;       // 0x0108
 };
 
+#define GAME_CLOCK_NAME **reinterpret_cast<const char***>(0x143AEBA18)
+
 void GameSimulationInitHk(GameSimulation* inst, void* createInfo)
 {
     static const auto trampoline = HookManager::Call(GameSimulationInitHk);
     KYBER_LOG(Info, "[GameSim] Initializing Game Simulation");
 
+    //double newFpsCap = 1.f / 500.f;
+    //MemoryUtils::Patch(reinterpret_cast<void*>(0x142EF7668), &newFpsCap, sizeof(newFpsCap));
+
     if (g_program->m_isDedicatedServer)
     {
+        GAME_CLOCK_NAME = "Dedicated";
+
         PlatformUtils::HookVTableFunction(inst, &GameSimulationInitDedicatedServerHk, 31);
     }
 
@@ -652,6 +681,12 @@ const char* GetLocalizedStringInternalHk(const char* inst, const char* id)
     return res;
 }
 
+__int64 PersistenceAssetCheck()
+{
+    static const auto trampoline = HookManager::Call(PersistenceAssetCheck);
+    return 0;
+}
+
 void FileSuperBundleManagerUpdateConfigHk(FileSuperBundleManager* inst)
 {
     static const auto trampoline = HookManager::Call(FileSuperBundleManagerUpdateConfigHk);
@@ -680,9 +715,9 @@ __int64 TeamInfo__isFriendlyHk(int teamA, int teamB)
     return result;
 }
 
-void DummyLuaTable(void** table)
+void FixInvalidCrash(void** table)
 {
-    void* patchValue = reinterpret_cast<void*>(0x1401840C0); // general null sub
+    void* patchValue = reinterpret_cast<void*>(0x1401840C0);
     for (; table[1]; table += 2)
     {
         char* str = reinterpret_cast<char*>(table[0]);
@@ -712,6 +747,7 @@ void Program::InitializeGameHooks()
         { OFFSET_FILESUPERBUNDLEMANAGER_UPDATECONFIG, FileSuperBundleManagerUpdateConfigHk },
         { OFFSET_MEMORYARENA_LOG, MemoryArenaLog },
         { HOOK_OFFSET(0x146A4BA30), TeamInfo__isFriendlyHk },
+        //{ HOOK_OFFSET(0x1483EB2B0), PersistenceAssetCheck },
 
         // Dummy out unsafe built-in lua functions
         { HOOK_OFFSET(0x1477C4B00), LuaDummy }, // package.loadlib()
@@ -743,19 +779,21 @@ void Program::InitializeGamePatches()
 
     MemoryUtils::Nop(HOOK_OFFSET(0x14018B133), 6); // Allow Multiple Game Instances
     MemoryUtils::Nop(HOOK_OFFSET(0x140235C2E), 6); // Enable All Console Commands
+    
+    BYTE ptch1[] { 0xEB };
+    MemoryUtils::Patch(HOOK_OFFSET(0x1418B64CC), ptch1, sizeof(ptch1));
 
-    // Null out built-in Lua function tables
-    static intptr_t tables[] = { 
-        0x14308A430, // debug
-        0x143089BB0, // os
-        0x1430898A0, // io
-        0x143089960, // file
-        0 // null term
+    static intptr_t ptrs[] = { 
+        0x14308A430,
+        0x143089BB0,
+        0x1430898A0,
+        0x143089960,
+        0
     };
 
-    for (void*** i = reinterpret_cast<void***>(tables); *i; i++)
+    for (void*** i = reinterpret_cast<void***>(ptrs); *i; i++)
     {
-        DummyLuaTable(*i);
+        FixInvalidCrash(*i);
     }
 }
 
@@ -763,6 +801,8 @@ void Program::Initialize()
 {
     InitializeGameHooks();
     InitializeGamePatches();
+
+    StreamManagerKyberEvent::InitializeHooks();
 
     m_server->Initialize();
     m_client->Initialize();

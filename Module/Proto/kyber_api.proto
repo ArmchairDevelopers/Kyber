@@ -38,6 +38,7 @@ service ClientServer {
   rpc ConsumeJoinToken(ConsumeJoinTokenRequest)
       returns (ConsumeJoinTokenResponse);
   rpc GetBlacklist(kyber_common.Empty) returns (EventSyncBlacklistResponse);
+  rpc GetChatFilter(kyber_common.Empty) returns (ChatFilterResponse);
 }
 
 service Proxy {
@@ -100,6 +101,250 @@ service ReportService {
   rpc ApproveReports(ApproveReportsRequest) returns (kyber_common.Empty);
   rpc RejectReport(RejectReportRequest) returns (kyber_common.Empty);
   rpc GetUserInfo(UserInfoRequest) returns (UserInfoResponse);
+}
+
+service Party {
+  rpc LeaveParty(kyber_common.Empty) returns (kyber_common.Empty);
+
+  rpc InvitePlayer(InvitePlayerRequest) returns (kyber_common.Empty);
+  rpc AcceptInvite(AcceptInviteRequest) returns (kyber_common.Empty);
+  rpc DeclineInvite(DeclineInviteRequest) returns (kyber_common.Empty);
+
+  rpc KickMember(KickMemberRequest) returns (kyber_common.Empty);
+  rpc TransferLeader(TransferLeaderRequest) returns (kyber_common.Empty);
+
+  rpc GetParty(kyber_common.Empty) returns (GetPartyResponse);
+
+  rpc StartJoinGame(StartJoinGameRequest) returns (kyber_common.Empty);
+  rpc CancelJoinGame(kyber_common.Empty) returns (kyber_common.Empty);
+}
+
+service ServerQueue {
+  rpc JoinQueue(JoinQueueRequest) returns (QueueStatus);
+  rpc LeaveQueue(kyber_common.Empty) returns (kyber_common.Empty);
+  rpc GetQueueStatus(kyber_common.Empty) returns (GetQueueStatusResponse);
+}
+
+// SessionService
+
+message CheckForUpdatesEvent {}
+
+message ChatFilterResponse {
+  repeated string phrases = 1;
+}
+
+message ProxiesUpdatedEvent {
+  repeated ProxyInfo proxies = 1;
+}
+
+message SessionEvent {
+  oneof body {
+    PartyEvent partyEvent = 1;
+    CheckForUpdatesEvent checkForUpdates = 2;
+    ProxiesUpdatedEvent proxiesUpdated = 3;
+    QueueEvent queueEvent = 4;
+  }
+}
+
+// ServerQueueService
+
+enum QueueEntryState {
+  QUEUE_STATE_WAITING = 0;
+  QUEUE_STATE_RESERVED = 1;
+}
+
+enum QueueRemovedReason {
+  QUEUE_REMOVED_LEFT = 0;
+  QUEUE_REMOVED_SERVER_SHUTDOWN = 1;
+  QUEUE_REMOVED_TIMEOUT = 2;
+}
+
+message QueueStatus {
+  string serverId = 1;
+  uint32 position = 2;
+  uint32 queueSize = 3;
+  QueueEntryState state = 4;
+}
+
+message JoinQueueRequest {
+  string serverId = 1;
+  string password = 2;
+}
+
+message GetQueueStatusResponse {
+  optional QueueStatus status = 1;
+}
+
+message QueueUpdatedEvent {
+  QueueStatus status = 1;
+}
+
+message QueueRemovedEvent {
+  string serverId = 1;
+  QueueRemovedReason reason = 2;
+}
+
+message QueueEvent {
+  oneof body {
+    QueueUpdatedEvent queueUpdated = 1;
+    QueueRemovedEvent queueRemoved = 2;
+  }
+}
+
+message SessionClientEvent {
+  oneof body {
+    UpdateJoinGameStatusEvent updateJoinGameStatus = 1;
+    JoinGameReadyEvent joinGameReady = 2;
+    GameJoinedEvent gameJoined = 3;
+    GameLeftEvent gameLeft = 4;
+  }
+}
+
+message GameJoinedEvent {
+  string serverId = 1;
+}
+
+message GameLeftEvent {}
+
+message UpdateJoinGameStatusEvent {
+  bool hasMods = 1;
+  optional uint32 modDownloadPercentage = 2;
+}
+
+// PartyService
+
+message GetPartyResponse {
+  optional PartyState party = 1;
+}
+
+message InvitePlayerRequest {
+  string userId = 1;
+}
+
+message AcceptInviteRequest {
+  uint64 partyId = 1;
+  // string inviteToken = 2;
+}
+
+message DeclineInviteRequest {
+  uint64 partyId = 1;
+  // string inviteToken = 2;
+}
+
+message CreatePartyResponse {
+  uint64 partyId = 1;
+}
+
+message PartyState {
+  uint64 id = 1;
+  string leaderId = 2;
+  repeated PartyMember members = 3;
+  int64 createdAt = 4;
+  optional JoinGameState joinGameState = 5;
+}
+
+message KickMemberRequest {
+  string userId = 1;
+}
+
+message TransferLeaderRequest {
+  string userId = 1;
+}
+
+message JoinGameState {
+  string serverId = 1;
+  string serverName = 2;
+  repeated kyber_common.ServerMod mods = 3;
+  repeated JoinGameMemberStatus memberStatuses = 4;
+  optional string password = 5;
+  optional QueueStatus queue = 6;
+}
+
+message JoinGameMemberStatus {
+  string userId = 1;
+  bool hasMods = 2;
+  optional uint32 modDownloadPercentage = 3;
+  bool joined = 4;
+}
+
+message PartyMember {
+  kyber_common.KyberPlayer player = 1;
+  int64 joinedAt = 2;
+}
+
+message PartyEvent {
+  oneof body {
+    InviteReceivedEvent inviteReceived = 1;
+    InviteAcceptedEvent inviteAccepted = 2;
+    InviteDeclinedEvent inviteDeclined = 3;
+    MemberJoinedEvent memberJoined = 4;
+    MemberLeftEvent memberLeft = 5;
+    JoinGameEvent joinGame = 6;
+    JoinGameStatusEvent joinGameStatus = 7;
+    JoinGameReadyEvent joinGameReady = 8;
+    JoinGameCancelledEvent joinGameCancelled = 9;
+    NewLeaderEvent newLeader = 10;
+    KickedEvent kicked = 11;
+  }
+}
+
+message KickedEvent {
+  string userId = 1;
+}
+
+message NewLeaderEvent {
+  string newLeaderId = 1;
+}
+
+message InviteReceivedEvent {
+  uint64 partyId = 1;
+  kyber_common.KyberPlayer inviter = 2;
+  string inviteToken = 3;
+  int64 expiresAt = 4;
+  uint32 partySize = 5;
+}
+
+message InviteAcceptedEvent {
+  kyber_common.KyberPlayer user = 1;
+}
+
+message InviteDeclinedEvent {
+  kyber_common.KyberPlayer user = 1;
+}
+
+message MemberJoinedEvent {
+  kyber_common.KyberPlayer user = 1;
+}
+
+message MemberLeftEvent {
+  string userId = 1;
+}
+
+message JoinGameEvent {
+  string serverId = 1;
+  string serverName = 2;
+  repeated kyber_common.ServerMod mods = 3;
+  string leaderId = 4;
+  optional string password = 5;
+  optional QueueStatus queue = 6;
+}
+
+message JoinGameStatusEvent {
+  string userId = 1;
+  bool hasMods = 2;
+  optional uint32 modDownloadPercentage = 3;
+  bool joined = 4;
+}
+
+message JoinGameReadyEvent {
+  string serverId = 1;
+}
+
+message JoinGameCancelledEvent {}
+
+message StartJoinGameRequest {
+  string serverId = 1;
+  string password = 2;
 }
 
 // ReportService
@@ -461,6 +706,8 @@ message ConsumeJoinTokenResponse {
   string id = 1;
   // The user's name
   string name = 2;
+  // The user's party group ID
+  optional uint64 groupId = 3;
 }
 
 // Proxy
@@ -495,6 +742,7 @@ message ProxyInfo {
   string ip = 2;
   string name = 3;
   string flag = 4;
+  string region = 5;
 }
 
 message ProxyList {
@@ -712,11 +960,26 @@ message CanJoinServerRequest {
   string password = 2;
 }
 
+enum JoinDeniedReason {
+  INVALID_PASSWORD = 0;
+  BANNED = 1;
+  SERVER_FULL = 2;
+}
+
+message BanInfo {
+  string reason = 1;
+  optional int64 expiresAt = 2;
+}
+
 message CanJoinServerResponse {
   // Whether the user can join the server
   bool canJoin = 1;
-  // The reason the user can't join the server
-  optional string reason = 2;
+  // set when the server is full but the user can queue for it
+  optional bool canQueue = 2;
+  // ban info
+  optional BanInfo banInfo = 3;
+  // Why the join was denied
+  optional JoinDeniedReason deniedReason = 4;
 }
 
 message Server {
@@ -863,6 +1126,8 @@ message RegisterServerRequest {
   map<string, string> meta = 9;
   // Contains "normal" mods and all mods from collections
   repeated kyber_common.ServerMod explodedMods = 10;
+  // Optional. Can be used to re-register a server with the same ID. Only allowed if the ID was originally created by the same user
+  optional string id = 11;
 }
 
 message UpdateServerRequest {

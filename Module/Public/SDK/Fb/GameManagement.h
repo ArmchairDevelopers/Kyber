@@ -1,0 +1,37 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(ServerGameManagerAddQueuedPlayerMessage, 0x14473F620);
+_KB_DECLARE_TYPEINFO(ServerGameManagerGameDestructingMessage, 0x14473F670);
+_KB_DECLARE_TYPEINFO(ServerGameManagerPlayerRemovedMessageBase, 0x14473F6C0);
+_KB_DECLARE_TYPEINFO(ServerGameManagerPlayerJoinCompleteMessage, 0x14473F710);
+_KB_DECLARE_TYPEINFO(ServerGameManagerPlayerJoiningMessageBase, 0x14473F760);
+_KB_DECLARE_TYPEINFO(ServerGameManagerUpdateCapacityMessageBase, 0x14473F7B0);
+_KB_DECLARE_TYPEINFO(ServerGameManagerGameParametersChangedMessageBase, 0x14473F800);
+_KB_DECLARE_TYPEINFO(ServerGameManagerChangeGameParametersMessageBase, 0x14473F850);
+_KB_DECLARE_TYPEINFO(ServerGameManagerReconfigurableGameCreatedMessage, 0x14473F8A0);
+_KB_DECLARE_TYPEINFO(ServerGameManagerCreatingReconfigurableGameMessage, 0x14473F8F0);
+_KB_DECLARE_TYPEINFO(ServerGameManagerGameResetMessageBase, 0x14473F940);
+_KB_DECLARE_TYPEINFO(ServerGameManagerGameCreatedMessageBase, 0x14473F990);
+_KB_DECLARE_TYPEINFO(ServerGameManagerCreatingGameMessageBase, 0x14473F9E0);
+_KB_DECLARE_TYPEINFO(ServerGameManagementBackendData, 0x14473F3A0);
+_KB_DECLARE_TYPEINFO(GameParametersData, 0x14473F420);
+_KB_DECLARE_TYPEINFO(GameRoleInformation, 0x14473F4A0);
+_KB_DECLARE_TYPEINFO(GameAttributeData, 0x14473FA30);
+_KB_DECLARE_TYPEINFO(GamePeer2PeerMode, 0x14473F320);
+_KB_DECLARE_TYPEINFO(GameNetworkTopology, 0x14473F360);
+_KB_DECLARE_TYPEINFO(PresenceGameManagementServiceData, 0x14473F520);
+_KB_DECLARE_TYPEINFO(PresenceGameManagementBackendData, 0x14473F5A0);
+_KB_DECLARE_TYPEINFO(PresenceGameQueueMessageBase, 0x14473FA80);
+_KB_DECLARE_TYPEINFO(PresenceGameNotificationMessageBase, 0x14473FAD0);
+_KB_DECLARE_TYPEINFO(PresenceGameMessageBase, 0x14473FB20);
+_KB_DECLARE_TYPEINFO(PresenceGameRequestMessageBase, 0x14473FB70);
+_KB_DECLARE_TYPEINFO(GameParameters, 0x14473FCC0);
+_KB_DECLARE_TYPEINFO(PresenceCreateGameRequestParameters, 0x14473FBC0);
+_KB_DECLARE_TYPEINFO(ClientGameManagementService, 0x14473FD40);
+_KB_DECLARE_TYPEINFO(ClientGameManagementBackend, 0x14473FC40);
+
+#undef _KB_DECLARE_TYPEINFO
+}
