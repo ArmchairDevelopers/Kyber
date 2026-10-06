@@ -190,6 +190,8 @@ class KyberServerHelper {
       await sessionCubit.joinQueue(
         server,
         password: password ?? '',
+        spectator: spectator ?? false,
+        selectedCollection: selectedCollection,
       );
 
       NotificationService.info(

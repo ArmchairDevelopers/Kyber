@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:background_downloader/background_downloader.dart';
 import 'package:collection/collection.dart';
-import 'package:fixnum/fixnum.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:grpc/grpc.dart' hide Server;
 import 'package:kyber/gen/Proto/mod_bridge.pb.dart' as mb;
 import 'package:kyber/kyber.dart';
+import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/core/routing/app_router.dart';
 import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
@@ -26,10 +26,8 @@ import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/features/nexusmods/dialogs/nexusmods_login.dart';
 import 'package:kyber_launcher/features/nexusmods/exceptions/missing_nexus_auth_exception.dart';
 import 'package:kyber_launcher/features/nexusmods/services/mod_finder_service.dart';
-import 'package:kyber_launcher/features/server_browser/dialogs/join_server_dialog.dart';
 import 'package:kyber_launcher/features/server_browser/dialogs/server_ban_dialog.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
-import 'package:kyber_launcher/features/server_browser/providers/server_list_cubit.dart';
 import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
@@ -43,6 +41,8 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
   Timer? _downloadChecker;
   bool _running = false;
   String? _joiningPassword;
+  bool _joiningSpectator = false;
+  ModCollectionMetaData? _joiningCollection;
   bool _joining = false;
 
   @override
@@ -59,28 +59,50 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     emit(.new(joiningServer: state.joiningServer));
   }
 
-  Future<void> joinServer({bool enabledDownload = true, String? serverPassword}) async {
+  Future<void> joinServer({
+    bool enabledDownload = true,
+    String? serverPassword,
+    bool spectator = false,
+    ModCollectionMetaData? cosmeticCollection,
+    Server? server,
+  }) async {
     if (_joining) return;
+
+    final serverInfo = server ?? state.selectedServer?.serverInfo;
+    if (serverInfo == null) return;
 
     _joining = true;
     try {
       await _doJoinServer(
+        serverInfo,
         enabledDownload: enabledDownload,
         serverPassword: serverPassword,
+        spectator: spectator,
+        cosmeticCollection: cosmeticCollection,
       );
     } finally {
       _joining = false;
     }
   }
 
-  Future<void> _doJoinServer({
+  Future<void> _doJoinServer(
+    Server serverInfo, {
     required bool enabledDownload,
+    required bool spectator,
     String? serverPassword,
+    ModCollectionMetaData? cosmeticCollection,
   }) async {
     final context = navigatorKey.currentContext;
     if (context != null) {
       final sessionState = context.read<SessionCubit>().state;
       if (sessionState is InParty) {
+        if (spectator) {
+          NotificationService.warning(
+            message: 'You cannot spectate while in a party!',
+          );
+          return;
+        }
+
         final userId = context.read<MaximaCubit>().state.servicePlayer?.id;
         if (userId == null) {
           return;
@@ -93,44 +115,48 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
           return;
         }
 
-        final banInfo = await _isBanned();
+        final banInfo = await _isBanned(serverInfo);
         if (banInfo != null) {
           await ServerBanDialog.show(context, banInfo: banInfo);
           return;
         }
 
-        await _startPartyJoinGame(serverPassword: serverPassword);
+        await _startPartyJoinGame(serverInfo, serverPassword: serverPassword);
         return;
       }
 
-      final banInfo = await _isBanned();
+      final banInfo = await _isBanned(serverInfo);
       if (banInfo != null) {
         await ServerBanDialog.show(context, banInfo: banInfo);
         return;
       }
     }
 
-    if (hasAllRequiredMods()) {
-      await _joinServer(serverPassword: serverPassword);
+    if (hasAllRequiredMods(serverInfo)) {
+      await _joinServer(
+        serverInfo,
+        serverPassword: serverPassword,
+        spectator: spectator,
+        cosmeticCollection: cosmeticCollection,
+      );
     } else if (enabledDownload) {
       _joiningPassword = serverPassword;
+      _joiningSpectator = spectator;
+      _joiningCollection = cosmeticCollection;
       emit(
         state.copyWith(
-          joiningServer: state.selectedServer!.serverInfo,
+          joiningServer: serverInfo,
         ),
       );
       _startDownloads();
     }
   }
 
-  Future<BanInfo?> _isBanned() async {
-    final server = state.selectedServer;
-
-    if (server == null || server.serverInfo.requiresPassword) {
+  Future<BanInfo?> _isBanned(Server serverInfo) async {
+    if (serverInfo.requiresPassword) {
       return null;
     }
 
-    final serverInfo = server.serverInfo;
     final response = await sl
         .get<KyberGRPCService>()
         .serverBrowserClient
@@ -141,12 +167,10 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     return response.hasBanInfo() ? response.banInfo : null;
   }
 
-  Future<void> _startPartyJoinGame({String? serverPassword}) async {
-    final server = state.selectedServer;
-    if (server == null) return;
-
-    final serverInfo = server.serverInfo;
-
+  Future<void> _startPartyJoinGame(
+    Server serverInfo, {
+    String? serverPassword,
+  }) async {
     try {
       await navigatorKey.currentContext!.read<SessionCubit>().startJoinGame(
         serverId: serverInfo.id,
@@ -160,8 +184,9 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     }
   }
 
-  bool hasAllRequiredMods() {
-    final server = state.joiningServer ?? state.selectedServer?.serverInfo;
+  bool hasAllRequiredMods([Server? serverInfo]) {
+    final server =
+        serverInfo ?? state.joiningServer ?? state.selectedServer?.serverInfo;
     if (server == null) return false;
 
     return server.mods.every(
@@ -169,14 +194,19 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
     );
   }
 
-  Future<void> _joinServer({String? serverPassword}) async {
+  Future<void> _joinServer(
+    Server serverInfo, {
+    String? serverPassword,
+    bool spectator = false,
+    ModCollectionMetaData? cosmeticCollection,
+  }) async {
     try {
-      final server = state.selectedServer!;
+      final server = state.selectedServer;
 
       await KyberServerHelper.joinServer(
-        server.serverInfo,
-        //selectedCollection: result.collection,
-        //spectator: result.spectator,
+        serverInfo,
+        selectedCollection: cosmeticCollection,
+        spectator: spectator,
         password: serverPassword,
         queueIfFull: true,
       );
@@ -300,7 +330,7 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
       NotificationService.info(message: 'Paused download for $name');
     }
 
-    final serverInfo = server.serverInfo;
+    final serverInfo = state.joiningServer ?? server.serverInfo;
 
     final missingMods = serverInfo.mods
         .where((mod) => !ModHelper.isInstalled(mod.name, mod.version))
@@ -444,8 +474,17 @@ class ServerBrowserCubit extends Cubit<ServerBrowserState> {
       }
 
       final serverPassword = _joiningPassword;
+      final spectator = _joiningSpectator;
+      final cosmeticCollection = _joiningCollection;
       _joiningPassword = null;
-      await _joinServer(serverPassword: serverPassword);
+      _joiningSpectator = false;
+      _joiningCollection = null;
+      await _joinServer(
+        serverInfo,
+        serverPassword: serverPassword,
+        spectator: spectator,
+        cosmeticCollection: cosmeticCollection,
+      );
     });
   }
 }

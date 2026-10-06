@@ -187,7 +187,12 @@ class SessionCubit extends Cubit<SessionState> {
     await _service.partyServiceClient.cancelJoinGame(.new());
   }
 
-  Future<QueueStatus> joinQueue(Server server, {String password = ''}) async {
+  Future<QueueStatus> joinQueue(
+    Server server, {
+    String password = '',
+    bool spectator = false,
+    ModCollectionMetaData? selectedCollection,
+  }) async {
     final status = await _service.serverQueueClient.joinQueue(
       .new(serverId: server.id, password: password),
     );
@@ -197,6 +202,8 @@ class SessionCubit extends Cubit<SessionState> {
         status,
         serverName: server.name,
         password: password,
+        spectator: spectator,
+        selectedCollection: selectedCollection,
       ),
     );
 
@@ -280,7 +287,12 @@ class SessionCubit extends Cubit<SessionState> {
       final server = await _service.serverBrowserClient.getServer(
         .new(id: info.serverId),
       );
-      await KyberServerHelper.joinServer(server, password: info.password);
+      await KyberServerHelper.joinServer(
+        server,
+        selectedCollection: info.selectedCollection,
+        spectator: info.spectator,
+        password: info.password,
+      );
     } on GrpcError catch (e) {
       _logger.severe('Failed to join server from queue: ${e.message}', e);
       NotificationService.error(
@@ -327,6 +339,8 @@ class SessionCubit extends Cubit<SessionState> {
     QueueStatus status, {
     String serverName = '',
     String password = '',
+    bool? spectator,
+    ModCollectionMetaData? selectedCollection,
   }) {
     final existing = _queueInfo;
     final keep = existing != null && existing.serverId == status.serverId;
@@ -342,6 +356,9 @@ class SessionCubit extends Cubit<SessionState> {
       password: password.isNotEmpty
           ? password
           : (keep ? existing.password : ''),
+      spectator: spectator ?? (keep && existing.spectator),
+      selectedCollection:
+          selectedCollection ?? (keep ? existing.selectedCollection : null),
     );
   }
 

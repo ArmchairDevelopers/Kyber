@@ -2,12 +2,14 @@ import 'package:background_downloader/background_downloader.dart';
 import 'package:collection/collection.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as mt;
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_collection/kyber_collection.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/services/app_settings.dart';
+import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_proxy_cubit.dart';
@@ -421,7 +423,10 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
                                 ),
                               )
                             else
-                              _JoinButton(serverInfo: serverInfo),
+                              _JoinButton(
+                                serverInfo: serverInfo,
+                                onPressed: _joinServer,
+                              ),
                             const Spacer(),
                             SizedBox(
                               width: 200,
@@ -469,6 +474,45 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
         ),
       ),
     );
+  }
+
+  Future<void> _joinServer({bool spectator = false}) async {
+    final cubit = context.read<ServerBrowserCubit>();
+    if (cubit.state.joiningServer != null) {
+      return;
+    }
+
+    String? password;
+    if (serverInfo.requiresPassword) {
+      password = await ServerPasswordDialog.show(
+        context,
+        serverInfo: serverInfo,
+      );
+
+      if (password == null || !mounted) {
+        return;
+      }
+    }
+
+    await cubit.joinServer(
+      server: serverInfo,
+      serverPassword: password,
+      spectator: spectator,
+      cosmeticCollection: selectedCollection,
+    );
+  }
+
+  void _shareServer() {
+    final uri = Uri(
+      scheme: 'https',
+      host: 'api.prod.kyber.gg',
+      path: 'redirect',
+      queryParameters: {
+        'target': 'join_server?server_id=${serverInfo.id}',
+      },
+    );
+    Clipboard.setData(.new(text: uri.toString()));
+    NotificationService.info(message: 'Copied to clipboard!');
   }
 
   Widget _buildActionRow() => _ActionDropdown<ModCollectionMetaData?>(
@@ -520,17 +564,18 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
         child: CustomIconButton(
           size: 21,
           iconData: mt.Icons.share,
-          onPressed: () => null,
+          onPressed: _shareServer,
         ),
       ),
-      KyberTooltip(
-        message: 'Join as a spectator',
-        child: CustomIconButton(
-          size: 21,
-          iconData: mt.Icons.camera_alt_sharp,
-          onPressed: () => null,
+      if (widget.onServerSelected == null)
+        KyberTooltip(
+          message: 'Join as a spectator',
+          child: CustomIconButton(
+            size: 21,
+            iconData: mt.Icons.camera_alt_sharp,
+            onPressed: () => _joinServer(spectator: true),
+          ),
         ),
-      ),
       Row(
         spacing: 10,
         children: [
@@ -558,31 +603,14 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
 }
 
 class _JoinButton extends StatelessWidget {
-  const _JoinButton({required this.serverInfo, super.key});
+  const _JoinButton({
+    required this.serverInfo,
+    required this.onPressed,
+    super.key,
+  });
 
   final Server serverInfo;
-
-  void _joinServer(BuildContext context, ServerBrowserState state) async {
-    final downloading = state.joiningServer != null;
-
-    if (downloading) {
-      return;
-    }
-
-    String? password;
-    if (serverInfo.requiresPassword) {
-      password = await ServerPasswordDialog.show(
-        context,
-        serverInfo: serverInfo,
-      );
-
-      if (password == null || !context.mounted) {
-        return;
-      }
-    }
-
-    context.read<ServerBrowserCubit>().joinServer(serverPassword: password);
-  }
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -599,7 +627,7 @@ class _JoinButton extends StatelessWidget {
             final downloading = state.joiningServer != null;
 
             return KyberButton.withChild(
-              onPressed: downloading ? null : () => _joinServer(context, state),
+              onPressed: downloading ? null : onPressed,
               padding: const .symmetric(
                 horizontal: 25,
                 vertical: 8,

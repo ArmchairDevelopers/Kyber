@@ -70,6 +70,8 @@ class QueueInfo extends Equatable {
     this.position = 0,
     this.queueSize = 0,
     this.password = '',
+    this.spectator = false,
+    this.selectedCollection,
   });
 
   final String serverId;
@@ -78,6 +80,8 @@ class QueueInfo extends Equatable {
   final int position;
   final int queueSize;
   final String password;
+  final bool spectator;
+  final ModCollectionMetaData? selectedCollection;
 
   bool get isReserved => state == QueueEntryState.QUEUE_STATE_RESERVED;
 
@@ -88,6 +92,8 @@ class QueueInfo extends Equatable {
     int? position,
     int? queueSize,
     String? password,
+    bool? spectator,
+    ModCollectionMetaData? selectedCollection,
   }) {
     return QueueInfo(
       serverId: serverId ?? this.serverId,
@@ -96,6 +102,8 @@ class QueueInfo extends Equatable {
       position: position ?? this.position,
       queueSize: queueSize ?? this.queueSize,
       password: password ?? this.password,
+      spectator: spectator ?? this.spectator,
+      selectedCollection: selectedCollection ?? this.selectedCollection,
     );
   }
 
@@ -107,6 +115,8 @@ class QueueInfo extends Equatable {
     position,
     queueSize,
     password,
+    spectator,
+    selectedCollection,
   ];
 }
 
