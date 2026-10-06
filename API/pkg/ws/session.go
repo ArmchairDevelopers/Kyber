@@ -312,6 +312,7 @@ func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := s.store.Sessions.Upsert(r.Context(), session); err != nil {
 			logger.L().Error("Failed to create session:", zap.Error(err))
+			conn.Close()
 			return
 		}
 	}
@@ -331,10 +332,21 @@ func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	logger.L().Info("New session connected", zap.String("user_id", user.ID))
 
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	go func() {
 		ticker := time.NewTicker(200 * time.Millisecond)
 		defer ticker.Stop()
 		defer conn.Close()
+		defer cancel()
+		defer func() {
+			s.mu.Lock()
+			if sub, ok := s.subs[user.ID]; ok && sub.ch == ch {
+				delete(s.subs, user.ID)
+			}
+			s.mu.Unlock()
+		}()
 
 		for {
 			_, msg, err := conn.ReadMessage()
@@ -354,19 +366,13 @@ func (s *SessionManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 			<-ticker.C
 		}
-
-		s.mu.Lock()
-		if sub, ok := s.subs[user.ID]; ok && sub.ch == ch {
-			delete(s.subs, user.ID)
-		}
-		s.mu.Unlock()
 	}()
 
 	defer conn.Close()
 
 	for {
 		select {
-		case <-r.Context().Done():
+		case <-ctx.Done():
 			return
 		case event, ok := <-ch:
 			if !ok {
