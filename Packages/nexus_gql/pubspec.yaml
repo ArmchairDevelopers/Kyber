@@ -16,4 +16,4 @@ dependency_overrides:
   graphql: ^5.2.2
   graphql_flutter: ^5.2.1
   build: '>=4.0.0'
-  analyzer: ^14.0.0
+  analyzer: '>=14.0.0 <14.5.0'
