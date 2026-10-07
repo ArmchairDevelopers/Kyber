@@ -187,8 +187,7 @@ class _KyberContentDialogState extends State<KyberContentDialog>
                                   ),
                                 if (widget.title != null)
                                   Padding(
-                                    padding:
-                                        style.titlePadding ?? EdgeInsets.zero,
+                                    padding: style.titlePadding ?? .zero,
                                     child: DefaultTextStyle.merge(
                                       style: style.titleStyle,
                                       child: DefaultTextStyle.merge(
@@ -202,12 +201,8 @@ class _KyberContentDialogState extends State<KyberContentDialog>
                                 if (widget.content != null)
                                   Expanded(
                                     child: Padding(
-                                      padding:
-                                          style.bodyPadding ?? EdgeInsets.zero,
-                                      child: DefaultTextStyle.merge(
-                                        style: style.bodyStyle,
-                                        child: widget.content!,
-                                      ),
+                                      padding: style.bodyPadding ?? .zero,
+                                      child: widget.content,
                                     ),
                                   ),
                               ],

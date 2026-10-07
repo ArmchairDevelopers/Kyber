@@ -23,10 +23,7 @@ public:
     using Func = std::function<void()>;
 
     void QueueDelayTicks(GameThread thread, uint32_t delayTicks, Func func);
-    void QueueDelaySecs(GameThread thread, float delaySeconds, Func func)
-    {
-        QueueDelayTicks(thread, static_cast<uint32_t>(delaySeconds * 30.0f), func);
-    }
+    void QueueDelaySecs(GameThread thread, float delaySeconds, Func func);
     
     void Queue(GameThread thread, Func func)
     {

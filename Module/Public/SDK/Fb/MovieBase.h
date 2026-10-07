@@ -1,0 +1,24 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(MovieTexture2AssetFormat, 0x1445350B0);
+_KB_DECLARE_TYPEINFO(MovieTexture2Asset, 0x144534F30);
+_KB_DECLARE_TYPEINFO(AudioStream, 0x1445350F0);
+_KB_DECLARE_TYPEINFO(VideoStream, 0x144535140);
+_KB_DECLARE_TYPEINFO(AudioCodecType, 0x144534E70);
+_KB_DECLARE_TYPEINFO(VideoCodecType, 0x144534EB0);
+_KB_DECLARE_TYPEINFO(VideoStreamType, 0x144534EF0);
+_KB_DECLARE_TYPEINFO(MovieTextureAsset, 0x144534FB0);
+_KB_DECLARE_TYPEINFO(MovieTextureBaseAsset, 0x144535030);
+_KB_DECLARE_TYPEINFO(MovieDynamicState, 0x144535190);
+_KB_DECLARE_TYPEINFO(MovieStaticState, 0x1445351E0);
+_KB_DECLARE_TYPEINFO(MovieHandle, 0x144535230);
+_KB_DECLARE_TYPEINFO(UICancelAllSubtitlesMessage, 0x144535280);
+_KB_DECLARE_TYPEINFO(UICancelSubtitleMessage, 0x1445352D0);
+_KB_DECLARE_TYPEINFO(UISubtitleMessage, 0x144535320);
+_KB_DECLARE_TYPEINFO(UIPlayVideoMessage, 0x144535370);
+
+#undef _KB_DECLARE_TYPEINFO
+}

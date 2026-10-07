@@ -234,7 +234,6 @@ func (m *APIManagementMessage) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	// Received message: {"SERVER_STATUS":["e84937e60e74e051b2b5c1202966865b",{"CONSOLE_MESSAGE":"ADMIN: test"}]}
 	if v, ok := raw["SERVER_STATUS"]; ok {
 		var arr []json.RawMessage
 		if err := json.Unmarshal(v, &arr); err != nil {

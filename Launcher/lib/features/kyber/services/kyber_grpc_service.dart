@@ -8,6 +8,7 @@ import 'package:kyber_launcher/core/core.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_status_cubit.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
 import 'package:kyber_launcher/features/mods/services/level_declaration_service.dart';
+import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:logging/logging.dart';
 
@@ -51,19 +52,67 @@ class LauncherService extends LauncherCommonServiceBase {
   }
 
   @override
-  Future<Empty> onServerJoined(ServiceCall call, Empty request) {
-    navigatorKey.currentContext!.read<KyberStatusCubit>()
+  Future<Empty> onServerJoined(ServiceCall call, Empty request) async {
+    final context = navigatorKey.currentContext!;
+    context.read<KyberStatusCubit>()
       ..joined = true
       ..onTick();
+
+    final sessionCubit = context.read<SessionCubit>();
+    final kyberStatus = context.read<KyberStatusCubit>().state;
+    String? serverId;
+
+    if (kyberStatus is KyberStatusPlaying) {
+      serverId = kyberStatus.server?.id;
+    } else if (kyberStatus is KyberStatusHosting) {
+      serverId = kyberStatus.server?.id;
+    }
+
+    Logger.root.info('Server joined notification received');
+
+    if (serverId == null) {
+      Logger.root.warning(
+        'Server joined notification received but server ID is null',
+      );
+      return Future.value(Empty());
+    }
+
+    final sessionState = sessionCubit.state;
+    if (kyberStatus is KyberStatusHosting &&
+        sessionState is InParty &&
+        sessionState.isLeader() &&
+        sessionState.joinGameInfo == null) {
+      try {
+        await sessionCubit.startJoinGame(serverId: serverId);
+      } catch (e, s) {
+        Logger.root.warning(
+          'Failed to auto-broadcast JoinGame to party',
+          e,
+          s,
+        );
+      }
+    }
+
+    await sessionCubit.onJoined(serverId: serverId);
+
     Logger.root.info('Server joined notification received');
     return Future.value(Empty());
   }
 
   @override
-  Future<Empty> onServerLeft(ServiceCall call, Empty request) {
+  Future<Empty> onServerLeft(ServiceCall call, Empty request) async {
     navigatorKey.currentContext!.read<KyberStatusCubit>()
       ..joined = false
       ..onTick();
+
+    final context = navigatorKey.currentContext!;
+    final stateCubit = context.read<SessionCubit>()..leaveGame();
+
+    final kyberStatus = context.read<KyberStatusCubit>().state;
+    if (kyberStatus is KyberStatusHosting) {
+      await stateCubit.cancelJoinGame();
+    }
+
     Logger.root.info('Server left notification received');
     return Future.value(Empty());
   }

@@ -56,6 +56,7 @@ class _KyberInputState extends State<KyberInput> {
           controller: widget.controller,
           validator: widget.validator,
           style: const mt.TextStyle(
+            color: kWhiteColor,
             fontFamily: FontFamily.battlefrontUI,
             fontSize: 15,
             height: 1,

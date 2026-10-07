@@ -40,7 +40,6 @@ class _ModInfoState extends State<ModInfo> {
   List<WSNexusModImage> images = [];
   bool showImages = false;
   int selectedImage = 0;
-  int _currentIndex = 0;
 
   @override
   void initState() {
@@ -260,127 +259,15 @@ class _ModInfoState extends State<ModInfo> {
                           color: decoColor,
                         ),
                         Container(
-                          height: 90,
+                          height: 55,
                           padding: const .symmetric(
                             horizontal: 15,
                             vertical: 12,
                           ),
-                          child: Column(
+                          child: Row(
+                            mainAxisAlignment: .spaceBetween,
                             children: [
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: KyberTabBar(
-                                        tabs: const [
-                                          Text('FILES'),
-                                          Text('POSTS'),
-                                        ],
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _currentIndex = value;
-                                          });
-                                        },
-                                        selectedIndex: 0,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 20),
-                                    SizedBox(
-                                      width: 100,
-                                      child: KyberTabBar(
-                                        tabs: [
-                                          Icon(
-                                            (data?.viewerEndorsed ?? false)
-                                                ? mt.Icons.thumb_up_alt
-                                                : mt
-                                                      .Icons
-                                                      .thumb_up_alt_outlined,
-                                          ),
-                                          const Icon(mt.Icons.share),
-                                        ],
-                                        onChanged: (value) async {
-                                          if (value == 0) {
-                                            if (data?.viewerEndorsed ?? false) {
-                                              await nexusGqlClient!
-                                                  .mutate$abstainFromModEndorsement(
-                                                    .new(
-                                                      variables: .new(
-                                                        modUid: data!.uid,
-                                                      ),
-                                                    ),
-                                                  );
-                                            } else {
-                                              final resp = await nexusGqlClient!
-                                                  .mutate$endorseMod(
-                                                    .new(
-                                                      variables: .new(
-                                                        modUid: data!.uid,
-                                                      ),
-                                                    ),
-                                                  );
-                                              if (resp.exception != null &&
-                                                  resp
-                                                      .exception!
-                                                      .graphqlErrors
-                                                      .isNotEmpty) {
-                                                final error = resp
-                                                    .exception!
-                                                    .graphqlErrors
-                                                    .first;
-                                                var message = error.message;
-                                                if (error.extensions?['code'] ==
-                                                    'NOT_DOWNLOADED_MOD') {
-                                                  message =
-                                                      'You must download the mod before endorsing it';
-                                                } else if (error
-                                                        .extensions?['code'] ==
-                                                    'TOO_SOON_AFTER_DOWNLOAD') {
-                                                  message =
-                                                      'You must wait some time after downloading the mod before endorsing it';
-                                                } else if (error
-                                                        .extensions?['code'] ==
-                                                    'UNAUTHORIZED') {
-                                                  message =
-                                                      'You must be logged in to endorse mods';
-                                                }
-
-                                                Logger.root.severe(
-                                                  'Error endorsing mod: $message; Code: ${error.extensions?['code']}',
-                                                );
-                                                NotificationService.showNotification(
-                                                  message: message,
-                                                  severity:
-                                                      InfoBarSeverity.error,
-                                                );
-                                                return;
-                                              }
-                                            }
-                                            await refetch!();
-                                            return;
-                                          }
-
-                                          if (value == 1) {
-                                            await Clipboard.setData(
-                                              .new(
-                                                text:
-                                                    'https://www.nexusmods.com/starwarsbattlefront22017/mods/${data?.modId}',
-                                              ),
-                                            );
-                                            NotificationService.success(
-                                              message:
-                                                  'Link copied to clipboard',
-                                            );
-                                          }
-                                        },
-                                        selectedIndex: -1,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 10),
                               Row(
-                                // FORMAT LIKE THIS: 08/08/2021 12:00:00
                                 children: [
                                   const Text(
                                     'Updated: ',
@@ -392,7 +279,7 @@ class _ModInfoState extends State<ModInfo> {
                                   ),
                                   Text(
                                     DateFormat.yMd().add_jm().format(
-                                      .tryParse(data?.updatedAt ?? '') ??
+                                          .tryParse(data?.updatedAt ?? '') ??
                                           DateTime.now(),
                                     ),
                                     style: const TextStyle(
@@ -402,6 +289,96 @@ class _ModInfoState extends State<ModInfo> {
                                     ),
                                   ),
                                 ],
+                              ),
+                              SizedBox(
+                                width: 100,
+                                child: KyberTabBar(
+                                  tabs: [
+                                    Icon(
+                                      (data?.viewerEndorsed ?? false)
+                                          ? mt.Icons.thumb_up_alt
+                                          : mt
+                                                .Icons
+                                                .thumb_up_alt_outlined,
+                                    ),
+                                    const Icon(mt.Icons.share),
+                                  ],
+                                  onChanged: (value) async {
+                                    if (value == 0) {
+                                      if (data?.viewerEndorsed ?? false) {
+                                        await nexusGqlClient!
+                                            .mutate$abstainFromModEndorsement(
+                                              .new(
+                                                variables: .new(
+                                                  modUid: data!.uid,
+                                                ),
+                                              ),
+                                            );
+                                      } else {
+                                        final resp = await nexusGqlClient!
+                                            .mutate$endorseMod(
+                                              .new(
+                                                variables: .new(
+                                                  modUid: data!.uid,
+                                                ),
+                                              ),
+                                            );
+                                        if (resp.exception != null &&
+                                            resp
+                                                .exception!
+                                                .graphqlErrors
+                                                .isNotEmpty) {
+                                          final error = resp
+                                              .exception!
+                                              .graphqlErrors
+                                              .first;
+                                          var message = error.message;
+                                          if (error.extensions?['code'] ==
+                                              'NOT_DOWNLOADED_MOD') {
+                                            message =
+                                                'You must download the mod before endorsing it';
+                                          } else if (error
+                                                  .extensions?['code'] ==
+                                              'TOO_SOON_AFTER_DOWNLOAD') {
+                                            message =
+                                                'You must wait some time after downloading the mod before endorsing it';
+                                          } else if (error
+                                                  .extensions?['code'] ==
+                                              'UNAUTHORIZED') {
+                                            message =
+                                                'You must be logged in to endorse mods';
+                                          }
+
+                                          Logger.root.severe(
+                                            'Error endorsing mod: $message; Code: ${error.extensions?['code']}',
+                                          );
+                                          NotificationService.showNotification(
+                                            message: message,
+                                            severity:
+                                                InfoBarSeverity.error,
+                                          );
+                                          return;
+                                        }
+                                      }
+                                      await refetch!();
+                                      return;
+                                    }
+
+                                    if (value == 1) {
+                                      await Clipboard.setData(
+                                        .new(
+                                          text:
+                                              'https://www.nexusmods.com/starwarsbattlefront22017/mods/${data?.modId}',
+                                        ),
+                                      );
+                                      NotificationService.success(
+                                        message:
+                                            'Link copied to clipboard',
+                                      );
+                                    }
+                                  },
+                                  selectedIndex: -1,
+                                ),
                               ),
                             ],
                           ),

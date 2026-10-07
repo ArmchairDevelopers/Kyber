@@ -34,11 +34,18 @@ public:
     char pad_0000[56];         // 0x0000
     void* value;               // 0x0038
     class TypeInfo* valueType; // 0x0040
-    uint32_t flags;
+    uint32_t flags;            // 0x0048
 };                             // Size: 0x0088
+
+enum CacheDataFlags
+{
+    CacheDataFlags_IsValueSetFlag = 1 << 5,
+    CacheDataFlags_IsValueWrittenFlag = 1 << 6,
+};
 
 struct PropertyWriterBase
 {
+
     CacheData* m_cache = nullptr;
 
     bool HasConnection() const
@@ -48,7 +55,8 @@ struct PropertyWriterBase
 
     bool HasConnectionValue() const
     {
-        return m_cache != nullptr ? (m_cache->flags & (1 << 6)) != 0 : false;
+        return m_cache != nullptr ? (m_cache->flags & (CacheDataFlags_IsValueSetFlag | CacheDataFlags_IsValueWrittenFlag)) != 0 : false;
+        //return m_cache != nullptr ? (m_cache->flags & kIsValueWrittenFlag) != 0 : false;
     }
 };
 
@@ -64,7 +72,7 @@ struct PropertyReaderBase
 
     bool HasConnectionValue() const
     {
-        return m_cache != nullptr ? (m_cache->flags & (1 << 6)) != 0 : false;
+        return m_cache != nullptr ? (m_cache->flags & CacheDataFlags_IsValueWrittenFlag) != 0 : false;
     }
 
     const void* Get() const;
@@ -115,7 +123,7 @@ struct PropertyWriter : PropertyWriterBase
 
     void operator=(T& value) const
     {
-        Set(value);
+        Set(&value);
     }
 };
 
@@ -478,6 +486,11 @@ public:
     {
         return static_cast<T*>(InternalCreateContainer(name));
     }
+    template<class T>
+    T* CreateContainer(const TypeInfo* typeInfo) const
+    {
+        return static_cast<T*>(InternalCreateContainer(typeInfo));
+    }
 
     TypeInfo* GetBuiltType(const Guid& guid)
     {
@@ -542,6 +555,7 @@ public:
 private:
     // Create a fully initialized data container for a custom type
     DataContainer* InternalCreateContainer(const std::string& name) const;
+    DataContainer* InternalCreateContainer(const TypeInfo* typeInfo) const;
 
     std::vector<Guid> m_guids;
     std::map<Guid, TypeInfo*> m_builtTypes;

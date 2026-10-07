@@ -63,7 +63,7 @@ public:
         DebugRenderer_drawText(10, 52, Color32(0, 255, 0, 255),
             StringUtils::Format("Camera Pos: (%7.3f, %7.3f, %7.3f)", copy.trans.x, copy.trans.y, copy.trans.z));
 
-        ClientSoldierEntity* entity = player->controlledControllable;
+        ClientCharacterEntity* entity = player->controlledControllable;
         if (entity == nullptr)
         {
             return;

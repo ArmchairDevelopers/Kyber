@@ -14,6 +14,7 @@ namespace Kyber
 struct PluginManifest
 {
     std::string name;
+    std::string minVersion;
 
     PluginManifest() = default;
     PluginManifest(std::string source);

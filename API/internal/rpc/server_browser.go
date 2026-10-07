@@ -10,18 +10,20 @@ import (
 
 	"github.com/ArmchairDevelopers/Kyber/API/api/v1/pbapi"
 	"github.com/ArmchairDevelopers/Kyber/API/api/v1/pbcommon"
+	"github.com/ArmchairDevelopers/Kyber/API/internal/cache"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/db"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/jwts"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/ws"
 	"github.com/TwiN/go-away"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -32,7 +34,11 @@ type ServerBrowserServer struct {
 	store    *db.Store
 	sm       *ws.ServerManager
 	jwt      *jwts.Service
-	mqClient mq.Client
+	sessions *ws.SessionManager
+	mqClient *mq.Client
+	partyPub *mq.PartyEventPublisher
+	queues   *queue.Manager
+	caches   *cache.Caches
 	pbapi.UnimplementedServerBrowserServer
 }
 
@@ -49,49 +55,76 @@ func (s *ServerBrowserServer) cleanupStaleServers() {
 			defer ticker.Stop()
 
 			for range ticker.C {
-				cutoff := time.Now().Add(-40 * time.Second)
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				servers, err := s.store.Servers.GetWithCutoff(ctx, cutoff)
+				func() {
+					cutoff := time.Now().Add(-40 * time.Second)
+					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer cancel()
 
-				cancel()
+					servers, err := s.store.Servers.GetWithCutoff(ctx, cutoff)
+					if err != nil {
+						logger.L().Error("Failed to get servers with cutoff", zap.Error(err))
+						return
+					}
 
-				if err != nil {
-					logger.L().Error("Failed to get servers with cutoff", zap.Error(err))
-					continue
-				}
+					if len(servers) == 0 {
+						return
+					}
 
-				if len(servers) == 0 {
-					continue
-				}
+					ids := make([]string, len(servers))
+					for i, srv := range servers {
+						ids[i] = srv.ID
+					}
 
-				ids := make([]string, len(servers))
-				for i, srv := range servers {
-					ids[i] = srv.ID
-				}
+					s.queues.HandleServersDeleted(ctx, ids)
 
-				ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-				if err := s.store.Servers.DeleteMany(ctx, ids); err != nil {
-					cancel()
-					logger.L().Error("Failed to delete servers", zap.Error(err))
-					continue
-				}
+					if err := s.store.Servers.DeleteMany(ctx, ids); err != nil {
+						logger.L().Error("Failed to delete servers", zap.Error(err))
+						return
+					}
 
-				cancel()
+					cnvIds := make([]*string, len(ids))
+					for i, s := range servers {
+						cnvIds[i] = &s.ID
+					}
 
-				cnvIds := make([]*string, len(ids))
-				for i, s := range servers {
-					cnvIds[i] = &s.ID
-				}
+					s.publishKronosUpdate(ctx, models.KronosServerUpdate{ServersDeleted: cnvIds})
 
-				s.publishKronosUpdate(ctx, models.KronosServerUpdate{ServersDeleted: cnvIds})
+					for _, id := range ids {
+						m := ws.NewStatusStaleServer()
+						msg := ws.APIManagementMessage{ServerID: id, Status: &m}
+						s.sm.PublishWS(msg, id)
+					}
 
-				for _, id := range ids {
-					m := ws.NewStatusStaleServer()
-					msg := ws.APIManagementMessage{ServerID: id, Status: &m}
-					s.sm.PublishWS(msg, id)
-				}
+					parties, err := s.store.Parties.GetByJoiningServerIDs(ctx, ids)
+					if err != nil {
+						logger.L().Error("Failed to get parties", zap.Error(err))
+						return
+					}
 
-				logger.L().Debug("Deleted stale servers", zap.Int("count", len(ids)))
+					partyIDs := make([]uint64, 0, len(parties))
+					for _, p := range parties {
+						partyIDs = append(partyIDs, p.ID)
+
+						members, err := s.store.Sessions.GetByPartyID(ctx, p.ID)
+						if err != nil {
+							logger.L().Error("Failed to get sessions", zap.Error(err))
+							continue
+						}
+
+						s.partyPub.Publish(models.GetUserIDsFromSessions(members), &pbapi.PartyEvent{
+							Body: &pbapi.PartyEvent_JoinGameCancelled{
+								JoinGameCancelled: &pbapi.JoinGameCancelledEvent{},
+							},
+						})
+					}
+
+					if err := s.store.Parties.DeleteJoinGameStatusForMultiple(ctx, partyIDs); err != nil {
+						logger.L().Error("Failed to delete join game status", zap.Error(err))
+						return
+					}
+
+					logger.L().Debug("Deleted stale servers", zap.Int("count", len(ids)))
+				}()
 			}
 		}()
 
@@ -99,12 +132,16 @@ func (s *ServerBrowserServer) cleanupStaleServers() {
 	}
 }
 
-func NewServerBrowserServer(store *db.Store, sm *ws.ServerManager, client mq.Client, jwt *jwts.Service) *ServerBrowserServer {
+func NewServerBrowserServer(store *db.Store, sm *ws.ServerManager, client *mq.Client, jwt *jwts.Service, sessions *ws.SessionManager, partyPub *mq.PartyEventPublisher, queues *queue.Manager, caches *cache.Caches) *ServerBrowserServer {
 	srv := &ServerBrowserServer{
 		store:    store,
 		sm:       sm,
 		mqClient: client,
 		jwt:      jwt,
+		sessions: sessions,
+		partyPub: partyPub,
+		queues:   queues,
+		caches:   caches,
 	}
 
 	go srv.cleanupStaleServers()
@@ -247,7 +284,7 @@ func (s *ServerBrowserServer) UploadModImages(ctx context.Context, req *pbapi.Up
 		if user.Entitled(models.EntitlementAutoApproveModImages) {
 			imageStatus = models.ImageHashStatusApproved
 
-			err = s.mqClient.Channel.Publish("image_hashes", "", false, false, amqp.Publishing{
+			err = s.mqClient.Publish("image_hashes", "", amqp.Publishing{
 				Body:        []byte(hash),
 				ContentType: "text/plain",
 			})
@@ -476,6 +513,35 @@ func (s *ServerBrowserServer) RegisterServer(ctx context.Context, req *pbapi.Reg
 		return nil, status.Error(codes.PermissionDenied, "User is not entitled to use meta data")
 	}
 
+	serverID := util.GenerateToken()
+	if len(req.GetId()) > 0 {
+		owner, err := s.caches.ServerID.Get(ctx, req.GetId())
+		if err != nil {
+			logger.L().Error("Failed to get server ID from cache", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get server ID from cache")
+		}
+
+		if owner == nil {
+			return nil, status.Error(codes.InvalidArgument, "Invalid server ID")
+		}
+
+		if *owner != user.ID {
+			return nil, status.Error(codes.PermissionDenied, "User is not entitled to use this server ID")
+		}
+
+		existingServer, err := s.store.Servers.GetByID(ctx, req.GetId())
+		if err != nil {
+			logger.L().Error(err.Error())
+			return nil, status.Error(codes.Internal, "Failed to get server by ID")
+		}
+
+		if existingServer != nil {
+			return nil, status.Error(codes.InvalidArgument, "A server with that ID already exists")
+		}
+
+		serverID = req.GetId()
+	}
+
 	mods := make([]models.ServerModModel, 0)
 	for _, mod := range req.GetMods() {
 		link := mod.GetLink()
@@ -511,8 +577,6 @@ func (s *ServerBrowserServer) RegisterServer(ctx context.Context, req *pbapi.Reg
 		imageHash, err = s.getServerMapImage(ctx, req.GetLevelSetup(), cnvMods)
 	}
 
-	serverID := util.GenerateToken()
-
 	serverJWT := &models.ServerJWT{
 		UserID:   user.ID,
 		ServerID: serverID,
@@ -529,9 +593,11 @@ func (s *ServerBrowserServer) RegisterServer(ctx context.Context, req *pbapi.Reg
 	}
 
 	joinToken := &models.JoinTokenModel{
-		ID:      proxyToken,
+		ID:      util.GenerateToken(),
+		Token:   proxyToken,
 		User:    user.ID,
 		Server:  serverID,
+		Token:   proxyToken,
 		Created: time.Now(),
 	}
 
@@ -600,6 +666,10 @@ func (s *ServerBrowserServer) RegisterServer(ctx context.Context, req *pbapi.Reg
 
 	s.publishKronosUpdate(ctx, models.KronosServerUpdate{ServerCreated: &server})
 
+	if err := s.caches.ServerID.Set(ctx, serverID, server.HostID); err != nil {
+		logger.L().Error("Failed to set server ID cache", zap.Error(err))
+	}
+
 	logger.L().Info("Created server", zap.String("id", server.ID))
 	return ConvertServerToProto(&server), nil
 }
@@ -630,7 +700,7 @@ func (s *ServerBrowserServer) getServerMapImage(ctx context.Context, levelSetup 
 
 	if image.Status != models.ImageHashStatusApproved {
 		if image.UseCount+1 >= 1 {
-			err = s.mqClient.Channel.Publish("image_hashes", "", false, false, amqp.Publishing{
+			err = s.mqClient.Publish("image_hashes", "", amqp.Publishing{
 				Body:        []byte(image.ID),
 				ContentType: "text/plain",
 			})
@@ -662,10 +732,9 @@ func (s *ServerBrowserServer) CanJoinServer(ctx context.Context, req *pbapi.CanJ
 	}
 
 	if server.Password != nil && *server.Password != req.GetPassword() {
-		reason := "Invalid Password"
 		return &pbapi.CanJoinServerResponse{
-			CanJoin: false,
-			Reason:  &reason,
+			CanJoin:      false,
+			DeniedReason: util.ToPtr(pbapi.JoinDeniedReason_INVALID_PASSWORD),
 		}, nil
 	}
 
@@ -675,11 +744,103 @@ func (s *ServerBrowserServer) CanJoinServer(ctx context.Context, req *pbapi.CanJ
 	}
 
 	if ban != nil {
-		reason := fmt.Sprintf("You are banned from this server: %s", *ban.Reason)
-		return &pbapi.CanJoinServerResponse{
+		banReason := ""
+		if ban.Reason != nil {
+			banReason = *ban.Reason
+		}
+
+		resp := &pbapi.CanJoinServerResponse{
 			CanJoin: false,
-			Reason:  &reason,
-		}, nil
+			BanInfo: &pbapi.BanInfo{
+				Reason: banReason,
+			},
+			DeniedReason: util.ToPtr(pbapi.JoinDeniedReason_BANNED),
+		}
+
+		if ban.ExpiresAt != nil {
+			resp.BanInfo.ExpiresAt = util.ToPtr(ban.ExpiresAt.Unix())
+		}
+
+		return resp, nil
+	}
+
+	size := 1
+	session, err := s.store.Sessions.GetByUserID(ctx, user.ID)
+	if err != nil {
+		logger.L().Error("Failed to get session", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to get session")
+	}
+
+	if session != nil && session.PartyID != nil {
+		party, err := s.store.Parties.GetByID(ctx, *session.PartyID)
+		if err != nil {
+			logger.L().Error("Failed to get party", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get party")
+		}
+
+		if party != nil && party.LeaderID == user.ID && (party.JoinGameState == nil || party.JoinGameState.ServerID != server.ID) {
+			members, err := s.store.Sessions.CountByPartyID(ctx, party.ID)
+			if err != nil {
+				logger.L().Error("Failed to count party members", zap.Error(err))
+				return nil, status.Error(codes.Internal, "Failed to count party members")
+			}
+
+			size = max(int(members), 1)
+		}
+	}
+
+	shouldQueue, err := s.queues.ShouldQueue(ctx, server, size)
+	if err != nil {
+		logger.L().Error("Failed to check queue requirement", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to check queue")
+	}
+
+	if shouldQueue {
+		host, err := s.store.Users.GetByID(ctx, server.HostID)
+		if err != nil {
+			logger.L().Error("Failed to get server host", zap.Error(err))
+			return nil, status.Error(codes.Internal, "Failed to get server host")
+		}
+
+		if host == nil {
+			return nil, status.Error(codes.NotFound, "Server host not found")
+		}
+
+		canBypass := server.CanManage(host, user) || user.Entitled(models.EntitlementBypassPlayerLimit)
+
+		if !canBypass {
+			reserved, err := s.store.Queues.GetReservedForUser(ctx, server.ID, user.ID)
+			if err != nil {
+				logger.L().Error("Failed to get reserved queue entry", zap.Error(err))
+				return nil, status.Error(codes.Internal, "Failed to check queue")
+			}
+
+			hasToken := false
+			if reserved == nil {
+				tokens, err := s.store.JoinTokens.GetByUserID(ctx, user.ID)
+				if err != nil {
+					logger.L().Error("Failed to get join tokens", zap.Error(err))
+					return nil, status.Error(codes.Internal, "Failed to check join tokens")
+				}
+
+				for _, token := range tokens {
+					if token.Server == server.ID {
+						hasToken = true
+						break
+					}
+				}
+			}
+
+			if reserved == nil && !hasToken {
+				canQueue := true
+				// TODO: this should probably return true??
+				return &pbapi.CanJoinServerResponse{
+					CanJoin:      false,
+					CanQueue:     &canQueue,
+					DeniedReason: util.ToPtr(pbapi.JoinDeniedReason_SERVER_FULL),
+				}, nil
+			}
+		}
 	}
 
 	return &pbapi.CanJoinServerResponse{
@@ -732,11 +893,9 @@ func (s *ServerBrowserServer) publishKronosUpdate(ctx context.Context, update mo
 		return
 	}
 
-	if err = s.mqClient.Channel.Publish(
+	if err = s.mqClient.Publish(
 		"kronos_server_browser",
 		"",
-		false,
-		false,
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        body,

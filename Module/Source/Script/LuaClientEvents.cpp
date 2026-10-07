@@ -98,12 +98,15 @@ KB_LUA_END_TABLE(Camera)
 
 namespace Script
 {
-void RegisterClientEvents(lua_State* L)
+static void RegisterClientEvents(lua_State* L)
 {
     RegisterCameraScene(L);
     RegisterCamera(L);
 
     HookManager::CreateHook(HOOK_OFFSET(0x1465C52F0), ClientCameraManagerPushHk);
 }
+
+// Disabled; client plugins are not supported atm
+//KB_REGISTER_LUA_CONTENT(RegisterClientEvents);
 } // namespace Script
 } // namespace Kyber

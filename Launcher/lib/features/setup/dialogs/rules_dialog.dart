@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' as mt;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/services/app_settings.dart';
+import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/buttons/button.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 
@@ -88,6 +89,10 @@ class _RulesDialogState extends State<RulesDialog> {
           child: MarkdownBody(
             data: _rules,
             styleSheet: MarkdownStyleSheet(
+              p: const TextStyle(
+                fontFamily: FontFamily.battlefrontUI,
+                color: kWhiteColor,
+              ),
               a: TextStyle(
                 color: kActiveColor,
                 decoration: TextDecoration.underline,

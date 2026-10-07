@@ -5,7 +5,7 @@
 #include <Core/Server.h>
 #include <Proto/kyber_interface.grpc.pb.h>
 
-#include <grpcpp/grpcpp.h>
+#include <grpcpp/channel.h>
 
 #include <memory>
 #include <tuple>

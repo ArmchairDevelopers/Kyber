@@ -1,0 +1,46 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(MeshComputeBufferResource, 0x144552DD0);
+_KB_DECLARE_TYPEINFO(MeshWorldSettings, 0x144552C90);
+_KB_DECLARE_TYPEINFO(DebugOverlaySettings, 0x144552B50);
+_KB_DECLARE_TYPEINFO(OcclusionSettings, 0x144552A10);
+_KB_DECLARE_TYPEINFO(EdgeModelLightMapData, 0x144552850);
+_KB_DECLARE_TYPEINFO(EdgeModelsData, 0x1445528D0);
+_KB_DECLARE_TYPEINFO(DestructionVolumeData, 0x144552560);
+_KB_DECLARE_TYPEINFO(DestructionVolumeAsset, 0x1445525E0);
+_KB_DECLARE_TYPEINFO(DestructionVolumeSettings, 0x144552660);
+_KB_DECLARE_TYPEINFO(IesResource, 0x1445522B0);
+_KB_DECLARE_TYPEINFO(OccluderMesh, 0x144552170);
+_KB_DECLARE_TYPEINFO(MeshComputeSettings, 0x144552030);
+_KB_DECLARE_TYPEINFO(MeshComputeMeshDefinitionResource, 0x144551EF0);
+_KB_DECLARE_TYPEINFO(MeshComputeIndexBufferResource, 0x144551DB0);
+_KB_DECLARE_TYPEINFO(MeshComputeFaceAdjacencyResource, 0x144551C70);
+_KB_DECLARE_TYPEINFO(MeshComputeDynamicMorphTargetsResource, 0x144551B30);
+_KB_DECLARE_TYPEINFO(VisibleAreaObject, 0x1445519F0);
+_KB_DECLARE_TYPEINFO(EnlightenProbeSet, 0x1445518B0);
+_KB_DECLARE_TYPEINFO(EnlightenStaticDatabase, 0x144551670);
+_KB_DECLARE_TYPEINFO(EnlightenShaderDatabaseResource, 0x1445516F0);
+_KB_DECLARE_TYPEINFO(EnlightenDatabase, 0x144551770);
+_KB_DECLARE_TYPEINFO(RenderObject, 0x1445513C0);
+_KB_DECLARE_TYPEINFO(ModelWithFallbackRenderObject, 0x144551280);
+_KB_DECLARE_TYPEINFO(EnlightenState, 0x144551040);
+_KB_DECLARE_TYPEINFO(EnlightenRuntimeConfig, 0x1445510C0);
+_KB_DECLARE_TYPEINFO(EnlightenRuntimeSettings, 0x144551140);
+_KB_DECLARE_TYPEINFO(WorldRenderSettings, 0x144550C50);
+_KB_DECLARE_TYPEINFO(WorldRenderSettingsBase, 0x144550CD0);
+_KB_DECLARE_TYPEINFO(LightTileDebugLightCountMode, 0x144550AD0);
+_KB_DECLARE_TYPEINFO(FrameSynthesisMode, 0x144550B10);
+_KB_DECLARE_TYPEINFO(SkyRenderMode, 0x144550B50);
+_KB_DECLARE_TYPEINFO(PostProcessDofMode, 0x144550D50);
+_KB_DECLARE_TYPEINFO(PostProcessAAMode, 0x144550B90);
+_KB_DECLARE_TYPEINFO(MipmapFilterMode, 0x144550BD0);
+_KB_DECLARE_TYPEINFO(LuminancePreset, 0x144550D90);
+_KB_DECLARE_TYPEINFO(IlluminancePreset, 0x144550DD0);
+_KB_DECLARE_TYPEINFO(WorldViewMode, 0x144550C10);
+_KB_DECLARE_TYPEINFO(ModelRenderObject, 0x144550530);
+
+#undef _KB_DECLARE_TYPEINFO
+}

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart';
 import 'package:logging/logging.dart';
 
@@ -68,7 +69,7 @@ class MaximaRtmState {
     return players;
   }
 
-  List<ServicePlayer> getSortedPlayers() {
+  List<ServicePlayer> getSortedPlayers({PartyState? partyState}) {
     final players = List<ServicePlayer>.from(friends)
       ..sort((a, b) {
         final presenceA = presences[a.id];
@@ -93,6 +94,13 @@ class MaximaRtmState {
           return a.displayName.compareTo(b.displayName);
         }
       });
+
+    if (partyState != null) {
+      players.removeWhere(
+        (element) => partyState.members.any((p) => p.player.id == element.id),
+      );
+    }
+
     return players;
   }
 }

@@ -66,4 +66,24 @@ std::optional<std::vector<std::string>> ClientServerAPI::GetBlacklist() const
     return blacklist;
 }
 
+void ClientServerAPI::GetChatFilter(std::function<void(std::optional<const ChatFilterResponse*>)> callback) const
+{
+    kyber_common::Empty request;
+
+    m_asyncManager->StartCall<kyber_common::Empty, ChatFilterResponse>(m_stub.get(), &ClientServer::Stub::PrepareAsyncGetChatFilter,
+        request,
+        [callback = std::move(callback)](const ChatFilterResponse* response, grpc::Status status) {
+            if (status.ok())
+            {
+                callback(response);
+            }
+            else
+            {
+                KYBER_LOG(Error, "[RPC] RPC error while getting chat filter preset (" << status.error_message() << ")");
+                callback(std::nullopt);
+            }
+        },
+        { { "authorization", m_token } });
+}
+
 } // namespace Kyber

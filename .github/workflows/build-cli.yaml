@@ -130,7 +130,7 @@ jobs:
         working-directory: ${{env.working-directory}}
 
       - name: Build CLI
-        run: dart build cli bin/kyber_cli.dart
+        run: dart build cli
         working-directory: ${{env.working-directory}}
 
       - name: Download Maxima Wine Helper
@@ -191,7 +191,7 @@ jobs:
       - name: Upload artifacts
         if: runner.os == 'Windows'
         run: |
-          Invoke-WebRequest https://dl.min.io/client/mc/release/windows-amd64/mc.exe -OutFile C:\mc.exe
+          Invoke-WebRequest https://cdn.kyber.gg/artifacts/mc.exe -OutFile C:\mc.exe
           C:\mc.exe alias set kyber https://s3.kyber.gg ${{ secrets.AWS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           C:\mc.exe cp kyber-cli.zip kyber/releases/${{ steps.branch-names.outputs.current_branch }}/kyber-cli-win64.zip
         shell: powershell
@@ -199,7 +199,7 @@ jobs:
       - name: Upload artifacts
         if: runner.os == 'Linux'
         run: |
-          curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
+          curl -sL https://cdn.kyber.gg/artifacts/mc -o mc
           chmod +x mc
           ./mc alias set kyber https://s3.kyber.gg ${{ secrets.AWS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           ./mc cp kyber-cli.zip kyber/releases/${{ steps.branch-names.outputs.current_branch }}/kyber-cli-linux64.zip

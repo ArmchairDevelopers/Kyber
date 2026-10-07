@@ -45,15 +45,22 @@ class UnzipHelper {
   }
 
   static String? getExecutable() {
-    final key = Registry.openPath(RegistryHive.localMachine, path: 'SOFTWARE');
-    if (key.subkeyNames.contains('WinRAR')) {
-      return Registry.openPath(
-        RegistryHive.localMachine,
-        path: r'SOFTWARE\WinRAR',
-      ).getValueAsString('exe64');
-    } else if (key.subkeyNames.contains('7-Zip')) {
-      return '${Registry.openPath(RegistryHive.localMachine, path: r'SOFTWARE\7-Zip').getValueAsString('Path64')!}\\7z.exe';
+    final software = LOCAL_MACHINE.open('SOFTWARE');
+    try {
+      final subkeys = software.keys;
+
+      if (subkeys.contains('WinRAR')) {
+        return software.getString('exe64', path: 'WinRAR');
+      }
+
+      if (subkeys.contains('7-Zip')) {
+        final path = software.getString('Path64', path: '7-Zip');
+        return path == null ? null : '$path\\7z.exe';
+      }
+
+      return null;
+    } finally {
+      software.close();
     }
-    return null;
   }
 }

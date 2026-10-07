@@ -102,11 +102,13 @@ LuaEventManager::LuaEventManager()
 void LuaEventManager::Register(lua_State* L)
 {
     luaL_Reg funcs[] = { { "Listen", ListenFunc }, { "SetCancelled", SetEventCancelledFunc }, { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(L, "EventManager", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "EventManager", funcs);
 }
 
 void LuaEventManager::Reset()
 {
     m_listeners.clear();
 }
+
+KB_REGISTER_LUA_CONTENT_MANAGER(LuaEventManager);
 } // namespace Kyber

@@ -62,7 +62,7 @@ enum SecureReason
     SecureReason_ConnectionHandshaking,
     SecureReason_DuplicateConnection,
 
-    SecureReason_InteractivityTimeout,
+    SecureReason_InteractivityTimeout = 0x93DAB6DB,
     SecureReason_KickedFromQueue,
     SecureReason_TeamKills = 0xD2156DA5,
     SecureReason_KickedByAdmin = 0xC765936,
@@ -3037,6 +3037,38 @@ public:
     bool CpuHeapStompEnable;                     // 0x006A
     bool GpuHeapStompEnable;                     // 0x006B
     char _0x006C[4];                             // 0x006C
+};
+
+class PerfOverlaySettings : public DataContainer
+{
+public:
+    int32_t PixelThroughputDisplayFormat; // 0x0018
+    float FcatWidth;                      // 0x001C
+    uint32_t LegendDisplayFormat;         // 0x0020
+    float FpsTimePeriod;                  // 0x0024
+    int32_t FpsDisplayFormat;             // 0x0028
+    float FpsDisplayScale;                // 0x002C
+    int32_t FpsDisplayOffsetX;            // 0x0030
+    int32_t FpsDisplayOffsetY;            // 0x0034
+    float DrawFrameIndexSize;             // 0x0038
+    uint32_t FrameTimeSource;             // 0x003C
+    float TargetResolutionScale;          // 0x0040
+    bool Enable;                          // 0x0044
+    bool DrawGraph;                       // 0x0045
+    bool DrawCpuGraph;                    // 0x0046
+    bool DrawSimGraph;                    // 0x0047
+    bool DrawGpuGraph;                    // 0x0048
+    bool DrawFrameGraph;                  // 0x0049
+    bool DrawVblankGraph;                 // 0x004A
+    bool DrawFps;                         // 0x004B
+    bool DrawSim;                         // 0x004C
+    bool DrawGpu;                         // 0x004D
+    bool DrawPixelThroughput;             // 0x004E
+    bool DrawFcat;                        // 0x004F
+    uint8_t FpsDisplayAlpha;              // 0x0050
+    bool TargetFpsIs60;                   // 0x0051
+    bool FrameFileLogEnable;              // 0x0052
+    char _0x0053[5];                      // 0x0053
 };
 
 struct QueryEntityResult

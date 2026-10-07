@@ -56,4 +56,35 @@ ServerUnaryReactor* ServerInterfaceService::LoadLevel(
     reactor->Finish(Status::OK);
     return reactor;
 }
+
+ServerUnaryReactor* ServerInterfaceService::SetProxyList(
+    CallbackServerContext* context, const kyber_interface::SetProxyListRequest* request, kyber_common::Empty* response)
+{
+    KYBER_LOG(Info, "[Server] Updating proxy list");
+
+    const auto& list = request->proxylist().proxies();
+
+    // convert to eastl vector as the one above is a grpc type
+    eastl::vector<kyber_api::ProxyInfo> copiedList;
+    for (const auto& proxyInfo : list)
+    {
+        copiedList.push_back(proxyInfo);
+    }
+
+    // For safety
+    g_threadExecutor->Queue(GameThread_Server, [copiedList]() {
+        UDPSocket* socket = g_program->m_server->m_socketManager->m_sockets.back();
+        if (socket != g_program->m_server->m_natClient)
+        {
+            g_program->m_server->m_socketManager->Close(socket);
+            socket->Close();
+        }
+
+        socket->UpdateProxies(copiedList);
+    });
+
+    ServerUnaryReactor* reactor = context->DefaultReactor();
+    reactor->Finish(Status::OK);
+    return reactor;
+}
 } // namespace Kyber

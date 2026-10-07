@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kyber_collection/kyber_collection.dart';
+import 'package:kyber_launcher/core/routing/app_router.dart';
+import 'package:kyber_launcher/core/services/app_settings.dart';
 import 'package:kyber_launcher/features/kyber/helper/kyber_status_helper.dart';
 import 'package:kyber_launcher/features/lightswitch/models/status.dart';
 import 'package:logging/logging.dart';
@@ -19,6 +21,15 @@ class LightswitchCubit extends Cubit<LightswitchStatus> {
       _firstRequestCompleter;
 
   DateTime? get nextRefresh => _nextRefresh;
+
+  bool isEnabled(KyberFeature feature) =>
+      state.isEnabled(feature, environment: Preferences.admin.apiEnv);
+
+  static bool isFeatureEnabled(KyberFeature feature) =>
+      navigatorKey.currentContext?.read<LightswitchCubit>().isEnabled(
+        feature,
+      ) ??
+      true;
 
   LightswitchCubit() : super(LightswitchStatus.defaultStatus()) {
     _refresh();
@@ -53,6 +64,7 @@ class LightswitchCubit extends Cubit<LightswitchStatus> {
       }
 
       status = await KyberStatusHelper.checkKyberStatus();
+      _keepLastKnownFeatures(status);
 
       _logger.fine('Kyber API status: ${status.status} - ${status.message}');
     } on RhttpException catch (e, s) {
@@ -94,6 +106,8 @@ class LightswitchCubit extends Cubit<LightswitchStatus> {
         );
         Logger.root.severe('Failed to request Lightswitch status', e, s);
       }
+
+      _keepLastKnownFeatures(status);
     }
 
     if (canSkip && status.status == .down) {
@@ -104,6 +118,20 @@ class LightswitchCubit extends Cubit<LightswitchStatus> {
 
     if (!_firstRequestCompleter.isCompleted) {
       _firstRequestCompleter.complete(status);
+    }
+  }
+
+  void _keepLastKnownFeatures(LightswitchStatus status) {
+    if (status.environments.isEmpty) {
+      status.environments = state.environments;
+      return;
+    }
+
+    for (final environment in status.environments) {
+      environment.features ??= state.environments
+          .where((e) => e.id == environment.id)
+          .firstOrNull
+          ?.features;
     }
   }
 

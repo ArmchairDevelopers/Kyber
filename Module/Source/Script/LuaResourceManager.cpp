@@ -26,6 +26,8 @@ static int LookupDataContainer(lua_State* L)
 void RegisterResourceManagerTable(lua_State* L)
 {
     luaL_Reg funcs[] = { { "LookupDataContainer", LookupDataContainer }, { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(L, "ResourceManager", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "ResourceManager", funcs);
 }
+
+KB_REGISTER_LUA_CONTENT(RegisterResourceManagerTable);
 } // namespace Kyber::Script
