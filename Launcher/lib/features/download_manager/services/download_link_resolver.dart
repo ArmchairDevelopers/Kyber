@@ -1,4 +1,4 @@
-import 'dart:io' show HeaderValue;
+import 'dart:io' show ContentType, HeaderValue;
 
 import 'package:dio/dio.dart';
 import 'package:kyber/gen/Proto/mod_bridge.pb.dart';
@@ -9,6 +9,7 @@ import 'package:kyber_launcher/features/nexusmods/services/download_service.dart
 import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:logging/logging.dart';
+import 'package:mime/mime.dart';
 
 class ResolvedDownload {
   const ResolvedDownload({
@@ -27,7 +28,7 @@ class ResolvedDownload {
 class DownloadLinkResolver {
   DownloadLinkResolver({
     ModBridgeGRPCService? modBridgeService,
-  })  : _modBridgeService = modBridgeService ?? sl.get<ModBridgeGRPCService>();
+  }) : _modBridgeService = modBridgeService ?? sl.get<ModBridgeGRPCService>();
 
   final ModBridgeGRPCService _modBridgeService;
   final Logger _logger = Logger('download_link_resolver');
@@ -51,7 +52,9 @@ class DownloadLinkResolver {
   Future<ResolvedDownload> _resolveNxmLink(DownloadRequest request) async {
     try {
       final uri = Uri.parse(request.link);
-      final downloadUrl = await sl.get<NexusModsService>().generateDownloadLink(uri);
+      final downloadUrl = await sl.get<NexusModsService>().generateDownloadLink(
+        uri,
+      );
       final filename = downloadUrl.split('/').last.split('?').first;
 
       _logger.info('Resolved NXM link to: $filename');
@@ -70,9 +73,27 @@ class DownloadLinkResolver {
 
   Future<ResolvedDownload> _resolveNexusLink(DownloadRequest request) async {
     try {
-      final (url, filename) = await NexusDownloadService.getNexusDownload(
+      var (url, filename) = await NexusDownloadService.getNexusDownload(
         request.link,
       );
+
+      if (filename.isEmpty || !filename.contains('.')) {
+        final (name, _, contentType) =
+            await DownloadLinkResolver.getFileMetadata(url);
+        if (name != null) {
+          filename = name;
+        } else if (contentType != null) {
+          final mimeType = ContentType.parse(contentType).mimeType;
+          final ext = extensionFromMime(mimeType);
+          if (ext == null) {
+            throw Exception('Failed to determine file extension for $mimeType');
+          }
+
+          filename = '$filename.$ext';
+        } else {
+          throw Exception('Failed to determine filename for download link');
+        }
+      }
 
       _logger.info('Resolved Nexus link to: $filename');
 
@@ -102,7 +123,8 @@ class DownloadLinkResolver {
   }
 
   Future<ResolvedDownload> _resolveDirectLink(DownloadRequest request) async {
-    var filename = request.filename ?? request.link.split('/').last.split('?').first;
+    var filename =
+        request.filename ?? request.link.split('/').last.split('?').first;
     var size = request.size;
 
     if (filename.isEmpty || !filename.contains('.') || size == null) {
