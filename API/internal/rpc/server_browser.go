@@ -597,6 +597,7 @@ func (s *ServerBrowserServer) RegisterServer(ctx context.Context, req *pbapi.Reg
 		Token:   proxyToken,
 		User:    user.ID,
 		Server:  serverID,
+		Token:   proxyToken,
 		Created: time.Now(),
 	}
 
