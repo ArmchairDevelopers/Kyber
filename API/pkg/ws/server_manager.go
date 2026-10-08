@@ -12,6 +12,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/internal/cache"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/db"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/safego"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"go.uber.org/zap"
 
@@ -79,7 +80,7 @@ func NewServerManager(ctx context.Context, amqpURL string, store *db.Store, cach
 		store:          store,
 		caches:         caches,
 	}
-	go mgr.rabbitSubscriber()
+	safego.Go(mgr.rabbitSubscriber)
 	return mgr
 }
 

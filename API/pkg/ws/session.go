@@ -13,6 +13,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/safego"
 	"github.com/gorilla/websocket"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.uber.org/zap"
@@ -43,8 +44,8 @@ func NewSessionManager(store *db.Store, partyPub *mq.PartyEventPublisher, queues
 		subs:     make(map[string]*sessionSub),
 	}
 
-	go s.heartbeatSessions()
-	go s.cleanupStaleSessions()
+	safego.Go(s.heartbeatSessions)
+	safego.Go(s.cleanupStaleSessions)
 
 	return s
 }

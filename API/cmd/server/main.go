@@ -18,6 +18,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/safego"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/ws"
 	"github.com/getsentry/sentry-go"
 	sentryhttp "github.com/getsentry/sentry-go/http"
@@ -27,7 +28,6 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/internal/rpc"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapgrpc"
 	"golang.org/x/sync/errgroup"
@@ -51,14 +51,18 @@ func main() {
 	}
 
 	sentryDSN := os.Getenv("SENTRY_DSN")
-	err := sentry.Init(sentry.ClientOptions{Dsn: sentryDSN, SendDefaultPII: true, TracesSampleRate: 1.0})
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:              sentryDSN,
+		Environment:      os.Getenv("ENVIRONMENT"),
+		SendDefaultPII:   true,
+		TracesSampleRate: 0.2,
+	})
 	if err != nil {
 		log.Fatalf("sentry.Init: %s", err)
 	}
 	defer sentry.Flush(2 * time.Second)
 
-	client, err := sentry.NewClient(sentry.ClientOptions{Dsn: sentryDSN})
-	if err := logger.Init(client); err != nil {
+	if err := logger.Init(sentry.CurrentHub().Client()); err != nil {
 		log.Fatalf("logger.Init: %v", err)
 	}
 	defer logger.Sync()
@@ -150,7 +154,7 @@ func main() {
 		go queueManager.Advance(context.Background(), serverID)
 	}
 
-	go sessionManager.ConsumeSessionEvents(mqClient)
+	safego.Go(func() { sessionManager.ConsumeSessionEvents(mqClient) })
 
 	httpHandler := sentryHandler.Handle(httpRouter)
 
@@ -172,24 +176,21 @@ func main() {
 		logger.L().Panic("failed to listen", zap.Error(err))
 	}
 
-	zapLogger := logger.L()
-	grpclog.SetLoggerV2(zapgrpc.NewLogger(zapLogger))
+	grpclog.SetLoggerV2(zapgrpc.NewLogger(logger.Console()))
 
 	sentryOpts := rpc.DefaultSentryOptions()
-	grpcLogger := zapInterceptorLogger(zapLogger)
+	grpcLogger := zapInterceptorLogger(logger.Console())
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			rpc.SentryUnaryServerInterceptor(sentryOpts),
 			logging.UnaryServerInterceptor(grpcLogger, logging.WithLogOnEvents(logging.FinishCall)),
-			recovery.UnaryServerInterceptor(),
 			rpc.NewFeatureInterceptor(featureFlags),
 			rpc.NewAuthHandler(store).NewAuthInterceptor(),
 		),
 		grpc.ChainStreamInterceptor(
 			rpc.SentryStreamServerInterceptor(sentryOpts),
 			logging.StreamServerInterceptor(grpcLogger, logging.WithLogOnEvents(logging.FinishCall)),
-			recovery.StreamServerInterceptor(),
 			rpc.NewAuthHandler(store).NewAuthStreamInterceptor(),
 		),
 	)
