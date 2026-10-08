@@ -176,8 +176,7 @@ func main() {
 		logger.L().Panic("failed to listen", zap.Error(err))
 	}
 
-	zapLogger := logger.L()
-	grpclog.SetLoggerV2(zapgrpc.NewLogger(zapLogger))
+	grpclog.SetLoggerV2(zapgrpc.NewLogger(logger.Console()))
 
 	sentryOpts := rpc.DefaultSentryOptions()
 	grpcLogger := zapInterceptorLogger(logger.Console())
