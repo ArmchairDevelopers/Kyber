@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' as mt;
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -74,7 +75,7 @@ Future<void> initSentry(String currentVersion) async => SentryFlutter.init(
   (options) {
     options
       ..autoSessionTrackingInterval = const Duration(minutes: 1)
-      ..dsn = 'https://669b349a1c13f9deacc00126db6cecb8@sentry.kyber.gg/3'
+      ..dsn = 'https://7331e76d0ced674d8855b0fb3032fe33@o4510921032859648.ingest.de.sentry.io/4510937360826448'
       ..tracesSampleRate = 1.0
       ..attachThreads = true
       ..enableAppHangTracking = true
@@ -324,6 +325,13 @@ class _AppState extends State<App> {
 
             child = DefaultSvgTheme(
               theme: const .new(currentColor: Color(0xFFD9D9D9)),
+              child: child,
+            );
+
+            child = mt.Theme(
+              data: mt.ThemeData(
+                colorScheme: mt.ColorScheme.dark(primary: kActiveColor),
+              ),
               child: child,
             );
 
