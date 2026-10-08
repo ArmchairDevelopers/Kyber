@@ -1,19 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show ContentType, File;
+import 'dart:io' show File;
 import 'dart:typed_data';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:kyber_launcher/core/routing/app_router.dart';
 import 'package:kyber_launcher/core/services/notification_service.dart';
-import 'package:kyber_launcher/features/download_manager/services/download_link_resolver.dart';
 import 'package:kyber_launcher/features/nexusmods/dialogs/nexusmods_login.dart';
 import 'package:kyber_launcher/features/nexusmods/services/nexusmods_service.dart';
 import 'package:kyber_launcher/injection_container.dart';
 import 'package:kyber_launcher/main.dart';
 import 'package:kyber_launcher/shared/ui/dialog/kyber_dialog.dart';
 import 'package:logging/logging.dart';
-import 'package:mime/mime.dart';
 import 'package:path/path.dart';
 
 class NexusDownloadService {
@@ -98,25 +96,7 @@ class NexusDownloadService {
         const .new(seconds: 15),
       );
 
-      var filename = uri.split('/').last.split('?').first.replaceAll('%', '_');
-
-      if (filename.isEmpty || !filename.contains('.')) {
-        final (name, _, contentType) =
-            await DownloadLinkResolver.getFileMetadata(uri);
-        if (name != null) {
-          filename = name;
-        } else if (contentType != null) {
-          final mimeType = ContentType.parse(contentType).mimeType;
-          final ext = extensionFromMime(mimeType);
-          if (ext == null) {
-            throw Exception('Failed to determine file extension for $mimeType');
-          }
-
-          filename = '$filename.$ext';
-        } else {
-          throw Exception('Failed to determine filename for download link');
-        }
-      }
+      final filename = uri.split('/').last.split('?').first.replaceAll('%', '_');
 
       return (uri, filename);
     } on TimeoutException catch (e, s) {
