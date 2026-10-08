@@ -54,7 +54,7 @@ func Init(s *sentry.Client) error {
 				panic("zapsentry.NewCore: " + e2.Error())
 			}
 
-			core := zapcore.NewTee(consoleCore, sentryCore)
+			core := zapcore.NewTee(consoleCore, scopedCore{sentryCore})
 
 			zl = zap.New(core, zap.AddCaller())
 		} else {

@@ -69,6 +69,9 @@ func SentryUnaryServerInterceptor(opts SentryOptions) grpc.UnaryServerIntercepto
 		)
 		tx.SetData("grpc.request.method", info.FullMethod)
 
+		hub.Scope().SetTag("grpc.method", info.FullMethod)
+		defer logger.BindScope(hub.Scope())()
+
 		ctx = tx.Context()
 		defer tx.Finish()
 		defer recoverWithSentry(hub, ctx, opts, &err)
@@ -98,6 +101,10 @@ func SentryStreamServerInterceptor(opts SentryOptions) grpc.StreamServerIntercep
 			continueFromGrpcMetadata(md),
 		)
 		tx.SetData("grpc.request.method", info.FullMethod)
+
+		hub.Scope().SetTag("grpc.method", info.FullMethod)
+		defer logger.BindScope(hub.Scope())()
+
 		ctx = tx.Context()
 		defer tx.Finish()
 
