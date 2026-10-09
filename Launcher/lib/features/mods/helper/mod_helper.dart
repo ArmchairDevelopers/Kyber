@@ -32,6 +32,23 @@ class ModHelper {
     return false;
   }
 
+  /// Returns the installed version string if any version of the named mod
+  /// is installed, or `null` if none is installed.
+  static String? getInstalledVersion(String name) {
+    if (!sl.isReadySync<ModService>()) return null;
+
+    final service = sl.get<ModService>();
+
+    for (final mod in service.mods) {
+      if (mod.details.name == name) {
+        if (mod.isCollection && mod.isCorrupted()) continue;
+        return mod.details.version;
+      }
+    }
+
+    return null;
+  }
+
   static List<FrostyMod> getGameplayMods(List<FrostyMod> mods) {
     return mods
         .where(
