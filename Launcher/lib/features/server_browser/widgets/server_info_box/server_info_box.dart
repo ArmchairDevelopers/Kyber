@@ -59,11 +59,6 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
   List<ModCollectionMetaData> collections = [];
   ModCollectionMetaData? selectedCollection;
 
-  KyberMap? get map => MapHelper.getMap(
-    serverInfo.levelSetup.mode,
-    serverInfo.levelSetup.map,
-  );
-
   ServerGroup? get _group => switch (widget.server) {
     GroupedServer(:final group) => group,
     _ => null,
@@ -231,7 +226,7 @@ class _ServerInfoBoxState extends State<ServerInfoBox> {
               top: 0,
               left: 0,
               right: 0,
-              child: ServerBackgroundImage(map: map?.map ?? ''),
+              child: ServerBackgroundImage(map: serverInfo.levelSetup.map),
             ),
             if (!_regionResolved || !_modsLoaded)
               Positioned.fill(
