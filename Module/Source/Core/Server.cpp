@@ -507,7 +507,8 @@ void OnlineServerPlayerExtentUpdateHk(OnlineServerPlayerExtent* inst, float delt
         if (!g_program->m_isDedicatedServer)
         {
             ClientPlayer* clientPlayer = ClientGameContext::Get()->GetPlayerManager()->GetLocalPlayer(LocalPlayerId_0);
-            if (clientPlayer && clientPlayer->m_onlineId.m_nativeData == player->m_onlineId.m_nativeData)
+            if (clientPlayer && clientPlayer->m_name && player->m_name &&
+                strcmp(clientPlayer->m_name, player->m_name) == 0)
             {
                 return;
             }
