@@ -59,6 +59,7 @@ func (a *AuthHandler) NewAuthInterceptor() grpc.UnaryServerInterceptor {
 			return nil, status.Error(codes.Unauthenticated, "Invalid token")
 		}
 
+		setSentryUser(ctx, user)
 		ctx = context.WithValue(ctx, "user", user)
 
 		return handler(ctx, req)
@@ -98,6 +99,7 @@ func (a *AuthHandler) NewAuthStreamInterceptor() grpc.StreamServerInterceptor {
 			return status.Error(codes.Unauthenticated, "Invalid token")
 		}
 
+		setSentryUser(stream.Context(), user)
 		ctx := context.WithValue(stream.Context(), "user", user)
 		wrapped := grpc_middleware.WrapServerStream(stream)
 		wrapped.WrappedContext = ctx
