@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:async/async.dart';
 import 'package:collection/collection.dart';
@@ -15,6 +14,7 @@ const _kPingTimeout = Duration(seconds: 2);
 const _kConnectTimeout = Duration(seconds: 10);
 const _kSamples = 10;
 const _kMaxConcurrentHosts = 2;
+const _kPingSchemes = ['ws', 'wss'];
 
 class KyberProxyCubit extends Cubit<KyberProxyState> {
   KyberProxyCubit() : super(KyberProxyState(loading: true)) {
@@ -23,20 +23,12 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
 
   final _logger = Logger('proxy_cubit');
 
-  final _pingClient = HttpClient()..findProxy = null;
-
   Future<void>? _ready;
   bool _loading = true;
 
   bool get isLoading => _loading;
 
   Future<void> ensureReady() => _ready ?? Future<void>.value();
-
-  @override
-  Future<void> close() {
-    _pingClient.close(force: true);
-    return super.close();
-  }
 
   void selectProxy(String proxyId) {
     Preferences.general.proxy = proxyId;
@@ -135,14 +127,22 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
   }
 
   Future<int?> _measurePing(String host) async {
+    for (final scheme in _kPingSchemes) {
+      final ping = await _measurePingOver(Uri.parse('$scheme://$host/ping'));
+      if (ping != null) {
+        return ping;
+      }
+    }
+
+    return null;
+  }
+
+  Future<int?> _measurePingOver(Uri uri) async {
     IOWebSocketChannel? channel;
     StreamQueue? queue;
 
     try {
-      channel = IOWebSocketChannel.connect(
-        Uri.parse('ws://$host/ping'),
-        customClient: _pingClient,
-      );
+      channel = IOWebSocketChannel.connect(uri);
       await channel.ready.timeout(_kConnectTimeout);
 
       queue = StreamQueue(channel.stream.asBroadcastStream());
@@ -169,7 +169,7 @@ class KyberProxyCubit extends Cubit<KyberProxyState> {
 
       return samples[samples.length >> 1];
     } catch (e) {
-      _logger.warning('Ping failed for $host: $e');
+      _logger.warning('Ping failed for $uri: $e');
       return null;
     } finally {
       try {
