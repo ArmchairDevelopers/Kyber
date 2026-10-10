@@ -287,8 +287,12 @@ static int WinSocketSend(lua_State* L)
 
 static int WinSocketClose(lua_State* L)
 {
-    SOCKET socket = LuaSocketManager::GetSocket(L, 1);
-    closesocket(socket);
+    SOCKET* socket = (SOCKET*)lua_touserdata(L, 1);
+    if (socket != NULL && *socket != INVALID_SOCKET)
+    {
+        closesocket(*socket);
+        *socket = INVALID_SOCKET;
+    }
     return 0;
 }
 
@@ -300,8 +304,7 @@ static int WinSocketShutdown(lua_State* L)
     if (result == SOCKET_ERROR)
     {
         KYBER_LOG(Error, "Socket failed to shutdown");
-        closesocket(socket);
-        WSACleanup();
+        WinSocketClose(L);
     }
 
     return 0;
@@ -315,8 +318,7 @@ static int WinSocketShutdownSend(lua_State* L)
     if (result == SOCKET_ERROR)
     {
         KYBER_LOG(Error, "Socket failed to shutdown");
-        closesocket(socket);
-        WSACleanup();
+        WinSocketClose(L);
     }
 
     return 0;
