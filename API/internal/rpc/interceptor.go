@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/db"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/featureflags"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware/v2"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -57,10 +59,70 @@ func (a *AuthHandler) NewAuthInterceptor() grpc.UnaryServerInterceptor {
 			return nil, status.Error(codes.Unauthenticated, "Invalid token")
 		}
 
+		setSentryUser(ctx, user)
 		ctx = context.WithValue(ctx, "user", user)
 
 		return handler(ctx, req)
 	}
+}
+
+func (a *AuthHandler) NewAuthStreamInterceptor() grpc.StreamServerInterceptor {
+	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		service := strings.Split(info.FullMethod, "/")[1]
+		if (!authMethods[fmt.Sprintf("/%s", service)] && !authMethods[info.FullMethod]) && (!optionalAuthMethods[info.FullMethod] && !optionalAuthMethods[fmt.Sprintf("/%s", service)]) {
+			return handler(srv, stream)
+		}
+
+		md, ok := metadata.FromIncomingContext(stream.Context())
+		if !ok {
+			return status.Error(codes.Unauthenticated, "missing metadata")
+		}
+
+		tokens := md.Get("authorization")
+		if len(tokens) == 0 {
+			if optionalAuthMethods[info.FullMethod] {
+				return handler(srv, stream)
+			}
+
+			return status.Error(codes.Unauthenticated, "missing token")
+		}
+
+		token := tokens[0]
+
+		user, err := a.store.Users.GetByToken(stream.Context(), token)
+		if err != nil {
+			logger.L().Error("Failed to get user by token", zap.Error(err))
+			return status.Error(codes.Internal, "Failed to get user by token")
+		}
+
+		if user == nil {
+			return status.Error(codes.Unauthenticated, "Invalid token")
+		}
+
+		setSentryUser(stream.Context(), user)
+		ctx := context.WithValue(stream.Context(), "user", user)
+		wrapped := grpc_middleware.WrapServerStream(stream)
+		wrapped.WrappedContext = ctx
+
+		return handler(srv, wrapped)
+	}
+}
+
+func NewFeatureInterceptor(flags *featureflags.Flags) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+		if feature, ok := featureMethods[info.FullMethod]; ok && !flags.Enabled(feature) {
+			return nil, status.Error(codes.Unavailable, "This feature is temporarily disabled")
+		}
+
+		return handler(ctx, req)
+	}
+}
+
+var featureMethods = map[string]featureflags.Feature{
+	"/kyber_api.Party/InvitePlayer":    featureflags.Parties,
+	"/kyber_api.Party/AcceptInvite":    featureflags.Parties,
+	"/kyber_api.Party/StartJoinGame":   featureflags.Parties,
+	"/kyber_api.ServerQueue/JoinQueue": featureflags.Queues,
 }
 
 var optionalAuthMethods = map[string]bool{
@@ -85,5 +147,7 @@ var authMethods = map[string]bool{
 	"/kyber_api.Launcher/UploadMod":                  true,
 	"/kyber_api.ServerManagement":                    true,
 	"/kyber_api.ReportService":                       true,
+	"/kyber_api.Party":                               true,
+	"/kyber_api.ServerQueue":                         true,
 	"/kyber_api.Voip":                                true,
 }

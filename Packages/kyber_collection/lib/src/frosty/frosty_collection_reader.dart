@@ -65,6 +65,7 @@ class FrostyCollectionReader extends FileByteReader {
         size: size,
         isCollection: true,
         mods: manifest.mods,
+        modVersions: manifest.modVersions,
         screenshotOffset: screenshotOffset,
         details: FrostyModDetails(
           manifest.title,

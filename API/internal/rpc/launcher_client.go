@@ -36,6 +36,13 @@ type LauncherConfig struct {
 	Posts             []Post            `yaml:"posts"`
 	ModStorage        []ModStorage      `yaml:"modStorage"`
 	DefaultModStorage string            `yaml:"defaultModStorage"`
+	ReleaseStorage    *ReleaseStorage   `yaml:"releaseStorage"`
+}
+
+type ReleaseStorage struct {
+	Host     string `yaml:"host"`
+	Bucket   string `yaml:"bucket"`
+	IsPublic bool   `yaml:"isPublic"`
 }
 
 type ModStorage struct {
@@ -70,7 +77,8 @@ type Post struct {
 }
 
 type WhitelistedChannels struct {
-	Channels map[string][]string `yaml:"whitelistedChannels"`
+	Channels         map[string][]string `yaml:"whitelistedChannels"`
+	AllowAllChannels bool                `default:"false" yaml:"allowAllChannels"`
 }
 
 type LauncherServer struct {
@@ -83,7 +91,7 @@ type LauncherServer struct {
 	pbapi.UnimplementedLauncherServer
 }
 
-func NewLauncherServer(store *db.Store, minio *minio.Client, patronsCache *cache.PatronsCache) *LauncherServer {
+func NewLauncherServer(store *db.Store, minio *minio.Client, caches *cache.Caches) *LauncherServer {
 	launcherConfig := &LauncherConfig{}
 	err := util.LoadConfig("launcher-config.yaml", launcherConfig)
 	if err != nil {
@@ -120,10 +128,14 @@ func NewLauncherServer(store *db.Store, minio *minio.Client, patronsCache *cache
 		logger.L().Debug("Mod storage config", zap.String("id", storage.ID), zap.String("bucket", storage.Bucket), zap.String("host", storage.Host), zap.Bool("isPublic", storage.IsPublic), zap.Bool("isMinio", storage.IsMinio))
 	}
 
+	if rs := launcherConfig.ReleaseStorage; rs != nil && rs.IsPublic && rs.Host == "" {
+		panic("releaseStorage.host must be set when releaseStorage.isPublic is true")
+	}
+
 	return &LauncherServer{
 		store:          store,
 		minio:          minio,
-		patronsCache:   patronsCache,
+		patronsCache:   caches.Patrons,
 		launcherConfig: launcherConfig,
 		amqpCh:         amqpCh,
 		wc:             wc,
@@ -250,14 +262,7 @@ func (s *LauncherServer) DownloadUrl(ctx context.Context, req *pbapi.ServiceVers
 	val := ctx.Value("user")
 	user, _ := val.(*models.UserModel)
 
-	if req.GetChannel() != "stable" && user == nil {
-		return nil, status.Error(codes.Unauthenticated, "Invalid token")
-	}
-
-	params := url.Values{}
-	params.Add("versionId", req.GetVersion())
-
-	if user != nil && !user.Entitled(models.EntitlementAdmin) {
+	if !s.wc.AllowAllChannels && (user == nil || !user.Entitled(models.EntitlementAdmin)) {
 		channels := s.wc.Channels[req.GetId()]
 		if channels == nil || len(channels) == 0 {
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Object '%s' is not found", req.GetId()))
@@ -268,7 +273,31 @@ func (s *LauncherServer) DownloadUrl(ctx context.Context, req *pbapi.ServiceVers
 		}
 	}
 
-	resp, err := s.minio.PresignedGetObject(ctx, "releases", fmt.Sprintf("%s/%s.zip", req.GetChannel(), req.GetId()), time.Hour*24, params)
+	params := url.Values{}
+	params.Add("versionId", req.GetVersion())
+
+	bucket := s.launcherConfig.ReleaseStorage.Bucket
+	object := fmt.Sprintf("%s/%s.zip", req.GetChannel(), req.GetId())
+
+	if rs := s.launcherConfig.ReleaseStorage; rs != nil && rs.IsPublic {
+		u := &url.URL{
+			Scheme: "https",
+			Host:   rs.Host,
+			Path:   fmt.Sprintf("/%s/%s", bucket, object),
+		}
+
+		if req.GetVersion() != "" {
+			u.RawQuery = params.Encode()
+		}
+
+		return &pbapi.ServiceVersionDownloadUrl{
+			Id:      req.GetId(),
+			Channel: req.GetChannel(),
+			Url:     u.String(),
+		}, nil
+	}
+
+	resp, err := s.minio.PresignedGetObject(ctx, bucket, object, time.Hour*24, params)
 	if err != nil {
 		logger.L().Error(err.Error())
 		return nil, status.Error(codes.Internal, "Failed to get presigned URL")

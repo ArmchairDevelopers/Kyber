@@ -46,6 +46,12 @@ private:
 
 static int ConsoleRegisterFunc(lua_State* L)
 {
+    if (false && g_program->m_scriptManager->IsPostInitialization(PluginRealm_Server))
+    {
+        KYBER_LOG(Warning, "Attempted to register a command after initialization!");
+        return 0;
+    }
+
     if (!lua_isstring(L, 1))
     {
         return 0;
@@ -86,14 +92,16 @@ static int ConsoleRegisterFunc(lua_State* L)
         ConsoleRegistry_registerInstanceMethod(delegate, name.c_str(), groupName.c_str());
     };
 
-    if (s_program->m_console != nullptr)
+    if (g_program->m_console != nullptr || g_program->m_startupInitialized)
     {
         registerLambda();
     }
     else
     {
-        s_program->m_consoleRegistrationCallbacks.push_back(registerLambda);
+        g_program->m_consoleRegistrationCallbacks.push_back(registerLambda);
     }
+
+    // @TODO: Log registered commands to a list, and when hot reloading, remove them
 
     return 0;
 }
@@ -106,35 +114,49 @@ static int ConsoleExecuteFunc(lua_State* L)
     }
     const char* command = luaL_checkstring(L, 1);
 
-    if (s_program->m_console != nullptr)
+    if (g_program->m_console != nullptr)
     {
-        s_program->m_console->EnqueueCommand(command);
+        g_program->m_console->EnqueueCommand(command);
     }
 
     return 0;
 }
 
-static int GetSettingsFunc(lua_State* L)
+static int ConsoleGetSettingsFunc(lua_State* L)
 {
     if (!lua_isstring(L, 1))
     {
         return 0;
     }
     std::string name = luaL_checkstring(L, 1);
-    DataContainer* container = SettingsManager_getSettingsObject(s_program->GetSettingsManager(), name.c_str());
+    DataContainer* container = SettingsManager_getSettingsById(g_program->GetSettingsManager(), name.c_str());
     if (container == nullptr)
     {
-        KYBER_LOG(Error, ScriptManager::GetPlugin(L)->LogPrefix() << "Settings object not found: " << name);
-        return 0;
+        KYBER_LOG(Warning, ScriptManager::GetPlugin(L)->LogPrefix() << " Settings object not found: " << name);
+        lua_pushnil(L);
+        return 1;
     }
+
+    KYBER_LOG(Debug, "Settings container ptr: " << std::hex << container);
+    KYBER_LOG(Debug, "Settings container name: " << std::hex << container->getType()->typeInfoData->name);
+
     LuaUtils::Push(L, container);
     return 1;
 }
 
-void RegisterConsoleTable(lua_State* L)
+// clang-format off
+static const luaL_Reg s_consoleTableFuncs[] = { 
+    { "Register", ConsoleRegisterFunc }, 
+    { "Execute", ConsoleExecuteFunc }, 
+    { "GetSettings", ConsoleGetSettingsFunc },
+    { NULL, NULL } 
+};
+// clang-format on
+
+static void RegisterConsoleTable(lua_State* L)
 {
-    luaL_Reg funcs[] = { { "Register", ConsoleRegisterFunc }, { "Execute", ConsoleExecuteFunc }, { "GetSettings", GetSettingsFunc },
-        { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(L, "Console", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "Console", s_consoleTableFuncs);
 }
+
+KB_REGISTER_LUA_CONTENT(RegisterConsoleTable);
 } // namespace Kyber::Script

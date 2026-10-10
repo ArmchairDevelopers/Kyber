@@ -11,7 +11,7 @@
 namespace Kyber
 {
 TL_DECLARE_FUNC(0x146A70100, Camera*, CameraScene_getActiveCamera, void* inst);
-TL_DECLARE_FUNC(0, LinearTransform*, Camera_getTransform, Camera* inst);
+typedef LinearTransform*(__fastcall* Camera_getTransform_t)(Camera* inst);
 
 typedef void CameraScene;
 
@@ -23,9 +23,9 @@ void* ClientCameraManagerPushHk(void* inst, CameraScene* scene, uint32_t priorit
     static const auto trampoline = HookManager::Call(ClientCameraManagerPushHk);
     void* result = trampoline(inst, scene, priority, localPlayerId, viewId);
     
-    if (s_program->m_scriptManager != nullptr)
+    if (g_program->m_scriptManager != nullptr)
     {
-        s_program->m_scriptManager->GetEventManager().Fire("ClientCameraManager:Push", scene);
+        g_program->m_scriptManager->GetEventManager().Fire("ClientCameraManager:Push", scene);
     }
     
     return result;
@@ -66,10 +66,10 @@ static int CameraIndex(lua_State* L)
     std::string key = luaL_checkstring(L, 2);
     if (key == "transform")
     {
-        auto func = reinterpret_cast<__tlFunc__14::Camera_getTransform_t>(PlatformUtils::GetVTableFunction(camera, 4));
+        auto func = reinterpret_cast<Camera_getTransform_t>(PlatformUtils::GetVTableFunction(camera, 4));
         LinearTransform* transform = func(camera);
 
-        const TypeInfo* type = s_program->m_entityManager->GetNativeType("LinearTransform");
+        const TypeInfo* type = g_program->m_entityManager->GetNativeType("LinearTransform");
         LinearTransform* copied = reinterpret_cast<LinearTransform*>(LuaDataContainer::ValueTypeCreate(L, type));
         LinearTransform_copyCtor(transform, copied);
 
@@ -98,12 +98,15 @@ KB_LUA_END_TABLE(Camera)
 
 namespace Script
 {
-void RegisterClientEvents(lua_State* L)
+static void RegisterClientEvents(lua_State* L)
 {
     RegisterCameraScene(L);
     RegisterCamera(L);
 
     HookManager::CreateHook(HOOK_OFFSET(0x1465C52F0), ClientCameraManagerPushHk);
 }
+
+// Disabled; client plugins are not supported atm
+//KB_REGISTER_LUA_CONTENT(RegisterClientEvents);
 } // namespace Script
 } // namespace Kyber

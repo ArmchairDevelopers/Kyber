@@ -5,6 +5,7 @@
 #include <Utilities/PlatformUtils.h>
 #include <Script/Lua.h>
 #include <SDK/Funcs.h>
+#include <SDK/Fb/DiceShooterShared.h>
 #include <Script/LuaDataContainer.h>
 #include <Script/LuaPlayerManager.h>
 
@@ -90,35 +91,39 @@ static int CreateEntityFunc(lua_State* L)
         KYBER_LOG(Warning, "Game world is null");
         return 1;
     }
-
     SubLevel* subLevel = gameWorld->m_rootLevel;
 
-    ClientPlayerManager* playerManager = ClientGameContext::Get()->GetPlayerManager();
-    if (playerManager == nullptr)
+    LinearTransform entityTransform;
+    if (realm == PluginRealm_Client)
     {
-        KYBER_LOG(Warning, "Player manager is null");
-        return 1;
-    }
+        ClientPlayerManager* playerManager = ClientGameContext::Get()->GetPlayerManager();
+        if (playerManager == nullptr)
+        {
+            KYBER_LOG(Warning, "Player manager is null");
+            return 1;
+        }
 
-    ClientPlayer* player = playerManager->GetLocalPlayer(LocalPlayerId_0);
-    if (player == nullptr)
-    {
-        KYBER_LOG(Warning, "Player is null");
-        return 1;
-    }
+        ClientPlayer* player = playerManager->GetLocalPlayer(LocalPlayerId_0);
+        if (player == nullptr)
+        {
+            KYBER_LOG(Warning, "Player is null");
+            return 1;
+        }
 
-    Camera* camera = ClientCameraViewManager_getActiveCamera(player->cameraViewManager);
-    if (camera == nullptr)
-    {
-        KYBER_LOG(Warning, "Camera is null");
-        return 1;
-    }
+        Camera* camera = ClientCameraViewManager_getActiveCamera(player->cameraViewManager);
+        if (camera == nullptr)
+        {
+            KYBER_LOG(Warning, "Camera is null");
+            return 1;
+        }
 
-    LinearTransform cameraTransform = GameRenderer::Get()->renderView->transform;
+        LinearTransform cameraTransform = GameRenderer::Get()->renderView->transform;
+        entityTransform = cameraTransform;
+    }
     // ClientCameraViewManager_getActiveCameraTransform(player->cameraViewManager, cameraTransform);
     //container->Transform = cameraTransform;
 
-    NativeEntity* entity = s_program->m_entityManager->CreateEntity(subLevel->m_rootEntityBus, container, cameraTransform, (Realm)realm);
+    NativeEntity* entity = g_program->m_entityManager->CreateEntity(subLevel->m_rootEntityBus, container, entityTransform, (Realm)realm);
     if (entity != nullptr)
     {
         entity->Init();
@@ -187,9 +192,9 @@ static int ServerPlayerEventFunc(lua_State* L)
     }
 
     ServerPlayerEvent* event = (ServerPlayerEvent*) lua_newuserdata(L, sizeof(ServerPlayerEvent));
-    ServerPlayerEvent::init(event, player, StringUtils::HashQuick(eventName.c_str()));
+    event->init(player, StringUtils::HashHexCheck(eventName.c_str()));
     event->m_sendToPlayerOnly = true;
-    event->m_team = Team1;
+    event->m_team = player->m_teamId; // why was this Team1
     return 1;
 }
 
@@ -202,7 +207,7 @@ static int EntityEventFunc(lua_State* L)
     std::string eventName = luaL_checkstring(L, 1);
 
     EntityEvent* event = (EntityEvent*) lua_newuserdata(L, sizeof(EntityEvent));
-    new (event) EntityEvent(StringUtils::HashQuick(eventName.c_str()));
+    new (event) EntityEvent(StringUtils::HashHexCheck(eventName.c_str()));
     return 1;
 }
 
@@ -265,7 +270,7 @@ static int EntityWrite(lua_State* L)
     const char* key = luaL_checkstring(L, 2);
     const char* typeName = luaL_checkstring(L, 3);
 
-    int fieldHash = StringUtils::HashQuick(key);
+    int fieldHash = StringUtils::HashHexCheck(key);
 
     DataContext dc;
     DataContext_ctor(entity->GetEntityBus(), &dc);
@@ -273,7 +278,7 @@ static int EntityWrite(lua_State* L)
     PropertyWriterBase writer;
     #define WRITEPROP(data) PropertyWriterBase_init(&writer, &dc, entity->GetData(), fieldHash, type, data, true)
 
-    const TypeInfo* type = s_program->m_entityManager->GetNativeType(typeName);
+    const TypeInfo* type = g_program->m_entityManager->GetNativeType(typeName);
     switch (type->getBasicType())
     {
     case kTypeCode_Void:
@@ -290,12 +295,24 @@ static int EntityWrite(lua_State* L)
         WRITEPROP(val->value);
         break;
     }
-    case kTypeCode_Class:
+    case kTypeCode_Class: {
+        DataContainer* val = LuaDataContainer::GetDataContainer(L, 4);
+        if (val->getType() != type)
+        {
+            KYBER_LOG(Warning, "Type mismatch");
+            return 0;
+        }
+
+        WRITEPROP(val);
+        break;
+    }
     case kTypeCode_Array:
     case kTypeCode_CString:
     case kTypeCode_Boolean:
     case kTypeCode_Int32:
     case kTypeCode_Uint32:
+    case kTypeCode_Int64:
+    case kTypeCode_Uint64:
     case kTypeCode_Float32:
     case kTypeCode_Float64:
     default:
@@ -318,7 +335,7 @@ static int EntityRead(lua_State* L)
     const char* key = luaL_checkstring(L, 2);
     const char* typeName = luaL_checkstring(L, 3);
 
-    int fieldHash = StringUtils::HashQuick(key);
+    int fieldHash = StringUtils::HashHexCheck(key);
 
     DataContext dc;
     DataContext_ctor(entity->GetEntityBus(), &dc);
@@ -326,6 +343,11 @@ static int EntityRead(lua_State* L)
     PropertyWriterBase reader;
     PropertyWriterBase_init(&reader, &dc, entity->GetData(), fieldHash, nullptr, nullptr, false);
     KYBER_LOG(Info, "Reading " << key << " from " << entity->getType()->typeInfoData->name << std::hex << " " << &reader);
+    if (reader.m_cache == nullptr)
+    {
+        KYBER_LOG(Warning, "Failed to read property " << key << " as it was not set!");
+        return 0;
+    }
     void* value = PropertyWriterBase_get(&reader);
     if (value == nullptr)
     {
@@ -333,7 +355,7 @@ static int EntityRead(lua_State* L)
         return 0;
     }
 
-    const TypeInfo* type = s_program->m_entityManager->GetNativeType(typeName);
+    const TypeInfo* type = g_program->m_entityManager->GetNativeType(typeName);
     switch (type->getBasicType())
     {
     case kTypeCode_Void:
@@ -346,7 +368,13 @@ static int EntityRead(lua_State* L)
         lua_setmetatable(L, -2);
         break;
     }
-    case kTypeCode_Class:
+    case kTypeCode_Class: {
+        KYBER_LOG(Info, "Reading " << key << " from " << entity->getType()->typeInfoData->name << " as " << typeName << " " << std::hex << value);
+        LuaDataContainer::WrapDataContainer(L, reinterpret_cast<DataContainer*>(value));
+        luaL_getmetatable(L, "DataContainer");
+        lua_setmetatable(L, -2);
+        break;
+    }
     case kTypeCode_Array:
     case kTypeCode_CString:
     case kTypeCode_Boolean:
@@ -404,38 +432,65 @@ static int EntityIndex(lua_State* L)
 
 static int EntityBusIndex(lua_State* L)
 {
-    NativeEntity* entity = LuaEntityManager::GetEntity(1);
+    EntityBus* bus = LuaEntityManager::GetEntityBus(1);
     std::string key = luaL_checkstring(L, 2);
 
     if (key == "data")
     {
-        LuaUtils::Push(L, entity->GetEntityBus()->GetExposedObject());
+        LuaUtils::Push(L, bus->GetExposedObject());
         return 1;
     }
 
     return 0;
 }
 
+#define CRASH() *(void**)0
+
+static int QueryEntityResultGetPlayer(lua_State* L)
+{
+    LuaValueTypeData* val = LuaDataContainer::GetValueType(L, 2);
+    if (!val->type->isKindOf(typeInfo_QueryEntityResult))
+    {
+        KYBER_LOG(Warning, "Given type " << val->type->getName() << ", is not QueryEntityResult");
+        return 0;
+    }
+
+    WeakPtr<ServerPlayer>* result = reinterpret_cast<WeakPtr<ServerPlayer>*>(val->value);
+    //if (result == nullptr || result->ResultPtr == nullptr || *result->ResultPtr == nullptr || result->ResultPtr[-1] == nullptr)
+    {
+        KYBER_LOG(Warning, "Empty QueryEntityResult");
+        return 0;
+    }
+
+    //ServerPlayer* player = reinterpret_cast<ServerPlayer*>(result->ResultPtr[-1]);
+    return 0;
+}
+
 static const luaL_Reg s_entityMeta[] = { { "__index", EntityIndex }, { NULL, NULL } };
 static const luaL_Reg s_entityBusMeta[] = { { "__index", EntityBusIndex }, { NULL, NULL } };
 
-void LuaEntityManager::Register(lua_State* lua)
+static const luaL_Reg s_entityManagerFuncs[] = { { "Create", CreateEntityFunc }, { "GetList", GetListFunc }, { NULL, NULL } };
+static const luaL_Reg s_qerFuncs[] = { { "GetPlayer", QueryEntityResultGetPlayer }, { NULL, NULL } };
+
+void LuaEntityManager::Register(lua_State* L)
 {
-    s_lua = lua;
+    s_lua = L;
 
-    luaL_Reg funcs[] = { { "Create", CreateEntityFunc }, {"GetList", GetListFunc}, { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(lua, "EntityManager", funcs);
-    
-    lua_pushcfunction(lua, ServerPlayerEventFunc);
-    lua_setglobal(lua, "ServerPlayerEvent");
+    KB_LUA_NEW_GLOBAL_LIB(L, "EntityManager", s_entityManagerFuncs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "QueryResultUtils", s_qerFuncs);
 
-    lua_pushcfunction(lua, EntityEventFunc);
-    lua_setglobal(lua, "EntityEvent");
+    lua_pushcfunction(L, ServerPlayerEventFunc);
+    lua_setglobal(L, "ServerPlayerEvent");
 
-    luaL_newmetatable(s_lua, "Entity");
-    luaL_setfuncs(s_lua, s_entityMeta, 0);
+    lua_pushcfunction(L, EntityEventFunc);
+    lua_setglobal(L, "EntityEvent");
 
-    luaL_newmetatable(s_lua, "EntityBus");
-    luaL_setfuncs(s_lua, s_entityBusMeta, 0);
+    luaL_newmetatable(L, "Entity");
+    luaL_setfuncs(L, s_entityMeta, 0);
+
+    luaL_newmetatable(L, "EntityBus");
+    luaL_setfuncs(L, s_entityBusMeta, 0);
 }
+
+KB_REGISTER_LUA_CONTENT_MANAGER(LuaEntityManager);
 } // namespace Kyber

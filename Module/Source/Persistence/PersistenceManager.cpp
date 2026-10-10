@@ -14,27 +14,28 @@
 
 namespace Kyber
 {
-TL_DECLARE_FUNC(0x140A7B9D0, uint32_t, PersistentStorageTemplate_getCount, void* inst);
-TL_DECLARE_FUNC(0x1467D3220, const char*, PersistentStorageTemplate_getName, void* inst, uint32_t offset);
-TL_DECLARE_FUNC(0x1467D32D0, uint32_t, PersistentStorageTemplate_getOffset, void* inst, const char* name);
 TL_DECLARE_FUNC(0x1483EFEB0, __int64, ReplicatePersistence, void* inst, ServerPlayer* player);
+TL_DECLARE_FUNC(0x1483EA700, int32_t, ServerPersistenceUnlocksGetBitIndex, intptr_t inst, const Guid& guid);
 
-static const PlayerExtentRegistration* PersistentServerPlayerExtent_extentRegistration = (PlayerExtentRegistration*)0x143AB4900;
+enum
+{
+    kPlayerUnlockArraySize = 1217
+};
 
 void LogPlayerStats(ConsoleContext& cc)
 {
-    KYBER_LOG(Info, "Player Manager: " << std::hex << s_program->m_server->m_playerManager);
-    for (ServerPlayer* player : s_program->m_server->m_playerManager->m_players)
+    KYBER_LOG(Info, "Player Manager: " << std::hex << g_program->m_server->m_playerManager);
+    for (ServerPlayer* player : g_program->m_server->m_playerManager->m_players)
     {
-        if (player)
+        if (player != nullptr)
         {
-            KYBER_LOG(Info, "Offset: " << PersistentServerPlayerExtent_extentRegistration->offset);
-            TypeObject* extent = (TypeObject*)((__int64)player + PersistentServerPlayerExtent_extentRegistration->offset);
-            PersistentStorage* storage = *(PersistentStorage**)((__int64)extent + 0x198);
+            KYBER_LOG(Info, "Offset: " << PersistenceServerPlayerExtent::s_registration->offset);
+            PersistenceServerPlayerExtent* extent = player->GetPersistenceServerPlayerExtent();
+            PersistentStorage* storage = extent->m_persistentStorage;
             KYBER_LOG(Info, "Offset: " << offsetof(PersistentStorage, m_template) << " " << std::hex << player << " " << extent << " "
-                                       << (((__int64)player) + 10800));
+                                       << (((__int64)player) + 10800)); // no i do not know what +10800 is for
 
-            uint32_t offset = PersistentStorageTemplate_getOffset(storage->m_template, "c_cta__crax_ghva");
+            uint32_t offset = storage->m_template->GetOffset("c_cta__crax_ghva");
 
             PersistentStorage::Value& value = storage->m_values[offset];
             KYBER_LOG(Info, "Player: " << player->m_name << " " << value.current);
@@ -42,70 +43,42 @@ void LogPlayerStats(ConsoleContext& cc)
     }
 }
 
-__int64 BitArrayCtorHk(__int64 inst)
+static uint32_t GetUnlockCount()
 {
-    static const auto trampoline = HookManager::Call(BitArrayCtorHk);
-    return trampoline(inst);
-}
+    if (ServerPersistenceManager* manager = ServerPersistenceManager::Get())
+    {
+        return manager->m_unlockInfo->GetUnlockBitCount();
+    }
 
-__int64 BitArrayInitHk(__int64 inst, uint32_t bitCount, MemoryArena* arena)
-{
-    static const auto trampoline = HookManager::Call(BitArrayInitHk);
-    return trampoline(inst, bitCount, arena);
-}
-
-__int64 BitArrayDestroyHk(__int64 inst, MemoryArena* arena)
-{
-    static const auto trampoline = HookManager::Call(BitArrayDestroyHk);
-    return trampoline(inst, arena);
-}
-
-__int64 ServerGamePlayerExtentSetUnlocksHk(__int64 a1, __int64 a2)
-{
-    static const auto trampoline = HookManager::Call(ServerGamePlayerExtentSetUnlocksHk);
-    return trampoline(a1, a2);
-}
-
-void* ServerGamePlayerExtentInitUnlockArrayHk(__int64 inst, uint32_t bitCount)
-{
-    static const auto trampoline = HookManager::Call(ServerGamePlayerExtentInitUnlockArrayHk);
-    return trampoline(inst, bitCount);
-}
-
-int32_t ServerPersistenceUnlocksGetBitIndexHk(__int64 inst, const Guid& guid)
-{
-    static const auto trampoline = HookManager::Call(ServerPersistenceUnlocksGetBitIndexHk);
-    return trampoline(inst, guid);
+    return kPlayerUnlockArraySize;
 }
 
 void ServerPlayerSetUnlock(ServerPlayer* player, const Guid& guid, bool value)
 {
-    __int64 extent = (__int64)player->GetExtent("ServerGamePlayerExtent");
+    ServerGamePlayerExtent* extent = player->GetServerGamePlayerExtent();
 
-    ServerGamePlayerExtentInitUnlockArrayHk(extent, 1217);
-    __int64 bitArray = (__int64)new __int64[6];
-    BitArrayCtorHk(bitArray);
-    BitArrayInitHk(bitArray, 1217, nullptr);
-    memcpy(*reinterpret_cast<void**>(bitArray + 8), reinterpret_cast<void*>(extent + 0xE60),
-        static_cast<size_t>(4) * *reinterpret_cast<unsigned int*>(bitArray + 0x18));
+    uint32_t unlockCount = GetUnlockCount();
+    extent->InitUnlockArray(unlockCount);
+    FBBitArray* bitArray = new (FB_SERVER_ARENA) FBBitArray(unlockCount);
+    memcpy(bitArray->m_bits, extent->m_unlockArray.m_bits, 4 * bitArray->m_dwordCount);
 
-    uint32_t index = ServerPersistenceUnlocksGetBitIndexHk(*reinterpret_cast<__int64*>(0x143ED4480), guid);
+    uint32_t index = ServerPersistenceUnlocksGetBitIndex(*reinterpret_cast<__int64*>(0x143ED4480), guid);
 
-    uint32_t* bits = *(uint32_t**)(bitArray + 8);
+    uint32_t* bits = bitArray->m_bits;
     uint32_t elementIndex = index / 32;
     uint32_t bitMask = 1U << (index % 32);
     bits[elementIndex] ^= (bits[elementIndex] ^ static_cast<uint32_t>(-static_cast<int>(value))) & bitMask;
 
-    ServerGamePlayerExtentSetUnlocksHk(extent, bitArray);
+    extent->SetUnlocks(bitArray);
 
-    BitArrayDestroyHk(bitArray, nullptr);
-    delete[] (__int64*)bitArray;
+    bitArray->Destroy(nullptr);
+    FB_SERVER_ARENA->del(bitArray);
 }
 
 __int64 InitUnlockArrayHk(__int64 a1, ServerPlayer* player)
 {
     static const auto trampoline = HookManager::Call(InitUnlockArrayHk);
-    if (!s_program->m_server->IsRunning() || player->IsAIPlayer())
+    if (!g_program->m_server->IsRunning() || player->IsAIPlayer())
     {
         return trampoline(a1, player);
     }
@@ -113,20 +86,23 @@ __int64 InitUnlockArrayHk(__int64 a1, ServerPlayer* player)
     // Uncomment to disable everything being unlocked
     // return trampoline(a1, player);
 
-    __int64 extent = (__int64)player->GetExtent("ServerGamePlayerExtent");
-    KYBER_LOG(Info, "[Persistence] Initialized unlock array 1 " << player->m_name << " " << std::hex << extent);
+    ServerGamePlayerExtent* extent = player->GetServerGamePlayerExtent();
+    KYBER_LOG(Debug, "[Persistence] Initialized unlock array " << player->m_name << " " << std::hex << extent);
     //__int64 result = trampoline(a1, serverPlayer);
 
-    ServerGamePlayerExtentInitUnlockArrayHk(extent, 1217);
-    __int64 bitArray = (__int64)new __int64[6];
-    BitArrayCtorHk(bitArray);
-    BitArrayInitHk(bitArray, 1217, nullptr);
-    memset(*(void**)(bitArray + 8), 0xFFFFFFFF, 4 * *(unsigned int*)(bitArray + 0x18));
+    // Here we intentionally use the enum kPlayerUnlockArraySize as it is the count of
+    // unlocks in the base game, and any additional unlocks added by mods will not be instantly
+    // unlocked.
 
-    ServerGamePlayerExtentSetUnlocksHk(extent, bitArray);
+    extent->InitUnlockArray(kPlayerUnlockArraySize);
 
-    BitArrayDestroyHk(bitArray, nullptr);
-    delete[] (__int64*)bitArray;
+    FBBitArray* bitArray = new (FB_SERVER_ARENA) FBBitArray(kPlayerUnlockArraySize);
+    bitArray->SetAllBits();
+
+    extent->SetUnlocks(bitArray);
+
+    bitArray->Destroy(nullptr);
+    FB_SERVER_ARENA->del(bitArray);
     // return result;
     return 0;
 }
@@ -136,13 +112,13 @@ void LoadPlayerPersistenceHk(void* inst, ServerPlayer* player)
     static const auto trampoline = HookManager::Call(LoadPlayerPersistenceHk);
     trampoline(inst, player);
 
-    if (!s_program->m_server->IsRunning() || player->IsAIPlayer() || player->IsSpectator() || !s_program->m_isDedicatedServer)
+    if (!g_program->m_server->IsRunning() || player->IsAIPlayer() || player->IsSpectator() || !g_program->m_isDedicatedServer)
     {
         return;
     }
 
     KYBER_LOG(Info, "[Persistence] Loading persistence for player " << player->m_onlineId.m_nativeData << " " << std::hex << player);
-    s_program->m_server->m_persistenceManager->LoadPlayerStats(inst, player);
+    g_program->m_server->m_persistenceManager->LoadPlayerStats(inst, player);
 }
 
 PlayerStatsMap ExtractPlayerStats(ServerPlayer* player)
@@ -153,14 +129,14 @@ PlayerStatsMap ExtractPlayerStats(ServerPlayer* player)
         return stats;
     }
 
-    TypeObject* extent = (TypeObject*)((__int64)player + PersistentServerPlayerExtent_extentRegistration->offset);
-    PersistentStorage* storage = *(PersistentStorage**)((__int64)extent + 0x198);
+    PersistenceServerPlayerExtent* extent = player->GetPersistenceServerPlayerExtent();
+    PersistentStorage* storage = extent->m_persistentStorage;
 
-    uint32_t count = PersistentStorageTemplate_getCount(storage->m_template);
+    uint32_t count = storage->m_template->GetCount();
     for (uint32_t i = 0; i < count; i++)
     {
-        const char* name = PersistentStorageTemplate_getName(storage->m_template, i);
-        uint32_t offset = PersistentStorageTemplate_getOffset(storage->m_template, name);
+        const char* name = storage->m_template->GetName(i);
+        uint32_t offset = storage->m_template->GetOffset(name);
         PersistentStorage::Value& value = storage->m_values[offset];
         if (!(fabsf(value.current - value.reference) > 0.000001))
         {
@@ -175,8 +151,8 @@ PlayerStatsMap ExtractPlayerStats(ServerPlayer* player)
 
 void ApplyPlayerStats(void* inst, ServerPlayer* player, const PlayerStatsMap& stats)
 {
-    TypeObject* extent = (TypeObject*)((__int64)player + PersistentServerPlayerExtent_extentRegistration->offset);
-    PersistentStorage* storage = *(PersistentStorage**)((__int64)extent + 0x198);
+    PersistenceServerPlayerExtent* extent = player->GetPersistenceServerPlayerExtent();
+    PersistentStorage* storage = extent->m_persistentStorage;
     if (storage == nullptr)
     {
         return;
@@ -184,7 +160,7 @@ void ApplyPlayerStats(void* inst, ServerPlayer* player, const PlayerStatsMap& st
 
     for (const auto& entry : stats)
     {
-        uint32_t offset = PersistentStorageTemplate_getOffset(storage->m_template, entry.first.c_str());
+        uint32_t offset = storage->m_template->GetOffset(entry.first.c_str());
         if (offset == 0xFFFFFFFF)
         {
             continue;
@@ -197,21 +173,13 @@ void ApplyPlayerStats(void* inst, ServerPlayer* player, const PlayerStatsMap& st
     ReplicatePersistence(inst, player);
 }
 
-void LoadPlayerDataCommand(ConsoleContext& cc)
-{
-    static const auto trampoline = HookManager::Call(LoadPlayerPersistenceHk);
-    // trampoline(persistenceInst, s_program->m_server->m_playerManager->m_players[0]);
-}
-
 void SavePlayerDataCommand(ConsoleContext& cc)
 {
-    static const auto trampoline = HookManager::Call(LoadPlayerPersistenceHk);
-
     auto stream = cc.stream();
     std::string playerName;
     stream >> playerName;
 
-    ServerPlayer* player = s_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
+    ServerPlayer* player = g_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
     if (player == nullptr)
     {
         KYBER_LOG(Error, "Couldn't find player " << playerName);
@@ -221,7 +189,7 @@ void SavePlayerDataCommand(ConsoleContext& cc)
     PlayerStatsMap stats = ExtractPlayerStats(player);
     KYBER_LOG(Info, "Stats: " << stats.size());
 
-    s_program->m_server->m_persistenceManager->SavePlayerStats(player, stats);
+    g_program->m_server->m_persistenceManager->SavePlayerStats(player, stats);
 }
 
 void SetUnlockCommand(ConsoleContext& cc, bool grant)
@@ -231,7 +199,7 @@ void SetUnlockCommand(ConsoleContext& cc, bool grant)
     std::string assetGuid;
     stream >> playerName >> assetGuid;
 
-    ServerPlayer* player = s_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
+    ServerPlayer* player = g_program->m_server->m_playerManager->GetPlayer(playerName.c_str());
     if (player == nullptr)
     {
         KYBER_LOG(Info, "[Persistence] Couldn't find player '" << playerName.c_str() << "'");
@@ -261,10 +229,8 @@ PersistenceManager::PersistenceManager()
 void PersistenceManager::LoadPlayerStats(void* persistenceInst, ServerPlayer* player)
 {
     m_database->Load(player->m_onlineId, [persistenceInst, player](PlayerStatsMap stats) {
-        s_threadExecutor->Queue(GameThread_Server, [persistenceInst, player, stats]() {
-            KYBER_LOG(Info, "[Persistence] Persistence loaded, applying...");
-            ApplyPlayerStats(persistenceInst, player, stats);
-        });
+        KYBER_LOG(Info, "[Persistence] Persistence loaded, applying...");
+        ApplyPlayerStats(persistenceInst, player, stats);
     });
 }
 
@@ -287,12 +253,6 @@ void PersistenceManager::Initialize()
 {
     HookTemplate hookOffsets[] = {
         { HOOK_OFFSET(0x1418A81A0), InitUnlockArrayHk },
-        { HOOK_OFFSET(0x146872DF0), ServerGamePlayerExtentInitUnlockArrayHk },
-        { HOOK_OFFSET(0x14545A710), BitArrayCtorHk },
-        { HOOK_OFFSET(0x1454600C0), BitArrayInitHk },
-        { HOOK_OFFSET(0x1401E71B0), BitArrayDestroyHk },
-        { HOOK_OFFSET(0x146881840), ServerGamePlayerExtentSetUnlocksHk },
-        { HOOK_OFFSET(0x1483EA700), ServerPersistenceUnlocksGetBitIndexHk },
         { HOOK_OFFSET(0x1483F0160), LoadPlayerPersistenceHk },
     };
 
@@ -303,16 +263,15 @@ void PersistenceManager::Initialize()
 
     Hook::ApplyQueuedActions();
 
-    s_program->m_consoleRegistrationCallbacks.push_back([&]() {
+    g_program->m_consoleRegistrationCallbacks.push_back([&]() {
         RegisterConsoleCommand(&LogPlayerStats, "LogPlayerStats");
         RegisterConsoleCommand(&GrantUnlockCommand, "GrantUnlock", "<player> <guid>");
         RegisterConsoleCommand(&RevokeUnlockCommand, "RevokeUnlock", "<player> <guid>");
-        RegisterConsoleCommand(&LoadPlayerDataCommand, "LoadData");
         RegisterConsoleCommand(&SavePlayerDataCommand, "SaveData");
     });
 
     // Enable stats system
-    if (s_program->m_isDedicatedServer)
+    if (g_program->m_isDedicatedServer)
     {
         BYTE ptch[] = { 0x74 };
         MemoryUtils::Patch(HOOK_OFFSET(0x1418B6ECC), (void*)ptch, sizeof(ptch));

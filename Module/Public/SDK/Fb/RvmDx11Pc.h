@@ -1,0 +1,54 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(RvmDx11Settings, 0x1445CCA00);
+_KB_DECLARE_TYPEINFO(Dx11RvmBackendConfig, 0x1445CCA80);
+_KB_DECLARE_TYPEINFO(Dx11ShaderDispatchDrawInstructionFactory, 0x1445CCB80);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11ShaderDispatchDrawInstructionData, 0x144065D80);
+_KB_DECLARE_TYPEINFO(Dx11RvmLegacyVertexBufferConversionInstructionFactory, 0x1445CCC00);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11LegacyVertexBufferConversionInstructionData, 0x144065C80);
+_KB_DECLARE_TYPEINFO(Dx11RvmViewStateInstructionFactory, 0x1445CCC80);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11ViewStateInstructionData, 0x144065B80);
+_KB_DECLARE_TYPEINFO(D3D11_CONSERVATIVE_RASTERIZATION_MODE, 0x144065AC0);
+_KB_DECLARE_TYPEINFO(Dx11RvmViewports, 0x144065A30);
+_KB_DECLARE_TYPEINFO(Dx11RvmScissorRects, 0x1440659E0);
+_KB_DECLARE_TYPEINFO(Dx11RvmDepthStencilState, 0x144065920);
+_KB_DECLARE_TYPEINFO(Dx11RvmBlendState, 0x1440658D0);
+_KB_DECLARE_TYPEINFO(D3D11_CULL_MODE, 0x144065810);
+_KB_DECLARE_TYPEINFO(D3D11_FILL_MODE, 0x1440657C0);
+_KB_DECLARE_TYPEINFO(Dx11RvmSampler, 0x144065700);
+_KB_DECLARE_TYPEINFO(Dx11RvmVsShader, 0x1440656B0);
+_KB_DECLARE_TYPEINFO(Dx11RvmPsShader, 0x1440655F0);
+_KB_DECLARE_TYPEINFO(Dx11RvmHsShader, 0x1440655A0);
+_KB_DECLARE_TYPEINFO(Dx11RvmDsShader, 0x1440654E0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11ByteCodeElement, 0x144065450);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11DsShader, 0x144065350);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11HsShader, 0x1440652C0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11PsShader, 0x1440651C0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11VsShader, 0x144065130);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11InputElement, 0x144065030);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11Sampler, 0x144064F80);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11BlendStateData, 0x144064E40);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11SerializedBlendState, 0x144064DB0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11TextureConversionInstructionData, 0x144064C30);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11BufferConversionInstructionData, 0x144064BA0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11LegacyDrawStateBuilderData, 0x144064AA0);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11ShaderDispatchLegacyDrawInstructionData, 0x144064A10);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11ApplyParametersInstructionData, 0x144064910);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11ApplyParametersBlock, 0x144064880);
+_KB_DECLARE_TYPEINFO(RvmSerializedDb_ns_Dx11DispatchInstructionData, 0x144064770);
+_KB_DECLARE_TYPEINFO(Dx11RvmLegacyDrawStateBuilderInstructionFactory, 0x1445CCD00);
+_KB_DECLARE_TYPEINFO(Dx11RvmTextureConversionInstructionFactory, 0x1445CCD80);
+_KB_DECLARE_TYPEINFO(Dx11RvmBufferConversionInstructionFactory, 0x1445CCE00);
+_KB_DECLARE_TYPEINFO(Dx11RvmInstanceBufferWriterInstructionFactory, 0x1445CCE80);
+_KB_DECLARE_TYPEINFO(Dx11RvmConstantBufferWriterInstructionFactory, 0x1445CCF00);
+_KB_DECLARE_TYPEINFO(Dx11RvmApplyStateInstructionFactory, 0x1445CCF80);
+_KB_DECLARE_TYPEINFO(Dx11RvmDispatchInstructionFactory, 0x1445CD000);
+_KB_DECLARE_TYPEINFO(Dx11RvmDatabase, 0x1445CCB00);
+_KB_DECLARE_TYPEINFO(Dx11RvmBackend, 0x1445CD080);
+_KB_DECLARE_TYPEINFO(Dx11RvmBackendFactory, 0x1445CD100);
+
+#undef _KB_DECLARE_TYPEINFO
+}

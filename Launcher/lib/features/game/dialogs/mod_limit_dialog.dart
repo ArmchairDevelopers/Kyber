@@ -15,7 +15,7 @@ class ModLimitDialog extends StatelessWidget {
       ),
       content: const Text(
         '''
-        You have reached the maximum number of mods (247) that can be loaded. 
+        You have reached the maximum number of mods (1739) that can be loaded. 
         To continue you must remove some mods from your collection.
         
         This is a current technical limitation of KYBER and may be lifted in the future.

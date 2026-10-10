@@ -8,10 +8,11 @@
 
 #include <Proto/kyber_api.grpc.pb.h>
 
-#include <grpcpp/grpcpp.h>
+#include <grpcpp/channel.h>
 
 #include <ixwebsocket/IXWebSocket.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -39,14 +40,13 @@ private:
     void ProcessReceivedEvent(const ServerAPIEvent& event);
     void Receive(const ix::WebSocketMessagePtr &msg);
 
-    mutable ThreadPool m_threadPool;
-
     std::string m_token;
     std::string m_apiUri;
     std::string m_serverId;
 
     std::shared_ptr<ix::WebSocket> m_webSocket;
     bool m_connectionEstablished;
+    std::atomic<bool> m_reregisterPending;
     std::thread m_writeThread;
     std::mutex m_writeMutex;
     Mutex<std::queue<ServerManagementAPIEvent>> m_writeQueue;

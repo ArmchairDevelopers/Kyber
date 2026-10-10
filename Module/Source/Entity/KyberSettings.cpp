@@ -16,17 +16,19 @@ KB_IMPLEMENT_TYPE(KyberSettings)
     info.AddField("Boolean", "RenderPropertyDebug");
     info.AddField("Boolean", "RenderCameraDebug");
     info.AddField("Boolean", "EnableUnlimitedPowerEvent");
+    info.AddField("Boolean", "LogFilteredChatMessages");
+    info.AddField("Boolean", "RenderServerPerformance");
+    info.AddField("Boolean", "RenderLatencyDisplay");
     info.AddField("Float32", "BundleDebugFontSize");
     info.AddField("Int32", "unused1");
     info.AddField("Int32", "unused2");
     info.AddField("Int32", "unused3");
-    info.AddField("Int32", "unused4");
     return info;
 }
 
 KB_TYPE_REGISTRATION_CALLBACK(KyberSettings)
 {
     KYBER_LOG(Info, "[Entity] Registered Kyber Settings");
-    s_program->m_settingsManager->RegisterSettings("Kyber", typeInfo);
+    g_program->m_settingsManager->RegisterSettings("Kyber", typeInfo);
 }
 } // namespace Kyber

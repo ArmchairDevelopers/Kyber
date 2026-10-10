@@ -196,7 +196,7 @@ void LayoutManifest::AddFileToBundle(uint32_t bundleHash, FileInfo fileInfo, Ass
         return;
     }
 
-    bool customBundle = s_modLoader->m_addedBundles.count(bundleHash);
+    bool customBundle = g_modLoader->m_addedBundles.count(bundleHash);
 
     auto& vanillaBundleEntry = g_bundleMerger->GetBundleEntries()[bundleInfo.hash];
     if (!customBundle && vanillaBundleEntry.hash != bundleInfo.hash)
@@ -308,7 +308,7 @@ void LayoutManifest::PrintAudit(uint32_t bundleHash)
 
 void ProcessManifestHk(CasFileMap* fileMap, uint8_t* manifestBuf)
 {
-    static auto trampoline = HookManager::Call(ProcessManifestHk);
+    static const auto trampoline = HookManager::Call(ProcessManifestHk);
     if (!g_manifestMerger->HasMerger())
     {
         trampoline(fileMap, manifestBuf);
@@ -320,11 +320,11 @@ void ProcessManifestHk(CasFileMap* fileMap, uint8_t* manifestBuf)
 
     KYBER_LOG(Info, "[ModLoader] Loading layout manifest size " << size);
 
-    LayoutManifest* manifest = new LayoutManifest();
+    LayoutManifest* manifest = new (FB_STATIC_ARENA) LayoutManifest();
     manifest->Load(*data, *size);
     g_manifestMerger->Merge(*manifest);
     std::vector<uint8_t> modified = manifest->Save();
-    
+
     // Don't delete the manifest. I'm not sure why, but it causes
     // everything to crash and burn.
 
@@ -342,13 +342,15 @@ void ProcessManifestHk(CasFileMap* fileMap, uint8_t* manifestBuf)
     *data = originalData;
     *size = originalSize;
 
+    FB_STATIC_ARENA->free(modifiedBuffer);
+
     KYBER_LOG(Info, "[ModLoader] Loaded modified layout manifest size " << modified.size());
 }
 
 void LoadCatEntriesHk(CasFileMap* fileMap, __int64 a2)
 {
     static auto trampoline = HookManager::Call(LoadCatEntriesHk);
-    for (const auto& file : s_modLoader->GetRequiredFiles())
+    for (const auto& file : g_modLoader->GetRequiredFiles())
     {
         int32_t catalogIndex = (file >> 12) - 1;
         bool isInPatch = (file & 0x100) != 0;
@@ -356,15 +358,15 @@ void LoadCatEntriesHk(CasFileMap* fileMap, __int64 a2)
 
         std::ostringstream filePath;
         filePath << "/native_data/" << (isInPatch ? "Patch/" : "Data/");
-        filePath << s_modLoader->m_bundleMerger.GetCatalog(catalogIndex).c_str() << "/cas_";
+        filePath << g_modLoader->m_bundleMerger.GetCatalog(catalogIndex).c_str() << "/cas_";
         filePath << std::setw(2) << std::setfill('0') << casIndex << ".cas";
 
-        s_modLoader->LoadFile(file, filePath.str().c_str());
+        g_modLoader->LoadFile(file, filePath.str().c_str());
     }
 
-    for (const auto& mod : s_modLoader->m_mods)
+    for (const auto& mod : g_modLoader->m_mods)
     {
-        s_modLoader->LoadFile(mod.fbFile, mod.path.c_str());
+        g_modLoader->LoadFile(mod.fbFile, mod.path.c_str());
     }
 
     trampoline(fileMap, a2);

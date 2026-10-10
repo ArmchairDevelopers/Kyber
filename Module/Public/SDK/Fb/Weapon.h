@@ -1,0 +1,51 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(ClientWeapon, 0x144610360);
+_KB_DECLARE_TYPEINFO(ClientProxyProjectileEntity, 0x1446101C0);
+_KB_DECLARE_TYPEINFO(ClientProxyMissileEntity, 0x14460FE80);
+_KB_DECLARE_TYPEINFO(ClientProjectileEntity, 0x14460FF50);
+_KB_DECLARE_TYPEINFO(ClientMissileEntity, 0x144610020);
+_KB_DECLARE_TYPEINFO(ClientGhostProjectileEntity, 0x1446100F0);
+_KB_DECLARE_TYPEINFO(ClientBulletEntity, 0x144610290);
+_KB_DECLARE_TYPEINFO(ClientWeaponInputRouterComponent, 0x14460FD80);
+_KB_DECLARE_TYPEINFO(ClientWeaponComponent, 0x14460FC80);
+_KB_DECLARE_TYPEINFO(ClientMissilePhysicsComponent, 0x14460FD00);
+_KB_DECLARE_TYPEINFO(ClientCharacterSimpleWeaponComponent, 0x14460FE00);
+_KB_DECLARE_TYPEINFO(ServerBulletEntity, 0x14460F340);
+_KB_DECLARE_TYPEINFO(ServerWeaponInputRouterComponent, 0x14460F240);
+_KB_DECLARE_TYPEINFO(ServerWeaponComponent, 0x14460F140);
+_KB_DECLARE_TYPEINFO(ServerMissilePhysicsComponent, 0x14460F1C0);
+_KB_DECLARE_TYPEINFO(ServerCharacterSimpleWeaponComponent, 0x14460F2C0);
+_KB_DECLARE_TYPEINFO(Weapon, 0x14460F410);
+_KB_DECLARE_TYPEINFO(ServerWeaponOverrideAIDataMessage, 0x14460E320);
+_KB_DECLARE_TYPEINFO(ServerWeaponProjectileTimeoutMessage, 0x14460E370);
+_KB_DECLARE_TYPEINFO(ServerWeaponReplacedMessage, 0x14460E3C0);
+_KB_DECLARE_TYPEINFO(ServerWeaponWeaponComponentActivateMessage, 0x14460E410);
+_KB_DECLARE_TYPEINFO(ServerWeaponWeaponComponentReloadMessage, 0x14460E460);
+_KB_DECLARE_TYPEINFO(ServerWeaponPlayerResupplyMessage, 0x14460E4B0);
+_KB_DECLARE_TYPEINFO(ServerWeaponPlayerReloadMessage, 0x14460E500);
+_KB_DECLARE_TYPEINFO(ServerWeaponPlayerWeaponRemovedMessage, 0x14460E550);
+_KB_DECLARE_TYPEINFO(ServerWeaponPlayerWeaponReloadEndMessage, 0x14460E5A0);
+_KB_DECLARE_TYPEINFO(ServerWeaponPlayerPrimaryFireShotSpawnedMessage, 0x14460E5F0);
+_KB_DECLARE_TYPEINFO(ServerWeaponPlayerPrimaryOutOfAmmoMessage, 0x14460E640);
+_KB_DECLARE_TYPEINFO(ServerWeaponArtilleryFiredMessage, 0x14460E690);
+_KB_DECLARE_TYPEINFO(ServerWeaponLaserDesignatorMessage, 0x14460E6E0);
+_KB_DECLARE_TYPEINFO(ServerWeaponMortarStrikeMessage, 0x14460E730);
+_KB_DECLARE_TYPEINFO(ClientWeaponReplacedMessage, 0x14460E780);
+_KB_DECLARE_TYPEINFO(ClientWeaponWeaponComponentActivateMessage, 0x14460E7D0);
+_KB_DECLARE_TYPEINFO(ClientWeaponPlayerPrimaryOutOfAmmoMessage, 0x14460E820);
+_KB_DECLARE_TYPEINFO(ClientWeaponPlayerWeaponReloadEndMessage, 0x14460E870);
+_KB_DECLARE_TYPEINFO(ClientWeaponPlayerWeaponReloadBeginMessage, 0x14460E8C0);
+_KB_DECLARE_TYPEINFO(ClientWeaponPlayerPrimaryWeaponFireMessage, 0x14460E910);
+_KB_DECLARE_TYPEINFO(ClientWeaponPlayerWeaponChangeCorrectionMessage, 0x14460E960);
+_KB_DECLARE_TYPEINFO(ClientWeaponPlayerWeaponChangeMessage, 0x14460E9B0);
+_KB_DECLARE_TYPEINFO(ServerWeapon, 0x14460EC70);
+_KB_DECLARE_TYPEINFO(ServerProjectileEntity, 0x14460EAD0);
+_KB_DECLARE_TYPEINFO(ServerMissileEntity, 0x14460EA00);
+_KB_DECLARE_TYPEINFO(ServerGhostProjectileEntity, 0x14460EBA0);
+
+#undef _KB_DECLARE_TYPEINFO
+}

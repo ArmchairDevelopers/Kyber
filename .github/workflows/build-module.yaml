@@ -12,16 +12,21 @@ on:
   push:
     branches:
       - stable
+      - ver/*
     paths:
       - '.github/workflows/build-module.yaml'
       - 'Module/**/*'
 
 jobs:
   build:
-    runs-on: blacksmith-16vcpu-windows-2025
+    # TODO: code signing is disabled for now, restore: runs-on: ${{ (github.ref == 'refs/heads/stable') && 'windows-latest' || 'windows-latest-l' }}
+    runs-on: windows-latest-l
 
     env:
       working-directory: ./Module
+
+    outputs:
+      unsigned-artifact-id: ${{ steps.upload-unsigned-artifact.outputs.artifact-id }}
 
     steps:
       - name: Get branch names
@@ -42,7 +47,7 @@ jobs:
         run: bazel --output_user_root="C:\bz" build --config=release Kyber
 
       - name: Download Dependencies
-        if: github.ref == 'refs/heads/stable' || github.event_name == 'workflow_dispatch'
+        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         working-directory: ${{env.working-directory}}
         run: |
           New-Item -Path _work -ItemType Directory
@@ -52,7 +57,7 @@ jobs:
         shell: powershell
 
       - name: Setup Sentry CLI
-        if: github.ref == 'refs/heads/stable' || github.event_name == 'workflow_dispatch'
+        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         uses: mathieu-bour/setup-sentry-cli@v2
         with:
           token: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -61,31 +66,113 @@ jobs:
           project: module
 
       - name: Upload PDB
-        if: github.ref == 'refs/heads/stable' || github.event_name == 'workflow_dispatch'
+        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         working-directory: ${{env.working-directory}}
         run: |
           sentry-cli debug-files upload --project module --include-sources bazel-bin/Kyber.pdb
         shell: powershell
 
       - name: Copy DLL
-        if: github.ref == 'refs/heads/stable' || github.event_name == 'workflow_dispatch'
+        # TODO: code signing is disabled for now, restore: if: startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
+        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         working-directory: ${{env.working-directory}}
         run: |
           cp "bazel-bin/Kyber.dll" "_work/Kyber.dll"
 
+      - name: upload-unsigned-artifact
+        # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+        if: false
+        id: upload-unsigned-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{env.working-directory}}/bazel-bin/Kyber.dll
+
       - name: Zip files
-        if: github.ref == 'refs/heads/stable' || github.event_name == 'workflow_dispatch'
+        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable' && (startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch')
+        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         working-directory: ${{env.working-directory}}
         run: |
           Compress-Archive -Path "_work/*" -DestinationPath kyber-module.zip
         shell: powershell
 
       - name: Upload Artifacts
-        if: github.ref == 'refs/heads/stable' || github.event_name == 'workflow_dispatch'
+        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable' && (startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch')
+        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         working-directory: ${{env.working-directory}}
         run: |
           $ProgressPreference = 'SilentlyContinue'
-          Invoke-WebRequest https://dl.min.io/client/mc/release/windows-amd64/mc.exe -OutFile _work/mc.exe
+          Invoke-WebRequest https://cdn.kyber.gg/artifacts/mc.exe -OutFile _work/mc.exe
+          _work/mc.exe alias set kyber https://s3.kyber.gg ${{ secrets.AWS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          _work/mc.exe cp kyber-module.zip kyber/releases/${{ steps.branch-names.outputs.current_branch }}/kyber-module.zip
+        shell: powershell
+
+  sign:
+    name: Sign module
+    needs: build
+    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+    if: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Submit signing request
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORG_ID }}'
+          project-slug: 'kyber'
+          signing-policy-slug: 'release-signing'
+          github-artifact-id: '${{ needs.build.outputs.unsigned-artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: '_signed'
+          wait-for-completion-timeout-in-seconds: 21000
+
+      - name: Upload signed module
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-signed
+          path: _signed/*
+
+  publish:
+    name: Publish signed release
+    needs: sign
+    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+    if: false
+    runs-on: windows-latest
+
+    steps:
+      - name: Get branch names
+        id: branch-names
+        uses: tj-actions/branch-names@v8
+
+      - name: Download Dependencies
+        run: |
+          New-Item -Path _work -ItemType Directory
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest https://s3.kyber.gg/artifacts/kyber-depends.zip -OutFile depends.zip
+          Expand-Archive depends.zip -DestinationPath _work
+        shell: powershell
+
+      - name: Download signed module
+        uses: actions/download-artifact@v4
+        with:
+          name: module-signed
+          path: _signed
+
+      - name: Copy DLL
+        run: |
+          cp -Force "_signed/Kyber.dll" "_work/Kyber.dll"
+
+      - name: Zip files
+        run: |
+          Compress-Archive -Path "_work/*" -DestinationPath kyber-module.zip
+        shell: powershell
+
+      - name: Upload Artifacts
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest https://cdn.kyber.gg/artifacts/mc.exe -OutFile _work/mc.exe
           _work/mc.exe alias set kyber https://s3.kyber.gg ${{ secrets.AWS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           _work/mc.exe cp kyber-module.zip kyber/releases/${{ steps.branch-names.outputs.current_branch }}/kyber-module.zip
         shell: powershell

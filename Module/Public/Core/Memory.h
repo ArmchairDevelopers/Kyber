@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include <cstdint>
+#include <ToolLib/Func.h>
+
 #include <mutex>
 #include <vector>
 
@@ -17,15 +18,49 @@ public:
     void* alloc(size_t size);
 
     void free(void* mem);
+
+    template <typename T>
+    void del(T* mem)
+    {
+        if (mem != nullptr)
+        {
+            mem->~T();
+            this->free(mem);
+        }
+    }
 };
 
-#define FB_STATIC_ARENA ((MemoryArena*)0x143CF74E0)
-#define FB_GLOBAL_ARENA ((MemoryArena*)0x143CF74C0)
-#define FB_CLIENT_ARENA ((MemoryArena*)0x143CF89E0)
-#define FB_SERVER_ARENA ((MemoryArena*)0x143CFA7C0)
-#define FB_FIXUP_ARENA ((MemoryArena*)0x143D23E80)
+#define FB_STATIC_ARENA (reinterpret_cast<MemoryArena*>(0x143CF74E0))
+#define FB_GLOBAL_ARENA (reinterpret_cast<MemoryArena*>(0x143CF74C0))
+#define FB_CLIENT_ARENA (reinterpret_cast<MemoryArena*>(0x143CF89E0))
+#define FB_SERVER_ARENA (reinterpret_cast<MemoryArena*>(0x143CFA7C0))
+#define FB_FIXUP_ARENA (reinterpret_cast<MemoryArena*>(0x143D23E80))
 
 void InitializeEASTL();
+
+TL_DECLARE_FUNC(0x1401C7F90, MemoryArena*, ArenaMap_findArenaForObjectInternal, void* object, bool retGlobalOnFail);
+class ArenaMap
+{
+public:
+    inline static MemoryArena* FindArenaForObject(void* object, bool retGlobalOnFail = false)
+    {
+        return ArenaMap_findArenaForObjectInternal(object, retGlobalOnFail);
+    }
+};
+
+class MemoryLeakDb
+{
+public:
+    static void AddEntry(size_t amount, const char* description);
+
+    static size_t GetTotalLeaked()
+    {
+        return s_totalLeaked;
+    }
+
+private:
+    static size_t s_totalLeaked;
+};
 
 template<typename T>
 struct MutexGuard
@@ -61,3 +96,7 @@ private:
     T m_instance;
 };
 } // namespace Kyber
+
+void* operator new(size_t size, Kyber::MemoryArena* arena);
+void* operator new[](size_t size, Kyber::MemoryArena* arena);
+void operator delete(void* ptr, Kyber::MemoryArena* arena);

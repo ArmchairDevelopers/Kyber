@@ -10,13 +10,14 @@ import 'package:kyber_launcher/core/services/notification_service.dart';
 import 'package:kyber_launcher/features/maxima/helper/maxima_helper.dart';
 import 'package:kyber_launcher/features/mod_browser/dialogs/export_collection_dialog.dart';
 import 'package:kyber_launcher/features/mod_collections/dialogs/delete_collection_dialog.dart';
-import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
+import 'package:kyber_launcher/features/mod_collections/extensions/mod_collection_extension.dart';
 import 'package:kyber_launcher/features/mods/dialogs/collection_export_dialog.dart';
 import 'package:kyber_launcher/features/mods/dialogs/image_crop_dialog.dart';
 import 'package:kyber_launcher/features/mods/providers/collection_editor_cubit.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/features/mods/widgets/collection_list/collection_icon.dart';
 import 'package:kyber_launcher/features/plugin_manager/services/plugin_manager.dart';
+import 'package:kyber_launcher/features/session/providers/session_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/injection_container.dart';
@@ -58,17 +59,17 @@ class _CollectionBoxState extends State<CollectionBox> {
       return;
     }
 
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
       dialogTitle: 'Select Collection Icon',
-      type: FileType.custom,
+      type: .custom,
     );
 
-    if (result == null || result.files.isEmpty) {
+    if (result.isEmpty) {
       return;
     }
 
-    final file = File(result.files.first.path!);
+    final file = File(result.first.path!);
     final bytes = await file.readAsBytes();
     final imageCropResult = switch (extension(file.path)) {
       '.gif' => bytes,
@@ -198,7 +199,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                                     ),
                                   ),
                                   Text(
-                                    '${collection.mods.length} Mods',
+                                    '${collection.getModPaths().length} Mods',
                                     style: const TextStyle(
                                       fontFamily: FontFamily.battlefrontUI,
                                       fontSize: 15,
@@ -232,10 +233,23 @@ class _CollectionBoxState extends State<CollectionBox> {
                               KyberButton(
                                 text: 'PLAY',
                                 icon: const Icon(mt.Icons.play_arrow_rounded),
-                                onPressed: () => MaximaHelper.requestGameLaunch(
-                                  context,
-                                  modCollection: collection,
-                                ),
+                                onPressed: () {
+                                  final sessionCubit = context
+                                      .read<SessionCubit>()
+                                      .state;
+                                  if (sessionCubit is InParty) {
+                                    NotificationService.warning(
+                                      message:
+                                          'You cannot launch a collection while in a party. Please leave your current party to launch this collection.',
+                                    );
+                                    return;
+                                  }
+
+                                  MaximaHelper.requestGameLaunch(
+                                    context,
+                                    modCollection: collection,
+                                  );
+                                },
                               ),
                             if (state.editing)
                               KyberButton(
@@ -419,7 +433,7 @@ class _CollectionBoxState extends State<CollectionBox> {
                   ),
                   const CardSection(),
                   Expanded(
-                    child: ReorderableListView.builder(
+                    child: mt.ReorderableListView.builder(
                       buildDefaultDragHandles: state.editing,
                       onReorderStart: (index) {
                         setState(() {

@@ -3,7 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:collection/collection.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/kyber/models/maps.dart';
@@ -12,21 +12,22 @@ import 'package:kyber_launcher/features/kyber/models/modes.dart';
 import 'package:kyber_launcher/features/kyber/services/map_helper.dart';
 import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/server_browser/helpers/server_browser_helper.dart';
-import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/injection_container.dart';
+import 'package:kyber_launcher/shared/ui/elements/kyber_badge.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:tinycolor2/tinycolor2.dart';
 
 final Map<String, String> regionIcons = {
-  'na': Assets.icons.regions.kblPlayRegionNa.path,
-  'eu': Assets.icons.regions.kblPlayRegionEu.path,
-  'as': Assets.icons.regions.kblPlayRegionAs.path,
-  'af': Assets.icons.regions.kblPlayRegionAf.path,
-  'sa': Assets.icons.regions.kblPlayRegionSa.path,
-  'oc': Assets.icons.regions.kblPlayRegionOc.path,
+  'na': Assets.icons.regions.kblNaRegionIcon.path,
+  'eu': Assets.icons.regions.kblEuRegionIcon.path,
+  'as': Assets.icons.regions.kblAsRegionIcon.path,
+  'af': Assets.icons.regions.kblAfRegionIcon.path,
+  'sa': Assets.icons.regions.kblSaRegionIcon.path,
+  'oc': Assets.icons.regions.kblOcRegionIcon.path,
 };
 
 class ServerListEntry extends StatelessWidget {
@@ -67,11 +68,11 @@ class ServerListEntry extends StatelessWidget {
       onHover: onHover,
       map: Map<dynamic, String>.from(map as Map<dynamic, dynamic>),
       mode: mode,
-      server: server,
+      server: SingleServer(server: server),
     );
   }
 
-  final Object server;
+  final ServerEntry server;
   final ValueChanged<bool> onHover;
   final void Function()? onClick;
   final int index;
@@ -83,10 +84,8 @@ class ServerListEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hovered = hoveredIndex == index + 1;
-    final serverInfo = server is ServerGroup
-        ? (server as ServerGroup).getPreferredServer()
-        : server as Server;
+    final hovered = hoveredIndex == index;
+    final serverInfo = server.serverInfo;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
@@ -104,7 +103,7 @@ class ServerListEntry extends StatelessWidget {
             width: 2,
           ),
           bottom: BorderSide(
-            color: hovered || hoveredIndex == index + 2
+            color: hovered || hoveredIndex == index + 1
                 ? kActiveColor
                 : decoColor,
             width: 2,
@@ -179,10 +178,10 @@ class ServerListEntry extends StatelessWidget {
                       child: Stack(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(left: 20),
+                            padding: const .only(left: 20),
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: .center,
+                              crossAxisAlignment: .start,
                               children: [
                                 _TableServerName(server: serverInfo),
                                 _ServerInfoBar(
@@ -196,46 +195,43 @@ class ServerListEntry extends StatelessWidget {
                         ],
                       ),
                     ),
-                    SizedBox(
-                      width: 100,
+                    Container(
+                      margin: const .only(right: 20),
+                      width: 200,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        spacing: 15,
+                        mainAxisAlignment: .end,
                         children: [
-                          Builder(
-                            builder: (context) {
-                              if (server is ServerGroup) {
-                                final totalPlayers = (server as ServerGroup)
-                                    .servers
-                                    .fold(
-                                      0,
-                                      (previousValue, element) =>
-                                          previousValue += element.playerCount,
-                                    );
-                                return Text(
-                                  totalPlayers.toString(),
-                                  textAlign: TextAlign.center,
-                                );
-                              }
+                          if (server case GroupedServer(:final group)) ...[
+                            Row(
+                              spacing: 6,
+                              children: [
+                                for (final region in group.regions.sortedBy(
+                                  (region) => region.name,
+                                ))
+                                  _RegionBadge(region: region.name),
+                              ],
+                            ),
+                          ] else if (serverInfo.hasRegion())
+                            _RegionBadge(region: serverInfo.region),
+                          SizedBox(
+                            width: 45,
+                            child: Builder(
+                              builder: (context) {
+                                var playerCount =
+                                    '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}';
 
-                              return Text(
-                                '${serverInfo.playerCount}/${serverInfo.maxPlayerCount}',
-                                style: const .new(
-                                  fontSize: 15,
-                                ),
-                                textAlign: TextAlign.center,
-                              );
-                            },
+                                if (server is GroupedServer) {
+                                  playerCount = '${server.totalPlayerCount}';
+                                }
+
+                                return KyberBadge(
+                                  text: playerCount,
+                                );
+                              },
+                            ),
                           ),
                         ],
-                      ),
-                    ),
-                    Container(
-                      alignment: Alignment.center,
-                      width: 120,
-                      child: Text(
-                        (serverInfo.official ? 'Official' : 'Custom')
-                            .toUpperCase(),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                     if (!withoutQuickJoin) ...[
@@ -251,6 +247,36 @@ class ServerListEntry extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RegionBadge extends StatelessWidget {
+  const _RegionBadge({super.key, required this.region});
+
+  final String region;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: .centerLeft,
+      clipBehavior: .none,
+      children: [
+        Padding(
+          padding: const .only(left: 15),
+          child: KyberBadge(
+            padding: const .symmetric(
+              horizontal: 4,
+              vertical: 4,
+            ).copyWith(left: 20.5, right: 8),
+            text: region.toUpperCase(),
+          ),
+        ),
+        SvgPicture.asset(
+          regionIcons[region.toLowerCase()]!,
+          height: 32.5,
+        ),
+      ],
     );
   }
 }
@@ -288,7 +314,7 @@ class _JoinButtonState extends State<_JoinButton> {
                 )
                 ? () {
                     context.read<ServerBrowserCubit>()
-                      ..selectServer(widget.server)
+                      ..selectServer(SingleServer(server: widget.server))
                       ..joinServer(enabledDownload: false);
                   }
                 : null,
@@ -302,7 +328,7 @@ class _JoinButtonState extends State<_JoinButton> {
                       )
                       ? () {
                           context.read<ServerBrowserCubit>()
-                            ..selectServer(widget.server)
+                            ..selectServer(SingleServer(server: widget.server))
                             ..joinServer(enabledDownload: false);
                         }
                       : null,
@@ -402,18 +428,6 @@ class _ServerInfoBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (server.hasRegion() &&
-              regionIcons.containsKey(server.region.toLowerCase())) ...[
-            Padding(
-              padding: const EdgeInsets.only(right: 5),
-              child: SvgPicture.asset(
-                regionIcons[server.region.toLowerCase()]!,
-                width: 20,
-                height: 15,
-              ),
-            ),
-            const _Divider(),
-          ],
           Text(
             server.levelSetup.modeName.isNotEmpty
                 ? server.levelSetup.modeName.toUpperCase()

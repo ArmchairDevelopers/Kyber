@@ -5,37 +5,52 @@
 #include <Base/Log.h>
 #include <SDK/Funcs.h>
 #include <Utilities/PlatformUtils.h>
+#include <Core/Program.h>
+#include <SDK/Fb/Entity.h>
+#include <Misc/PlayerGameplayManager.h>
+#include <SDK/Fb/Soldier.h>
+#include <SDK/Fb/WS.h>
 
 namespace Kyber
 {
 void** g_entityWorld = (void**)0x143FCB370;
 GameWorld** g_gameWorld = (GameWorld**)0x143EEC298;
+void** g_gameContext = (void**)0x143EFABD0;
 
-TL_DECLARE_FUNC(0x14686AC80, TypeObject*, ServerGamePlayerExtentRegistration_character, __int64 inst);
-static const PlayerExtentRegistration* ServerGamePlayerExtentRegistration_extentRegistration = (PlayerExtentRegistration*)0x143A8C2A0;
+PlayerExtentRegistration* ClientGamePlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143A8A3E0);
+
+PlayerExtentRegistration* ServerGamePlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143A8C2A0);
+PlayerExtentRegistration* OnlineServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB4F30);
+PlayerExtentRegistration* ServerPlayerCustomizationExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB7470);
+PlayerExtentRegistration* WSServerPlayerAbilityExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB5F50);
+PlayerExtentRegistration* PersistenceServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AB4900);
+PlayerExtentRegistration* SoldierServerPlayerExtent::s_registration = reinterpret_cast<PlayerExtentRegistration*>(0x143AAD370);
 
 TL_DECLARE_FUNC(0x140C45C30, __int64, ServerTeleportEntity_clearNewPosition, void* inst, void* character, void* vehicle,
     const LinearTransform& transform);
-TL_DECLARE_FUNC(0x140C25490, void*, ServerCharacterEntity_teleportTo, void* inst, const LinearTransform& transform, bool a3);
 
-TL_DECLARE_FUNC(0x140AF1290, void, ClientCharacterEntity_onSetNetState, ClientSoldierEntity* inst, const CharacterEntityNetState& netState, __int64 a3);
+TL_DECLARE_FUNC(
+    0x140AF1290, void, ClientCharacterEntity_onSetNetState, ClientCharacterEntity* inst, const CharacterEntityNetState& netState, __int64 a3);
 
-TL_DECLARE_FUNC(0x141128770, bool, SimpleEntityOwner_internalDestroyEntity, void* inst, NativeEntity* entity);
+TL_DECLARE_FUNC(0x148373280, void, WeaponFiring_setPrimaryAmmoMags, const WeaponFiring* inst, int mags);
+TL_DECLARE_FUNC(0x146C500C0, void, IServerNetworkable_stateChanged, void* gameContext, uint16_t flags);
+
+TL_DECLARE_FUNC(0x141128770, bool, SimpleEntityOwner_internalDestroyEntity, void* inst, EntityBase* entity);
 TL_DECLARE_FUNC(0x1470BC9B0, bool, SimpleEntityOwner_destroyOwnedEntities, void* inst, Realm realm);
 TL_DECLARE_FUNC(0x1470BC620, void, SimpleEntityOwner_deinitOwnedEntities, void* inst, void* info);
 
-typedef __int64(__fastcall* SpatialEntity_getTransform)(const void* inst, LinearTransform& transform);
-typedef __int64(__fastcall* SpatialEntity_setTransform)(void* inst, const LinearTransform& transform);
+typedef __int64(__fastcall* SpatialEntity_getTransform_t)(const void* inst, LinearTransform& transform);
+typedef __int64(__fastcall* SpatialEntity_setTransform_t)(void* inst, const LinearTransform& transform);
 
-TL_DECLARE_FUNC(0x14116F610, bool, Entity_init, NativeEntity* inst, EntityInitInfo* info);
+TL_DECLARE_FUNC(0x14116F610, bool, Entity_init, EntityBase* inst, EntityInitInfo* info);
 TL_DECLARE_FUNC(0x1469DAF40, EntityInitInfo*, EntityInitInfo_ctor, EntityInitInfo* inst, Realm realm, void* context);
 
-TL_DECLARE_FUNC(0x140C0CD10, ServerPlayerEvent*, ServerPlayerEvent_ctor, ServerPlayerEvent* inst, const ServerPlayer* player, EventId eventId);
-
 TL_DECLARE_FUNC(0x14114C290, void, FullEntityBus_internalFireEvent, EntityBus* inst, const DataContainer* data, EntityEvent* event);
-TL_DECLARE_FUNC(0x141180770, void, EventAndPropertyModificationQueue_registerEvent, Realm realm, EntityBase* target, EntityEvent* entityEvent);
+TL_DECLARE_FUNC(
+    0x141180770, void, EventAndPropertyModificationQueue_registerEvent, Realm realm, EntityBase* target, EntityEvent* entityEvent);
 
-TL_DECLARE_FUNC(0x1471E1410, EntityBase*, EntityBus_convertDataToEntity, const EntityBus* inst, const DataContainer* data, bool allowNonRegisteredData);
+TL_DECLARE_FUNC(
+    0x1471E1410, EntityBase*, EntityBus_convertDataToEntity, const EntityBus* inst, const DataContainer* data, bool allowNonRegisteredData);
 
 static constexpr uint32_t __declspec(align(16)) g_emptyArray[8] = {};
 void* ArrayBase::emptyArrayBegin()
@@ -53,6 +68,24 @@ const char* TypeInfo::getName() const
     return typeInfoData->name;
 }
 
+void DataContainer::release()
+{
+    return;
+    
+    if (0 == InterlockedDecrement((volatile unsigned __int32*)&m_refCount))
+    {
+        this->~DataContainer();
+        if (MemoryArena* arena = ArenaMap::FindArenaForObject(this, false))
+        {
+            arena->free(this);
+        }
+        else
+        {
+            MemoryLeakDb::AddEntry((getType() != nullptr) ? getType()->typeInfoData->totalSize : 0, "DataContainer release");
+        }
+    }
+}
+
 DataContainer* ResourceManagerLookupDataContainer(const char* name)
 {
     for (int i = 0; i < ResourceCompartment_Count_; ++i)
@@ -67,6 +100,17 @@ DataContainer* ResourceManagerLookupDataContainer(const char* name)
     return nullptr;
 }
 
+FBBitArray::FBBitArray()
+{
+    KYBER_ASSERT(this == Ctor());
+}
+
+FBBitArray::FBBitArray(uint32_t bitCount, MemoryArena* arena)
+{
+    KYBER_ASSERT(this == Ctor());
+    Init(bitCount, arena);
+}
+
 bool TypeInfo::isKindOf(const TypeInfo* other) const
 {
     return ClassInfo_isKindOf(this, other);
@@ -77,31 +121,206 @@ void ServerPlayer::SendChatMessage(ChatChannel channel, const char* message) con
     Server_sendChatMessage(channel, message, this);
 }
 
-TypeObject* ServerPlayer::GetCharacterEntity() const
+ClientCharacterEntity* ClientPlayer::GetCharacterEntity()
 {
-    __int64 extentOffset = reinterpret_cast<__int64>(this) + ServerGamePlayerExtentRegistration_extentRegistration->offset;
-    return ServerGamePlayerExtentRegistration_character(extentOffset);
+    return reinterpret_cast<ClientCharacterEntity*>(GetClientGamePlayerExtent()->GetCharacter());
 }
 
-void ClientSoldierEntity::Teleport(const LinearTransform& transform)
+ServerCharacterEntity* ServerPlayer::GetCharacterEntity()
+{
+    return reinterpret_cast<ServerCharacterEntity*>(GetServerGamePlayerExtent()->GetCharacter());
+}
+
+ServerVehicleEntity* ServerPlayer::GetVehicleEntity()
+{
+    return reinterpret_cast<ServerVehicleEntity*>(GetServerGamePlayerExtent()->GetVehicle());
+}
+
+void ClientCharacterEntity::Teleport(const LinearTransform& transform)
 {
     CharacterEntityNetState netState;
     netState.m_dirtyStates = 1;
     netState.m_transform = transform;
-    ClientCharacterEntity_onSetNetState(reinterpret_cast<ClientSoldierEntity*>(reinterpret_cast<uintptr_t>(this) + 8), netState, 0);
+    ClientCharacterEntity_onSetNetState(reinterpret_cast<ClientCharacterEntity*>(reinterpret_cast<uintptr_t>(this) + 8), netState, 0);
 }
 
 bool ServerPlayer::Teleport(const LinearTransform& transform)
 {
-    void* character = GetCharacterEntity();
-    if (character == nullptr)
+    if (GetServerGamePlayerExtent()->IsInVehicle())
+    {
+        if (ServerVehicleEntity* vehicle = GetVehicleEntity())
+        {
+            vehicle->Teleport(transform);
+        }
+    }
+    else if (ServerCharacterEntity* character = GetCharacterEntity())
+    {
+        character->Teleport(transform);
+    }
+    else 
     {
         return false;
     }
-
-    // ServerTeleportEntity_clearNewPosition(nullptr, character, nullptr, transform);
-    ServerCharacterEntity_teleportTo(character, transform, false);
+    
     return true;
+}
+
+void ServerPlayer::ForceSendChatMessage(ChatChannel channel, const char* message)
+{
+    Server_sendChatMessage(channel, message, this);
+}
+
+void ClientCharacterEntity::SetCooldownModifier(float modifier)
+{
+    KYBER_LOG(Info, "ClientCharacterEntity" << std::hex << this);
+
+    WSClientPlayerAbilitySetComponent* abilitySetComponent = 
+        static_cast<WSClientPlayerAbilitySetComponent*>(GetComponentByType(typeInfo_WSClientPlayerAbilitySetComponent));
+
+    if (abilitySetComponent == nullptr)
+    {
+        KYBER_LOG(Debug, "Failed to find WSClientPlayerAbilitySetComponent");
+        return;
+    }
+
+    abilitySetComponent->m_cooldownModifier = modifier;
+}
+
+void ServerCharacterEntity::SetCooldownModifier(float modifier)
+{
+    WSServerPlayerAbilitySetComponent* abilitySetComponent = 
+        static_cast<WSServerPlayerAbilitySetComponent*>(GetComponentByType(typeInfo_WSServerPlayerAbilitySetComponent));
+
+    if (abilitySetComponent == nullptr)
+    {
+        KYBER_LOG(Debug, "Failed to find WSServerPlayerAbilitySetComponent");
+        return;
+    }
+
+    abilitySetComponent->m_cooldownModifier = modifier;
+
+    ServerPlayerGameplayManager::SyncCooldownModifier(GetPlayer(), modifier);
+}
+
+void ServerCharacterEntity::Kill()
+{
+    if (!this->getType()->isKindOf(typeInfo_ServerSoldierEntity))
+    {
+        KYBER_LOG(Error, "Tried to kill character that isn't a soldier");
+        return;
+    }
+
+    auto func = reinterpret_cast<void(*)(void* inst, bool)>(PlatformUtils::GetVTableFunction(this, 94));
+    func(this, false);
+}
+
+void ServerVehicleEntity::Teleport(const LinearTransform& transform)
+{
+    GameComponentEntity_externalSetWorldTransform(this, transform, false);
+}
+
+void WSServerSoldierHealthComponent::SetMaxHealth(float value)
+{
+    m_displayMaxHealth = value;
+    m_regenMaxHealth = value;
+    m_calculatedMaxHealth = value;
+    if (m_regenMaxHealth < m_health)
+    {
+        SetHealth(value);
+    }
+    SetStateChanged(1);
+}
+
+void SetNetStateDirty(uint32_t ghostFlags, uint32_t* fieldMask, uint32_t fieldIndex)
+{
+    uint16_t hiFlags = HIWORD(ghostFlags);
+    if ((ghostFlags & 0x20000) != 0 || ((ghostFlags & 0x40000) != 0 && !*fieldMask))
+    {
+        IServerNetworkable_stateChanged(g_gameContext[hiFlags & 1], ghostFlags);
+        KYBER_LOG(Info, "Sent state changed");
+    }
+    *fieldMask |= 1 << fieldIndex;
+}
+
+void WSServerSoldierHealthComponent::SetStateChanged(int index)
+{
+    uintptr_t thisptr = reinterpret_cast<uintptr_t>(this);
+    SetNetStateDirty(*reinterpret_cast<uint32_t*>(thisptr + 0x560), reinterpret_cast<uint32_t*>(thisptr + 0x570), index);
+}
+
+void ServerGamePlayerExtent_SetJumpHeightMultiplier(void* extent, float multiplier)
+{
+    reinterpret_cast<float*>(extent)[0x1E4] = multiplier;
+    if (reinterpret_cast<float*>(extent)[0x1E4] == reinterpret_cast<float*>(extent)[0x205])
+    {
+        reinterpret_cast<float*>(extent)[0x205] = multiplier;
+    }
+}
+
+void WeaponFiring::SetPrimaryAmmoMags(int mags) const
+{
+    WeaponFiring_setPrimaryAmmoMags(this, mags);
+}
+
+void ComponentEntity::DebugLogAllComponents()
+{
+    KYBER_ASSERT(IsComponent());
+
+    KYBER_LOG(Info, "----- Debug Components List Begin -----");
+
+    for (ComponentContainer::Iterator it = m_componentContainer->begin(); it != m_componentContainer->end(); it++)
+    {
+        if (it == nullptr || it->m_component == nullptr)
+        {
+            continue;
+        }
+
+        KYBER_LOG(Info, std::hex << it->m_component << " " << it->m_component->getType()->getName());
+    }
+
+    KYBER_LOG(Info, "----- Debug Components List End -----");
+}
+
+ClientPlayer* ClientPlayerManager::GetPlayer(uint64_t id)
+{
+    for (const auto& player : m_players)
+    {
+        // client player ids need to be updated by blaze for this to work properly
+        if (player && player->m_onlineId.m_nativeData == id)
+        {
+            return player;
+        }
+    }
+
+    return nullptr;
+}
+
+ClientPlayer* ClientPlayerManager::GetPlayer(const char* name)
+{
+    for (const auto& player : m_players)
+    {
+        if (strcmp(player->m_name, name) != 0)
+        {
+            continue;
+        }
+
+        return player;
+    }
+
+    return nullptr;
+}
+
+ClientPlayer* ClientPlayerManager::GetLocalPlayer(LocalPlayerId localPlayerId)
+{
+    for (const auto& player : m_localPlayers)
+    {
+        if (player && player->m_localPlayerId == localPlayerId)
+        {
+            return player;
+        }
+    }
+
+    return nullptr;
 }
 
 ServerPlayer* ServerPlayerManager::GetPlayerOrSpectator(uint64_t id)
@@ -218,9 +437,21 @@ ServerPlayer* ServerPlayerManager::GetSpectator(uint64_t id)
     return nullptr;
 }
 
-void ServerPlayerEvent::init(ServerPlayerEvent* inst, const ServerPlayer* player, EventId eventId)
+void ServerConnection::SafeDisconnect(const char* reasonText, SecureReason reason)
 {
-    ServerPlayerEvent_ctor(inst, player, eventId);
+    m_disconnectReason = reason;
+    m_shouldDisconnect = true;
+    m_disconnectText = StringUtils::CopyWithArena(reasonText, FB_SERVER_ARENA);
+}
+
+void ServerConnection::SafeDisconnect(const char* reasonText)
+{
+    SafeDisconnect(reasonText, SecureReason_KickedViaFairFight);
+}
+
+void ServerConnection::SafeDisconnect(SecureReason reason)
+{
+    SafeDisconnect("", SecureReason_KickedViaFairFight);
 }
 
 bool EntityBase::IsSpatial() const
@@ -263,16 +494,16 @@ void EntityBase::Event(EntityEvent* event)
     EventAndPropertyModificationQueue_registerEvent(GetRealm(), this, event);
 }
 
-void NativeEntity::Init()
+void EntityBase::Init()
 {
     EntityInitInfo info;
-    EntityInitInfo_ctor(&info, m_entityBus->GetRealm(), nullptr);
+    EntityInitInfo_ctor(&info, GetEntityBus()->GetRealm(), nullptr);
     Entity_init(this, &info);
 }
 
 void SpatialEntity::GetTransform(LinearTransform& transform) const
 {
-    auto func = reinterpret_cast<SpatialEntity_getTransform>(PlatformUtils::GetVTableFunction(this, 27));
+    auto func = reinterpret_cast<SpatialEntity_getTransform_t>(PlatformUtils::GetVTableFunction(this, 27));
 
     // Same reason as raycast vecs being heap allocated
     LinearTransform* trans = new LinearTransform();
@@ -283,7 +514,7 @@ void SpatialEntity::GetTransform(LinearTransform& transform) const
 
 void SpatialEntity::SetTransform(const LinearTransform& transform)
 {
-    auto func = reinterpret_cast<SpatialEntity_setTransform>(PlatformUtils::GetVTableFunction(this, 28));
+    auto func = reinterpret_cast<SpatialEntity_setTransform_t>(PlatformUtils::GetVTableFunction(this, 28));
 
     // See above
     LinearTransform* trans = new LinearTransform(transform);
@@ -359,7 +590,7 @@ eastl::vector<NativeEntity*> EntityOwner::GetOwnedEntitiesRecursively()
     return entities;
 }
 
-void EntityOwner::DestroyEntity(NativeEntity* entity)
+void EntityOwner::DestroyEntity(EntityBase* entity)
 {
     SimpleEntityOwner_internalDestroyEntity(this, entity);
 }
@@ -422,8 +653,22 @@ EntityBase* EntityBus::GetExposedPeer() const
     return nullptr;
 }
 
+DataContainer* EntityBus::GetExposedPeerData() const
+{
+    if (uintptr_t entityBusBridge = GetEntityBusBridge())
+    {
+        return *reinterpret_cast<DataContainer**>(entityBusBridge + 0x10);
+    }
+    else if (DataContainer* exposed = GetExposedObject())
+    {
+        return exposed;
+    }
+
+    return nullptr;
+}
+
 EntityEvent::EntityEvent(const char* event)
-    : eventId(StringUtils::HashQuick(event))
+    : eventId(StringUtils::HashHexCheck(event))
     , sender(Sender_Child)
 {}
 

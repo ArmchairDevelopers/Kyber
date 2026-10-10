@@ -152,5 +152,5 @@ private:
     void FinalizeModLoads();
 };
 
-extern ModLoader* s_modLoader;
+extern ModLoader* g_modLoader;
 } // namespace Kyber

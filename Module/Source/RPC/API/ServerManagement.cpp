@@ -16,10 +16,10 @@ namespace Kyber
 using grpc::ClientContext;
 
 ServerManagementAPI::ServerManagementAPI(const std::string& apiUri, std::string token)
-        : m_threadPool(2)
-        , m_token(token)
+        : m_token(token)
         , m_apiUri(apiUri)
         , m_connectionEstablished(false)
+        , m_reregisterPending(false)
 {
     m_webSocket = std::make_shared<ix::WebSocket>();
 
@@ -32,6 +32,7 @@ void ServerManagementAPI::Connect(const std::string& serverId)
     m_webSocket->stop();
 
     m_serverId = serverId;
+    m_reregisterPending = false;
 
     m_webSocket->setUrl("ws://" + m_apiUri + "/ws/server/" + serverId);
 
@@ -62,7 +63,7 @@ void ServerManagementAPI::Receive(const ix::WebSocketMessagePtr& msg)
         kyber_api::ServerAPIEvent event;
         if (event.ParseFromString(msg->str))
         {
-            s_threadExecutor->Queue(GameThread_Server, [this, event]() { ProcessReceivedEvent(event); });
+            g_threadExecutor->Queue(GameThread_Server, [this, event]() { ProcessReceivedEvent(event); });
         } 
         else 
         {
@@ -80,10 +81,10 @@ void ServerManagementAPI::Receive(const ix::WebSocketMessagePtr& msg)
         break;
     case ix::WebSocketMessageType::Error:
         KYBER_LOG(Error, "[Network] Server Management Connection Error: " << msg->errorInfo.http_status << " " << msg->errorInfo.reason);
-        if (msg->errorInfo.http_status == 410)
+        if (msg->errorInfo.http_status == 410 && !m_reregisterPending.exchange(true))
         {
-            s_threadExecutor->Queue(GameThread_Server, [&]() { 
-                s_program->m_server->Register();
+            g_threadExecutor->Queue(GameThread_Server, []() { 
+                g_program->m_server->Register(false, true);
             });
         }
         break;
@@ -128,32 +129,32 @@ void ServerManagementAPI::ProcessReceivedEvent(const ServerAPIEvent& event)
     {
     case kyber_api::ServerAPIEvent::kServerKick: {
         uint64_t playerId = std::stoull(event.serverkick().id());
-        ServerPlayer* player = s_program->m_server->m_playerManager->GetPlayerOrSpectator(playerId);
+        ServerPlayer* player = g_program->m_server->m_playerManager->GetPlayerOrSpectator(playerId);
         if (player == nullptr)
         {
             SendConsoleMessage("Failed to kick " + std::to_string(playerId) + ", player not found");
             return;
         }
 
-        s_program->m_server->KickPlayer(player, event.serverkick().reason().c_str());
+        g_program->m_server->KickPlayer(player, event.serverkick().reason().c_str());
         break;
     }
     case kyber_api::ServerAPIEvent::kServerBan: {
         uint64_t playerId = std::stoull(event.serverban().id());
-        ServerPlayer* player = s_program->m_server->m_playerManager->GetPlayerOrSpectator(playerId);
+        ServerPlayer* player = g_program->m_server->m_playerManager->GetPlayerOrSpectator(playerId);
         if (player == nullptr)
         {
             SendConsoleMessage("Failed to ban " + std::to_string(playerId) + ", player not found");
             return;
         }
 
-        s_program->m_server->KickPlayer(player, event.serverban().reason().c_str());
+        g_program->m_server->KickPlayer(player, event.serverban().reason().c_str());
         break;
     }
     case kyber_api::ServerAPIEvent::kServerMapRotation:
         break;
     case kyber_api::ServerAPIEvent::kServerRunCommand:
-        s_program->m_console->EnqueueCommand(event.serverruncommand().command().c_str());
+        g_program->m_console->EnqueueCommand(event.serverruncommand().command().c_str());
         break;
     case kyber_api::ServerAPIEvent::BODY_NOT_SET:
         break;
@@ -162,7 +163,7 @@ void ServerManagementAPI::ProcessReceivedEvent(const ServerAPIEvent& event)
 
 void ServerManagementAPI::SendConsoleMessage(const std::string& message)
 {
-    if (!m_connectionEstablished || !s_program->m_server->IsRunning())
+    if (!m_connectionEstablished || !g_program->m_server->IsRunning())
     {
         return;
     }
@@ -176,7 +177,7 @@ void ServerManagementAPI::SendConsoleMessage(const std::string& message)
 
 void ServerManagementAPI::SendKeepAlive()
 {
-    if (!m_connectionEstablished || !s_program->m_server->IsRunning())
+    if (!m_connectionEstablished || !g_program->m_server->IsRunning())
     {
         return;
     }
@@ -188,12 +189,12 @@ void ServerManagementAPI::SendKeepAlive()
 
 void ServerManagementAPI::SendPlayerList()
 {
-    if (!m_connectionEstablished || !s_program->m_server->IsRunning())
+    if (!m_connectionEstablished || !g_program->m_server->IsRunning())
     {
         return;
     }
 
-    if (s_program->m_server->m_playerManager == nullptr)
+    if (g_program->m_server->m_playerManager == nullptr)
     {
         return;
     }
@@ -203,7 +204,7 @@ void ServerManagementAPI::SendPlayerList()
     // Define as player list event
     event.mutable_players();
 
-    for (ServerPlayer* player : s_program->m_server->m_playerManager->m_players)
+    for (ServerPlayer* player : g_program->m_server->m_playerManager->m_players)
     {
         if (player->IsAIPlayer())
         {

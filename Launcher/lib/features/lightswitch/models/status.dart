@@ -1,5 +1,11 @@
 import 'package:kyber_launcher/features/kyber/helper/kyber_status_helper.dart';
 
+enum KyberFeature {
+  queues,
+  parties,
+  incrementalUpdates,
+}
+
 class LightswitchStatus {
   LightswitchStatus({
     required this.status,
@@ -35,6 +41,14 @@ class LightswitchStatus {
   List<Environment> environments;
   String defaultEnvironment;
 
+  bool isEnabled(KyberFeature feature, {required String environment}) {
+    final env =
+        environments.where((e) => e.id == environment).firstOrNull ??
+        environments.where((e) => e.id == defaultEnvironment).firstOrNull;
+
+    return env?.features?[feature.name] ?? true;
+  }
+
   Map<String, dynamic> toJson() => {
     'status': status,
     'message': message,
@@ -49,6 +63,7 @@ class Environment {
     required this.name,
     required this.apiRoot,
     required this.apiRpc,
+    this.features,
   });
 
   factory Environment.fromJson(Map<String, dynamic> json) => Environment(
@@ -56,16 +71,21 @@ class Environment {
     name: json['name'] as String,
     apiRoot: json['apiRoot'] as String,
     apiRpc: json['apiRpc'] as String,
+    features: json['features'] == null
+        ? null
+        : Map<String, bool>.from(json['features'] as Map),
   );
   String id;
   String name;
   String apiRoot;
   String apiRpc;
+  Map<String, bool>? features;
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'apiRoot': apiRoot,
     'apiRpc': apiRpc,
+    'features': features,
   };
 }

@@ -6,9 +6,12 @@ import 'package:kyber_launcher/features/maxima/providers/maxima_rtm_cubit.dart';
 import 'package:kyber_launcher/features/maxima/screens/maxima_login.dart';
 import 'package:kyber_launcher/features/navigation_bar/providers/status_cubit.dart';
 import 'package:kyber_launcher/features/navigation_bar/widgets/action_bar.dart';
+import 'package:kyber_launcher/features/navigation_bar/widgets/social_bar.dart';
 import 'package:kyber_launcher/features/navigation_bar/widgets/title_bar.dart'
     as kl;
+import 'package:kyber_launcher/features/session/screens/party_overlay.dart';
 import 'package:kyber_launcher/shared/ui/navigation_bar/navigation_bar_list.dart';
+import 'package:window_manager/window_manager.dart';
 
 class NavigationContent extends StatelessWidget {
   const NavigationContent({
@@ -31,9 +34,11 @@ class NavigationContent extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Padding(padding: .only(left: 16), child: kl.TitleBar()),
+              child: DragToMoveArea(
+                child: Padding(padding: .only(left: 16), child: kl.TitleBar()),
+              ),
             ),
-            Expanded(child: ActionBar()),
+            ActionBar(),
           ],
         ),
       ),
@@ -49,25 +54,34 @@ class NavigationContent extends StatelessWidget {
             return const MaximaLogin();
           }
 
-          return BlocBuilder<StatusCubit, ApplicationStatus>(
-            builder: (_, state) => Stack(
-              children: [
-                Positioned.fill(
-                  top: 70,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: child,
+          return PartyOverlay(
+            child: BlocBuilder<StatusCubit, ApplicationStatus>(
+              builder: (_, state) => Stack(
+                children: [
+                  Positioned.fill(
+                    top: 70,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: child,
+                    ),
                   ),
-                ),
-                Positioned.fill(
-                  key: const ValueKey('navigation_bar_list'),
-                  top: 5,
-                  bottom: null,
-                  child: NavigationBarList(
-                    route: this.state.uri.toString(),
+                  Positioned.fill(
+                    key: const ValueKey('navigation_bar_list'),
+                    top: 5,
+                    bottom: null,
+                    child: NavigationBarList(
+                      route: this.state.uri.toString(),
+                    ),
                   ),
-                ),
-              ],
+                  // TODO: find the correct positions
+                  //const Positioned(
+                  //  top: 12.5,
+                  //  right: 0,
+                  //  left: 0,
+                  //  child: SocialBar(),
+                  //),
+                ],
+              ),
             ),
           );
         },

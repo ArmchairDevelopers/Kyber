@@ -23,7 +23,7 @@ DataContainer* findDataContainer(void* domain, const EbxImportReference& ref, co
     DatabasePartition* partition = RuntimeDatabaseDomain_findPartitionFromGuidIncludingImports(domain, ref.partitionGuid);
     if (partition == nullptr)
     {
-        auto& vec = s_modLoader->m_domainLoadedPartitions[domain];
+        auto& vec = g_modLoader->m_domainLoadedPartitions[domain];
         auto it = vec.find(ref.partitionGuid);
         if (it != vec.end())
         {

@@ -16,6 +16,7 @@
 #include <Utilities/PlatformUtils.h>
 #include <Core/ThreadExecutor.h>
 #include <Entity/KyberSettings.h>
+#include <Network/StreamManager.h>
 
 #include <MinHook.h>
 
@@ -33,14 +34,11 @@
 #include <memory>
 #include <mutex>
 
-#define OFFSET_CLIENT_CTOR HOOK_OFFSET(0x140A874C0)
-#define OFFSET_CLIENT_STATE_CHANGE HOOK_OFFSET(0x140A8C7A0)
 #define OFFSET_GET_SETTINGS_OBJECT HOOK_OFFSET(0x1401F7BD0)
 #define OFFSET_ENVIRONMENT_GET_HOST_ID HOOK_OFFSET(0x1454D5900)
 #define OFFSET_ENVIRONMENT_GET_HOST_IDENTIFIER HOOK_OFFSET(0x1454D59E0)
 #define OFFSET_MESSAGEMANAGER_QUEUE_MESSAGE HOOK_OFFSET(0x1401F8950)
 #define OFFSET_MESSAGEMANAGER_DISPATCH_MESSAGE HOOK_OFFSET(0x1401F6CA0)
-#define OFFSET_CLIENTCONNECTION_ONDISCONNECTED HOOK_OFFSET(0x140CB7800)
 #define OFFSET_STREAMMANAGERMOVECLIENT_TRANSMIT HOOK_OFFSET(0x140D538E0)
 #define OFFSET_STREAMMANAGERMOVESERVER_RECEIVE HOOK_OFFSET(0x140D51E40)
 #define OFFSET_STREAMMANAGERCHAT_TRANSMIT HOOK_OFFSET(0x1419411C0)
@@ -50,41 +48,37 @@
 #define OFFSET_MEMORYARENA_ALLOC HOOK_OFFSET(0x14541CD00)
 #define OFFSET_MEMORYARENA_LOG HOOK_OFFSET(0x14019AAA0)
 #define OFFSET_READOBFUSCATED HOOK_OFFSET(0x1454DC150)
-#define OFFSET_CLIENTCONNECTION_SENDMESSAGE HOOK_OFFSET(0x140CBA480)
 #define OFFSET_GETLOCALIZEDSTRING HOOK_OFFSET(0x147792030)
 #define OFFSET_FILESUPERBUNDLEMANAGER_UPDATECONFIG HOOK_OFFSET(0x14024CA10)
-#define OFFSET_CLIENT_UPDATEPASSPREFRAME HOOK_OFFSET(0x1465D9FA0)
-#define OFFSET_CLIENT_UPDATEPASSPOSTFRAME HOOK_OFFSET(0x1465D9C30)
 #define OFFSET_KICK_DISCONNECTED_PLAYERS HOOK_OFFSET(0x140D5F330)
+#define OFFSET_MAINLOOP_INIT HOOK_OFFSET(0x140186B90)
+#define OFFSET_MAINLOOP_INITDATAPLATFORM HOOK_OFFSET(0x145315E30)
+#define OFFSET_GAMESIMULATION_INIT HOOK_OFFSET(0x145315930)
+#define OFFSET_GAMESIMULATION_SPAWNSERVER HOOK_OFFSET(0x14018EE70)
 
 using namespace fastdelegate;
 
 namespace Kyber
 {
-Program* s_program;
+TL_DECLARE_FUNC(0x14131AB20, void*, DirtySockSocketManager_ctor, void* inst, MemoryArena* arena, uint32_t maxPacketSize);
+
+Program* g_program;
 
 Program::Program(HMODULE module)
     : m_module(module)
     , m_api(nullptr)
+    , m_client(nullptr)
     , m_server(nullptr)
     , m_console(nullptr)
     , m_entityManager(nullptr)
     , m_scriptManager(nullptr)
-    , m_settingsManager(nullptr)
-    //, m_frostyLink(nullptr)
-    //, m_replaySystem(nullptr)
-    , m_voipManager(nullptr)
-    , m_clientSocketManager(nullptr)
-    , m_clientState(ClientState_None)
+    , m_settingsManager(nullptr) 
     , m_startupInitialized(false)
-    , m_joining(false)
-    , m_spectator(false)
-    , m_connected(false)
     , m_allowInteraction(true)
     , m_isDedicatedServer(false)
     , m_messageDebugEnabled(false)
 {
-    if (s_program || MH_Initialize() != MH_OK)
+    if (g_program || MH_Initialize() != MH_OK)
     {
         ErrorUtils::ThrowException("Initialization failed. Please restart Battlefront and try again.");
     }
@@ -101,6 +95,7 @@ void Program::Uninitialize() const
 {
     HookManager::RemoveHooks();
     delete m_server;
+    delete m_client;
 }
 
 spdlog::level::level_enum DecideLogLevel()
@@ -126,8 +121,8 @@ void MainInitHk()
 
     KYBER_LOG(Info, "[Engine] Initializing game, waiting for Kyber...");
 
-    std::unique_lock<std::mutex> lock(s_program->m_startupMutex);
-    s_program->m_startupCondition.wait(lock, [] { return s_program->m_startupInitialized; });
+    std::unique_lock<std::mutex> lock(g_program->m_startupMutex);
+    g_program->m_startupCondition.wait(lock, [] { return g_program->m_startupInitialized; });
 
     KYBER_LOG(Info, "[Engine] Finished initializing");
 
@@ -214,27 +209,6 @@ void Program::InitializationThread()
     // Kyber Mod Loader requires vanilla game data
     _putenv_s("GAME_DATA_DIR", "");
 
-    if (std::getenv("KYBER_X64DBG_DEBUGGING") != nullptr)
-    {
-        using namespace std::chrono_literals;
-
-        STARTUPINFO si;     
-        PROCESS_INFORMATION pi;
-        ZeroMemory( &si, sizeof(si) );
-        si.cb = sizeof(si);
-        ZeroMemory( &pi, sizeof(pi) );
-        // todo: actually make the commandline part work (documentation for x64dbg lies ? idk)
-        CreateProcess("E:\\Workspace\\Frostbite\\RE Tools\\x64dbg\\release\\x64\\x64dbg.exe",
-                      const_cast<char*>(("-p " + std::to_string(getpid())).c_str()), nullptr,
-                      nullptr, false, 0, nullptr, nullptr, &si, &pi);
-
-        std::this_thread::sleep_for(10000ms);
-        //WaitForSingleObject(pi.hProcess, INFINITE);
-        
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-    }
-
     const char* apiToken = std::getenv("KYBER_API_TOKEN");
     if (apiToken == nullptr)
     {
@@ -249,13 +223,14 @@ void Program::InitializationThread()
     m_interface = std::make_unique<InterfaceService>();
 
     m_server = new Server();
+    m_client = new Client();
     m_entityManager = new EntityManager();
     m_settingsManager = new KyberSettingsManager();
     m_scriptManager = new ScriptManager();
 
     if (!m_isDedicatedServer)
     {
-        m_voipManager = new VoipManager();
+        m_client->m_voipManager = new VoipManager();
     }
 
     std::string title = "KYBER";
@@ -333,92 +308,6 @@ void Program::InitializeConsole()
     m_consoleRegistrationCallbacks.clear();
 }
 
-void Program::HandleClientServerJoin(NetworkCreatePlayerMessage* message)
-{
-    if (!m_joining && !m_connected && !m_server->m_runningHosted)
-    {
-        return;
-    }
-
-    if (!m_server->m_onlineMode)
-    {
-        return;
-    }
-
-    char* name = StringUtils::CopyWithArena("KyberAuthentication:" + m_joinToken);
-    message->playerName = name;
-    message->isSpectator = m_spectator;
-
-    KYBER_LOG(Info, "[Client] Joining game as '" << message->playerName << "'");
-
-    AttemptJoinVoip();
-}
-
-void Program::AttemptJoinVoip()
-{
-    if (m_voipManager == nullptr || !m_voipManager->IsLoggedIn() || m_server->m_socketSpawnInfo.serverName.empty() || m_voipManager->IsConnected())
-    {
-        return;
-    }
-
-    KYBER_LOG(Info, "[Client] Joining VoIP");
-    m_api->GetVoip()->JoinChannel(m_server->m_socketSpawnInfo.serverName, [&](std::optional<const VoipJoinChannelResponse*> response) {
-        if (!response)
-        {
-            KYBER_LOG(Error, "[VoIP] Failed to retrieve vivox channel credentials. Proximity chat will not work!");
-            return;
-        }
-
-        m_voipManager->AddSession((*response)->channel(), (*response)->accesstoken());
-    });
-}
-
-void Program::JoinServer(const std::string& id, std::string ip, uint16_t port, bool spectate, bool proxied, bool changeState)
-{
-    if (!id.empty())
-    {
-        auto server = m_api->GetServerBrowser()->GetServer(id);
-        if (!server)
-        {
-            KYBER_LOG(Error, "[Client] Server " << id << " not found, connection failed!");
-            return;
-        }
-
-        auto meta = server->meta();
-        auto proxy_id_it = meta.find("pinned_proxy_id");
-        if (proxy_id_it != meta.end())
-        {
-            auto proxies = s_program->GetAPI()->GetProxy()->GetList();
-            for (const auto& proxy : proxies)
-            {
-                if (proxy.id() == proxy_id_it->second)
-                {
-                    ip = proxy.ip();
-                    KYBER_LOG(Info, "[Client] Overriding with pinned proxy '" << proxy.id() << "'");
-                    break;
-                }
-            }
-        }
-    }
-
-    ClientSettings* clientSettings = Settings<ClientSettings>("Client");
-    clientSettings->ServerIp = StringUtils::CopyWithArena(ip);
-
-    SocketSpawnInfo info(proxied, proxied ? ip : "", id, "");
-    m_server->m_socketSpawnInfo = info;
-    m_joining = true;
-    m_spectator = spectate;
-
-    KYBER_LOG(Info, "[Client] Joining server " << id << " at " << ip << ":" << port << " [Proxied: " << proxied
-                                               << ", Spectate: " << spectate << ", ChangeState: " << changeState << "]");
-
-    Settings<NetworkSettings>("Network")->ServerPort = port;
-    if (changeState)
-    {
-        ChangeClientState(ClientState_Startup);
-    }
-}
-
 void MemoryArenaLog(__int64 a1, const char* format, ...)
 {
     static const auto trampoline = HookManager::Call(MemoryArenaLog);
@@ -439,102 +328,6 @@ uint8_t* ReadObfuscatedHk(uint8_t* data, uint32_t* size)
     return data + 0x22C;
 }
 
-__int64 ClientCtorHk(__int64 inst, void* a2, __int64 a3)
-{
-    static const auto trampoline = HookManager::Call(ClientCtorHk);
-    KYBER_LOG(Info, "[Client] Creating client");
-
-    if (s_program->m_scriptManager != nullptr)
-    {
-        s_program->m_scriptManager->LoadScripts(PluginRealm_Client);
-    }
-
-    return trampoline(inst, a2, a3);
-}
-
-__int64 ClientStateChangeHk(__int64 inst, ClientState currentClientState, ClientState lastClientState)
-{
-    static const auto trampoline = HookManager::Call(ClientStateChangeHk);
-    s_program->m_clientState = currentClientState;
-    KYBER_LOG(Info, "[Client] Client state changed to " << ClientStateToString(currentClientState));
-    Server* server = s_program->m_server;
-    if (!server)
-    {
-        return trampoline(inst, currentClientState, lastClientState);
-    }
-
-    if (currentClientState == ClientState_Startup)
-    {
-        static bool firstStartup = true;
-
-        // s_program->m_console->UnregisterCommands();
-        s_program->m_allowInteraction = false;
-
-        if ((server->m_runningHosted || s_program->m_connected) && s_program->m_clientSocketManager)
-        {
-            // s_program->m_clientSocketManager->CloseSockets();
-            s_program->m_clientSocketManager = nullptr;
-        }
-
-        if (s_program->m_connected)
-        {
-            KYBER_LOG(Info, "[Client] Leaving server");
-
-            if (s_program->m_voipManager != nullptr)
-            {
-                s_program->m_voipManager->RemoveSession();
-            }
-
-            s_program->m_spectator = false;
-        }
-
-        s_program->m_connected = false;
-
-        if (server->m_runningHosted)
-        {
-            if (!server->m_restarting)
-            {
-                KYBER_LOG(Info, "[Server] Stopping server");
-                server->Stop();
-
-                if (s_program->m_voipManager != nullptr)
-                {
-                    s_program->m_voipManager->RemoveSession();
-                }
-
-                s_program->m_spectator = false;
-
-                GameSettings* gameSettings = Settings<GameSettings>("Game");
-                gameSettings->Level = const_cast<char*>(StringUtils::CopyWithArena("Levels/FrontEnd/FrontEnd"));
-                gameSettings->DefaultLayerInclusion = const_cast<char*>(StringUtils::CopyWithArena(""));
-            }
-            else
-            {
-                server->m_restarting = false;
-            }
-        }
-        else if (!s_program->m_joining && !firstStartup)
-        {
-            Settings<ClientSettings>("Client")->ServerIp = const_cast<char*>(StringUtils::CopyWithArena(""));
-        }
-
-        server->OnClientStartup();
-
-        firstStartup = false;
-    }
-    else if (currentClientState == ClientState_Ingame)
-    {
-        s_program->GetAPI()->GetLauncherInterface()->OnServerJoined();
-        s_program->m_allowInteraction = true;
-        if (server->m_runningHosted)
-        {
-            server->InitializeGameSettings();
-        }
-    }
-
-    return trampoline(inst, currentClientState, lastClientState);
-}
-
 __int64 OriginSDKInitializeHk(void* inst, int a2, uint16_t lsxPort, void* a4, void* a5)
 {
     static const auto trampoline = HookManager::Call(OriginSDKInitializeHk);
@@ -548,64 +341,8 @@ __int64 OriginSDKInitializeHk(void* inst, int a2, uint16_t lsxPort, void* a4, vo
     return trampoline(inst, a2, lsxPort, a4, a5);
 }
 
-class EngineConnection
-{
-public:
-    char pad_0000[1544];   // 0x0000
-    char* m_reasonText;    // 0x0608
-    char pad_0610[24];     // 0x0610
-    SecureReason m_reason; // 0x0628
-};
-
-void ClientConnectionOnDisconnectedHk(__int64 inst)
-{
-    static const auto trampoline = HookManager::Call(ClientConnectionOnDisconnectedHk);
-
-    EngineConnection* connBase = (EngineConnection*)(inst - 0x10);
-    SecureReason reason = connBase->m_reason;
-    char* reasonText = connBase->m_reasonText;
-
-    if (reason == SecureReason_TimedOut)
-    {
-        reason = SecureReason_KickedViaFairFight;
-        reasonText = StringUtils::CopyWithArena("Timed out.", FB_CLIENT_ARENA);
-    }
-    else if (reason == SecureReason_NoReply)
-    {
-        reason = SecureReason_KickedViaFairFight;
-        reasonText = StringUtils::CopyWithArena("The server did not reply.", FB_CLIENT_ARENA);
-    }
-    else if (reason == SecureReason_KickedByAdmin)
-    {
-        reason = SecureReason_KickedViaFairFight;
-        reasonText =
-            StringUtils::CopyWithArena("You were kicked by a server admin.\n\nReason: " + std::string(reasonText), FB_CLIENT_ARENA);
-    }
-
-    KYBER_LOG(Info, "[Client] Disconnected from server: " << std::hex << reason << " " << reasonText);
-
-    s_program->GetAPI()->GetLauncherInterface()->OnServerDisconnect();
-
-    connBase->m_reason = reason;
-    connBase->m_reasonText = reasonText;
-    trampoline(inst);
-}
-
-void ClientConnectionSendMessageHk(void* inst, Message* message)
-{
-    static const auto trampoline = HookManager::Call(ClientConnectionSendMessageHk);
-    if (message)
-    {
-        TypeInfo* type = message->getType();
-        if (type && type->typeInfoData && strcmp(type->getName(), "NetworkCreatePlayerMessage") == 0)
-        {
-            NetworkCreatePlayerMessage* msg = (NetworkCreatePlayerMessage*)message;
-            s_program->HandleClientServerJoin(msg);
-        }
-    }
-    trampoline(inst, message);
-}
-
+TL_DECLARE_FUNC(0x146C5EF40, __int64, __unkServerGhosts, __int64*);
+// Server Message Manager
 void MessageManagerDispatchMessageHk(void* inst, Message* message)
 {
     static const auto trampoline = HookManager::Call(MessageManagerDispatchMessageHk);
@@ -624,7 +361,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
 
     eastl::string name = type->getName();
 
-    if (s_program->m_messageDebugEnabled)
+    if (g_program->m_messageDebugEnabled)
     {
         if (name == "ClientInputUnchangedInputMessage" || name == "StreamInstallRequestSuspendMessage")
         {
@@ -638,42 +375,66 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     {
         ServerPlayerAboutToCreateForConnectionMessage* msg = (ServerPlayerAboutToCreateForConnectionMessage*)message;
 
-        if (s_program->m_server->IsRunning())
+        if (g_program->m_server->IsRunning())
         {
-            KYBER_LOG(Info, msg->requestedName << " joined the server");
+            // KYBER_LOG(Info, "[Server] " << msg->requestedName << " is attempting to join the server");
         }
     }
     else if (name == "ServerLevelCompletedMessage")
     {
         KYBER_LOG(Info, "[Server] Game ended, moving to next level");
 
-        MapRotationEntry rotation = s_program->m_server->m_mapRotation.GetNextEntry();
-        s_program->m_server->LoadNextLevel(rotation.level.c_str(), rotation.mode.c_str());
+        if (g_program->m_scriptManager != nullptr)
+        {
+            g_program->m_scriptManager->GetEventManager().Fire("Level:Complete");
+        }
+
+        MapRotationEntry rotation = g_program->m_server->m_mapRotation.GetNextEntry();
+        g_program->m_server->LoadNextLevel(rotation.level.c_str(), rotation.mode.c_str());
     }
     else if (name == "ServerLevelLoadedMessage")
     {
         KYBER_LOG(Info, "[Server] Server level loaded");
 
-        if (s_program->m_isDedicatedServer)
-        {
-            s_program->m_server->OnLevelLoaded();
-        }
+        g_program->m_server->OnLevelLoaded();
     }
     else if (name == "ServerLevelSpawnEntitiesBeginMessage")
     {
         KYBER_LOG(Info, "[Server] Spawning server entities...");
     }
+    else if (name == "CoreGameTimerMessage")
+    {
+        CoreGameTimerMessage* msg = static_cast<CoreGameTimerMessage*>(message);
+
+        KYBER_LOG(Debug, "Average TPS: (" << (float(msg->m_ticks) / msg->m_timeElapsed) << ") Average tick time: (" << msg->m_avgTickTime
+                                         << ") Worst tick time: (" << msg->m_worstTickTime << ")");
+
+        if (g_program->m_scriptManager != nullptr)
+        {
+            g_program->m_scriptManager->GetEventManager().Fire("DedicatedServer:PerformanceStatsMessage",
+                double(msg->m_ticks) / msg->m_timeElapsed, msg->m_avgTickTime, msg->m_worstTickTime);
+        }
+    }
     else if (name == "ServerPlayerDisconnectMessage")
     {
         ServerPlayerDisconnectMessage* msg = (ServerPlayerDisconnectMessage*)message;
 
-        if (s_program->m_server->IsRunning())
+        if (g_program->m_server->IsRunning())
         {
-            s_program->m_server->m_persistenceManager->SavePlayerStats(msg->m_player);
+            g_program->m_server->m_persistenceManager->SavePlayerStats(msg->m_player);
 
-            s_program->GetAPI()->GetServerManagement()->SendPlayerList();
-            s_program->GetAPI()->GetServerManagement()->SendConsoleMessage(
+            g_program->GetAPI()->GetServerManagement()->SendPlayerList();
+            g_program->GetAPI()->GetServerManagement()->SendConsoleMessage(
                 StringUtils::Format("%s (%llu) left the server", msg->m_player->m_name, msg->m_player->m_onlineId.m_nativeData));
+
+            ServerPlayerDisconnectedEvent* disconnectedEvent = new (FB_SERVER_ARENA) ServerPlayerDisconnectedEvent();
+            disconnectedEvent->player = msg->m_player;
+            g_program->m_server->m_eventManager->QueueEvent(disconnectedEvent);
+
+            if (g_program->m_scriptManager != nullptr)
+            {
+                g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Disconnect", msg->m_player);
+            }
         }
     }
     else if (name == "ServerPlayerChatMessage")
@@ -681,7 +442,7 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
         ServerPlayerChatMessage* msg = (ServerPlayerChatMessage*)message;
 
         std::string log = std::string(msg->m_sender->m_name) + ": " + msg->m_message;
-        s_program->GetAPI()->GetServerManagement()->SendConsoleMessage(log);
+        g_program->GetAPI()->GetServerManagement()->SendConsoleMessage(log);
     }
     else if (name == "ServerPeerInitializedMessage")
     {
@@ -690,21 +451,215 @@ void MessageManagerDispatchMessageHk(void* inst, Message* message)
     else if (name == "ServerPlayerKilledMessage")
     {
         ServerPlayerKilledMessage* msg = (ServerPlayerKilledMessage*)message;
-        if (s_program->m_scriptManager != nullptr)
+        KYBER_LOG(Debug, "ServerPlayerKilledMessage EXECUTED: " << std::hex << msg);
+        if (g_program->m_scriptManager != nullptr)
         {
-            s_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Killed", msg->m_victimPlayer, msg->m_inflictorPlayer);
+            char* killerWeaponName = msg->m_deathInfo && msg->m_deathInfo->killerWeapon && msg->m_deathInfo->killerWeapon->Name
+                ? msg->m_deathInfo->killerWeapon->Name : nullptr;
+
+            g_program->m_scriptManager->GetEventManager().Fire(
+                "ServerPlayer:Killed", msg->m_victimPlayer, msg->m_inflictorPlayer, killerWeaponName);
         }
+    }
+    else if (name == "PlayerAbilityPickedUpMessage")
+    {
+        KYBER_LOG(Debug, "PlayerAbilityPickedUpMessage: " << std::hex << message);
     }
     else if (name == "NetworkOnPlayerSpawnedMessage")
     {
         KYBER_LOG(Debug, "Player spawned: " << std::hex << message);
-        if (s_program->m_scriptManager != nullptr)
+        if (g_program->m_scriptManager != nullptr)
         {
-            s_program->m_scriptManager->GetEventManager().Fire("ClientPlayer:Spawned");
+            g_program->m_scriptManager->GetEventManager().Fire("ClientPlayer:Spawned");
         }
+    }
+    else if (name == "ServerPlayerRespawnMessage")
+    {
+        KYBER_LOG(Debug, "Server Player spawned: " << std::hex << message);
+        ServerPlayerRespawnMessage* msg = (ServerPlayerRespawnMessage*)message;
+        if (g_program->m_scriptManager != nullptr)
+        {
+            g_program->m_scriptManager->GetEventManager().Fire("ServerPlayer:Spawned", msg->player);
+        }
+    }
+    //else if (name == "ServerSoldierFiringMessage")
+    //{
+    //    KYBER_LOG(Debug, "Server Player Firing: " << std::hex << message);
+    //    KYBER_LOG(Debug, "BREAKME");
+    //}
+    else if (name == "WSServerBattlepointsChangedMessage")
+    {
+        KYBER_LOG(Debug, "Server Battlepoints Changed: " << std::hex << message);
+        // In case it has future use...
+        //WSServerBattlepointsChangedMessage* msg = (WSServerBattlepointsChangedMessage*)message;
+        //if (!msg->player->IsAIPlayer())
+        //{
+        //    KYBER_LOG(Info, "Player " << msg->player->m_name << " just got " << msg->changeAmount << " battlepoints. Debug: " << std::hex << msg->player << " " << //msg->player->GetBattlepoints());
+        //}
     }
 
     trampoline(inst, message);
+}
+
+struct MainLoop
+{
+    char pad_0000[8];       // 0x0000
+    bool isDedicatedServer; // 0x0008
+};
+
+void* s_mainLoop = nullptr;
+
+bool MainLoopInitHk(MainLoop* inst)
+{
+    static const auto trampoline = HookManager::Call(MainLoopInitHk);
+    s_mainLoop = inst;
+
+    if (g_program->m_isDedicatedServer)
+    {
+        inst->isDedicatedServer = true;
+    }
+
+    g_program->InitializeConsole();
+
+    if (g_program->m_scriptManager != nullptr)
+    {
+        g_program->m_scriptManager->LoadScripts(PluginRealm_Server);
+    }
+
+    KYBER_LOG(Info, "[Engine] Initializing Game Loop");
+    bool result = trampoline(inst);
+
+    KYBER_LOG(Info, "[Engine] Processing initial events");
+    g_program->m_server->m_eventManager->ProcessEventQueue();
+    g_program->m_client->m_eventManager->ProcessEventQueue();
+
+    if (g_program->m_settingsManager != nullptr)
+    {
+        g_program->m_settingsManager->ApplySettings();
+        g_program->m_server->OnSettingsRegistered();
+    }
+
+    return result;
+}
+
+void MainLoopInitDataPlatform()
+{
+    static const auto trampoline = HookManager::Call(MainLoopInitDataPlatform);
+    trampoline();
+
+    /*const char** dataPlatformPathName = (const char**)0x143AF6010;
+    *dataPlatformPathName = "DedicatedServer";
+
+    const char** dataPlatformPathNameLower = (const char**)0x143AF6018;
+    *dataPlatformPathNameLower = "dedicatedserver";*/
+}
+
+void GameSimulationSpawnServerHk(void* inst, ServerSpawnInfo& createInfo)
+{
+    static const auto trampoline = HookManager::Call(GameSimulationSpawnServerHk);
+    KYBER_LOG(Trace, "[GameSim] Spawning server: " << createInfo.isDedicated);
+    return trampoline(inst, createInfo);
+}
+
+void GameSimulationInitDedicatedServerHk(void* inst, void* createInfo)
+{
+    KYBER_LOG(Info, "[GameSim] Initializing Dedicated Server");
+
+    if (!g_program->m_server->m_creationInfo)
+    {
+        KYBER_LOG(Error, "[GameSim] Failed to find server creation info; halting");
+        return;
+    }
+
+    if (g_program->m_server->m_socketManager == nullptr)
+    {
+        g_program->m_server->m_socketManager = (SocketManager*)FB_STATIC_ARENA->alloc(448);
+        if (g_program->m_server->m_socketManager == nullptr)
+        {
+            KYBER_LOG(Error, "[GameSim] Failed to allocate socket manager; halting");
+            return;
+        }
+
+        DirtySockSocketManager_ctor(g_program->m_server->m_socketManager, FB_STATIC_ARENA, 1168);
+    }
+
+    NetworkSettings* networkSettings = Settings<NetworkSettings>("Network");
+    networkSettings->MaxClientCount = 64;
+
+    GameSettings* gameSettings = Settings<GameSettings>("Game");
+    gameSettings->MaxSpectatorCount = 4;
+
+    NetObjectSystemSettings* netObjectSettings = Settings<NetObjectSystemSettings>("NetObjectSystem");
+    netObjectSettings->MaxServerConnectionCount = 64;
+    // netObjectSettings->DeltaCompressionSettings.IsEnabled = false;
+
+    if (g_program->m_server->m_onlineMode)
+    {
+        g_program->m_server->Register();
+        g_program->m_server->InitializeChatFilterPreset();
+    }
+
+    ServerCreationInfo& info = *g_program->m_server->m_creationInfo;
+    ServerSettings* serverSettings = Settings<ServerSettings>("Server");
+    serverSettings->ServerName = StringUtils::CopyWithArena(info.name.c_str());
+    serverSettings->ServerPassword = StringUtils::CopyWithArena(info.password.c_str());
+
+    g_program->m_server->m_socketSpawnInfo = SocketSpawnInfo(false, "", g_program->m_server->m_serverId, "");
+
+    LevelSetup levelSetup;
+    InitLevelSetup(&levelSetup, info.level.c_str(), info.mode.c_str(), "", "");
+
+    WSGameSettings* wsSettings = Settings<WSGameSettings>("Whiteshark");
+    wsSettings->AutoBalanceTeamsOnNeutral = true;
+
+    ServerSpawnInfo spawnInfo(levelSetup);
+    spawnInfo.isSinglePlayer = false;
+    spawnInfo.isLocalHost = false;
+    spawnInfo.isDedicated = true;
+    spawnInfo.saveData.init(0);
+    GameSimulationSpawnServerHk(inst, spawnInfo);
+}
+
+class GameSimulation
+{
+public:
+    char pad_0000[256];       // 0x0000
+    uint32_t unk1;            // 0x0100
+    uint32_t m_tickFrequency; // 0x0104
+    uint32_t m_looping;       // 0x0108
+};
+
+#define GAME_CLOCK_NAME **reinterpret_cast<const char***>(0x143AEBA18)
+
+void GameSimulationInitHk(GameSimulation* inst, void* createInfo)
+{
+    static const auto trampoline = HookManager::Call(GameSimulationInitHk);
+    KYBER_LOG(Info, "[GameSim] Initializing Game Simulation");
+
+    //double newFpsCap = 1.f / 500.f;
+    //MemoryUtils::Patch(reinterpret_cast<void*>(0x142EF7668), &newFpsCap, sizeof(newFpsCap));
+
+    if (g_program->m_isDedicatedServer)
+    {
+        GAME_CLOCK_NAME = "Dedicated";
+
+        PlatformUtils::HookVTableFunction(inst, &GameSimulationInitDedicatedServerHk, 31);
+    }
+
+    // Changeable, but causes some weird things.
+    // In Battlefield, this works properly when paired
+    // with changing Server.OutgoingHighFrequency,
+    // but the equivalent settings (Server.OutgoingFrequency,
+    // Server.IncomingFrequency, Client.OutgoingFrequency,
+    // Client.IncomingFrequency, GameTime.MaxSimFps,
+    // GameTime.ForceSimRate) in battlefront just cause
+    // the player to not spawn properly.
+    // inst->m_tickFrequency = 30;
+
+    trampoline(inst, createInfo);
+    KYBER_LOG(Info, "[GameSim] Game Simulation initialized: " << std::hex << inst);
+
+    // GenericUpdateManager::Get().GameSimInit();
 }
 
 const char* GetHostIdHk(__int64 inst)
@@ -726,6 +681,12 @@ const char* GetLocalizedStringInternalHk(const char* inst, const char* id)
     return res;
 }
 
+__int64 PersistenceAssetCheck()
+{
+    static const auto trampoline = HookManager::Call(PersistenceAssetCheck);
+    return 0;
+}
+
 void FileSuperBundleManagerUpdateConfigHk(FileSuperBundleManager* inst)
 {
     static const auto trampoline = HookManager::Call(FileSuperBundleManagerUpdateConfigHk);
@@ -733,90 +694,70 @@ void FileSuperBundleManagerUpdateConfigHk(FileSuperBundleManager* inst)
 
     if (std::getenv("KYBER_DISABLE_MODLOADER") == nullptr)
     {
-        s_modLoader = new ModLoader(inst, s_program->m_modData);
+        g_modLoader = new ModLoader(inst, g_program->m_modData);
     }
 
     trampoline(inst);
     KYBER_LOG(Debug, "SuperBundle config loaded");
 }
 
-__int64 ClientUpdatePassPreFrameHk(void* inst, const UpdateParameters& params)
+__int64 TeamInfo__isFriendlyHk(int teamA, int teamB)
 {
-    static const auto trampoline = HookManager::Call(ClientUpdatePassPreFrameHk);
-    __int64 result = trampoline(inst, params);
+    static const auto trampoline = HookManager::Call(TeamInfo__isFriendlyHk);
+    __int64 result = trampoline(teamA, teamB);
 
-    if (s_program->m_entityManager != nullptr)
+    SyncedGameSettings* syncedGame = Settings<SyncedGameSettings>("SyncedGame");
+    if (syncedGame != nullptr && syncedGame->EnableFriendlyFire)
     {
-        s_program->m_entityManager->UpdateEntities(Realm_Client, params);
+        return 2; // override
     }
 
-    for (const auto& listener : s_program->m_clientUpdatePassListeners)
-    {
-        listener->Call(ClientUpdatePass_PreFrame);
-    }
-
-    s_threadExecutor->Process(GameThread_Client);
-
-    if (s_program->m_scriptManager != nullptr)
-    {
-        s_program->m_scriptManager->GetEventManager().Fire("Client:UpdatePre", params.simulationDeltaTime.toSecondsAsFloat());
-    }
-
-    GenericUpdateManager::Get().Call(UpdateType_Client_PreFrame, params);
     return result;
 }
 
-__int64 ClientUpdatePassPostFrameHk(void* inst, const UpdateParameters& params)
+void FixInvalidCrash(void** table)
 {
-    static const auto trampoline = HookManager::Call(ClientUpdatePassPostFrameHk);
-    __int64 result = trampoline(inst, params);
-
-    for (const auto& listener : s_program->m_clientUpdatePassListeners)
+    void* patchValue = reinterpret_cast<void*>(0x1401840C0);
+    for (; table[1]; table += 2)
     {
-        listener->Call(ClientUpdatePass_PostFrame);
+        char* str = reinterpret_cast<char*>(table[0]);
+        if (strstr(str, "time") == nullptr)
+        {
+            MemoryUtils::Patch(&table[1], &patchValue, sizeof(void*));
+        }
     }
-
-    if (s_program->m_scriptManager != nullptr)
-    {
-        s_program->m_scriptManager->GetEventManager().Fire("Client:UpdatePost", params.simulationDeltaTime.toSecondsAsFloat());
-    }
-
-    GenericUpdateManager::Get().Call(UpdateType_Client_PostFrame, params);
-    return result;
-}
-
-__int64 ClientAuthHk(__int64 a1, OnlineId* a2, unsigned int a3)
-{
-    static const auto trampoline = HookManager::Call(ClientAuthHk);
-    __int64 result = trampoline(a1, a2, a3);
-    KYBER_LOG(Info, "[Client] Joining server authenticated as " << a2->m_nativeData << " " << a2->m_id << " " << a3);
-    return result;
-}
-
-void Program::RegisterClientUpdatePassListener(ClientUpdatePassListener* listener)
-{
-    m_clientUpdatePassListeners.push_back(listener);
 }
 
 void Program::InitializeGameHooks()
 {
+    static void* LuaDummy = HOOK_OFFSET(0x1401840C0);
+
     // clang-format off
     HookTemplate hookOffsets[] = {
-        { OFFSET_CLIENT_STATE_CHANGE, ClientStateChangeHk },
         { OFFSET_ENVIRONMENT_GET_HOST_ID, GetHostIdHk },
         { OFFSET_ENVIRONMENT_GET_HOST_IDENTIFIER, GetHostIdHk },
         { OFFSET_ORIGINSDK_INITIALIZE, OriginSDKInitializeHk },
         { OFFSET_MESSAGEMANAGER_DISPATCH_MESSAGE, MessageManagerDispatchMessageHk },
-        { OFFSET_CLIENTCONNECTION_ONDISCONNECTED, ClientConnectionOnDisconnectedHk },
+        { OFFSET_MAINLOOP_INIT, MainLoopInitHk },
+        //{ OFFSET_MAINLOOP_INITDATAPLATFORM, MainLoopInitDataPlatform },
+        { OFFSET_GAMESIMULATION_INIT, GameSimulationInitHk },
+        { OFFSET_GAMESIMULATION_SPAWNSERVER, GameSimulationSpawnServerHk },
         { OFFSET_READOBFUSCATED, ReadObfuscatedHk },
-        { OFFSET_CLIENTCONNECTION_SENDMESSAGE, ClientConnectionSendMessageHk },
         { OFFSET_GETLOCALIZEDSTRING, GetLocalizedStringInternalHk },
-        { OFFSET_CLIENT_CTOR, ClientCtorHk },
         { OFFSET_FILESUPERBUNDLEMANAGER_UPDATECONFIG, FileSuperBundleManagerUpdateConfigHk },
-        { OFFSET_CLIENT_UPDATEPASSPREFRAME, ClientUpdatePassPreFrameHk },
-        { OFFSET_CLIENT_UPDATEPASSPOSTFRAME, ClientUpdatePassPostFrameHk },
-        { HOOK_OFFSET(0x1418D92B0), ClientAuthHk },
         { OFFSET_MEMORYARENA_LOG, MemoryArenaLog },
+        { HOOK_OFFSET(0x146A4BA30), TeamInfo__isFriendlyHk },
+        //{ HOOK_OFFSET(0x1483EB2B0), PersistenceAssetCheck },
+
+        // Dummy out unsafe built-in lua functions
+        { HOOK_OFFSET(0x1477C4B00), LuaDummy }, // package.loadlib()
+        { HOOK_OFFSET(0x1477B22F0), LuaDummy }, // dofile()
+        { HOOK_OFFSET(0x1477B2140), LuaDummy }, // loadfile()
+        { HOOK_OFFSET(0x1477B14D0), LuaDummy }, // getfenv()
+        { HOOK_OFFSET(0x1477B1610), LuaDummy }, // setfenv()
+        { HOOK_OFFSET(0x1477B1790), LuaDummy }, // rawequal()
+        { HOOK_OFFSET(0x1477B1900), LuaDummy }, // rawget()
+        { HOOK_OFFSET(0x1477B1B60), LuaDummy }, // rawset()
     };
     // clang-format on
 
@@ -838,6 +779,22 @@ void Program::InitializeGamePatches()
 
     MemoryUtils::Nop(HOOK_OFFSET(0x14018B133), 6); // Allow Multiple Game Instances
     MemoryUtils::Nop(HOOK_OFFSET(0x140235C2E), 6); // Enable All Console Commands
+    
+    BYTE ptch1[] { 0xEB };
+    MemoryUtils::Patch(HOOK_OFFSET(0x1418B64CC), ptch1, sizeof(ptch1));
+
+    static intptr_t ptrs[] = { 
+        0x14308A430,
+        0x143089BB0,
+        0x1430898A0,
+        0x143089960,
+        0
+    };
+
+    for (void*** i = reinterpret_cast<void***>(ptrs); *i; i++)
+    {
+        FixInvalidCrash(*i);
+    }
 }
 
 void Program::Initialize()
@@ -845,12 +802,10 @@ void Program::Initialize()
     InitializeGameHooks();
     InitializeGamePatches();
 
-    if (m_voipManager != nullptr)
-    {
-        m_voipManager->Init();
-    }
+    StreamManagerKyberEvent::InitializeHooks();
 
     m_server->Initialize();
+    m_client->Initialize();
 
     KYBER_LOG(Info, "[Engine] Kyber post-initialized");
 }

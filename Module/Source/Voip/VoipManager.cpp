@@ -3,6 +3,7 @@
 #include <Core/Console.h>
 #include <Core/Program.h>
 #include <SDK/Funcs.h>
+#include <SDK/Fb/WS.h>
 
 #include <Vxc.h>
 #include <VxcErrors.h>
@@ -29,13 +30,13 @@ void OnSdkMessageAvailable(void* callbackHandle)
 
 void VoipMuteCommand(ConsoleContext& cc)
 {
-    VoipManager* manager = s_program->m_voipManager;
+    VoipManager* manager = g_program->m_client->m_voipManager;
     manager->SetMuted(true);
 }
 
 void VoipListCaptureDevicesCommand(ConsoleContext& cc)
 {
-    VoipManager* manager = s_program->m_voipManager;
+    VoipManager* manager = g_program->m_client->m_voipManager;
     cc << "Capture devices:\n";
 
     int i = 0;
@@ -50,7 +51,7 @@ void VoipListCaptureDevicesCommand(ConsoleContext& cc)
 
 void VoipSetCaptureDeviceCommand(ConsoleContext& cc)
 {
-    VoipManager* manager = s_program->m_voipManager;
+    VoipManager* manager = g_program->m_client->m_voipManager;
 
     auto stream = cc.stream();
     int id;
@@ -64,7 +65,7 @@ void VoipSetCaptureDeviceCommand(ConsoleContext& cc)
 
 void VoipSetInputVolumeCommand(ConsoleContext& cc)
 {
-    VoipManager* manager = s_program->m_voipManager;
+    VoipManager* manager = g_program->m_client->m_voipManager;
 
     auto stream = cc.stream();
     float volume;
@@ -76,7 +77,7 @@ void VoipSetInputVolumeCommand(ConsoleContext& cc)
 
 void VoipSetSpeakerVolumeCommand(ConsoleContext& cc)
 {
-    VoipManager* manager = s_program->m_voipManager;
+    VoipManager* manager = g_program->m_client->m_voipManager;
 
     auto stream = cc.stream();
     float volume;
@@ -122,8 +123,8 @@ VoipManager::VoipManager()
 {
     RegisterRenderListener(this);
 
-    s_program->RegisterClientUpdatePassListener(this);
-    s_program->m_consoleRegistrationCallbacks.push_back([&]() {
+    g_program->m_client->RegisterClientUpdatePassListener(this);
+    g_program->m_consoleRegistrationCallbacks.push_back([&]() {
         RegisterConsoleCommand(&VoipMuteCommand, "VoipMute", "");
         RegisterConsoleCommand(&VoipListCaptureDevicesCommand, "VoipListCaptureDevices", "");
         RegisterConsoleCommand(&VoipSetCaptureDeviceCommand, "VoipSetCaptureDevice", "<id [from VoipListCaptureDevices]>");
@@ -168,7 +169,7 @@ void VoipManager::Init()
 void VoipManager::RequestLogin()
 {
     KYBER_LOG(Info, "[VoIP] Requesting vivox login...");
-    s_program->GetAPI()->GetVoip()->Login([&](std::optional<const VoipLoginResponse*> response) {
+    g_program->GetAPI()->GetVoip()->Login([&](std::optional<const VoipLoginResponse*> response) {
         if (!response)
         {
             KYBER_LOG(Error, "[VoIP] Failed to retrieve vivox credentials. Proximity chat will not work!");
@@ -295,7 +296,7 @@ void VoipManager::Call(ClientUpdatePass pass)
         return;
     }
 
-    if (s_program->m_clientState != ClientState_Ingame)
+    if (g_program->m_client->m_clientState != ClientState_Ingame)
     {
         return;
     }
@@ -329,7 +330,7 @@ void VoipManager::Call(ClientUpdatePass pass)
         return;
     }
 
-    ClientSoldierEntity* entity = player->controlledControllable;
+    ClientCharacterEntity* entity = player->controlledControllable;
     if (entity == nullptr)
     {
         m_location.valid = false;
@@ -344,7 +345,7 @@ void VoipManager::Call(ClientUpdatePass pass)
         return;
     }
 
-    if (entity->clientSoldierPrediction == nullptr)
+    if (entity->m_clientSoldierPrediction == nullptr)
     {
         m_location.valid = false;
         m_mutex.unlock();
@@ -354,7 +355,7 @@ void VoipManager::Call(ClientUpdatePass pass)
     LinearTransform cameraTransform;
     ClientCameraViewManager_getActiveCameraTransform(player->cameraViewManager, cameraTransform);
 
-    Vec3& location = entity->clientSoldierPrediction->Location;
+    Vec3& location = entity->m_clientSoldierPrediction->Location;
     // KYBER_LOG(Info, "Player X: " << location.x << " Y: " << location.y << " Z: " << location.z << " Yaw: " << entity->Yaw
     //                              << " Pitch: " << entity->Pitch << " " << std::hex << player);
     // KYBER_LOG(Info, "Camera X: " << cameraTransform.trans.x << " Y: " << cameraTransform.trans.y << " Z: " << cameraTransform.trans.z);
@@ -367,7 +368,7 @@ void VoipManager::Call(ClientUpdatePass pass)
     m_location.cameraY = cameraTransform.trans.y;
     m_location.cameraZ = cameraTransform.trans.z;
 
-    ConvertOrientation(entity->Yaw, entity->Pitch);
+    ConvertOrientation(entity->m_yaw, entity->m_pitch);
 
     m_location.valid = true;
     m_mutex.unlock();

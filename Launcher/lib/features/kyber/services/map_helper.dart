@@ -24,6 +24,10 @@ class MapHelper {
   }
 
   static AssetGenImage? getImageForMap(String map) {
+    if (map.isEmpty) {
+      return Assets.images.kyberNoImage;
+    }
+
     final image = Assets.images.maps.values.firstWhereOrNull(
       (x) => x.path.contains(map.replaceAll('/', '-')),
     );

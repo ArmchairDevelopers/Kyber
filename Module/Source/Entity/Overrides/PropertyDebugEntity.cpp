@@ -98,7 +98,7 @@ void PropertyDebugEntity::Update(const UpdateParameters& params)
             }
             else
             {
-                str = StringUtils::Format("%s%.3f, %.3f, %.3f", valuePrefix, v.x, v.y);
+                str = StringUtils::Format("%s%.3f, %.3f, %.3f", valuePrefix, v.x, v.y, v.z);
             }
         }
     }

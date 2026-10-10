@@ -1,4 +1,4 @@
-FROM rustlang/rust:nightly-bullseye-slim as builder
+FROM rustlang/rust:nightly-bookworm-slim AS builder
 
 # Install dependencies
 RUN apt-get -y update
@@ -28,7 +28,7 @@ RUN sed -i 's#dummy.rs#src/main.rs#' Cargo.toml
 COPY . /home/kyber_proxy/Proxy
 RUN cargo install --path .
 
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 RUN apt-get update -y && apt-get -y install ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/local/cargo/bin/kyber_proxy /usr/local/bin/kyber_proxy

@@ -13,25 +13,26 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/internal/api"
 	"github.com/ArmchairDevelopers/Kyber/API/internal/cache"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/db"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/featureflags"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/jwts"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/queue"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/safego"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/ws"
 	"github.com/getsentry/sentry-go"
 	sentryhttp "github.com/getsentry/sentry-go/http"
-	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	"github.com/ArmchairDevelopers/Kyber/API/internal/rpc"
 	"github.com/gorilla/mux"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
-	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
-	grpc_sentry "github.com/johnbellone/grpc-middleware-sentry"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapgrpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -50,14 +51,18 @@ func main() {
 	}
 
 	sentryDSN := os.Getenv("SENTRY_DSN")
-	err := sentry.Init(sentry.ClientOptions{Dsn: sentryDSN, SendDefaultPII: true, TracesSampleRate: 1.0})
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:              sentryDSN,
+		Environment:      os.Getenv("ENVIRONMENT"),
+		SendDefaultPII:   true,
+		TracesSampleRate: 0.2,
+	})
 	if err != nil {
 		log.Fatalf("sentry.Init: %s", err)
 	}
 	defer sentry.Flush(2 * time.Second)
 
-	client, err := sentry.NewClient(sentry.ClientOptions{Dsn: sentryDSN})
-	if err := logger.Init(client); err != nil {
+	if err := logger.Init(sentry.CurrentHub().Client()); err != nil {
 		log.Fatalf("logger.Init: %v", err)
 	}
 	defer logger.Sync()
@@ -107,13 +112,25 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	statsCache := cache.NewStatsCache(redisClient, 10*time.Minute)
-	patronsCache := cache.NewPatronsCache(redisClient, time.Hour)
-	discordCache := cache.NewDiscordAuthCache(redisClient, 5*time.Minute)
+	mqClient, err := mq.NewClient(amqpURL, []mq.ExchangeConfig{
+		{Name: "player_events", Kind: "topic", Durable: true},
+		{Name: "image_hashes", Kind: "fanout", Durable: true},
+		{Name: "reports", Kind: "fanout", Durable: true},
+		{Name: "kronos_server_browser", Kind: "fanout", Durable: true},
+		{Name: "session_events", Kind: "fanout", Durable: true},
+	})
+	if err != nil {
+		panic("failed to connect to RabbitMQ: " + err.Error())
+	}
+	defer mqClient.Close()
 
-	sm := ws.NewServerManager(ctx, amqpURL, store)
+	partyPub := mq.NewPartyEventPublisher(mqClient)
+	queuePub := mq.NewQueueEventPublisher(mqClient)
+
+	caches := cache.New(redisClient)
+
 	dockerAuth := api.NewDockerAuthState(store)
-	discordAuth := api.NewDiscordAuthState(store, discordCache)
+	discordAuth := api.NewDiscordAuthState(store, caches)
 
 	jwtService, err := jwts.NewService()
 	if err != nil {
@@ -129,76 +146,67 @@ func main() {
 
 	downloadManager := api.NewDownloadManager(minioClient)
 	imageManager := api.NewImageManager(store)
+	featureFlags := featureflags.New(os.Getenv("LIGHTSWITCH_URL"), os.Getenv("ENVIRONMENT"))
+	queueManager := queue.NewManager(store, queuePub, featureFlags)
+	sessionManager := ws.NewSessionManager(store, partyPub, queueManager)
+	serverManager := ws.NewServerManager(ctx, amqpURL, store, caches)
+	serverManager.OnPlayerCountUpdated = func(serverID string) {
+		go queueManager.Advance(context.Background(), serverID)
+	}
+
+	safego.Go(func() { sessionManager.ConsumeSessionEvents(mqClient) })
+
 	httpHandler := sentryHandler.Handle(httpRouter)
 
+	httpRouter.HandleFunc("/.well-known/jwks.json", api.JWKSHandler(jwtService)).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/docker/auth", dockerAuth.AuthHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/discord/auth", discordAuth.AuthHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/discord/callback", discordAuth.CallbackHandler).Methods(http.MethodGet)
-	httpRouter.HandleFunc("/.well-known/jwks.json", api.JWKSHandler(jwtService)).Methods(http.MethodGet)
-	httpRouter.HandleFunc("/ws/server/{id}", wrapWS(sm.HandleServerWS)).Methods(http.MethodGet)
-	httpRouter.HandleFunc("/ws/client/{id}", wrapWS(sm.HandleClientWS)).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/download/{obj}", downloadManager.DownloadHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/images/{id}.jpeg", imageManager.ImageHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/health", api.HealthHandler).Methods(http.MethodGet)
 	httpRouter.HandleFunc("/redirect", api.RedirectHandler).Methods(http.MethodGet)
+
+	httpRouter.HandleFunc("/ws/server/{id}", wrapWS(serverManager.HandleServerWS)).Methods(http.MethodGet)
+	httpRouter.HandleFunc("/ws/client/{id}", wrapWS(serverManager.HandleClientWS)).Methods(http.MethodGet)
+	httpRouter.HandleFunc("/ws/session", wrapWS(sessionManager.HandleWS)).Methods(http.MethodGet)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
 	if err != nil {
 		logger.L().Panic("failed to listen", zap.Error(err))
 	}
 
-	zapLogger := logger.L()
-	grpc_zap.ReplaceGrpcLoggerV2(zapLogger)
+	grpclog.SetLoggerV2(zapgrpc.NewLogger(logger.Console()))
+
+	sentryOpts := rpc.DefaultSentryOptions()
+	grpcLogger := zapInterceptorLogger(logger.Console())
 
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			grpc_sentry.UnaryServerInterceptor(),
-			grpc_ctxtags.UnaryServerInterceptor(
-				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor),
-			),
-			grpc_zap.UnaryServerInterceptor(zapLogger),
-			grpc_recovery.UnaryServerInterceptor(),
+		grpc.ChainUnaryInterceptor(
+			rpc.SentryUnaryServerInterceptor(sentryOpts),
+			logging.UnaryServerInterceptor(grpcLogger, logging.WithLogOnEvents(logging.FinishCall)),
+			rpc.NewFeatureInterceptor(featureFlags),
 			rpc.NewAuthHandler(store).NewAuthInterceptor(),
-		)),
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-			grpc_sentry.StreamServerInterceptor(),
-			grpc_ctxtags.StreamServerInterceptor(
-				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor),
-			),
-			grpc_zap.StreamServerInterceptor(zapLogger),
-			grpc_recovery.StreamServerInterceptor(),
-		)),
+		),
+		grpc.ChainStreamInterceptor(
+			rpc.SentryStreamServerInterceptor(sentryOpts),
+			logging.StreamServerInterceptor(grpcLogger, logging.WithLogOnEvents(logging.FinishCall)),
+			rpc.NewAuthHandler(store).NewAuthStreamInterceptor(),
+		),
 	)
 
-	mqClient, err := mq.NewClient(amqpURL)
-	if err != nil {
-		log.Fatalf("failed to connect to RabbitMQ: %v", err)
-	}
-	defer mqClient.Close()
-
-	exchanges := []mq.ExchangeConfig{
-		{Name: "player_events", Kind: "topic", Durable: true},
-		{Name: "image_hashes", Kind: "fanout", Durable: true},
-		{Name: "reports", Kind: "fanout", Durable: true},
-		{Name: "kronos_server_browser", Kind: "fanout", Durable: true},
-	}
-
-	for _, cfg := range exchanges {
-		if err := mqClient.DeclareExchange(cfg); err != nil {
-			log.Fatalf("could not declare %s: %v", cfg.Name, err)
-		}
-	}
-
 	reflection.Register(grpcServer)
-	pbapi.RegisterAuthenticationServer(grpcServer, rpc.NewAuthenticationServer(ctx, store, *mqClient))
-	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, sm, *mqClient, jwtService))
-	pbapi.RegisterClientServerServer(grpcServer, rpc.NewClientServer(store, jwtService))
-	pbapi.RegisterLauncherServer(grpcServer, rpc.NewLauncherServer(store, minioClient, patronsCache))
-	pbapi.RegisterServerManagementServer(grpcServer, rpc.NewServerManagementServer(store, sm))
-	pbapi.RegisterStatisticsServer(grpcServer, rpc.NewStatisticsServer(ctx, store, statsCache))
+	pbapi.RegisterAuthenticationServer(grpcServer, rpc.NewAuthenticationServer(ctx, store, mqClient))
+	pbapi.RegisterServerBrowserServer(grpcServer, rpc.NewServerBrowserServer(store, serverManager, mqClient, jwtService, sessionManager, partyPub, queueManager, caches))
+	pbapi.RegisterClientServerServer(grpcServer, rpc.NewClientServer(store, jwtService, queueManager))
+	pbapi.RegisterLauncherServer(grpcServer, rpc.NewLauncherServer(store, minioClient, caches))
+	pbapi.RegisterServerManagementServer(grpcServer, rpc.NewServerManagementServer(store, serverManager))
+	pbapi.RegisterStatisticsServer(grpcServer, rpc.NewStatisticsServer(ctx, store, caches))
 	pbapi.RegisterVoipServer(grpcServer, rpc.NewVoipServer(store))
 	pbapi.RegisterProxyServer(grpcServer, rpc.NewProxyServer())
-	pbapi.RegisterReportServiceServer(grpcServer, rpc.NewReportServer(store, sm, *mqClient))
+	pbapi.RegisterReportServiceServer(grpcServer, rpc.NewReportServer(store, serverManager, mqClient))
+	pbapi.RegisterPartyServer(grpcServer, rpc.NewPartyServer(store, partyPub, sessionManager, queueManager))
+	pbapi.RegisterServerQueueServer(grpcServer, rpc.NewQueueServer(store, queueManager))
 
 	eg, _ := errgroup.WithContext(ctx)
 
@@ -224,6 +232,33 @@ func main() {
 	if err := eg.Wait(); err != nil {
 		logger.L().Panic("failed to serve", zap.Error(err))
 	}
+}
+
+func zapInterceptorLogger(l *zap.Logger) logging.Logger {
+	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
+		f := make([]zap.Field, 0, len(fields)/2)
+		it := logging.Fields(fields).Iterator()
+
+		for it.Next() {
+			k, v := it.At()
+			f = append(f, zap.Any(k, v))
+		}
+
+		lg := l.WithOptions(zap.AddCallerSkip(1)).With(f...)
+
+		switch lvl {
+		case logging.LevelDebug:
+			lg.Debug(msg)
+		case logging.LevelInfo:
+			lg.Info(msg)
+		case logging.LevelWarn:
+			lg.Warn(msg)
+		case logging.LevelError:
+			lg.Error(msg)
+		default:
+			lg.Info(msg)
+		}
+	})
 }
 
 func wrapWS(wsHandler func(http.ResponseWriter, *http.Request)) http.HandlerFunc {

@@ -18,88 +18,79 @@ class TaskbarIconHelper {
     try {
       final response = await Dio()
           .get<Uint8List>(
-            'https://s3.kyber.gg/frontend-assets/launcher_icon.ico',
-            options: Options(
-              responseType: ResponseType.bytes,
-              followRedirects: false,
-              validateStatus: (status) => status != null && status < 400,
-            ),
-          )
+        'https://s3.kyber.gg/frontend-assets/launcher_icon.ico',
+        options: Options(
+          responseType: .bytes,
+          followRedirects: false,
+          validateStatus: (status) => status != null && status < 400,
+        ),
+      )
           .timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {
-              throw Exception('Request timed out');
-            },
-          );
+        const Duration(seconds: 5),
+        onTimeout: () => throw Exception('Request timed out'),
+      );
 
       return response.data != null ? Uint8List.fromList(response.data!) : null;
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
-  static void _resetIcon() {
-    if (_defaultIcon == null) {
-      return;
-    }
+  static HWND _findWindow() => FindWindow(
+    'FLUTTER_RUNNER_WIN32_WINDOW'.toPcwstr(),
+    'KYBER Launcher'.toPcwstr(),
+  ).value;
 
-    SetClassLongPtr(GetConsoleWindow(), GCL_HICON, _defaultIcon!);
-    SendMessage(GetConsoleWindow(), WM_SETICON, ICON_BIG, _defaultIcon!);
-    SendMessage(GetConsoleWindow(), WM_SETICON, ICON_SMALL, _defaultIcon!);
+  static void _applyIcon(HWND hwnd, int icon) {
+    SetClassLongPtr(hwnd, GCLP_HICON, icon);
+    SendMessage(hwnd, WM_SETICON, const WPARAM(ICON_BIG), LPARAM(icon));
+    SendMessage(hwnd, WM_SETICON, const WPARAM(ICON_SMALL), LPARAM(icon));
   }
 
-  static void setWindowIcon() async {
-    if (!Platform.isWindows) {
-      return;
-    }
+  static void _resetIcon(HWND hwnd) {
+    final defaultIcon = _defaultIcon;
+    if (defaultIcon == null) return;
+    _applyIcon(hwnd, defaultIcon);
+  }
 
-    final icon = await _getIcon();
-    if (icon == null && _defaultIcon != null) {
-      return _resetIcon();
-    } else if (icon == null) {
-      return;
-    }
+  static Future<void> setWindowIcon() async {
+    if (!Platform.isWindows) return;
 
-    final hwnd = FindWindow(
-      TEXT('FLUTTER_RUNNER_WIN32_WINDOW'),
-      TEXT('KYBER Launcher'),
-    );
-    if (hwnd == 0) {
+    final hwnd = _findWindow();
+    if (hwnd.isNull) {
       _logger.severe('Failed to obtain the Flutter window handle.');
       return;
     }
 
-    _defaultIcon = GetClassLongPtr(hwnd, GCL_HICON);
-
-    final tmpDir = await getTemporaryDirectory();
-    final tmpFile = join(tmpDir.path, 'launcher_icon', 'launcher_icon.ico');
-
-    if (!Directory(dirname(tmpFile)).existsSync()) {
-      await Directory(dirname(tmpFile)).create(recursive: true);
-    }
-
-    await File(tmpFile).writeAsBytes(icon.toList());
-
-    final iconPathPtr = tmpFile.toNativeUtf16();
-    final iconHandle = LoadImage(
-      0,
-      iconPathPtr,
-      IMAGE_ICON,
-      32,
-      32,
-      LR_LOADFROMFILE,
-    );
-
-    calloc.free(iconPathPtr);
-
-    if (iconHandle == 0) {
-      final error = GetLastError();
-      _logger.severe('Failed to load icon from file. Error code: $error');
+    final icon = await _getIcon();
+    if (icon == null) {
+      _resetIcon(hwnd);
       return;
     }
 
-    SetClassLongPtr(hwnd, GCL_HICON, iconHandle);
-    SendMessage(hwnd, WM_SETICON, ICON_BIG, iconHandle);
-    SendMessage(hwnd, WM_SETICON, ICON_SMALL, iconHandle);
+    _defaultIcon ??= GetClassLongPtr(hwnd, GCLP_HICON).value;
+
+    final tmpDir = await getTemporaryDirectory();
+    final tmpFile = join(tmpDir.path, 'launcher_icon', 'launcher_icon.ico');
+    await Directory(dirname(tmpFile)).create(recursive: true);
+    await File(tmpFile).writeAsBytes(icon);
+
+    final iconHandle = using((arena) {
+      return LoadImage(
+        null,
+        arena.pcwstr(tmpFile),
+        IMAGE_ICON,
+        32,
+        32,
+        LR_LOADFROMFILE,
+      );
+    });
+
+    if (iconHandle.value.isNull) {
+      _logger.severe('Failed to load icon. Error code: ${iconHandle.error}');
+      return;
+    }
+
+    _applyIcon(hwnd, iconHandle.value.address);
   }
 }

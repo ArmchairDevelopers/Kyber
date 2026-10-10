@@ -1,0 +1,19 @@
+namespace Kyber
+{
+class TypeInfo;
+#define _KB_DECLARE_TYPEINFO(type, addr) inline const TypeInfo* typeInfo_##type = (const TypeInfo*)addr
+
+_KB_DECLARE_TYPEINFO(PA2AttitudeEntityData, 0x14459C400);
+_KB_DECLARE_TYPEINFO(PA2AttitudeAsset, 0x14459C480);
+_KB_DECLARE_TYPEINFO(PA2BehaviorEntityData, 0x14459C300);
+_KB_DECLARE_TYPEINFO(PA2TargetEntityData, 0x14459C380);
+_KB_DECLARE_TYPEINFO(PA2TargetingMode, 0x14459C280);
+_KB_DECLARE_TYPEINFO(PA2TargetType, 0x14459C2C0);
+_KB_DECLARE_TYPEINFO(TargetFlags, 0x14459C500);
+_KB_DECLARE_TYPEINFO(PA2TargetState, 0x14459C7B0);
+_KB_DECLARE_TYPEINFO(ClientPA2TargetEntity, 0x14459C540);
+_KB_DECLARE_TYPEINFO(ClientPA2BehaviorEntity, 0x14459C610);
+_KB_DECLARE_TYPEINFO(ClientPA2AttitudeEntity, 0x14459C6E0);
+
+#undef _KB_DECLARE_TYPEINFO
+}

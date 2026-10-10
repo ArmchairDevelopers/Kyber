@@ -6,12 +6,17 @@
 
 namespace Kyber
 {
-ThreadExecutor* s_threadExecutor;
+ThreadExecutor* g_threadExecutor;
 
 void ThreadExecutor::QueueDelayTicks(GameThread thread, uint32_t delayTicks, Func func)
 {
     auto dataGuard = m_threadData[thread].Lock();
     dataGuard->delayedFuncs.push_back({dataGuard->tickCount + delayTicks, func});
+}
+
+void ThreadExecutor::QueueDelaySecs(GameThread thread, float delaySeconds, Func func)
+{
+    QueueDelayTicks(thread, static_cast<uint32_t>(delaySeconds * 30.0f), func);
 }
 
 void ThreadExecutor::Process(GameThread thread)
@@ -36,6 +41,6 @@ void ThreadExecutor::Process(GameThread thread)
 void ThreadExecutor::StaticInit()
 {
     static ThreadExecutor staticThreadExecutor;
-    s_threadExecutor = &staticThreadExecutor;
+    g_threadExecutor = &staticThreadExecutor;
 }
 } // namespace Kyber

@@ -14,7 +14,8 @@ static int LookupDataContainer(lua_State* L)
     DataContainer* container = ResourceManagerLookupDataContainer(name);
     if (container == nullptr)
     {
-        luaL_error(L, "Data container '%s' not found", name);
+        KYBER_LOG(Warning, "Failed to get data container '" << name << "'");
+        lua_pushnil(L);
         return 0;
     }
     
@@ -25,6 +26,8 @@ static int LookupDataContainer(lua_State* L)
 void RegisterResourceManagerTable(lua_State* L)
 {
     luaL_Reg funcs[] = { { "LookupDataContainer", LookupDataContainer }, { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(L, "ResourceManager", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "ResourceManager", funcs);
 }
+
+KB_REGISTER_LUA_CONTENT(RegisterResourceManagerTable);
 } // namespace Kyber::Script

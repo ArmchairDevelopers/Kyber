@@ -8,19 +8,18 @@
 #include <SDK/Types.h>
 #include <Core/Settings.h>
 #include <Persistence/PersistenceManager.h>
+#include <Misc/SquadManager/ServerSquadManager.h>
+#include <Misc/ChatFilter.h>
 #include <Core/EventManager.h>
 
 #include <Windows.h>
 #include <optional>
 #include <string>
-
-#define OFFSET_SERVERGAMECONTEXT_INSTANCE 0x143EC7238
+#include <xhash>
 
 namespace Kyber
 {
-void ServerConnectionSafeDisconnect(void* inst, const char* reasonText, SecureReason reason = SecureReason_KickedViaFairFight);
-
-extern void* s_mainLoop;
+void InitLevelSetup(LevelSetup* levelSetup, const char* level, const char* mode, const char* startPoint, const char* initialSubLevel);
 
 struct ServerCreationInfo
 {
@@ -39,10 +38,14 @@ struct ServerCreationInfo
 class ServerPlayerAuthenticatedEvent : public Event
 {
 public:
-    uint64_t userId;
+    ServerConnection* connection;
+    uint64_t groupId;
+};
 
-    void* connection;
-    NetworkCreatePlayerMessage* message;
+class ServerPlayerDisconnectedEvent : public Event
+{
+public:
+    ServerPlayer* player;
 };
 
 class MainLoopInitStartServerEvent : public Event
@@ -72,7 +75,7 @@ class Server : public EventListener
 {
 public:
     Server();
-    ~Server();
+    ~Server() override;
 
     bool IsRunning();
 
@@ -82,39 +85,44 @@ public:
     void DisableGameHooks();
     void InitializeGamePatches();
     void InitializeGameSettings();
+    void InitializeChatFilterPreset();
     void OnClientStartup();
-    void SendConsoleMessage(const std::string& message);
 
+    // Note: Only to be ran for in-proc servers, not designed for dedicated.
     void Start(const ServerCreationInfo& info, bool changeState = true);
     void Stop();
 
     void Heartbeat(const UpdateParameters& params);
-    void Register(bool force = false);
+    void Register(bool force = false, bool reuseId = false);
 
     void OnEvent(const Event& event) override;
 
     void OnSettingsRegistered();
     void OnLevelLoaded();
 
+    void InitializePlayer(ServerPlayer* player);
+
     ServerGameContext* GetServerGameContext()
     {
-        return *reinterpret_cast<ServerGameContext**>(OFFSET_SERVERGAMECONTEXT_INSTANCE);
+        return ServerGameContext::Get();
     }
 
+    void SendConsoleMessage(const std::string& message);
     void KickPlayer(ServerPlayer* player, const char* reason);
     void LoadNextLevel(const char* level, const char* mode, const char* startPoint = "", const char* initialSubLevel = "",
         bool updateServerBrowser = true);
     void BroadcastMessage(const std::string& message, const std::string& username = "ADMIN", ChatChannel channel = ChatChannel_All);
+    void SendChatMessage(ServerPlayer* player, const std::string& message);
 
     void SetDedicatedCreationInfo(const ServerCreationInfo& info);
-
-    // The events in this manager are processed once on MainLoop::init
-    EventManager* m_mainLoopInitEventManager;
 
     SocketManager* m_socketManager;
     ISocket* m_natClient;
     ServerPlayerManager* m_playerManager;
     PersistenceManager* m_persistenceManager;
+    ServerSquadManager* m_squadManager;
+    Mutex<ChatFilter> m_chatFilter;
+    EventManager* m_eventManager;
     SocketSpawnInfo m_socketSpawnInfo;
     MapRotation m_mapRotation;
     std::string m_currentLevel;
@@ -134,8 +142,5 @@ public:
     bool m_hooksRemoved;
     bool m_levelLoaded;
     Mutex<LoadLevelRequest> m_latestLoadLevelRequest;
-
-private:
-    void SendProxiedLevelChange(const char* level, const char* mode);
 };
 } // namespace Kyber

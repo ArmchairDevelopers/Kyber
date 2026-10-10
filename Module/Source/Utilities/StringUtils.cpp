@@ -100,19 +100,6 @@ std::string StringUtils::Base64EncodeChar(int encodedChar)
     return base64Encoded;
 }
 
-uint32_t StringUtils::HashQuick(const char* str)
-{
-    uint32_t hash = 5381;
-
-    const uint8_t* strBytes = reinterpret_cast<const uint8_t*>(str);
-    for (size_t i = 0; i < strlen(str); ++i)
-    {
-        hash = hash * 33 ^ uint32_t(strBytes[i]);
-    }
-
-    return hash;
-}
-
 uint32_t StringUtils::HashQuickLower(const char* str)
 {
     uint32_t hash = 5381;
@@ -125,6 +112,24 @@ uint32_t StringUtils::HashQuickLower(const char* str)
         const int cond = (c - 'A') <= ('Z' - 'A');
         c = c + ('a' - 'A') * cond;
         hash = hash * 33 ^ c;
+    }
+
+    return hash;
+}
+
+uint32_t StringUtils::HashHexCheck(const char* str)
+{
+    size_t len = strlen(str);
+    if (len > 2 && (str[0] == '0' && str[1] == 'x'))
+    {
+        return std::stoul(std::string(str), nullptr, 16);
+    }
+    uint32_t hash = 5381;
+
+    const uint8_t* strBytes = reinterpret_cast<const uint8_t*>(str);
+    for (size_t i = 0; i < len; ++i)
+    {
+        hash = hash * 33 ^ uint32_t(strBytes[i]);
     }
 
     return hash;
@@ -163,5 +168,21 @@ std::vector<std::string> StringUtils::Split(const std::string& str, const std::s
 bool StringUtils::StartsWith(const std::string& str, const std::string& start)
 {
     return str.rfind(start, 0) == 0;
+}
+
+void StringUtils::MakeLower(char* begin, char* end)
+{
+    for (char* p = begin; p < end; ++p)
+    {
+        *p = std::tolower(*p);
+    }
+}
+
+void StringUtils::MakeUpper(char* begin, char* end)
+{
+    for (char* p = begin; p < end; ++p)
+    {
+        *p = std::toupper(*p);
+    }
 }
 } // namespace Kyber

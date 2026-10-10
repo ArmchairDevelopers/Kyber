@@ -52,7 +52,7 @@ static int ListenFunc(lua_State* L)
         lua_pop(L, 1);
     };
 
-    s_program->m_scriptManager->GetEventManager().Listen(eventName, luaCallback);
+    g_program->m_scriptManager->GetEventManager().Listen(eventName, luaCallback);
     return 0;
 }
 
@@ -69,6 +69,6 @@ LuaHookManager::LuaHookManager(lua_State* L)
         { NULL, NULL}
     };
 
-    LuaUtils::RegisterFunctionTable(L, "HookManager", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "HookManager", funcs);
 }
 } // namespace Kyber

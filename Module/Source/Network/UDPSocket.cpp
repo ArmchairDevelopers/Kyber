@@ -8,6 +8,7 @@
 #include <Utilities/ErrorUtils.h>
 #include <Utilities/PlatformUtils.h>
 #include <Utilities/StringUtils.h>
+#include <SDK/Funcs.h>
 
 #include <ws2tcpip.h>
 
@@ -79,8 +80,11 @@ bool UDPSocket::Send(uint8_t* buffer, int bufferSize, unsigned int flags)
     //                     << inet_ntoa(((sockaddr_in*)addr)->sin_addr) << ":" << ntohs(((sockaddr_in*)addr)->sin_port));
 
     const char* ip = nullptr;
-    if (m_info.isProxied || (m_direction == ProtocolDirection::Clientbound && (ip = inet_ntoa(((sockaddr_in*)addr)->sin_addr)) &&
-                                strstr(ip, "0.1.1.") != nullptr))
+    if (m_info.isProxied || (
+        m_direction == ProtocolDirection::Clientbound && 
+            (ip = inet_ntoa(((sockaddr_in*)addr)->sin_addr)) && strstr(ip, "0.1.1.") != nullptr
+                            )
+                        )
     {
         int proxyIndex = 0;
 
@@ -132,7 +136,7 @@ bool UDPSocket::Send(uint8_t* buffer, int bufferSize, unsigned int flags)
     return true;
 }
 
-int UDPSocket::ReceiveFrom(uint8_t* buffer, int bufferSize)
+int UDPSocket::ReceiveFromWhen(uint8_t* buffer, int bufferSize, unsigned int& when)
 {
     int addressSize = sizeof(sockaddr_in);
     sockaddr_in addr = *(sockaddr_in*)m_peerAddress.Data();
@@ -142,16 +146,20 @@ int UDPSocket::ReceiveFrom(uint8_t* buffer, int bufferSize)
     int proxyId = -1;
     int recvSize = 0;
 
-    std::optional<WebSocketMessage> data = m_proxyQueue->tryDequeue();
+    std::optional<WebSocketMessage*> data = m_proxyQueue->tryDequeue();
     if (data)
     {
-        recvSize = std::min(bufferSize, static_cast<int>(data->size));
-        memcpy(buffer, data->data, recvSize);
+        WebSocketMessage* msgData = *data;
+        recvSize = std::min(bufferSize, static_cast<int>(msgData->size));
+        when = msgData->timestamp;
+        proxyId = msgData->socketId;
+        memcpy(buffer, msgData->data, recvSize);
 
-        proxyId = data->socketId;
+        FB_GLOBAL_ARENA->del(msgData);
     }
-    else if (m_socketHandle != INVALID_SOCKET)
+    else if (m_socketHandle != INVALID_SOCKET) // Local
     {
+        when = NetTick();
         recvSize = recvfrom(m_socketHandle, (char*)buffer, bufferSize, 0, (sockaddr*)&addr, &addressSize);
         if (recvSize < 0)
         {
@@ -190,18 +198,11 @@ int UDPSocket::ReceiveFrom(uint8_t* buffer, int bufferSize)
     // ":"
     //                     << ntohs(addr.sin_port));
 
-
 #ifdef _DEBUG
     KYBER_LOG(Trace, "[" << DirectionToString(m_direction) << "] Received " << recvSize << " bytes");
 #endif
 
     return recvSize;
-}
-
-int ISocket::ReceiveFromWhen(uint8_t* buffer, int maxSize, unsigned int& receivedWhen)
-{
-    receivedWhen = 0;
-    return ReceiveFrom(buffer, maxSize);
 }
 
 bool UDPSocket::Listen(const SocketAddr& address, bool blocking)
@@ -239,31 +240,68 @@ bool UDPSocket::Listen(const SocketAddr& address, bool blocking)
     if (m_info.isProxied && m_direction == ProtocolDirection::Serverbound)
     {
         m_sockets.push_back(WebSocket("client", 0, m_proxyQueue));
-        m_sockets.back().ConnectAsClient(m_info.proxyAddress, s_program->m_joinToken);
+        m_sockets.back().ConnectAsClient(m_info.proxyAddress, g_program->m_client->m_joinToken);
     }
-    else if (m_direction == ProtocolDirection::Clientbound && s_program->m_server->IsRunning() && s_program->m_server->m_onlineMode)
+    else if (m_direction == ProtocolDirection::Clientbound && g_program->m_server->IsRunning() && g_program->m_server->m_onlineMode)
     {
         const char* pinnedProxy = std::getenv("KYBER_PINNED_PROXY");
         if (pinnedProxy != nullptr)
         {
             m_sockets.push_back(WebSocket("pinned", 0, m_proxyQueue));
-            m_sockets.back().ConnectAsServer(pinnedProxy, s_program->m_joinToken);
+            m_sockets.back().ConnectAsServer(pinnedProxy, g_program->m_client->m_joinToken);
         }
         else
         {
-            auto proxies = s_program->GetAPI()->GetProxy()->GetList();
+            auto proxies = g_program->GetAPI()->GetProxy()->GetList();
             m_sockets.reserve(proxies.size());
 
             uint32_t id = 0;
             for (const auto& proxy : proxies)
             {
                 m_sockets.push_back(WebSocket(proxy.id(), id++, m_proxyQueue));
-                m_sockets.back().ConnectAsServer(proxy.ip(), s_program->m_joinToken);
+                m_sockets.back().ConnectAsServer(proxy.ip(), g_program->m_client->m_joinToken);
             }
         }
     }
 
     return true;
+}
+
+void UDPSocket::UpdateProxies(const eastl::vector<kyber_api::ProxyInfo>& newList)
+{
+    for (const auto& proxyInfo : newList)
+    {
+        bool seen = false;
+        for (const auto& proxy : m_sockets) 
+        {
+            if (proxy.GetId() == proxyInfo.id())
+            {
+                seen = true;
+                break;
+            }
+        }
+
+        if (!seen)
+        {
+            m_sockets.push_back(WebSocket(proxyInfo.id(), m_sockets.size(), m_proxyQueue));
+            m_sockets.back().ConnectAsServer(proxyInfo.ip(), g_program->m_client->m_joinToken);
+        }
+    }
+}
+
+void UDPSocket::ReconnectProxies()
+{
+    if (m_direction != ProtocolDirection::Clientbound)
+    {
+        return;
+    }
+
+    KYBER_LOG(Info, "[Network] Reconnecting to " << m_sockets.size() << " proxies");
+
+    for (auto& proxy : m_sockets)
+    {
+        proxy.Reconnect(g_program->m_client->m_joinToken);
+    }
 }
 
 bool UDPSocket::Connect(const SocketAddr& address, bool blocking)

@@ -63,7 +63,7 @@ namespace Kyber
 TL_DECLARE_FUNC(0x1454B5120, void, ResourceManager_forceUpdate);
 TL_DECLARE_FUNC(0x145494CA0, void, HeartbeatMonitor_beat, const char* name);
 
-ModLoader* s_modLoader;
+ModLoader* g_modLoader;
 
 class ResourceManager_Compartment
 {
@@ -102,12 +102,12 @@ void EbxPartitionReaderProcessHk(EbxPartitionReader* inst, void* inBuffer, uint3
         return;
     }
 
-    if (!s_modLoader->m_dupedWithHandlerResources.count(inst->m_partitionName))
+    if (!g_modLoader->m_dupedWithHandlerResources.count(inst->m_partitionName))
     {
         return;
     }
 
-    ModResource& resource = s_modLoader->m_dupedWithHandlerResources[inst->m_partitionName];
+    ModResource& resource = g_modLoader->m_dupedWithHandlerResources[inst->m_partitionName];
     if (resource.handlerHash == 0)
     {
         KYBER_LOG(Error, "Duplicated asset with handler doesn't have a handler?");
@@ -116,7 +116,7 @@ void EbxPartitionReaderProcessHk(EbxPartitionReader* inst, void* inBuffer, uint3
 
     KYBER_LOG(Debug, "Creating handler data " << resource.handlerHash);
 
-    CustomAssetHandler* handler = s_modLoader->m_handlers[resource.handlerHash];
+    CustomAssetHandler* handler = g_modLoader->m_handlers[resource.handlerHash];
     CustomAssetHandlerData* data = handler->Create();
 
     bb::ByteBuffer buf(reinterpret_cast<uint8_t*>(const_cast<void*>(resource.data.buffer)), resource.data.size);
@@ -151,14 +151,14 @@ bool RuntimeDatabaseDomainReadEbxPartitionFromStreamHk(void* inst, const char* n
         *partitionOut = partition;
     }
 
-    auto it = s_modLoader->m_handlerResources.find(name);
-    if (it == s_modLoader->m_handlerResources.end())
+    auto it = g_modLoader->m_handlerResources.find(name);
+    if (it == g_modLoader->m_handlerResources.end())
     {
         return result;
     }
 
     KyberHandledModResource& resource = it->second;
-    if (!s_modLoader->m_handlers.count(resource.handlerHash))
+    if (!g_modLoader->m_handlers.count(resource.handlerHash))
     {
         KYBER_LOG(Info, "No handler for " << resource.handlerHash << " while loading " << name);
         return result;
@@ -166,7 +166,7 @@ bool RuntimeDatabaseDomainReadEbxPartitionFromStreamHk(void* inst, const char* n
 
     KYBER_LOG(Debug, "Deferring EBX asset: " << name);
     DataContainer* container = partition->GetPrimaryInstance();
-    s_modLoader->m_deferredContainerCreationQueue.push_back(ContainerCreationInfo{
+    g_modLoader->m_deferredContainerCreationQueue.push_back(ContainerCreationInfo{
         inst, *reinterpret_cast<uint32_t*>(reinterpret_cast<__int64>(inst) + 0x30), container, name, false, resource.dupedWithHandler });
 
     return result;
@@ -178,7 +178,7 @@ DataContainer* ResourceManagerLookupDataContainerHk(uint16_t compartment, const 
     DataContainer* result = trampoline(compartment, name);
     // KYBER_LOG(Info, "Looking up data container '" << name << "' on compartment " << compartment << ": " << std::hex << result);
 
-    // for (const auto& resource : s_modLoader->m_modResources)
+    // for (const auto& resource : g_modLoader->m_modResources)
     // {
     //     if (strcmp(resource.name, name) != 0)
     //     {
@@ -404,7 +404,7 @@ bool ResourceManagerCompartmentOnBeginBundleHk(ResourceManager_Compartment* inst
     static bool initialized = false;
     if (!initialized && strcmp(bundleName, "Systems/FrostbiteStartupData") == 0)
     {
-        s_modLoader->m_resourceMerger.onResourceManagerInitialized();
+        g_modLoader->m_resourceMerger.onResourceManagerInitialized();
         initialized = true;
     }
 
@@ -415,7 +415,7 @@ bool ResourceManagerCompartmentOnBeginBundleHk(ResourceManager_Compartment* inst
     std::string platformBundleName = std::string("win32/") + bundleName;
     uint32_t bundleHash = StringUtils::HashQuickLower(platformBundleName.c_str());
 
-    s_modLoader->m_compartmentToBundleId[inst->m_compartment] = bundleHash;
+    g_modLoader->m_compartmentToBundleId[inst->m_compartment] = bundleHash;
 
     KYBER_LOG(Info, "[ModLoader] Loading bundle " << bundleName << " (" << bundleHash << ") into compartment " << inst->m_compartment);
     return trampoline(inst, bundleName, isReload);
@@ -428,7 +428,7 @@ void RunHandler(ContainerCreationInfo& info, CustomAssetHandlerLoadStage loadSta
     eastl::vector<ModResource*> modResources;
     eastl::set<uint32_t> uniqueHandlers;
 
-    for (auto& resource : s_modLoader->m_modResources)
+    for (auto& resource : g_modLoader->m_modResources)
     {
         if (resource.type != FrostyResourceType_Ebx || resource.name != info.name)
         {
@@ -440,7 +440,7 @@ void RunHandler(ContainerCreationInfo& info, CustomAssetHandlerLoadStage loadSta
             continue;
         }
 
-        if (s_modLoader->m_handlers[resource.handlerHash]->GetLoadStage() != loadStage)
+        if (g_modLoader->m_handlers[resource.handlerHash]->GetLoadStage() != loadStage)
         {
             continue;
         }
@@ -458,7 +458,7 @@ void RunHandler(ContainerCreationInfo& info, CustomAssetHandlerLoadStage loadSta
     for (const auto& handlerHash : uniqueHandlers)
     {
         KYBER_LOG(Debug, "Creating handler data");
-        handlerData[handlerHash] = s_modLoader->m_handlers[handlerHash]->Create();
+        handlerData[handlerHash] = g_modLoader->m_handlers[handlerHash]->Create();
     }
 
     for (auto it = modResources.rbegin(); it != modResources.rend(); ++it)
@@ -469,7 +469,7 @@ void RunHandler(ContainerCreationInfo& info, CustomAssetHandlerLoadStage loadSta
         KYBER_LOG(Debug, "Loading handler data " << buf.getNullTerminatedString());
 
         int32_t handlerHash = resource->handlerHash;
-        s_modLoader->m_handlers[handlerHash]->Load(resource->modName, buf, handlerData[handlerHash]);
+        g_modLoader->m_handlers[handlerHash]->Load(resource->modName, buf, handlerData[handlerHash]);
     }
 
     CustomAssetHandlerContext ctx;
@@ -479,7 +479,7 @@ void RunHandler(ContainerCreationInfo& info, CustomAssetHandlerLoadStage loadSta
     for (const auto& handlerHash : uniqueHandlers)
     {
         KYBER_LOG(Debug, "Modifying handler data " << info.container->m_dcType->getName());
-        while (!s_modLoader->m_handlers[handlerHash]->Modify(ctx, info.container, handlerData[handlerHash]))
+        while (!g_modLoader->m_handlers[handlerHash]->Modify(ctx, info.container, handlerData[handlerHash]))
         {
             KYBER_LOG(Warning, "Forcing resource manager update for handler modification");
             ResourceManager_forceUpdate();
@@ -499,22 +499,21 @@ void RuntimeDatabaseDomainFetchNewlyLoadedPartitionsHk(void* inst, eastl::vector
     trampoline(inst, partitions);
     // KYBER_LOG(Info, "Loaded partitions: " << partitions.size());
 
-    auto& vec = s_modLoader->m_domainLoadedPartitions[inst];
+    auto& vec = g_modLoader->m_domainLoadedPartitions[inst];
     for (const auto& partition : partitions)
     {
         vec[partition->GetPartitionGuid()] = partition;
-
         DataContainer* instance = partition->GetPrimaryInstance();
 
-        if (s_program->m_scriptManager != nullptr)
+        if (g_program->m_scriptManager != nullptr)
         {
-            s_program->m_scriptManager->GetEventManager().Fire("ResourceManager:PartitionLoaded", partition->GetName(), instance);
+            g_program->m_scriptManager->GetEventManager().Fire("ResourceManager:PartitionLoaded", partition->GetName(), instance);
         }
     }
 
     KYBER_LOG(Debug, "Resolving references for compartment");
 
-    auto& queue = s_modLoader->m_deferredContainerCreationQueue;
+    auto& queue = g_modLoader->m_deferredContainerCreationQueue;
     for (auto it = queue.begin(); it != queue.end();)
     {
         ContainerCreationInfo& info = *it;
@@ -571,7 +570,7 @@ void ResourceManagerCompartmentEndClearHk(ResourceManager_Compartment* inst)
     trampoline(inst);
 
     debugCompartments.erase(inst);
-    s_modLoader->m_domainLoadedPartitions.erase(inst->m_domain);
+    g_modLoader->m_domainLoadedPartitions.erase(inst->m_domain);
 
     KYBER_LOG(Debug, "Cleared resource compartment " << std::hex << inst);
 }
@@ -580,17 +579,6 @@ void EntityBusPeerOnCreateHelperHk(__int64 inst, void* bus, const GameObjectData
 {
     static auto trampoline = HookManager::Call(EntityBusPeerOnCreateHelperHk);
     // KYBER_LOG(Info, "Registering entity bus peer for " << data.getType()->getName());
-    if (strcmp(data.getType()->getName(), "GotoUILinkTargetEntityData") == 0)
-    {
-        class GotoUILinkTargetEntityData : public EntityData
-        {
-        public:
-            int HistoryPolicy; // 0x0020
-            char _0x0024[4];   // 0x0024
-            Asset* LinkTarget; // 0x0028
-        };
-        // KYBER_LOG(Info, "EntityBus LinkTarget: " << ((GotoUILinkTargetEntityData&)data).LinkTarget->Name);
-    }
     return trampoline(inst, bus, data);
 }
 
@@ -679,7 +667,7 @@ void ResourceManagerUpdateResourcesHk(void* inst, bool newTick, bool forced)
 
     isRunningDeferredHandlers = true;
 
-    auto& queue = s_modLoader->m_deferredContainerCreationQueue;
+    auto& queue = g_modLoader->m_deferredContainerCreationQueue;
     for (auto it = queue.begin(); it != queue.end();)
     {
         ContainerCreationInfo& info = *it;
@@ -727,7 +715,7 @@ void MergeBundleManifest(BundleManifest& manifest)
 
     KYBER_LOG(Debug, "Loading bundle " << bundleHash);
 
-    bool isCustomBundle = s_modLoader->m_addedBundles.count(bundleHash);
+    bool isCustomBundle = g_modLoader->m_addedBundles.count(bundleHash);
     if (isCustomBundle)
     {
         KYBER_LOG(Debug, "Loading custom bundle " << platformBundleName);
@@ -737,7 +725,7 @@ void MergeBundleManifest(BundleManifest& manifest)
     if (!isCustomBundle)
     {
         eastl::unordered_set<uint32_t> visited;
-        for (auto& resource : s_modLoader->m_modResources)
+        for (auto& resource : g_modLoader->m_modResources)
         {
             if (resource.ContainsBundle(bundleHash))
             {
@@ -758,7 +746,7 @@ void MergeBundleManifest(BundleManifest& manifest)
 
             if (resource.type == FrostyResourceType_Ebx)
             {
-                BundleMerger::VanillaEbxEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaEbxEntry(resource.name);
+                BundleMerger::VanillaEbxEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaEbxEntry(resource.name);
                 if (originalEntry != nullptr)
                 {
                     if (!originalEntry->bundleFileOffsets.count(bundleHash))
@@ -775,7 +763,7 @@ void MergeBundleManifest(BundleManifest& manifest)
             }
             else if (resource.type == FrostyResourceType_Res)
             {
-                BundleMerger::VanillaResEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaResEntry(resource.name);
+                BundleMerger::VanillaResEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaResEntry(resource.name);
                 if (originalEntry != nullptr)
                 {
                     if (!originalEntry->bundleFileOffsets.count(bundleHash))
@@ -796,7 +784,7 @@ void MergeBundleManifest(BundleManifest& manifest)
             }
             else if (resource.type == FrostyResourceType_Chunk)
             {
-                BundleMerger::VanillaChunkEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaChunkEntry(resource.name);
+                BundleMerger::VanillaChunkEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaChunkEntry(resource.name);
                 if (originalEntry != nullptr)
                 {
                     if (!originalEntry->bundleFileOffsets.count(bundleHash))
@@ -815,7 +803,7 @@ void MergeBundleManifest(BundleManifest& manifest)
         }
     }
 
-    for (auto& resource : s_modLoader->m_bundleResources[bundleHash])
+    for (auto& resource : g_modLoader->m_bundleResources[bundleHash])
     {
         if (resource.handlerHash == 0 && resource.resourceIndex != -1)
         {
@@ -878,8 +866,8 @@ void MergeBundleManifest(BundleManifest& manifest)
         {
             // Duped assets with handlers need to rely on a source asset
             eastl::string sourceName =
-                !resource.dupedWithHandler ? resource.name : s_modLoader->m_dupedHandlerSources[resource.handlerHash];
-            BundleMerger::VanillaEbxEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaEbxEntry(sourceName);
+                !resource.dupedWithHandler ? resource.name : g_modLoader->m_dupedHandlerSources[resource.handlerHash];
+            BundleMerger::VanillaEbxEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaEbxEntry(sourceName);
             int32_t originalSize = 0;
             if (!originalEntry)
             {
@@ -898,7 +886,7 @@ void MergeBundleManifest(BundleManifest& manifest)
         }
         else if (resource.type == FrostyResourceType_Res)
         {
-            BundleMerger::VanillaResEntry* entry = s_modLoader->m_bundleMerger.GetVanillaResEntry(resource.name);
+            BundleMerger::VanillaResEntry* entry = g_modLoader->m_bundleMerger.GetVanillaResEntry(resource.name);
             if (!entry)
             {
                 KYBER_LOG(Error, "Failed to find vanilla bundle entry for resource " << resource.name.c_str());
@@ -910,7 +898,7 @@ void MergeBundleManifest(BundleManifest& manifest)
         }
         else if (resource.type == FrostyResourceType_Chunk)
         {
-            BundleMerger::VanillaChunkEntry* entry = s_modLoader->m_bundleMerger.GetVanillaChunkEntry(resource.name);
+            BundleMerger::VanillaChunkEntry* entry = g_modLoader->m_bundleMerger.GetVanillaChunkEntry(resource.name);
             if (!entry)
             {
                 continue;
@@ -982,7 +970,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
 
     eastl::unordered_set<eastl::string> modifiedChunks;
 
-    for (auto& resource : s_modLoader->m_modResources)
+    for (auto& resource : g_modLoader->m_modResources)
     {
         if (resource.type == FrostyResourceType_Chunk)
         {
@@ -1013,7 +1001,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
 
     eastl::unordered_set<uint32_t> modified;
 
-    for (auto& resource : s_modLoader->m_modResources)
+    for (auto& resource : g_modLoader->m_modResources)
     {
         if (resource.resourceIndex == -1 || resource.handlerHash != 0)
         {
@@ -1022,7 +1010,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
 
         if (resource.type == FrostyResourceType_Ebx)
         {
-            BundleMerger::VanillaEbxEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaEbxEntry(resource.name);
+            BundleMerger::VanillaEbxEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaEbxEntry(resource.name);
             if (originalEntry == nullptr)
             {
                 continue;
@@ -1054,7 +1042,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
         }
         else if (resource.type == FrostyResourceType_Res)
         {
-            BundleMerger::VanillaResEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaResEntry(resource.name);
+            BundleMerger::VanillaResEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaResEntry(resource.name);
             if (originalEntry == nullptr)
             {
                 continue;
@@ -1084,7 +1072,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
         }
         else if (resource.type == FrostyResourceType_Chunk)
         {
-            BundleMerger::VanillaChunkEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaChunkEntry(resource.name);
+            BundleMerger::VanillaChunkEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaChunkEntry(resource.name);
             if (originalEntry == nullptr)
             {
                 continue;
@@ -1123,11 +1111,11 @@ void MergeLayoutManifest(LayoutManifest& manifest)
         HeartbeatMonitor_beat("Main");
     }
 
-    int bundleCount = s_modLoader->m_bundleResources.size();
+    int bundleCount = g_modLoader->m_bundleResources.size();
     int stepSize = bundleCount / 10;
     int i = 0;
 
-    for (auto& entry : s_modLoader->m_bundleResources)
+    for (auto& entry : g_modLoader->m_bundleResources)
     {
         // ----------------------------------------------------------------------------
         // We need to defer file additions because modifications use preset file offsets
@@ -1153,7 +1141,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
                     uint32_t size = resource.data.size;
                     LayoutManifest::FileInfo fileInfo = { resource.data.fbFile, static_cast<uint32_t>(resource.data.dataOffset), size };
 
-                    BundleMerger::VanillaEbxEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaEbxEntry(resource.name);
+                    BundleMerger::VanillaEbxEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaEbxEntry(resource.name);
                     if (originalEntry != nullptr)
                     {
                         auto it = originalEntry->bundleFileOffsets.find(bundleHash);
@@ -1179,7 +1167,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
                     uint32_t size = resource.data.size;
                     LayoutManifest::FileInfo fileInfo = { resource.data.fbFile, static_cast<uint32_t>(resource.data.dataOffset), size };
 
-                    BundleMerger::VanillaResEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaResEntry(resource.name);
+                    BundleMerger::VanillaResEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaResEntry(resource.name);
                     if (originalEntry != nullptr)
                     {
                         auto it = originalEntry->bundleFileOffsets.find(bundleHash);
@@ -1213,7 +1201,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
                     LayoutManifest::FileInfo fileInfo = { resource.data.fbFile,
                         static_cast<uint32_t>(resource.data.dataOffset) + resource.data.rangeStart, size };
 
-                    BundleMerger::VanillaChunkEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaChunkEntry(resource.name);
+                    BundleMerger::VanillaChunkEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaChunkEntry(resource.name);
                     if (originalEntry != nullptr)
                     {
                         auto it = originalEntry->bundleFileOffsets.find(bundleHash);
@@ -1242,8 +1230,8 @@ void MergeLayoutManifest(LayoutManifest& manifest)
             {
                 // Duped assets with handlers need to rely on a source asset
                 eastl::string sourceName =
-                    !resource.dupedWithHandler ? resource.name : s_modLoader->m_dupedHandlerSources[resource.handlerHash];
-                BundleMerger::VanillaEbxEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaEbxEntry(sourceName);
+                    !resource.dupedWithHandler ? resource.name : g_modLoader->m_dupedHandlerSources[resource.handlerHash];
+                BundleMerger::VanillaEbxEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaEbxEntry(sourceName);
                 int32_t originalSize = 0;
                 if (!originalEntry)
                 {
@@ -1262,7 +1250,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
             }
             else if (resource.type == FrostyResourceType_Res)
             {
-                BundleMerger::VanillaResEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaResEntry(resource.name);
+                BundleMerger::VanillaResEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaResEntry(resource.name);
                 int32_t originalSize = 0;
                 if (!originalEntry)
                 {
@@ -1283,7 +1271,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
             {
                 LayoutManifest::FileInfo* file = nullptr;
 
-                BundleMerger::VanillaChunkEntry* originalEntry = s_modLoader->m_bundleMerger.GetVanillaChunkEntry(resource.name);
+                BundleMerger::VanillaChunkEntry* originalEntry = g_modLoader->m_bundleMerger.GetVanillaChunkEntry(resource.name);
                 if (!originalEntry)
                 {
                     continue;
@@ -1321,7 +1309,7 @@ ModLoader::ModLoader(FileSuperBundleManager* superBundleManager, ModData modData
     : m_superBundleManager(superBundleManager)
     , m_liveEditManager(nullptr)
 {
-    s_modLoader = this;
+    g_modLoader = this;
     KYBER_LOG(Info, "[ModLoader] Initializing");
 
     KYBER_LOG(Info, "[ModLoader] Super bundle manager: " << std::hex << superBundleManager);
@@ -1364,20 +1352,13 @@ ModLoader::ModLoader(FileSuperBundleManager* superBundleManager, ModData modData
         LoadMod((basePath / modPath).string().c_str(), ("/kyber_mods/" + modPath).c_str());
     }
 
-    if (strcmp(std::getenv("EALaunchEAID"), "BattleDash") == 0)
-    {
-        // LoadMod("/native_data/Mods/KyberMod.fbmod");
-        // LoadMod("C:/Program Files/EA Games/STAR WARS Battlefront II/Mods/KyberBPTest.fbmod",
-        //     "/native_data/Mods/KyberBPTest.fbmod");
-    }
-
     KYBER_LOG(Info, "[ModLoader] Loaded " << m_mods.size() << " mods");
 
     FinalizeModLoads();
 
     RegisterRenderListener(this);
 
-    s_program->m_consoleRegistrationCallbacks.push_back([&]() { RegisterConsoleCommand(&LogLastEbxLoadCommand, "LogLastEbxLoad"); });
+    g_program->m_consoleRegistrationCallbacks.push_back([&]() { RegisterConsoleCommand(&LogLastEbxLoadCommand, "LogLastEbxLoad"); });
 
     // clang-format off
     HookTemplate hookOffsets[] = {
@@ -1592,6 +1573,8 @@ void ModLoader::LoadMod(const eastl::string& fileName, const eastl::string& rela
 void ModLoader::FinalizeModLoads()
 {
     KYBER_LOG(Debug, "[ModLoader] Finalizing mod resources");
+
+    // Reorder mods, from highest priority to lowest
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 1");
 
     m_modResources.clear();
@@ -1608,9 +1591,11 @@ void ModLoader::FinalizeModLoads()
     eastl::stable_sort(
         m_modResources.begin(), m_modResources.end(), [](const ModResource& a, const ModResource& b) { return a.type < b.type; });
 
+    // Collect highest priority resources, to override lower priority resources
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 2");
 
     eastl::unordered_map<uint32_t, ModResourceData> sources;
+    eastl::map<uint32_t, const ModResource*> globalOverrides;
 
     for (auto& resource : m_modResources)
     {
@@ -1625,8 +1610,10 @@ void ModLoader::FinalizeModLoads()
         }
 
         sources[resource.uniqueIdWithType] = resource.data;
+        globalOverrides[resource.uniqueIdWithType] = &resource;
     }
 
+    // Set modified data for resources that don't have any modified data themselve, if some other mod modifies the same resource
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 3");
 
     for (auto& resource : m_modResources)
@@ -1689,9 +1676,8 @@ void ModLoader::FinalizeModLoads()
         m_bundleResources[entry.first].reserve(entry.second);
     }
 
+    // Add resources to bundles
     KYBER_LOG(Debug, "[ModLoader] Finalizing: Stage 7");
-
-    eastl::map<uint32_t, const ModResource*> globalOverrides;
 
     eastl::map<uint32_t, eastl::set<uint32_t>> visitedNames;
     for (const auto& resource : m_modResources)
@@ -1703,11 +1689,8 @@ void ModLoader::FinalizeModLoads()
 
         const ModResource* assignableResource = &resource;
 
-        if (resource.bundles.empty())
-        {
-            globalOverrides[resource.uniqueIdWithType] = assignableResource;
-        }
-        else
+        // Replace resource by higher priority resource
+        if (!resource.bundles.empty())
         {
             auto it = globalOverrides.find(assignableResource->uniqueIdWithType);
             if (it != globalOverrides.end())
@@ -1748,16 +1731,33 @@ void ModLoader::LoadFile(uint64_t file, const char* fileName)
 }
 #pragma runtime_checks("s", restore)
 
-// This function limits the number of possible mods to 247. It should be possible
-// to increase this, if necessary, by incrementing catalogIndex. initialexperience
-// has 10 files, hence the 10 + m_mods.size() in the casIndex calculation. If a
-// different catalog has more than 10 files, they will need to be accounted for
 int32_t ModLoader::GetNextModFile() const
 {
-    int catalogIndex = 0; // initialexperience
+    const static uint8_t kCatalogSizes[] = {
+        10, /* initialexperience */
+        5,  /* frontend */
+        3,  /* sp */
+        12, /* sp_a1 */
+        7,  /* sp_a2 */
+        3,  /* sp_a3 */
+        6   /* sp_a3_p2 */
+    };
+    const static size_t kNumCatalogs = sizeof(kCatalogSizes) / sizeof(kCatalogSizes[0]);
+
     bool inPatch = false;
-    int casIndex = 10 + m_mods.size();
-    return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((casIndex - 1) & 0xFF);
+    int32_t catalogIndex = 0;
+    uint32_t casIndex = m_mods.size();
+    uint32_t availableCatalogSpace;
+    while (catalogIndex < kNumCatalogs && casIndex > (availableCatalogSpace = 0xFF - kCatalogSizes[catalogIndex]))
+    {
+        catalogIndex++;
+        casIndex -= availableCatalogSpace;
+    }
+
+    KYBER_ASSERT_DESC(catalogIndex < kNumCatalogs, "Mod limit reached!");
+
+    casIndex += kCatalogSizes[catalogIndex];
+    return ((catalogIndex + 1) << 12) | (inPatch ? 0x100 : 0x00) | ((static_cast<int32_t>(casIndex) - 1) & 0xFF);
 }
 
 bool ModLoader::IsBundleLoaded(const std::string& bundleName) const

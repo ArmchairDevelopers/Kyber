@@ -72,7 +72,7 @@ static int ListenFunc(lua_State* L)
         }
     };
 
-    s_program->m_scriptManager->GetEventManager().Listen(eventName, luaCallback);
+    g_program->m_scriptManager->GetEventManager().Listen(eventName, luaCallback);
     return 0;
 }
 
@@ -81,23 +81,34 @@ void LuaEventManager::Listen(const std::string& eventName, LuaEventCallback call
     m_listeners[eventName].push_back(callback);
 }
 
-void FireEventCommand(ConsoleContext& cc)
+static int SetEventCancelledFunc(lua_State* L)
 {
-    ConsoleStream stream(cc.rawArguments, " ");
-    std::string event;
-    stream >> event;
+    PluginBase* plugin = ScriptManager::GetPlugin(L);
 
-    s_program->m_scriptManager->GetEventManager().Fire(event, "Test", 42, 3.14f);
+    if (!lua_isboolean(L, 1))
+    {
+        KYBER_LOG(Error, plugin->LogPrefix() << " First argument to EventManager.SetCancelled should be a boolean");
+        return 0;
+    }
+
+    g_program->m_scriptManager->GetEventManager().SetEventCancelled(lua_toboolean(L, 1));
+    return 0;
 }
 
 LuaEventManager::LuaEventManager()
 {
-    s_program->m_consoleRegistrationCallbacks.push_back([&]() { RegisterConsoleCommand(&FireEventCommand, "FireLua", "<event>"); });
 }
 
 void LuaEventManager::Register(lua_State* L)
 {
-    luaL_Reg funcs[] = { { "Listen", ListenFunc }, { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(L, "EventManager", funcs);
+    luaL_Reg funcs[] = { { "Listen", ListenFunc }, { "SetCancelled", SetEventCancelledFunc }, { NULL, NULL } };
+    KB_LUA_NEW_GLOBAL_LIB(L, "EventManager", funcs);
 }
+
+void LuaEventManager::Reset()
+{
+    m_listeners.clear();
+}
+
+KB_REGISTER_LUA_CONTENT_MANAGER(LuaEventManager);
 } // namespace Kyber

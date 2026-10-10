@@ -10,13 +10,7 @@
 namespace Kyber
 {
 // ClientServer
-TL_DECLARE_FUNC(0x14C53D220, void, LevelSetup_ctor, LevelSetup* inst, __int64 a2, __int64 a3, __int64 a4);
-TL_DECLARE_FUNC(0x141136820, void, LevelSetup_setInclusionOptions, LevelSetup* inst, const char* inclusionOptions);
-TL_DECLARE_FUNC(0x141136690, void, LevelSetup_setInclusionOption, LevelSetup* inst, const char* key, const char* value);
-TL_DECLARE_FUNC(0x1470C3010, const char*, LevelSetup_getInclusionOption, LevelSetup* inst, const char* key);
-TL_DECLARE_FUNC(0x146888E10, void*, ServerPeer_connectionForPlayer, void* inst, const ServerPlayer* player);
 TL_DECLARE_FUNC(0x140BCF350, void, ServerLoadLevelMessage_post, LevelSetup* levelSetup, bool fadeOut, bool forceReloadResources);
-TL_DECLARE_FUNC(0x14131AB20, void*, DirtySockSocketManager_ctor, void* inst, MemoryArena* arena, uint32_t maxPacketSize);
 TL_DECLARE_FUNC(0x14193DA20, bool, Server_sendChatMessage, ChatChannel channel, const char* message, const ServerPlayer* player);
 TL_DECLARE_FUNC(0x140C162F0, void, Server_setCompleted);
 
@@ -42,11 +36,7 @@ TL_DECLARE_FUNC(0x140238C60, Win32Buffer*, VirtualFileSystem_createBuffer, void*
 TL_DECLARE_FUNC(0x1401EF680, uint64_t, Buffer_readEx, void* inst, void* destination, int64_t byteCount);
 
 // ECS
-TL_DECLARE_FUNC(0x146A3C130, __int64, GameComponentEntity_externalSetWorldTransform, void* inst, const LinearTransform& transform, bool external);
-
-// Network
-TL_DECLARE_FUNC(0x146375820, void*, OnlineManager_clientConnection, void* inst);
-TL_DECLARE_FUNC(0x1469F0180, float, ClientConnection_getAverageLatency, void* inst);
+TL_DECLARE_FUNC(0x140CEF870, __int64, GameComponentEntity_externalSetWorldTransform, TypeObject* inst, const LinearTransform& transform, bool external);
 
 // Reflection
 TL_DECLARE_FUNC(0x1453D5AB0, DataContainer*, DataContainerClassInfo_createInstance, const TypeInfo* type, MemoryArena* arena, bool a3, bool hasGuid);
@@ -63,6 +53,7 @@ TL_DECLARE_FUNC(0x145488820, char*, ExecutionContext_getOptionValue, const char*
 
 // Misc
 TL_DECLARE_FUNC(0x14778DE50, char*, LocalizationManager_getString, const char* id, bool showLocalizationError);
+TL_DECLARE_FUNC(0x140754D60, uint32_t, NetTick);
 
 inline bool ScriptContext_Impl_executeStringEasy(void* inst, const eastl::string& cmdString, eastl::string* outErr = nullptr)
 {

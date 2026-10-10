@@ -2,16 +2,23 @@
 
 #define _WINSOCKAPI_
 #include <Script/LuaPlayerManager.h>
+#include <Script/LuaDataContainer.h>
 #include <Hook/HookManager.h>
+#include <SDK/Fb/Core.h>
 
 #include <Core/Program.h>
 #include <SDK/Funcs.h>
+#include <SDK/Fb/WS.h>
 
 namespace Kyber
 {
+
+extern void ServerPlayerSetUnlock(ServerPlayer* player, const Guid& guid, bool value);
+
 TL_DECLARE_FUNC(0x14686B6F0, ServerPlayer*, ServerPlayerManager_createPlayer, void* inst, uint8_t connectionId, const eastl::string& name,
     LocalPlayerId localPlayerId, uint32_t playerId, bool isSpectator, bool a7);
-TL_DECLARE_FUNC(0x146881270, void*, ServerGamePlayerExtent_setSelectedCustomizationAsset, void* inst, DataContainer* asset);
+TL_DECLARE_FUNC(0x14064F700, Asset*, getWsPlayerAbilityAsset, uint32_t abilityId);
+TL_DECLARE_FUNC(0x14189EFD0, void*, sendPlayerSyncedGameSettings, void* unused, void* serverConnection);
 
 template<>
 void LuaUtils::Push<ServerPlayer*>(lua_State* L, ServerPlayer* value)
@@ -31,15 +38,15 @@ ServerPlayer* LuaPlayerManager::GetServerPlayer(lua_State* L, int index)
 {
     if (!lua_isuserdata(L, index))
     {
-        luaL_error(L, "Expected userdata for container, got %s", lua_typename(L, lua_type(L, index)));
-        return NULL;
+        luaL_error(L, "Expected userdata for server player, got %s", lua_typename(L, lua_type(L, index)));
+        return nullptr;
     }
 
     ServerPlayer** userdata = (ServerPlayer**)lua_touserdata(L, index);
-    if (userdata == NULL)
+    if (userdata == nullptr)
     {
-        luaL_error(L, "Expected userdata for container");
-        return NULL;
+        luaL_error(L, "Expected userdata for server player");
+        return nullptr;
     }
 
     return *userdata;
@@ -61,10 +68,12 @@ static int CreatePlayerFunc(lua_State* L)
     const char* playerName = luaL_checkstring(L, 1);
 
     ServerPlayer* player = ServerPlayerManager_createPlayer(
-        s_program->m_server->GetServerGameContext()->serverPlayerManager, 0, playerName, LocalPlayerId_Invalid, 0xFFFFFFFF, false, false);
+        g_program->m_server->GetServerGameContext()->GetPlayerManager(), 0, playerName, LocalPlayerId_Invalid, 0xFFFFFFFF, false, false);
 
     player->SetTeam(2);
-    return 0;
+
+    LuaUtils::Push(L, player);
+    return 1;
 }
 
 static int GetPlayerFunc(lua_State* L)
@@ -75,13 +84,14 @@ static int GetPlayerFunc(lua_State* L)
     }
     const char* playerName = luaL_checkstring(L, 1);
 
-    ServerPlayer* player = s_program->m_server->GetServerGameContext()->serverPlayerManager->GetPlayer(playerName);
+    ServerPlayer* player = g_program->m_server->GetServerGameContext()->GetPlayerManager()->GetPlayer(playerName);
     if (player == nullptr)
     {
+        lua_pushnil(L);
         return 0;
     }
 
-    KYBER_LOG(Info, "Got player: " << player->m_name);
+    KYBER_LOG(Trace, "Got player: " << player->m_name);
 
     LuaUtils::Push(L, player);
     return 1;
@@ -89,7 +99,15 @@ static int GetPlayerFunc(lua_State* L)
 
 static int GetPlayersFunc(lua_State* L)
 {
-    auto& playerList = s_program->m_server->GetServerGameContext()->serverPlayerManager->m_players;
+    const ServerGameContext* serverGameContext = g_program->m_server->GetServerGameContext();
+    if (serverGameContext == nullptr)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    auto& playerList = serverGameContext->m_serverPlayerManager->m_players;
+
     lua_createtable(L, playerList.size(), 0);
 
     int i = 1;
@@ -102,19 +120,6 @@ static int GetPlayersFunc(lua_State* L)
     return 1;
 }
 
-struct NetworkPlayerSelectedWeaponMessage
-{
-    char gap0[88];
-    int m_slot;
-    char gap5C[4];
-    DataContainer* m_soldierWeaponUnlockAsset;
-    FBArray<DataContainer*> m_unlockAssets;
-    char gap70;
-    bool m_isFirstWeapon;
-};
-
-TL_DECLARE_FUNC(0x1416A7840, bool, SoldierServerPlayerExtent_onPlayerSelectedWeaponMessage, void* inst, NetworkPlayerSelectedWeaponMessage* message);
-
 static int ServerPlayerGetWeapon(lua_State* L)
 {
     ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
@@ -123,7 +128,7 @@ static int ServerPlayerGetWeapon(lua_State* L)
         return 0;
     }
 
-    SoldierServerPlayerExtent* extent = reinterpret_cast<SoldierServerPlayerExtent*>(player->GetExtent("SoldierServerPlayerExtent"));
+    SoldierServerPlayerExtent* extent = player->GetSoldierServerPlayerExtent();
     if (extent == nullptr)
     {
         KYBER_LOG(Warning, "Failed to get extent");
@@ -143,7 +148,7 @@ static int ServerPlayerSetWeapon(lua_State* L)
         return 0;
     }
 
-    TypeObject* extent = player->GetExtent("SoldierServerPlayerExtent");
+    SoldierServerPlayerExtent* extent = player->GetSoldierServerPlayerExtent();
     if (extent == nullptr)
     {
         KYBER_LOG(Warning, "Failed to get extent");
@@ -166,8 +171,8 @@ static int ServerPlayerSetWeapon(lua_State* L)
     message.m_unlockAssets.m_data[0] = container;
     message.m_isFirstWeapon = false;
 
-    KYBER_LOG(Info, "Setting weapon");
-    SoldierServerPlayerExtent_onPlayerSelectedWeaponMessage(extent, &message);
+    KYBER_LOG(Trace, "Setting weapon");
+    extent->OnPlayerSelectedWeaponMessage(&message);
     return 1;
 }
 
@@ -181,6 +186,84 @@ static int ServerPlayerSetTeam(lua_State* L)
 
     int team = luaL_checkinteger(L, 2);
     player->SetTeam(team);
+    return 1;
+}
+
+static int ServerPlayerSetBattlepoints(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    int amount = luaL_checkinteger(L, 2);
+    player->GetServerPlayerCustomizationExtent()->SetBattlepoints(amount);
+    return 1;
+}
+
+static int ServerPlayerGiveBattlepoints(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    int amount = luaL_checkinteger(L, 2);
+    player->GetServerPlayerCustomizationExtent()->AddBattlepoints(amount);
+    return 1;
+}
+
+static int ServerPlayerSetScore(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    int amount = luaL_checkinteger(L, 2);
+    player->GetPersistenceServerPlayerExtent()->SetScore(amount);
+    return 1;
+}
+
+static int ServerPlayerSetKills(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    int amount = luaL_checkinteger(L, 2);
+    player->GetPersistenceServerPlayerExtent()->SetKills(amount);
+    return 1;
+}
+
+static int ServerPlayerSetAssists(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    int amount = luaL_checkinteger(L, 2);
+    player->GetPersistenceServerPlayerExtent()->SetAssists(amount);
+    return 1;
+}
+
+static int ServerPlayerSetDeaths(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    int amount = luaL_checkinteger(L, 2);
+    player->GetPersistenceServerPlayerExtent()->SetDeaths(amount);
     return 1;
 }
 
@@ -201,11 +284,229 @@ static int ServerPlayerSetCustomizationAsset(lua_State* L)
         return 0;
     }
 
-    void* extent = player->GetExtent("ServerGamePlayerExtent");
-    ServerGamePlayerExtent_setSelectedCustomizationAsset(extent, container);
+    player->GetServerGamePlayerExtent()->SetSelectedCustomizationAsset(container);
 
     KYBER_LOG(Info, "Set customization asset '" << assetName << "'");
     return 1;
+}
+
+static int ServerPlayerSetUnlock(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!lua_isstring(L, 2))
+    {
+        return 0;
+    }
+
+    if (!lua_isboolean(L, 3))
+    {
+        return 0;
+    }
+
+    const char* assetGuid = luaL_checkstring(L, 2);
+    Guid guid = Guid::FromString(assetGuid);
+
+    const bool grant = lua_toboolean(L, 3);
+
+    ServerPlayerSetUnlock(player, guid, grant);
+
+    return 1;
+}
+
+static int ServerPlayerSetInvisible(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!lua_isboolean(L, 2))
+    {
+        return 0;
+    }
+    
+    bool setInvisible = lua_toboolean(L, 2);
+
+    if (!player->GetCharacterEntity())
+    {
+        return 0;
+    }
+
+    player->GetCharacterEntity()->SetInvisible(setInvisible);
+    return 1;
+}
+
+static int ServerPlayerSetAmmo(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!lua_isinteger(L, 2))
+    {
+        return 0;
+    }
+    int32_t count = luaL_checkinteger(L, 2);
+
+    if (!player->GetCharacterEntity() || !player->GetCharacterEntity()->GetCurrentWeapon() 
+        || !player->GetCharacterEntity()->GetCurrentWeapon()->GetWeaponFiring())
+    {
+        return 0;
+    }
+
+    player->GetCharacterEntity()->GetCurrentWeapon()->GetWeaponFiring()->SetPrimaryAmmoMags(count);
+    return 1;
+}
+
+static int ServerPlayerSetHealth(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!lua_isinteger(L, 2))
+    {
+        return 0;
+    }
+    int32_t amount = luaL_checkinteger(L, 2);
+
+    if (!player->GetCharacterEntity() || !player->GetCharacterEntity()->GetHealthComponent())
+    {
+        return 0;
+    }
+
+    player->GetCharacterEntity()->GetHealthComponent()->SetHealth(amount);
+    return 1;
+}
+
+static int ServerPlayerSetMaxHealth(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!lua_isinteger(L, 2))
+    {
+        return 0;
+    }
+    int32_t amount = luaL_checkinteger(L, 2);
+
+    if (!player->GetCharacterEntity() || !player->GetCharacterEntity()->GetHealthComponent())
+    {
+        return 0;
+    }
+
+    HealthComponent* healthComponent = player->GetCharacterEntity()->GetHealthComponent();
+    if (healthComponent->getType()->isKindOf(typeInfo_WSServerSoldierHealthComponent))
+    {
+        WSServerSoldierHealthComponent* wsHealthComponent = static_cast<WSServerSoldierHealthComponent*>(healthComponent);
+        wsHealthComponent->SetMaxHealth(amount);
+    }
+    else 
+    {
+        KYBER_LOG(Warning, "Invalid health component type: " << healthComponent->getType()->getName());
+    }
+    return 1;
+}
+
+static int ServerPlayerSetAbility(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!lua_isinteger(L, 2))
+    {
+        return 0;
+    }
+
+    uint32_t abilityId = luaL_checkinteger(L, 2);
+
+    if (getWsPlayerAbilityAsset(abilityId) == nullptr)
+    {
+        KYBER_LOG(Warning, "Failed to load given ability id");
+        return 0;
+    }
+
+    bool worked = player->GetWSServerPlayerAbilityExtent()->SetAbility(abilityId, true);
+
+    if (!worked)
+    {
+        KYBER_LOG(Warning, "Failed to set player ability for " << player->m_name << " " << abilityId);
+    }
+
+    return 1;
+}
+
+static int ServerPlayerForceSendChatMessage(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    const char* message = luaL_checkstring(L, 2);
+    ChatChannel channel = lua_isinteger(L, 3) ? static_cast<ChatChannel>(luaL_checkinteger(L, 3)) : ChatChannel_All;
+
+    player->ForceSendChatMessage(channel, message);
+    return 0;
+}
+
+static int ServerPlayerSendChatMessage(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    const char* message = luaL_checkstring(L, 2);
+
+    g_program->m_server->SendChatMessage(player, message);
+    return 0;
+}
+
+static int ServerPlayerSetInputEnabled(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+    
+    int32_t actionId = luaL_checkinteger(L, 2);
+    bool enabled = lua_toboolean(L, 3);
+
+    player->SetInputEnabled(actionId, enabled);
+    return 1;
+}
+
+static int ServerPlayerSendSyncedSettings(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    ServerConnection* playerConnection = g_program->m_server->GetServerGameContext()->m_serverPeer->GetConnectionForPlayer(player);
+    sendPlayerSyncedGameSettings(nullptr, playerConnection);
+    return 0;
 }
 
 static int ServerPlayerKick(lua_State* L)
@@ -222,8 +523,205 @@ static int ServerPlayerKick(lua_State* L)
     }
     const char* kickReason = luaL_checkstring(L, 2);
     
-    s_program->m_server->KickPlayer(player, kickReason);
+    g_program->m_server->KickPlayer(player, kickReason);
     return 1;
+}
+
+static int ServerPlayerSetImmortal(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!player->IsAlive())
+    {
+        return 0;
+    }
+
+    if (!lua_isboolean(L, 2))
+    {
+        return 0;
+    }
+    bool isImmortal = lua_toboolean(L, 2);
+
+    static_cast<WSServerSoldierHealthComponent*>(player->GetCharacterEntity()->GetHealthComponent())->SetIsImmortal(isImmortal);
+    return 1;
+}
+
+static int ServerPlayerSetFakeImmortal(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!player->IsAlive())
+    {
+        return 0;
+    }
+
+    if (!lua_isboolean(L, 2))
+    {
+        return 0;
+    }
+    bool isFakeImmortal = lua_toboolean(L, 2);
+
+    static_cast<WSServerSoldierHealthComponent*>(player->GetCharacterEntity()->GetHealthComponent())->SetIsFakeImmortal(isFakeImmortal);
+    return 1;
+}
+
+static int ServerPlayerSetExplosionDamageModifier(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!player->IsAlive())
+    {
+        return 0;
+    }
+
+    if (!lua_isnumber(L, 2))
+    {
+        return 0;
+    }
+    float value = lua_tonumber(L, 2);
+
+    static_cast<WSServerSoldierHealthComponent*>(player->GetCharacterEntity()->GetHealthComponent())->SetExplosionDamageModifier(value);
+    return 1;
+}
+
+static int ServerPlayerSetMoveSpeedMultiplier(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!player->IsAlive())
+    {
+        return 0;
+    }
+
+    if (!lua_isnumber(L, 2))
+    {
+        return 0;
+    }
+    float value = lua_tonumber(L, 2);
+
+    player->GetCharacterEntity()->SetMoveSpeedMultiplier(value);
+    return 1;
+}
+
+static int ServerPlayerSetCooldownModifier(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!player->IsAlive() || player->GetCharacterEntity() == nullptr)
+    {
+        return 0;
+    }
+
+    if (!lua_isnumber(L, 2))
+    {
+        return 0;
+    }
+    float value = lua_tonumber(L, 2);
+
+    player->GetCharacterEntity()->SetCooldownModifier(value);
+    return 1;
+}
+
+static int ServerPlayerTeleport(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!player->IsAlive())
+    {
+        return 0;
+    }
+
+    LinearTransform newPos;
+    if (lua_isuserdata(L, 2))
+    {
+        const LuaValueTypeData* luaData = LuaDataContainer::GetValueType(L, 2);
+        if (!luaData->type->isKindOf(typeInfo_LinearTransform))
+        {
+            luaL_error(L, "Userdata provided was not a LinearTransform or number! You need to give a transform to teleport to.");
+            return 0;
+        }
+
+        newPos = *static_cast<LinearTransform*>(luaData->value);
+    }
+    else 
+    {
+        // Parse 3 args as x, y, z
+        float x = lua_tonumber(L, 2);
+        float y = lua_tonumber(L, 3);
+        float z = lua_tonumber(L, 4);
+
+        // get existing transform so keep rotation but change pos
+        if (player->GetServerGamePlayerExtent()->IsInVehicle())
+        {
+            if (ServerVehicleEntity* vehicle = player->GetVehicleEntity())
+            {
+                vehicle->GetTransform(newPos);
+            }
+        }
+        else if (SpatialEntity* character = player->GetCharacterEntity())
+        {
+            character->GetTransform(newPos);
+        }
+
+        newPos.trans = Vec3(x, y, z);
+    }
+
+    // teleport the player
+    player->Teleport(newPos);
+    return 0;
+}
+
+static int ServerPlayerGetPosition(lua_State* L)
+{
+    ServerPlayer* player = LuaPlayerManager::GetServerPlayer(L, 1);
+    if (player == nullptr)
+    {
+        return 0;
+    }
+
+    if (!player->IsAlive())
+    {
+        return 0;
+    }
+
+    LinearTransform* transform = static_cast<LinearTransform*>(LuaDataContainer::ValueTypeCreate(L, typeInfo_LinearTransform));
+    if (player->GetServerGamePlayerExtent()->IsInVehicle())
+    {
+        if (ServerVehicleEntity* vehicle = player->GetVehicleEntity())
+        {
+            vehicle->GetTransform(*transform);
+        }
+    }
+    else if (SpatialEntity* character = player->GetCharacterEntity())
+    {
+        character->GetTransform(*transform);
+    }
+
+    return 1; // from LuaDataContainer::ValueTypeCreate
 }
 
 static int ServerPlayerIndex(lua_State* L)
@@ -246,9 +744,44 @@ static int ServerPlayerIndex(lua_State* L)
         lua_pushcfunction(L, ServerPlayerSetTeam);
         return 1;
     }
+    else if (key == "SetBattlepoints")
+    {
+        lua_pushcfunction(L, ServerPlayerSetBattlepoints);
+        return 1;
+    }
+    else if (key == "GiveBattlepoints")
+    {
+        lua_pushcfunction(L, ServerPlayerGiveBattlepoints);
+        return 1;
+    }
+    else if (key == "SetScore")
+    {
+        lua_pushcfunction(L, ServerPlayerSetScore);
+        return 1;
+    }
+    else if (key == "SetKills")
+    {
+        lua_pushcfunction(L, ServerPlayerSetKills);
+        return 1;
+    }
+    else if (key == "SetAssists")
+    {
+        lua_pushcfunction(L, ServerPlayerSetAssists);
+        return 1;
+    }
+    else if (key == "SetDeaths")
+    {
+        lua_pushcfunction(L, ServerPlayerSetDeaths);
+        return 1;
+    }
     else if (key == "SetCustomizationAsset")
     {
         lua_pushcfunction(L, ServerPlayerSetCustomizationAsset);
+        return 1;
+    }
+    else if (key == "SetUnlock")
+    {
+        lua_pushcfunction(L, ServerPlayerSetUnlock);
         return 1;
     }
     else if (key == "Kick")
@@ -256,9 +789,94 @@ static int ServerPlayerIndex(lua_State* L)
         lua_pushcfunction(L, ServerPlayerKick);
         return 1;
     }
+    else if (key == "SetInvisible")
+    {
+        lua_pushcfunction(L, ServerPlayerSetInvisible);
+        return 1;
+    }
+    else if (key == "SetAmmo")
+    {
+        lua_pushcfunction(L, ServerPlayerSetAmmo);
+        return 1;
+    }
+    else if (key == "SetHealth")
+    {
+        lua_pushcfunction(L, ServerPlayerSetHealth);
+        return 1;
+    }
+    else if (key == "SetMaxHealth")
+    {
+        lua_pushcfunction(L, ServerPlayerSetMaxHealth);
+        return 1;
+    }
+    else if (key == "SetAbility")
+    {
+        lua_pushcfunction(L, ServerPlayerSetAbility);
+        return 1;
+    }
+    else if (key == "ForceSendChatMessage")
+    {
+        lua_pushcfunction(L, ServerPlayerForceSendChatMessage);
+        return 1;
+    }
+    else if (key == "SetInputEnabled")
+    {
+        lua_pushcfunction(L, ServerPlayerSetInputEnabled);
+        return 1;
+    }
+    else if (key == "SendSyncedSettings")
+    {
+        lua_pushcfunction(L, ServerPlayerSendSyncedSettings);
+        return 1;
+    }
+    else if (key == "SendChatMessage")
+    {
+        lua_pushcfunction(L, ServerPlayerSendChatMessage);
+        return 1;
+    }
+    else if (key == "SetImmortal")
+    {
+        lua_pushcfunction(L, ServerPlayerSetImmortal);
+        return 1;
+    }
+    else if (key == "SetFakeImmortal")
+    {
+        lua_pushcfunction(L, ServerPlayerSetFakeImmortal);
+        return 1;
+    }
+    else if (key == "SetExplosionDamageModifier")
+    {
+        lua_pushcfunction(L, ServerPlayerSetExplosionDamageModifier);
+        return 1;
+    }
+    else if (key == "SetMoveSpeedMultiplier")
+    {
+        lua_pushcfunction(L, ServerPlayerSetMoveSpeedMultiplier);
+        return 1;
+    }
+    else if (key == "SetCooldownModifier")
+    {
+        lua_pushcfunction(L, ServerPlayerSetCooldownModifier);
+        return 1;
+    }
+    else if (key == "Teleport")
+    {
+        lua_pushcfunction(L, ServerPlayerTeleport);
+        return 1;
+    }
+    else if (key == "GetPosition")
+    {
+        lua_pushcfunction(L, ServerPlayerGetPosition);
+        return 1;
+    }
     else if (key == "name")
     {
         lua_pushstring(L, player->m_name);
+        return 1;
+    }
+    else if (key == "playerId")
+    {
+        lua_pushinteger(L, player->m_onlineId.m_nativeData);
         return 1;
     }
     else if (key == "team")
@@ -266,9 +884,59 @@ static int ServerPlayerIndex(lua_State* L)
         lua_pushinteger(L, player->m_teamId);
         return 1;
     }
+    else if (key == "battlepoints")
+    {
+        lua_pushinteger(L, player->GetServerPlayerCustomizationExtent()->m_battlepoints);
+        return 1;
+    }
+    else if (key == "score")
+    {
+        lua_pushinteger(L, player->GetPersistenceServerPlayerExtent()->m_score);
+        return 1;
+    }
+    else if (key == "kills")
+    {
+        lua_pushinteger(L, player->GetPersistenceServerPlayerExtent()->m_kills);
+        return 1;
+    }
+    else if (key == "assists")
+    {
+        lua_pushinteger(L, player->GetPersistenceServerPlayerExtent()->m_assists);
+        return 1;
+    }
+    else if (key == "deaths")
+    {
+        lua_pushinteger(L, player->GetPersistenceServerPlayerExtent()->m_deaths);
+        return 1;
+    }
+    else if (key == "afkTime")
+    {
+        lua_pushnumber(L, player->GetOnlineServerPlayerExtent()->m_inactivityTime);
+        return 1;
+    }
+    else if (key == "characterEntity")
+    {
+        LuaUtils::Push(L, reinterpret_cast<NativeEntity*>(player->GetCharacterEntity()));
+        return 1;
+    }
+    else if (key == "vehicleEntity")
+    {
+        LuaUtils::Push(L, reinterpret_cast<NativeEntity*>(player->GetVehicleEntity()));
+        return 1;
+    }
+    else if (key == "activeKit")
+    {
+        LuaUtils::Push(L, reinterpret_cast<DataContainer*>(const_cast<Asset*>(player->GetServerGamePlayerExtent()->m_activeKit)));
+        return 1;
+    }
     else if (key == "isBot")
     {
         lua_pushboolean(L, player->IsAIPlayer());
+        return 1;
+    }
+    else if (key == "isAlive")
+    {
+        lua_pushboolean(L, player->IsAlive());
         return 1;
     }
 
@@ -279,12 +947,31 @@ static const luaL_Reg s_serverPlayerMeta[] = { { "__index", ServerPlayerIndex },
 
 void LuaPlayerManager::Register(lua_State* L)
 {
-    L = L;
-
+    // TODO: have Lua content registry have a place for hook inits 
+    LuaPlayerManager::InitializeHooks();
+    
     luaL_newmetatable(L, "ServerPlayer");
     luaL_setfuncs(L, s_serverPlayerMeta, 0);
 
     luaL_Reg funcs[] = { { "CreatePlayer", CreatePlayerFunc }, { "GetPlayer", GetPlayerFunc }, { "GetPlayers", GetPlayersFunc }, { NULL, NULL } };
-    LuaUtils::RegisterFunctionTable(L, "PlayerManager", funcs);
+    KB_LUA_NEW_GLOBAL_LIB(L, "PlayerManager", funcs);
 }
+
+Asset* GetWSPlayerAbilityFromCustomizationAssetHk(ServerPlayer* player, uint32_t characterId, uint32_t abilityId, bool a4)
+{
+    Asset* asset = getWsPlayerAbilityAsset(abilityId);
+    if (asset != nullptr)
+    {
+        KYBER_LOG(Debug, "getWsPlayerAbilityAsset: " << asset->Name);
+    }
+    return asset;
+}
+
+void LuaPlayerManager::InitializeHooks()
+{
+    HookManager::CreateHook(HOOK_OFFSET(0x1489639E0), GetWSPlayerAbilityFromCustomizationAssetHk);
+}
+
+KB_REGISTER_LUA_CONTENT_MANAGER(LuaPlayerManager);
+KB_REGISTER_LUA_CONTENT_HOOKS(LuaPlayerManager);
 } // namespace Kyber

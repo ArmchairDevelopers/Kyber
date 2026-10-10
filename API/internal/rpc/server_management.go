@@ -13,7 +13,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/ws"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -96,6 +96,8 @@ func (s *ServerManagement) GetPunishments(ctx context.Context, req *pbapi.Punish
 		if user == nil {
 			continue
 		}
+
+		punishment.UserModel = user
 
 		convPunishments = append(convPunishments, punishment.Proto())
 	}
@@ -274,8 +276,18 @@ func (s *ServerManagement) BanPlayer(ctx context.Context, req *pbapi.ServerBanPl
 		return nil, status.Error(codes.PermissionDenied, "You cannot ban the server host")
 	}
 
+	activeBan, err := s.store.Punishments.GetBanForServer(ctx, server.HostID, target.ID)
+	if err != nil {
+		logger.L().Error("Failed to check punishment", zap.Error(err))
+		return nil, status.Error(codes.Internal, "Failed to check punishments")
+	}
+
+	if activeBan != nil {
+		return nil, status.Error(codes.PermissionDenied, "User is already banned")
+	}
+
 	var expiresAt *time.Time
-	if req.Duration != nil {
+	if req.Duration != nil && req.GetDuration() > 0 {
 		expiresAt = new(time.Time)
 		*expiresAt = time.Now().Add(time.Duration(*req.Duration) * time.Second)
 	}

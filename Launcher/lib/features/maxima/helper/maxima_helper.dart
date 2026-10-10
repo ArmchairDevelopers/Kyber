@@ -16,7 +16,7 @@ import 'package:kyber_launcher/features/maxima/dialogs/maxima_start_game_dialog.
 import 'package:kyber_launcher/features/maxima/extensions/server_mod.dart';
 import 'package:kyber_launcher/features/maxima/models/maxima_game_instance.dart';
 import 'package:kyber_launcher/features/maxima/services/maxima_instance_service.dart';
-import 'package:kyber_launcher/features/mod_collections/providers/mod_collection_cubit.dart';
+import 'package:kyber_launcher/features/mod_collections/extensions/mod_collection_extension.dart';
 import 'package:kyber_launcher/features/mods/services/mod_service.dart';
 import 'package:kyber_launcher/gen/rust/api/maxima.dart' as maxima;
 import 'package:kyber_launcher/injection_container.dart';
@@ -61,8 +61,8 @@ class MaximaHelper {
           .launcherClient
           .getPreloadedMods(Empty());
       final modLimit = Preferences.general.enabledPreloadMods
-          ? 247 - preloadedMods.mods.length
-          : 247;
+          ? 1739 - preloadedMods.mods.length
+          : 1739;
       if (modPaths.length >= modLimit) {
         _logger.warning('Mod limit reached: ${modPaths.length}');
 

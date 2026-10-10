@@ -7,9 +7,22 @@
 #include <Hook/HookManager.h>
 
 #include <EASTL/internal/config.h>
+#include <winnt.h>
 
-#define OFFSET_MEMORYARENA_ALLOC HOOK_OFFSET(0x14541CD00)
-#define OFFSET_MEMORYARENA_FREE HOOK_OFFSET(0x1401C8100)
+void* operator new(size_t size, Kyber::MemoryArena* arena) 
+{
+    return arena->alloc(size);
+}
+
+void* operator new[](size_t size, Kyber::MemoryArena* arena)
+{
+    return arena->alloc(size);
+}
+
+void operator delete(void* ptr, Kyber::MemoryArena* arena)
+{
+    return arena->free(ptr);
+}
 
 namespace Kyber
 {
@@ -37,4 +50,12 @@ void InitializeEASTL()
     EASTLArenaAllocator::s_allocateAlignFunc = reinterpret_cast<EASTLArenaAllocator::EASTLArenaAllocatorAllocateAlignFunc>(0x1454DF760);
     EASTLArenaAllocator::s_deallocateFunc = reinterpret_cast<EASTLArenaAllocator::EASTLArenaAllocatorDeallocateFunc>(0x1454E2780);
 }
+
+void MemoryLeakDb::AddEntry(size_t amount, const char* desc) 
+{
+    InterlockedAdd64((volatile LONG64*)&MemoryLeakDb::s_totalLeaked, amount);
+    KYBER_LOG(Debug, "MEMORY LEAK ENTRY: " << desc << " [" << amount << "]");
+}
+
+size_t MemoryLeakDb::s_totalLeaked = 0;
 } // namespace Kyber

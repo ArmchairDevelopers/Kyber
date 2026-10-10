@@ -6,6 +6,7 @@ import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/core/routing/app_router.dart';
 import 'package:kyber_launcher/features/download_manager/models/download_state.dart';
 import 'package:kyber_launcher/features/download_manager/providers/download_manager_cubit.dart';
+import 'package:kyber_launcher/features/navigation_bar/widgets/social_bar.dart';
 import 'package:kyber_launcher/shared/ui/navigation_bar/navigation_bar_seperator.dart';
 import 'package:kyber_launcher/shared/ui/navigation_bar/widgets/navigation_bar_item.dart';
 import 'package:kyber_launcher/shared/ui/navigation_bar/widgets/navigation_bar_sub_item.dart';
@@ -41,7 +42,7 @@ class _NavigationBarListState extends State<NavigationBarList> {
     NavigationBarEntry('HOST', 'server_host'),
     NavigationBarEntry('STATS', 'stats'),
     NavigationBarEntry('MODS', 'mods'),
-    NavigationBarEntry('SETTINGS', 'settings'),
+    //NavigationBarEntry('SETTINGS', 'settings'),
   ];
 
   @override
@@ -57,6 +58,10 @@ class _NavigationBarListState extends State<NavigationBarList> {
         setState(() {
           _activeItem = index;
         });
+      } else {
+        setState(() {
+          _activeItem = -2;
+        });
       }
     }
     super.didUpdateWidget(oldWidget);
@@ -66,7 +71,8 @@ class _NavigationBarListState extends State<NavigationBarList> {
   Widget build(BuildContext context) {
     return Container(
       height: 50,
-      padding: const EdgeInsets.only(left: 20, top: 10),
+      margin: const .only(top: 5),
+      padding: const EdgeInsets.only(left: 20, right: 20),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         transitionBuilder: (child, animation) => FadeTransition(
@@ -77,7 +83,7 @@ class _NavigationBarListState extends State<NavigationBarList> {
           alignment: Alignment.centerLeft,
           children: <Widget>[
             ...previousChildren,
-            if (currentChild != null) currentChild,
+            ?currentChild,
           ],
         ),
         child: Builder(
@@ -86,12 +92,12 @@ class _NavigationBarListState extends State<NavigationBarList> {
               final routes = widget.route.split('/').skip(1);
 
               return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: .spaceBetween,
                 children: [
                   BackgroundBlur(
                     key: const ValueKey('subNavBarList'),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: .min,
                       children: [
                         Container(
                           height: 41,
@@ -133,7 +139,9 @@ class _NavigationBarListState extends State<NavigationBarList> {
                     child: BlocBuilder<DownloadCubit, DownloadState>(
                       //buildWhen: (previous, current) => previous.currentDownload != current.currentDownload,
                       builder: (context, state) {
-                        final currentDownload = state is DownloadLoaded ? state.currentDownload : null;
+                        final currentDownload = state is DownloadLoaded
+                            ? state.currentDownload
+                            : null;
 
                         if (currentDownload == null) {
                           return const SizedBox.shrink();
@@ -154,90 +162,70 @@ class _NavigationBarListState extends State<NavigationBarList> {
 
             final items = getItems();
 
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ListView.separated(
-                      key: const ValueKey('navBarList'),
-                      shrinkWrap: true,
-                      itemCount: items.length + 2,
-                      physics: const NeverScrollableScrollPhysics(),
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.zero,
-                      separatorBuilder: (context, index) {
-                        final active =
-                            index == _activeItem || index == _activeItem + 1;
-                        final hover =
-                            _hoveringIndex == index - 1 ||
-                            _hoveringIndex == index;
-                        return NavigationBarSeperator(
-                          active: active,
-                          hover: _hovering && hover,
-                          showPositioned: active && _showPositioned,
-                        );
-                      },
-                      itemBuilder: (context, index) {
-                        if (index == 0 || index == items.length + 1) {
-                          return const SizedBox.shrink();
-                        }
+            return BackgroundBlur(
+              child: Row(
+                children: [
+                  ListView.separated(
+                    key: const ValueKey('navBarList'),
+                    shrinkWrap: true,
+                    itemCount: items.length + 2,
+                    physics: const NeverScrollableScrollPhysics(),
+                    scrollDirection: .horizontal,
+                    padding: .zero,
+                    separatorBuilder: (context, index) {
+                      final active =
+                          index == _activeItem || index == _activeItem + 1;
+                      final hover =
+                          _hoveringIndex == index - 1 || _hoveringIndex == index;
+                      return NavigationBarSeperator(
+                        active: active,
+                        hover: _hovering && hover,
+                        showPositioned: active && _showPositioned,
+                      );
+                    },
+                    itemBuilder: (context, index) {
+                      if (index == 0 || index == items.length + 1) {
+                        return const SizedBox.shrink();
+                      }
 
-                        index = index - 1;
-                        final item = items[index];
-                        final active = _hovering && _hoveringIndex == index;
-                        final child = NavigationBarItem(
-                          item: item,
-                          onTap: () async {
-                            if (widget.route == '/${item.route}') {
-                              return;
-                            }
+                      index = index - 1;
+                      final item = items[index];
+                      final active = _hovering && _hoveringIndex == index;
+                      final child = NavigationBarItem(
+                        item: item,
+                        onTap: () async {
+                          if (widget.route == '/${item.route}') {
+                            return;
+                          }
 
-                            router.go('/${item.route}');
+                          router.go('/${item.route}');
 
-                            // hack to make the positioned animation work
-                            setState(() => _showPositioned = false);
-                            await Future.delayed(
-                              const Duration(milliseconds: 5),
-                            );
-                            setState(() {
-                              _activeItem = index;
-                              _showPositioned = true;
-                            });
-                          },
-                          onHover: (value) => setState(() {
-                            _hovering = value;
-                            _hoveringIndex = value ? index : null;
-                          }),
-                          active: _activeItem == index,
-                          hover: active,
-                        );
-
-                        return child;
-                      },
-                    ),
-                    RepaintBoundary(
-                      child: BlocBuilder<DownloadCubit, DownloadState>(
-                        //buildWhen: (previous, current) => previous.currentDownload != current.currentDownload,
-                        builder: (context, state) {
-                          final currentDownload = state is DownloadLoaded ? state.currentDownload : null;
-
-                          return MouseRegion(
-                            cursor: SystemMouseCursors.click,
-                            child: GestureDetector(
-                              onTap: () {
-                                router.goNamed('downloads');
-                              },
-                              child: const NavigationDownloadInfo(),
-                            ),
+                          // hack to make the positioned animation work
+                          setState(() => _showPositioned = false);
+                          await Future.delayed(
+                            const Duration(milliseconds: 5),
                           );
+                          setState(() {
+                            _activeItem = index;
+                            _showPositioned = true;
+                          });
                         },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                        onHover: (value) => setState(() {
+                          _hovering = value;
+                          _hoveringIndex = value ? index : null;
+                        }),
+                        active: _activeItem == index,
+                        hover: active,
+                      );
+
+                      return child;
+                    },
+                  ),
+                  const Expanded(
+                    child: SocialBar(),
+                  ),
+                ],
+              ),
             );
           },
         ),

@@ -1,12 +1,11 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as mt;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:kyber/kyber.dart';
 import 'package:kyber_launcher/core/config/colors.dart';
 import 'package:kyber_launcher/features/kyber/helper/kyber_status_helper.dart';
 import 'package:kyber_launcher/features/kyber/providers/kyber_api_status_cubit.dart';
 import 'package:kyber_launcher/features/lightswitch/models/status.dart';
 import 'package:kyber_launcher/features/server_browser/constants/modes.dart';
+import 'package:kyber_launcher/features/server_browser/models/server_entry.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_filter.dart';
 import 'package:kyber_launcher/features/server_browser/models/server_list_state.dart';
 import 'package:kyber_launcher/features/server_browser/providers/server_browser_cubit.dart';
@@ -17,6 +16,7 @@ import 'package:kyber_launcher/features/server_browser/widgets/server_list/serve
 import 'package:kyber_launcher/gen/assets.gen.dart';
 import 'package:kyber_launcher/gen/fonts.gen.dart';
 import 'package:kyber_launcher/shared/ui/elements/filter_dropdown.dart';
+import 'package:kyber_launcher/shared/ui/elements/kyber_page_selector.dart';
 import 'package:kyber_launcher/shared/ui/layout/bordered_content.dart';
 import 'package:kyber_launcher/shared/ui/ui.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
@@ -37,12 +37,14 @@ class _ServerBrowserState extends State<ServerBrowser> {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 15,
+      crossAxisAlignment: .start,
       children: [
         Expanded(
           flex: 6,
           child: BorderedContent(
             overlappingBorder: true,
+            divider: false,
             header: BlocListener<ServerListCubit, ServerListState>(
               listener: (context, state) {
                 state as ServerListLoaded;
@@ -55,18 +57,16 @@ class _ServerBrowserState extends State<ServerBrowser> {
                   return;
                 }
 
-                final serverId = selectedServer is ServerGroup
-                    ? selectedServer.serverInfo.id
-                    : (selectedServer as Server).id;
+                final serverId = selectedServer.serverInfo.id;
+                final stillPresent = state.servers.any(
+                  (s) => s is GroupedServer
+                      ? s.group.servers.any(
+                          (i) => i.id == serverId,
+                        )
+                      : s.serverInfo.id == serverId,
+                );
 
-                final server = state.servers.where((s) {
-                  final id = s is ServerGroup
-                      ? s.serverInfo.id
-                      : (s as Server).id;
-                  return id == serverId;
-                }).toList();
-
-                if (server.isEmpty) {
+                if (!stillPresent) {
                   context.read<ServerBrowserCubit>().clearServer();
                 }
               },
@@ -78,7 +78,6 @@ class _ServerBrowserState extends State<ServerBrowser> {
             ),
           ),
         ),
-        const SizedBox(width: 20),
         Expanded(
           flex: 3,
           child: Column(
@@ -114,19 +113,6 @@ class _HeaderBar extends StatelessWidget {
       child: SizedBox(
         child: Row(
           children: [
-            /*SizedBox(
-              child: KyberButton(
-                onPressed: () async => MaximaHelper.requestGameLaunch(context),
-                icon: SvgPicture.network(
-                  'https://upload.wikimedia.org/wikipedia/commons/0/0d/Electronic-Arts-Logo.svg',
-                  height: 15,
-                  width: 15,
-                  color: kWhiteColor,
-                ),
-                text: 'PLAY',
-              ),
-            ),
-            const SizedBox(width: 15),*/
             SizedBox(
               width: 40,
               child: KyberTabBar(
@@ -149,28 +135,15 @@ class _HeaderBar extends StatelessWidget {
               child: _FilterDropdown(),
             ),
             const SizedBox(width: 15),
-            SizedBox(
-              width: 120,
-              child: BlocBuilder<ServerListCubit, ServerListState>(
-                builder: (context, state) {
-                  final pageText = '${state.page ?? 0}/${state.pages ?? 0}';
-
-                  return KyberTabBar(
-                    selectedIndex: -1,
-                    onChanged: (value) {
-                      if (value == 0) {
-                        context.read<ServerListCubit>().previousPage();
-                      } else if (value == 2) {
-                        context.read<ServerListCubit>().nextPage();
-                      }
-                    },
-                    tabs: [
-                      const Icon(mt.Icons.arrow_back_ios_new_rounded),
-                      Text(pageText),
-                      const Icon(mt.Icons.arrow_forward_ios_rounded),
-                    ],
-                  );
-                },
+            BlocBuilder<ServerListCubit, ServerListState>(
+              builder: (context, state) => SizedBox(
+                height: 35,
+                width: 110,
+                child: KyberPageSelector(
+                  current: state.page ?? 0,
+                  total: state.pages ?? 0,
+                  onPageChanged: context.read<ServerListCubit>().goToPage,
+                ),
               ),
             ),
           ],

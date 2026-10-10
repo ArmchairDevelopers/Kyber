@@ -28,6 +28,12 @@ class General {
 
   set enabledPreloadMods(bool value) => box.put('enabledPreloadMods', value);
 
+  bool get incrementalDownloadsEnabled =>
+      box.get('incrementalDownloadsEnabled', defaultValue: true) as bool;
+
+  set incrementalDownloadsEnabled(bool value) =>
+      box.put('incrementalDownloadsEnabled', value);
+
   String? get currentVersion => box.get('currentVersion') as String?;
 
   set currentVersion(String? value) => box.put('currentVersion', value);
@@ -149,6 +155,19 @@ class General {
           as String;
 
   set locale(String value) => box.put('locale', value);
+
+  // TODO: remove dummy from key name
+  bool get allowPartyInvitesFromAnyone =>
+      box.get('allowPartyInvitesFromAnyoneDUMMY', defaultValue: true) as bool;
+
+  set allowPartyInvitesFromAnyone(bool value) =>
+      box.put('allowPartyInvitesFromAnyoneDUMMY', value);
+
+  bool get groupServersByRegion =>
+      box.get('groupServersByRegion', defaultValue: true) as bool;
+
+  set groupServersByRegion(bool value) =>
+      box.put('groupServersByRegion', value);
 }
 
 class Patreon {

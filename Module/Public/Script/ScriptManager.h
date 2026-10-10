@@ -14,6 +14,7 @@ namespace Kyber
 struct PluginManifest
 {
     std::string name;
+    std::string minVersion;
 
     PluginManifest() = default;
     PluginManifest(std::string source);
@@ -21,8 +22,9 @@ struct PluginManifest
 
 enum PluginRealm
 {
-    PluginRealm_Client,
-    PluginRealm_Server,
+    PluginRealm_Client = 0,
+    PluginRealm_Server = 1,
+    PluginRealm_Count
 };
 
 class PluginBase
@@ -95,9 +97,16 @@ public:
     void LoadLocalPlugin(PluginRealm realm, std::filesystem::path path);
     void LoadPackagedPlugin(PluginRealm realm, std::filesystem::path path);
 
+    void Reset();
+
     LuaEventManager& GetEventManager()
     {
         return m_eventManager;
+    }
+
+    bool IsPostInitialization(PluginRealm realm)
+    {
+        return m_blockPostInit[realm];
     }
 
     static void StorePlugin(lua_State* L, PluginBase* plugin);
@@ -107,5 +116,7 @@ private:
     void LoadPluginsFromDirectory(PluginRealm realm, const std::filesystem::path& path);
 
     LuaEventManager m_eventManager;
+    // This system is awful disgusting and killed my hb, probably will change later
+    bool m_blockPostInit[PluginRealm_Count];
 };
 } // namespace Kyber

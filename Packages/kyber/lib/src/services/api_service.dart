@@ -54,6 +54,8 @@ class KyberGRPCService {
     proxyClient = ProxyClient(_channel, options: callOptions);
     launcherClient = LauncherClient(_channel, options: callOptions);
     reportServiceClient = ReportServiceClient(_channel, options: callOptions);
+    partyServiceClient = PartyClient(_channel, options: callOptions);
+    serverQueueClient = ServerQueueClient(_channel, options: callOptions);
   }
 
   late ClientChannel _channel;
@@ -65,6 +67,8 @@ class KyberGRPCService {
   late ProxyClient proxyClient;
   late LauncherClient launcherClient;
   late ReportServiceClient reportServiceClient;
+  late PartyClient partyServiceClient;
+  late ServerQueueClient serverQueueClient;
 
   final String host;
   final int port;

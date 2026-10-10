@@ -7,7 +7,7 @@ on:
       - 'dev/launcher'
       - 'develop'
     paths:
-      - '.github/workflows/build-launcher.yaml'
+      - '.github/workflows/build-launcher.yml'
       - 'Launcher/**/*'
 
 concurrency:
@@ -16,15 +16,22 @@ concurrency:
 
 jobs:
   build:
+    # TODO: code signing is disabled for now, restore: runs-on: ${{ (github.ref == 'refs/heads/stable') && 'windows-2022' || 'windows-latest-l' }}
     runs-on: windows-latest-l
 
     env:
       working-directory: ./Launcher
 
+    outputs:
+      unsigned-launcher-artifact-id: ${{ steps.upload-unsigned-launcher.outputs.artifact-id }}
+
     steps:
       - name: Get branch names
         id: branch-names
         uses: tj-actions/branch-names@v8
+
+      - name: Enable long paths
+        run: git config --system core.longpaths true
 
       - name: Check out code
         uses: actions/checkout@v4
@@ -157,11 +164,237 @@ jobs:
         run: |
           cp "_work/vivoxsdk.dll" "build/windows/x64/runner/Release/vivoxsdk.dll"
 
+      - name: Stage binaries for signing
+        # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+        if: false
+        working-directory: ${{ env.working-directory }}
+        run: |
+          $release = "build/windows/x64/runner/Release"
+          New-Item -Path _signing -ItemType Directory -Force | Out-Null
+          Copy-Item "$release/kyber_launcher.exe" "_signing/kyber_launcher.exe"
+          Copy-Item "$release/rust_lib.dll" "_signing/rust_lib.dll"
+        shell: powershell
+
+      - name: Upload unsigned launcher artifact
+        # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+        if: false
+        id: upload-unsigned-launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-unsigned
+          path: ${{ env.working-directory }}/_signing/*
+
+      - name: Upload release directory
+        # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+        if: false
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-release-unsigned
+          path: ${{ env.working-directory }}/build/windows/x64/runner/Release
+
+      - name: Generate Installer
+        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable'
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        with:
+          path: Launcher/installer/installer.iss
+          options: /O+
+
+      - name: Generate Version File
+        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable'
+        run: |
+          Install-Module -Name powershell-yaml -Force -RequiredVersion 0.4.2
+          Import-Module powershell-yaml
+          $content = Get-Content -Raw -Path "Launcher/pubspec.yaml"
+          $yaml = ConvertFrom-Yaml $content
+          $version = $yaml.version
+          Set-Content -Path "Launcher/version" -Value $version
+        shell: powershell
+
+      - name: Zip files
+        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable'
+        run: |
+          Compress-Archive -Path "Launcher/build/windows/x64/runner/Release/*" -DestinationPath kyber-launcher.zip
+        shell: powershell
+
+      - name: Zip installer
+        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable'
+        run: |
+          rm Launcher/installer/installer.iss
+          rm Launcher/installer/7za.exe
+          rm Launcher/installer/vc_redist.x64.exe
+          Compress-Archive -Path "Launcher/installer/*" -DestinationPath kyber-installer.zip
+        shell: powershell
+
+      - name: Upload artifacts
+        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable'
+        run: |
+          Invoke-WebRequest https://cdn.kyber.gg/artifacts/mc.exe -OutFile C:\mc.exe
+          C:\mc.exe alias set kyber https://s3.kyber.gg ${{ secrets.AWS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          C:\mc.exe cp Launcher/version kyber/artifacts/launcher-versions/${{ steps.branch-names.outputs.current_branch }}/latest-version
+          C:\mc.exe cp kyber-launcher.zip kyber/releases/${{ steps.branch-names.outputs.current_branch }}/kyber-launcher-win64.zip
+          C:\mc.exe cp kyber-installer.zip kyber/releases/${{ steps.branch-names.outputs.current_branch }}/kyber-installer-win64.zip
+        shell: powershell
+
+  sign-binaries:
+    name: Sign launcher binaries
+    needs: build
+    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+    if: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Submit signing request
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORG_ID }}'
+          project-slug: 'kyber'
+          signing-policy-slug: 'release-signing'
+          artifact-configuration-slug: 'launcher-binaries'
+          github-artifact-id: '${{ needs.build.outputs.unsigned-launcher-artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: '_signed'
+          wait-for-completion-timeout-in-seconds: 21000
+
+      - name: Upload signed binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-signed
+          path: _signed/*
+
+  package:
+    name: Build installer
+    needs: sign-binaries
+    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+    if: false
+    runs-on: windows-2022
+
+    env:
+      working-directory: ./Launcher
+
+    outputs:
+      unsigned-installer-artifact-id: ${{ steps.upload-unsigned-installer.outputs.artifact-id }}
+
+    steps:
+      - name: Enable long paths
+        run: git config --system core.longpaths true
+
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Download release directory
+        uses: actions/download-artifact@v4
+        with:
+          name: launcher-release-unsigned
+          path: ${{ env.working-directory }}/build/windows/x64/runner/Release
+
+      - name: Download signed binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: launcher-signed
+          path: ${{ env.working-directory }}/_signed
+
+      - name: Copy signed binaries back
+        working-directory: ${{ env.working-directory }}
+        run: |
+          $release = "build/windows/x64/runner/Release"
+          Copy-Item -Force "_signed/kyber_launcher.exe" "$release/kyber_launcher.exe"
+          Copy-Item -Force "_signed/rust_lib.dll" "$release/rust_lib.dll"
+        shell: powershell
+
+      - name: Download 7za
+        run: |
+          Invoke-WebRequest https://s3.kyber.gg/artifacts/7za.exe -OutFile 7za.exe
+        working-directory: ./Launcher/installer
+        shell: powershell
+
+      - name: Download VC Redist
+        run: |
+          Invoke-WebRequest https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile vc_redist.x64.exe
+        working-directory: ./Launcher/installer
+        shell: powershell
+
       - name: Generate Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
         with:
           path: Launcher/installer/installer.iss
           options: /O+
+
+      - name: Zip files
+        run: |
+          Compress-Archive -Path "Launcher/build/windows/x64/runner/Release/*" -DestinationPath kyber-launcher.zip
+        shell: powershell
+
+      - name: Upload launcher zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-zip
+          path: kyber-launcher.zip
+
+      - name: Upload unsigned installer artifact
+        id: upload-unsigned-installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-unsigned
+          path: ${{ env.working-directory }}/installer/KyberLauncherInstaller.exe
+
+  sign-installer:
+    name: Sign installer
+    needs: package
+    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+    if: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Submit installer signing request
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORG_ID }}'
+          project-slug: 'kyber'
+          signing-policy-slug: 'release-signing'
+          artifact-configuration-slug: 'installer'
+          github-artifact-id: '${{ needs.package.outputs.unsigned-installer-artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: '_signed_installer'
+          wait-for-completion-timeout-in-seconds: 21000
+
+      - name: Upload signed installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-signed
+          path: _signed_installer/*
+
+  publish:
+    name: Publish signed release
+    needs: sign-installer
+    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+    if: false
+    runs-on: windows-2022
+
+    steps:
+      - name: Get branch names
+        id: branch-names
+        uses: tj-actions/branch-names@v8
+
+      - name: Enable long paths
+        run: git config --system core.longpaths true
+
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Download launcher zip
+        uses: actions/download-artifact@v4
+        with:
+          name: launcher-zip
+
+      - name: Download signed installer
+        uses: actions/download-artifact@v4
+        with:
+          name: installer-signed
+          path: _signed_installer
 
       - name: Generate Version File
         run: |
@@ -173,25 +406,14 @@ jobs:
           Set-Content -Path "Launcher/version" -Value $version
         shell: powershell
 
-      - name: Zip files
-        if: runner.os == 'Windows'
-        run: |
-          Compress-Archive -Path "Launcher/build/windows/x64/runner/Release/*" -DestinationPath kyber-launcher.zip
-        shell: powershell
-
       - name: Zip installer
-        if: runner.os == 'Windows'
         run: |
-          rm Launcher/installer/installer.iss
-          rm Launcher/installer/7za.exe
-          rm Launcher/installer/vc_redist.x64.exe
-          Compress-Archive -Path "Launcher/installer/*" -DestinationPath kyber-installer.zip
+          Compress-Archive -Path "_signed_installer/KyberLauncherInstaller.exe" -DestinationPath kyber-installer.zip
         shell: powershell
 
       - name: Upload artifacts
-        if: runner.os == 'Windows'
         run: |
-          Invoke-WebRequest https://dl.min.io/client/mc/release/windows-amd64/mc.exe -OutFile C:\mc.exe
+          Invoke-WebRequest https://cdn.kyber.gg/artifacts/mc.exe -OutFile C:\mc.exe
           C:\mc.exe alias set kyber https://s3.kyber.gg ${{ secrets.AWS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           C:\mc.exe cp Launcher/version kyber/artifacts/launcher-versions/${{ steps.branch-names.outputs.current_branch }}/latest-version
           C:\mc.exe cp kyber-launcher.zip kyber/releases/${{ steps.branch-names.outputs.current_branch }}/kyber-launcher-win64.zip

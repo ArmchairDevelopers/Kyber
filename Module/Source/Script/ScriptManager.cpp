@@ -4,22 +4,14 @@
 #include <Core/Program.h>
 #include <Utilities/PlatformUtils.h>
 #include <Script/Lua.h>
-#include <Script/LuaDataContainer.h>
-#include <Script/LuaConsole.h>
-#include <Script/LuaGlobals.h>
-#include <Script/LuaPlayerManager.h>
-#include <Script/LuaSocketManager.h>
-#include <Script/LuaEntityManager.h>
-#include <Script/LuaResourceManager.h>
-#include <Script/LuaUtilFunctions.h>
-#include <Script/LuaClientEvents.h>
 
 namespace Kyber
 {
 PluginManifest::PluginManifest(std::string source)
 {
     auto json = nlohmann::json::parse(source);
-    name = json["name"].get<std::string>();
+    name = json.contains("name") ? json["name"].get<std::string>() : "Undefined";
+    minVersion = json.contains("minVersion") ? json["minVersion"].get<std::string>() : "Undefined";
 }
 
 PluginBase::PluginBase(PluginRealm realm)
@@ -122,6 +114,9 @@ std::optional<std::string> PackagedPlugin::LoadFile(const std::string& path)
 ScriptManager::ScriptManager()
 {
     KYBER_LOG(Info, "[Plugin] Initializing script manager with " << LUA_RELEASE);
+
+    // Should only ever be called once.
+    LuaContentRegistry::Get().InitializeHooks();
 }
 
 void ScriptManager::LoadPluginsFromDirectory(PluginRealm realm, const std::filesystem::path& path)
@@ -163,6 +158,7 @@ void ScriptManager::LoadScripts(PluginRealm realm)
         {
             LoadPluginsFromDirectory(realm, pluginsPath);
         }
+        m_blockPostInit[PluginRealm_Server] = true;
     }
 
     if (realm == PluginRealm_Client)
@@ -170,8 +166,10 @@ void ScriptManager::LoadScripts(PluginRealm realm)
         const char* pluginsPath = std::getenv("KYBER_CLIENT_PLUGINS_PATH");
         if (pluginsPath != nullptr)
         {
-            LoadPluginsFromDirectory(realm, pluginsPath);
+            KYBER_LOG(Error, "Kyber Client Plugins are now depreciated! Plugins will not be loaded.");
+            //LoadPluginsFromDirectory(realm, pluginsPath);
         }
+        m_blockPostInit[PluginRealm_Client] = true;
     }
 }
 
@@ -180,21 +178,16 @@ void ScriptManager::LoadPlugin(PluginBase* script)
     KB_LUA_LOCK;
 
     lua_State* L = luaL_newstate();
-    luaL_openlibs(L);
+    // Safe libraries (according to: https://github.com/kikito/lua-sandbox/blob/master/sandbox.lua#L59)
+    luaL_openselectedlibs(L,
+        LUA_GLIBK | LUA_LOADLIBK | LUA_COLIBK | LUA_MATHLIBK |
+            LUA_OSLIBK | /* Some functions are safe, but best to remove the entire thing. */
+            LUA_STRLIBK | LUA_TABLIBK,
+        0);
 
     StorePlugin(L, script);
 
-    LuaEventManager::Register(L);
-    LuaDataContainer::Register(L);
-    LuaEntityManager::Register(L);
-    LuaPlayerManager::Register(L);
-    LuaSocketManager::Register(L);
-
-    Script::RegisterGlobals(L);
-    Script::RegisterConsoleTable(L);
-    Script::RegisterResourceManagerTable(L);
-    Script::RegisterUtilTable(L);
-    Script::RegisterClientEvents(L);
+    LuaContentRegistry::Get().InitializeContent(L);
 
     KYBER_LOG(Info, script->LogPrefix() << " Initialized plugin");
 
@@ -234,6 +227,11 @@ void ScriptManager::LoadPackagedPlugin(PluginRealm realm, std::filesystem::path 
 {
     PackagedPlugin* script = new PackagedPlugin(realm, path);
     LoadPlugin(script);
+}
+
+void ScriptManager::Reset()
+{
+    m_eventManager.Reset();
 }
 
 void ScriptManager::StorePlugin(lua_State* L, PluginBase* plugin)
