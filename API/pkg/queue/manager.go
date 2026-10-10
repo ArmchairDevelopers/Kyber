@@ -10,6 +10,7 @@ import (
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/logger"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/models"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/mq"
+	"github.com/ArmchairDevelopers/Kyber/API/pkg/safego"
 	"github.com/ArmchairDevelopers/Kyber/API/pkg/util"
 	"go.uber.org/zap"
 )
@@ -31,7 +32,7 @@ func NewManager(store *db.Store, pub *mq.QueueEventPublisher, flags *featureflag
 		flags: flags,
 	}
 
-	go m.sweepLoop()
+	safego.Go(m.sweepLoop)
 
 	return m
 }
