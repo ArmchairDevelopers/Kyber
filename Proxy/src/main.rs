@@ -61,7 +61,7 @@ async fn validate_jwt_token(token: &str, jwks_manager: &JwksManager) -> Result<C
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    let _guard = sentry::init(("https://0745df5853f871d9ecde75645138a019@sentry.kyber.gg/9", sentry::ClientOptions {
+    let _guard = sentry::init((env::var("SENTRY_DSN").ok(), sentry::ClientOptions {
         release: sentry::release_name!(),
         send_default_pii: true,
         ..Default::default()

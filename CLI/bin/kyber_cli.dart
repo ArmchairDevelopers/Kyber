@@ -10,7 +10,7 @@ Future<void> main(List<String> args) async {
   await runZonedGuarded(() async {
     await Sentry.init(
       (options) {
-        options.dsn = 'https://6908d6215588b605347d1d446f0bb5ce@sentry.kyber.gg/5';
+        options.dsn = 'https://8e5fc54af41e8c9041609b1b7302da7d@o4510921032859648.ingest.de.sentry.io/4512221111648336';
       },
     );
 

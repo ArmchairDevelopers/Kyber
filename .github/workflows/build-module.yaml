@@ -19,7 +19,8 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ (github.ref == 'refs/heads/stable') && 'windows-latest' || 'windows-latest-l' }}
+    # TODO: code signing is disabled for now, restore: runs-on: ${{ (github.ref == 'refs/heads/stable') && 'windows-latest' || 'windows-latest-l' }}
+    runs-on: windows-latest-l
 
     env:
       working-directory: ./Module
@@ -73,27 +74,31 @@ jobs:
         shell: powershell
 
       - name: Copy DLL
-        if: startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
+        # TODO: code signing is disabled for now, restore: if: startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
+        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         working-directory: ${{env.working-directory}}
         run: |
           cp "bazel-bin/Kyber.dll" "_work/Kyber.dll"
 
       - name: upload-unsigned-artifact
-        if: github.ref == 'refs/heads/stable'
+        # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+        if: false
         id: upload-unsigned-artifact
         uses: actions/upload-artifact@v4
         with:
           path: ${{env.working-directory}}/bazel-bin/Kyber.dll
 
       - name: Zip files
-        if: github.ref != 'refs/heads/stable' && (startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch')
+        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable' && (startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch')
+        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         working-directory: ${{env.working-directory}}
         run: |
           Compress-Archive -Path "_work/*" -DestinationPath kyber-module.zip
         shell: powershell
 
       - name: Upload Artifacts
-        if: github.ref != 'refs/heads/stable' && (startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch')
+        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable' && (startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch')
+        if: github.ref == 'refs/heads/stable' || startsWith(github.ref, 'refs/heads/ver/') || github.event_name == 'workflow_dispatch'
         working-directory: ${{env.working-directory}}
         run: |
           $ProgressPreference = 'SilentlyContinue'
@@ -105,7 +110,8 @@ jobs:
   sign:
     name: Sign module
     needs: build
-    if: github.ref == 'refs/heads/stable'
+    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
@@ -131,7 +137,8 @@ jobs:
   publish:
     name: Publish signed release
     needs: sign
-    if: github.ref == 'refs/heads/stable'
+    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
+    if: false
     runs-on: windows-latest
 
     steps:
