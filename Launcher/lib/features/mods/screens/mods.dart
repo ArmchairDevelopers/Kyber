@@ -631,8 +631,9 @@ class _ModActionButtons extends StatelessWidget {
     context.read<CollectionEditorCubit>().createCollection(
       initialMods: initialMods,
     );
-    selectedMods.clear();
-    cubit.setSelectedMod(null);
+    cubit
+      ..setSelectedMods({})
+      ..setSelectedMod(null);
   }
 }
 

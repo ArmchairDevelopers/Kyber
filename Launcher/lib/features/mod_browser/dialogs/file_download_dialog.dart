@@ -70,7 +70,6 @@ class _FileDownloadDialogState extends State<FileDownloadDialog> {
         KyberButton(
           text: 'Download',
           onPressed: () async {
-            // Use new DownloadRequest API
             final request = DownloadRequest(
               link:
                   'https://www.nexusmods.com/starwarsbattlefront22017/mods/${widget.modId}?tab=files&file_id=${widget.file.fileId}',
@@ -82,7 +81,9 @@ class _FileDownloadDialogState extends State<FileDownloadDialog> {
             NotificationService.showNotification(
               message: 'Downloading mod ${widget.file.name}',
             );
-            Navigator.of(context).pop();
+            if (context.mounted) {
+              Navigator.of(context).pop();
+            }
           },
         ),
       ],

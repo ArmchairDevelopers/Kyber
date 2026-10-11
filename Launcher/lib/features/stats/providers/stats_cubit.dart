@@ -16,10 +16,13 @@ class StatsCubit extends Cubit<StatsState> {
   bool hasKBStats = true;
 
   StatsCubit({String? username}) : super(StatsInitial()) {
-    final maximaState = navigatorKey.currentContext!.read<MaximaCubit>().state;
-    this.username = username ?? maximaState.servicePlayer!.uniqueName;
-    if (username == maximaState.servicePlayer!.uniqueName || username == null) {
-      personaId = maximaState.servicePlayer!.pd;
+    final player = navigatorKey.currentContext
+        ?.read<MaximaCubit>()
+        .state
+        .servicePlayer;
+    this.username = username ?? player?.uniqueName ?? '';
+    if (username == null || username == player?.uniqueName) {
+      personaId = player?.pd;
     }
 
     _statsSource = .KYBER;
@@ -73,10 +76,14 @@ class StatsCubit extends Cubit<StatsState> {
 
       final kService = sl.get<KyberGRPCService>();
 
-      final player = navigatorKey.currentContext!
-          .read<MaximaCubit>()
+      final player = navigatorKey.currentContext
+          ?.read<MaximaCubit>()
           .state
-          .servicePlayer!;
+          .servicePlayer;
+      if (player == null) {
+        emit(StatsError('You are not logged in'));
+        return;
+      }
       final statsResponse = await kService.statsClient.getStats(
         StatsRequest(
           source: statsSource,
