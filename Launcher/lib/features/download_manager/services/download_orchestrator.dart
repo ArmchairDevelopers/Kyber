@@ -138,6 +138,7 @@ class DownloadOrchestrator with ChangeNotifier {
       Directory(join(FileHelper.getLauncherDirectory().path, 'Downloads')),
     );
 
+    PluginUtilities.getCallbackHandle(_onTaskStart)?.toRawHandle();
     PluginUtilities.getCallbackHandle(_onTaskDone)?.toRawHandle();
     PluginUtilities.getCallbackHandle(_onBeforeStart)?.toRawHandle();
 

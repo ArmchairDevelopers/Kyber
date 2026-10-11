@@ -272,7 +272,10 @@ class _DownloadTaskItem extends StatelessWidget {
           iconData: FluentIcons.play,
           padding: const EdgeInsets.all(13),
           onPressed: () async {
-            await FileDownloader().resume(task.task as DownloadTask);
+            final downloadTask = task.task;
+            if (downloadTask is DownloadTask) {
+              await FileDownloader().resume(downloadTask);
+            }
           },
         ),
       );
@@ -470,13 +473,20 @@ class _PauseResumeButton extends StatelessWidget {
   final List<TaskRecord> tasks;
 
   Future<void> _onPressed() async {
-    if (currentDownload != null) {
-      await FileDownloader().pause(currentDownload!.task as DownloadTask);
-    } else {
-      final pausedTask = tasks.firstWhere(
-        (e) => e.status == TaskStatus.paused,
-      );
-      await FileDownloader().resume(pausedTask.task as DownloadTask);
+    final current = currentDownload?.task;
+    if (current != null) {
+      if (current is DownloadTask) {
+        await FileDownloader().pause(current);
+      }
+      return;
+    }
+
+    for (final record in tasks) {
+      final task = record.task;
+      if (record.status == TaskStatus.paused && task is DownloadTask) {
+        await FileDownloader().resume(task);
+        return;
+      }
     }
   }
 
