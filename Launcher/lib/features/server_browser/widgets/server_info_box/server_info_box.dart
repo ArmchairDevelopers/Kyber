@@ -995,10 +995,11 @@ class _RegionSelector extends StatelessWidget {
             ),
           ),
         ),
-        SvgPicture.asset(
-          regionIcons[selected?.name]!,
-          height: 37.5,
-        ),
+        if (regionIcons[selected?.name] case final icon?)
+          SvgPicture.asset(
+            icon,
+            height: 37.5,
+          ),
       ],
     );
   }

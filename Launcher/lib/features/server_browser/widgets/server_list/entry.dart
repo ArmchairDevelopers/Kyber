@@ -272,10 +272,11 @@ class _RegionBadge extends StatelessWidget {
             text: region.toUpperCase(),
           ),
         ),
-        SvgPicture.asset(
-          regionIcons[region.toLowerCase()]!,
-          height: 32.5,
-        ),
+        if (regionIcons[region.toLowerCase()] case final icon?)
+          SvgPicture.asset(
+            icon,
+            height: 32.5,
+          ),
       ],
     );
   }
