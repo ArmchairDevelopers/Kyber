@@ -23,21 +23,27 @@ class KyberStatusCubit extends Cubit<KyberStatusState> {
         return;
       }
 
-      final state = await sl
+      final info = await sl
           .get<MaximaGameInstance>()
           .clientService
           .commonClient
           .getInfo(Empty());
-      if (!state.hasServer() && !state.client.hasServerId()) {
+      if (!info.hasServer() && !info.client.hasServerId()) {
         sl.get<RichPresence>().clearPresence();
         return;
       }
 
-      final id = state.hasServer() ? state.server.id : state.client.serverId;
+      final id = info.hasServer() ? info.server.id : info.client.serverId;
       final client = sl.get<KyberGRPCService>();
       final server = await client.serverBrowserClient.getServer(
         ServerRequest(id: id),
       );
+
+      // Refresh server metadata for the current state without transitioning
+      // out of it. `info` is a CommonState proto from getInfo(); it must not
+      // be confused with the cubit's `state`. Never emit KyberStatusNormal()
+      // from here — a transient/anomalous getInfo() result shouldn't tear
+      // down the hosted-server connection and reset all configured values.
       if (state is KyberStatusHosting) {
         emit(
           KyberStatusHosting(
@@ -53,11 +59,9 @@ class KyberStatusCubit extends Cubit<KyberStatusState> {
             joined: joined,
           ),
         );
-      } else {
-        emit(KyberStatusNormal());
       }
 
-      sl.get<RichPresence>().updatePresenceKyber(state, server);
+      sl.get<RichPresence>().updatePresenceKyber(info, server);
     });
   }
 
@@ -108,6 +112,15 @@ class KyberStatusCubit extends Cubit<KyberStatusState> {
       } else if (data.hasServer()) {
         emit(KyberStatusHosting(serverState: data.server, server: server));
       } else {
+        // getInfo() reported no client and no server, but the game instance
+        // is still registered (we passed the isRegistered guard above).
+        // If we're already hosting or playing, stay in the current state
+        // rather than transitioning to Normal — a single anomalous
+        // getInfo() response shouldn't tear down the hosted-server
+        // connection and reset all configuration.
+        if (state is KyberStatusHosting || state is KyberStatusPlaying) {
+          return;
+        }
         emit(KyberStatusNormal());
       }
     } catch (e) {
