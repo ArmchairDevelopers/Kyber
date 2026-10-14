@@ -18,6 +18,7 @@ using namespace kyber_interface;
 ServerUnaryReactor* ClientInterfaceService::JoinServer( 
     CallbackServerContext* context, const JoinServerRequest* request, kyber_common::Empty* response)
 {
+    g_program->m_client->m_joinToken = request->jointoken();
     g_program->m_client->JoinServer(request->id(), request->ip(), request->port(), request->spectate(),
         request->type() == kyber_interface::JoinServerType::PROXIED, true);
 
