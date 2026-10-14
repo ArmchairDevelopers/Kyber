@@ -422,17 +422,21 @@ __int64 SettingsManagerApplyHk(__int64 inst, __int64* a2, char* script, BYTE* a4
         wsSettings->AutoBalanceTeamsOnNeutral = enableTeamBalancing;
     }
 
-    GameRenderSettings* renderSettings = Settings<GameRenderSettings>("Render");
-    renderSettings->Dx11Enable = true;
-    renderSettings->DLISPEnable = false;
-    renderSettings->Dx12UseProfileOptionEnable = false;
-    renderSettings->Dx12Enable = false;
-    renderSettings->DxrEnable = 0;
-    renderSettings->DynamicResolutionScaleTargetTime = -1; // other dx12 stuff
-    renderSettings->DynamicResolutionMaxStepCount = 0;
-    renderSettings->HdrLiveGradingOverlayOpacity = 0.f;
-    renderSettings->HdrOutputPreferCs = false;
-    renderSettings->DrawHdrCalibrationScreen = false;
+    static bool s_disableForceDx11 = std::getenv("KYBER_EXPERIMENTAL_DISABLE_FORCE_DX11") != nullptr;
+    if (!s_disableForceDx11)
+    {
+        GameRenderSettings* renderSettings = Settings<GameRenderSettings>("Render");
+        renderSettings->Dx11Enable = true;
+        renderSettings->DLISPEnable = false;
+        renderSettings->Dx12UseProfileOptionEnable = false;
+        renderSettings->Dx12Enable = false;
+        renderSettings->DxrEnable = 0;
+        renderSettings->DynamicResolutionScaleTargetTime = -1; // other dx12 stuff
+        renderSettings->DynamicResolutionMaxStepCount = 0;
+        renderSettings->HdrLiveGradingOverlayOpacity = 0.f;
+        renderSettings->HdrOutputPreferCs = false;
+        renderSettings->DrawHdrCalibrationScreen = false;
+    }
 
     GlobalPostProcessSettings* postProcessSettings = Settings<GlobalPostProcessSettings>("PostProcess");
     if (postProcessSettings != nullptr)
@@ -442,8 +446,9 @@ __int64 SettingsManagerApplyHk(__int64 inst, __int64* a2, char* script, BYTE* a4
         postProcessSettings->SpriteDofHalfResolutionEnable = false;
     }
 
+    static bool s_disableForceNoHDR = std::getenv("KYBER_EXPERIMENTAL_DISABLE_FORCE_NOHDR") != nullptr;
     BaseDisplaySettings* renderDeviceSettings = Settings<BaseDisplaySettings>("RenderDevice");
-    if (renderDeviceSettings != nullptr)
+    if (renderDeviceSettings != nullptr && !s_disableForceNoHDR)
     {
         renderDeviceSettings->DisplayDynamicRange = 0; // DisplayDynamicRange_SDR
     }
@@ -492,7 +497,7 @@ void OnlineServerPlayerExtentUpdateHk(OnlineServerPlayerExtent* inst, float delt
 {
     static const auto trampoline = HookManager::Call(OnlineServerPlayerExtentUpdateHk);
     trampoline(inst, deltaTime);
-    
+
     if (!inst->m_enableInactivityTimer)
     {
         return;
@@ -507,8 +512,7 @@ void OnlineServerPlayerExtentUpdateHk(OnlineServerPlayerExtent* inst, float delt
         if (!g_program->m_isDedicatedServer)
         {
             ClientPlayer* clientPlayer = ClientGameContext::Get()->GetPlayerManager()->GetLocalPlayer(LocalPlayerId_0);
-            if (clientPlayer && clientPlayer->m_name && player->m_name &&
-                strcmp(clientPlayer->m_name, player->m_name) == 0)
+            if (clientPlayer && clientPlayer->m_name && player->m_name && strcmp(clientPlayer->m_name, player->m_name) == 0)
             {
                 return;
             }
@@ -688,7 +692,7 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
 
                 g_program->m_server->m_eventManager->QueueEvent(event);
             }
-            else 
+            else
             {
                 KYBER_LOG(Error, "Failed to run " << copiedMessage->playerName << "'s player initialization stage! Weird behavior WILL happen.");
             }
@@ -700,7 +704,7 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
     return true;
 }
 
-void Server::InitializePlayer(ServerPlayer* player) 
+void Server::InitializePlayer(ServerPlayer* player)
 {
     // Set up inactivity timer
     player->GetOnlineServerPlayerExtent()->m_enableInactivityTimer = true;
@@ -730,7 +734,7 @@ void Server::Heartbeat(const UpdateParameters& params)
 
     // TODO: Remove and fix SendPlayerList on disconnect
     g_program->GetAPI()->GetServerManagement()->SendPlayerList();
-    
+
     g_program->GetAPI()->GetServerManagement()->SendKeepAlive();
 }
 
@@ -928,7 +932,7 @@ void Server::InitializeChatFilterPreset()
         }
 
         MutexGuard<ChatFilter> chatFilter = m_chatFilter.Lock();
-        for (const auto& phrase : (*response)->phrases()) 
+        for (const auto& phrase : (*response)->phrases())
         {
             chatFilter->AddBlockedPhrase(phrase.c_str());
         }
@@ -944,7 +948,7 @@ void Server::InitializeGameSettings()
 
     // AutoPlayerSettings* aiSettings = Settings<AutoPlayerSettings>("AutoPlayers");
     // aiSettings->AllowSuicide = false;
-    
+
     // Testing chat filter
     //MutexGuard<ChatFilter> chatFilter = m_chatFilter.Lock();
     //chatFilter->AddBlockedPhrase("badword");
