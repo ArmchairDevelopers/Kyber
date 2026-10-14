@@ -170,11 +170,13 @@ class CustomLogger {
       return;
     }
 
-    _logFile.writeAsStringSync(
-      '$message${Platform.lineTerminator}',
-      mode: FileMode.writeOnlyAppend,
-      flush: true,
-    );
+    try {
+      _logFile.writeAsStringSync(
+        '$message${Platform.lineTerminator}',
+        mode: FileMode.writeOnlyAppend,
+        flush: true,
+      );
+    } on FileSystemException catch (_) {}
   }
 
   static void clearLogFile() {

@@ -138,6 +138,7 @@ class DownloadOrchestrator with ChangeNotifier {
       Directory(join(FileHelper.getLauncherDirectory().path, 'Downloads')),
     );
 
+    PluginUtilities.getCallbackHandle(_onTaskStart)?.toRawHandle();
     PluginUtilities.getCallbackHandle(_onTaskDone)?.toRawHandle();
     PluginUtilities.getCallbackHandle(_onBeforeStart)?.toRawHandle();
 
@@ -197,7 +198,7 @@ class DownloadOrchestrator with ChangeNotifier {
         return false;
       }
 
-      final isZipFile = extension(resolved.filename) == '.zip';
+      final isZipFile = extension(resolved.filename).toLowerCase() == '.zip';
       final useIncrementalUpdate =
           Preferences.general.incrementalDownloadsEnabled &&
           LightswitchCubit.isFeatureEnabled(.incrementalUpdates);

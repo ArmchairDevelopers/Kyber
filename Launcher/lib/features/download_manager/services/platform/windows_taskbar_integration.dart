@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:kyber_launcher/features/download_manager/services/platform/download_platform_integration.dart';
 import 'package:windows_taskbar/windows_taskbar.dart';
 
@@ -10,19 +11,31 @@ class WindowsTaskbarIntegration implements DownloadPlatformIntegration {
       return;
     }
 
-    await WindowsTaskbar.setProgressMode(TaskbarProgressMode.normal);
-    final percentage = (progress * 100).toInt();
-    await WindowsTaskbar.setProgress(percentage, 100);
+    await _guard(() async {
+      await WindowsTaskbar.setProgressMode(TaskbarProgressMode.normal);
+      final percentage = (progress * 100).toInt();
+      await WindowsTaskbar.setProgress(percentage, 100);
+    });
   }
 
   @override
   Future<void> setIndeterminate() async {
-    await WindowsTaskbar.setProgressMode(TaskbarProgressMode.indeterminate);
+    await _guard(
+      () => WindowsTaskbar.setProgressMode(TaskbarProgressMode.indeterminate),
+    );
   }
 
   @override
   Future<void> clear() async {
-    await WindowsTaskbar.setProgressMode(TaskbarProgressMode.noProgress);
+    await _guard(
+      () => WindowsTaskbar.setProgressMode(TaskbarProgressMode.noProgress),
+    );
+  }
+
+  Future<void> _guard(Future<void> Function() action) async {
+    try {
+      await action();
+    } on PlatformException catch (_) {}
   }
 }
 

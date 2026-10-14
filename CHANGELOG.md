@@ -1,3 +1,16 @@
+## [2.0.0-beta10.1] - [??/??/????]
+- Fixed an issue where incremental downloads would use corrupted mod files instead of downloading a new copy
+- Fixed ModLoader bug where ShaderBlockDepots were loaded data in reverse priority
+- Fixed multiple ModLoader bugs where two assets could be confused together due to hash collisions
+- Fixed accidental engine password checking, causing players to not be able to join servers with passwords
+- Fixed bug where you couldn't join a different server at runtime
+- Added experimental toggles for disabling forced DX11 and forced no HDR
+- Added `Kyber.UseDefaultGameFriendlyFire` for developers to use old friendly fire system
+- Fixed mod archives with uppercase file extensions (e.g. `.ZIP`) not being extracted
+- Fixed download manager errors when pausing/resuming tasks that can't be paused
+- Fixed extraction progress not being shown in the download manager
+- Fixed stale in-game and moderation state after switching servers
+  
 ## [2.0.0-beta10] - [??/??/????]
 - Added parties
     - Invite players to a party through the friends list. Invites show up as a banner with a sound and can be accepted or declined directly

@@ -47,7 +47,7 @@ class _ServerListState extends State<ServerListWidget> {
         }
 
         if (state is ServerListError) {
-          Padding(
+          return Padding(
             padding: const EdgeInsets.only(top: 15),
             child: CustomBorder(
               clipper: KyberEventsCustomBorderClipper(),

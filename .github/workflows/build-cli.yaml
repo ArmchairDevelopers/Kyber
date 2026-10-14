@@ -130,7 +130,17 @@ jobs:
         working-directory: ${{env.working-directory}}
 
       - name: Build CLI
-        run: dart build cli
+        if: runner.os == 'Windows'
+        run: |
+          New-Item -ItemType Directory -Force build/cli/windows_x64/bundle/bin
+          dart compile exe bin/kyber_cli.dart -o build/cli/windows_x64/bundle/bin/kyber_cli.exe
+        working-directory: ${{env.working-directory}}
+
+      - name: Build CLI
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p build/cli/linux_x64/bundle/bin
+          dart compile exe bin/kyber_cli.dart -o build/cli/linux_x64/bundle/bin/kyber_cli
         working-directory: ${{env.working-directory}}
 
       - name: Download Maxima Wine Helper
@@ -169,12 +179,12 @@ jobs:
 
       - name: Copy generated library to release
         if: runner.os == 'Windows'
-        run: cp "build/cli/windows_x64/bundle/lib/rust_lib.dll" "build/cli/windows_x64/bundle/bin/rust_lib.dll"
+        run: cp "rust/target/release/rust_lib.dll" "build/cli/windows_x64/bundle/bin/rust_lib.dll"
         working-directory: ${{env.working-directory}}
 
       - name: Copy generated library to release
         if: runner.os == 'Linux'
-        run: cp "build/cli/linux_x64/bundle/lib/librust_lib.so" "build/cli/linux_x64/bundle/bin/librust_lib.so"
+        run: cp "rust/target/release/librust_lib.so" "build/cli/linux_x64/bundle/bin/librust_lib.so"
         working-directory: ${{env.working-directory}}
 
       - name: Zip files

@@ -602,7 +602,8 @@ void GameSimulationInitDedicatedServerHk(void* inst, void* createInfo)
     ServerCreationInfo& info = *g_program->m_server->m_creationInfo;
     ServerSettings* serverSettings = Settings<ServerSettings>("Server");
     serverSettings->ServerName = StringUtils::CopyWithArena(info.name.c_str());
-    serverSettings->ServerPassword = StringUtils::CopyWithArena(info.password.c_str());
+    // ServerPassword is actually checked for by the server so we cant just add it for cosmetic reasons :(
+    //serverSettings->ServerPassword = StringUtils::CopyWithArena(info.password.c_str());
 
     g_program->m_server->m_socketSpawnInfo = SocketSpawnInfo(false, "", g_program->m_server->m_serverId, "");
 
@@ -705,6 +706,12 @@ __int64 TeamInfo__isFriendlyHk(int teamA, int teamB)
 {
     static const auto trampoline = HookManager::Call(TeamInfo__isFriendlyHk);
     __int64 result = trampoline(teamA, teamB);
+
+    KyberSettings* kyberSettings = Settings<KyberSettings>("Kyber");
+    if (kyberSettings != nullptr && kyberSettings->UseDefaultGameFriendlyFire)
+    {
+        return result;
+    }
 
     SyncedGameSettings* syncedGame = Settings<SyncedGameSettings>("SyncedGame");
     if (syncedGame != nullptr && syncedGame->EnableFriendlyFire)
