@@ -706,6 +706,12 @@ __int64 TeamInfo__isFriendlyHk(int teamA, int teamB)
     static const auto trampoline = HookManager::Call(TeamInfo__isFriendlyHk);
     __int64 result = trampoline(teamA, teamB);
 
+    KyberSettings* kyberSettings = Settings<KyberSettings>("Kyber");
+    if (kyberSettings != nullptr && kyberSettings->UseDefaultGameFriendlyFire)
+    {
+        return result;
+    }
+
     SyncedGameSettings* syncedGame = Settings<SyncedGameSettings>("SyncedGame");
     if (syncedGame != nullptr && syncedGame->EnableFriendlyFire)
     {

@@ -152,34 +152,34 @@ std::vector<uint8_t> BundleManifest::Save()
     }
 
     uint32_t nameOffset = 0;
-    eastl::map<uint32_t, uint32_t> stringOffsets;
+    eastl::unordered_map<eastl::string, uint32_t> stringOffsets;
     eastl::vector<eastl::string> strings;
 
     for (const auto& entry : m_ebxEntries)
     {
-        uint32_t hash = StringUtils::HashQuick(entry.name.c_str());
-        if (!stringOffsets.count(hash))
+        eastl::string name = entry.name.c_str();
+        if (!stringOffsets.count(name))
         {
-            strings.push_back(entry.name.c_str());
-            stringOffsets[hash] = nameOffset;
+            strings.push_back(name);
+            stringOffsets[name] = nameOffset;
             nameOffset += entry.name.size() + 1;
         }
 
-        buf.putInt(_SwapEndiannessU32(stringOffsets[hash]));
+        buf.putInt(_SwapEndiannessU32(stringOffsets[name]));
         buf.putInt(_SwapEndiannessU32(entry.originalSize));
     }
 
     for (const auto& entry : m_resEntries)
     {
-        uint32_t hash = StringUtils::HashQuick(entry.name.c_str());
-        if (!stringOffsets.count(hash))
+        eastl::string name = entry.name.c_str();
+        if (!stringOffsets.count(name))
         {
-            strings.push_back(entry.name.c_str());
-            stringOffsets[hash] = nameOffset;
+            strings.push_back(name);
+            stringOffsets[name] = nameOffset;
             nameOffset += entry.name.size() + 1;
         }
 
-        buf.putInt(_SwapEndiannessU32(stringOffsets[hash]));
+        buf.putInt(_SwapEndiannessU32(stringOffsets[name]));
         buf.putInt(_SwapEndiannessU32(entry.originalSize));
     }
 

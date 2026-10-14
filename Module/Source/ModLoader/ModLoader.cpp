@@ -198,7 +198,6 @@ DatabasePartition* RuntimeDatabaseDomainFindPartitionFromGuidIncludingImportsHk(
     return partition;
 }
 
-
 static std::map<__int64, PendingChunk> s_pendingChunksMap;
 static std::map<Guid, ModifiedChunk> s_modifiedChunksMap;
 
@@ -214,15 +213,14 @@ uint64_t* ResourceManagerBeginChunkScatterReadHk(
     return trampoline(handleId, guid, a3, a4, a5, readItemCount, readItems, a8, a9);
 }
 
-uint64_t* ResourceManagerBeginChunkReadHk(
-    int* handleId, const Guid& guid, const void* buffer, int priority, int size, int bundleId, int a7)
+uint64_t* ResourceManagerBeginChunkReadHk(int* handleId, const Guid& guid, const void* buffer, int priority, int size, int bundleId, int a7)
 {
     static auto trampoline = HookManager::Call(ResourceManagerBeginChunkReadHk);
 
     if (s_modifiedChunksMap.count(guid))
     {
         KYBER_LOG(Info, "[ModLoader] Loading custom overridden chunk: " << guid.ToString() << " Size: " << size << " Priority: " << priority
-                                                            << " BundleId: " << bundleId << " a7: " << a7);
+                                                                        << " BundleId: " << bundleId << " a7: " << a7);
         ModifiedChunk& chunk = s_modifiedChunksMap[guid];
         PendingChunk pendingChunk{};
         *handleId = rand() % 100000;
@@ -934,8 +932,8 @@ void MergeBundleManifest(BundleManifest& manifest)
         // if (!valid)
         {
             if (!valid)
-                KYBER_LOG(Error,
-                    "[ModLoader] Bundle " << platformBundleName << " had an invalid mod mapping from layout->bundle manifest! This is very bad!");
+                KYBER_LOG(Error, "[ModLoader] Bundle " << platformBundleName
+                                                       << " had an invalid mod mapping from layout->bundle manifest! This is very bad!");
 
             KYBER_LOG(Info, "[ModLoader] --- BEGIN BUNDLE AUDIT LOG - " + platformBundleName + " (" + std::to_string(bundleHash) + ") ---");
             for (int i = 0; i < auditLog.size(); ++i)
@@ -999,7 +997,8 @@ void MergeLayoutManifest(LayoutManifest& manifest)
 
     KYBER_LOG(Info, "[ModLoader] Added new manifest chunks and bundles");
 
-    eastl::unordered_set<uint32_t> modified;
+    // combination of resource id & bundle hash
+    eastl::unordered_set<uint64_t> modified;
 
     for (auto& resource : g_modLoader->m_modResources)
     {
@@ -1023,8 +1022,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
                     continue;
                 }
 
-                uint32_t unique =
-                    StringUtils::HashQuickLower((std::to_string(resource.uniqueIdWithType) + "_" + std::to_string(entry.first)).c_str());
+                uint64_t unique = (static_cast<uint64_t>(resource.uniqueIdWithType) << 32) | static_cast<uint32_t>(entry.first);
                 if (modified.count(unique))
                 {
                     continue;
@@ -1054,8 +1052,8 @@ void MergeLayoutManifest(LayoutManifest& manifest)
                 {
                     continue;
                 }
-                uint32_t unique =
-                    StringUtils::HashQuickLower((std::to_string(resource.uniqueIdWithType) + "_" + std::to_string(entry.first)).c_str());
+
+                uint64_t unique = (static_cast<uint64_t>(resource.uniqueIdWithType) << 32) | static_cast<uint32_t>(entry.first);
                 if (modified.count(unique))
                 {
                     continue;
@@ -1085,8 +1083,7 @@ void MergeLayoutManifest(LayoutManifest& manifest)
                     continue;
                 }
 
-                uint32_t unique =
-                    StringUtils::HashQuickLower((std::to_string(resource.uniqueIdWithType) + "_" + std::to_string(entry.first)).c_str());
+                uint64_t unique = (static_cast<uint64_t>(resource.uniqueIdWithType) << 32) | static_cast<uint32_t>(entry.first);
                 if (modified.count(unique))
                 {
                     continue;
@@ -1394,6 +1391,27 @@ ModLoader::ModLoader(FileSuperBundleManager* superBundleManager, ModData modData
     Hook::ApplyQueuedActions();
 }
 
+// Function to keep track of unique ids between all of the
+// loaded resources. they just need to be different, so we
+// increment from list size.
+uint32_t GetResourceId(const ModResource& resource)
+{
+    static eastl::unordered_map<eastl::string, uint32_t> s_resourceIds;
+
+    eastl::string key = resource.GetNameWithType();
+    StringUtils::MakeLower(key.begin(), key.end());
+
+    auto it = s_resourceIds.find(key);
+    if (it != s_resourceIds.end())
+    {
+        return it->second;
+    }
+
+    uint32_t id = static_cast<uint32_t>(s_resourceIds.size());
+    s_resourceIds[key] = id;
+    return id;
+}
+
 void ModLoader::LoadMod(const eastl::string& fileName, const eastl::string& relativeFileName)
 {
     FILE* fp = fopen(fileName.c_str(), "rb");
@@ -1503,8 +1521,7 @@ void ModLoader::LoadMod(const eastl::string& fileName, const eastl::string& rela
         modResource.data.h32 = resource->h32;
         modResource.data.firstMip = resource->firstMip;
 
-        modResource.uniqueIdWithType =
-            StringUtils::HashQuickLower((std::to_string(modResource.type) + "_" + modResource.name.c_str()).c_str());
+        modResource.uniqueIdWithType = GetResourceId(modResource);
 
 #ifdef BUNDLE_AUDITS
         {
@@ -1604,6 +1621,7 @@ void ModLoader::FinalizeModLoads()
             continue;
         }
 
+        // continue if resource already exists in sources
         if (sources.find(resource.uniqueIdWithType) != sources.end())
         {
             continue;
