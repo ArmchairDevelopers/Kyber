@@ -24,6 +24,7 @@ public:
     bool LogFilteredChatMessages;
     bool RenderServerPerformance;
     bool RenderLatencyDisplay;
+    bool UseDefaultGameFriendlyFire;
     float BundleDebugFontSize;
     int32_t unused1;
     int32_t unused2;
