@@ -468,8 +468,10 @@ public:
 
     void Collect()
     {
-        for (auto& resource : g_modLoader->m_modResources)
+        // collect in reverse as if resource data is already present, it'll be thrown away
+        for (auto it = g_modLoader->m_modResources.rbegin(); it != g_modLoader->m_modResources.rend(); ++it)
         {
+            auto& resource = *it;
             if (resource.type != FrostyResourceType_Res || resource.name != m_resName)
             {
                 continue;
@@ -690,6 +692,7 @@ ResourceMerger::ResourceMerger()
 void ResourceMerger::onResourceManagerInitialized()
 {
     ResourceLoader* shaderBlockLoader = ResourceManager_getLoader(ResourceType_AssetBank, nullptr, nullptr);
+
     if (shaderBlockLoader == nullptr)
     {
         KYBER_LOG(Error, "Failed to get shader block loader");
