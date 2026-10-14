@@ -19,6 +19,7 @@ KB_IMPLEMENT_TYPE(KyberSettings)
     info.AddField("Boolean", "LogFilteredChatMessages");
     info.AddField("Boolean", "RenderServerPerformance");
     info.AddField("Boolean", "RenderLatencyDisplay");
+    info.AddField("Boolean", "UseDefaultGameFriendlyFire");
     info.AddField("Float32", "BundleDebugFontSize");
     info.AddField("Int32", "unused1");
     info.AddField("Int32", "unused2");
