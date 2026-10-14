@@ -198,7 +198,7 @@ class DownloadOrchestrator with ChangeNotifier {
         return false;
       }
 
-      final isZipFile = extension(resolved.filename) == '.zip';
+      final isZipFile = extension(resolved.filename).toLowerCase() == '.zip';
       final useIncrementalUpdate =
           Preferences.general.incrementalDownloadsEnabled &&
           LightswitchCubit.isFeatureEnabled(.incrementalUpdates);

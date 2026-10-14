@@ -57,12 +57,15 @@ class _DownloadManagerState extends State<DownloadManager> {
                     ),
                     child: BlocBuilder<DownloadCubit, DownloadState>(
                       builder: (context, state) {
-                        final tasks =
-                            state is DownloadLoaded ? state.tasks : <TaskRecord>[];
-                        final progressUpdate =
-                            state is DownloadLoaded ? state.progressUpdate : null;
-                        final currentDownload =
-                            state is DownloadLoaded ? state.currentDownload : null;
+                        final tasks = state is DownloadLoaded
+                            ? state.tasks
+                            : <TaskRecord>[];
+                        final progressUpdate = state is DownloadLoaded
+                            ? state.progressUpdate
+                            : null;
+                        final currentDownload = state is DownloadLoaded
+                            ? state.currentDownload
+                            : null;
 
                         final activeTasks = tasks
                             .where(
@@ -180,8 +183,9 @@ class _ActiveDownloadsList extends StatelessWidget {
           final task = tasks[index];
           return _DownloadTaskItem(
             task: task,
-            progressUpdate:
-                task.status == TaskStatus.running ? progressUpdate : null,
+            progressUpdate: task.status == TaskStatus.running
+                ? progressUpdate
+                : null,
           );
         },
       ),
@@ -196,36 +200,39 @@ class _PausedDownloadsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: .start,
-      children: [
-        const Padding(
-          padding: .symmetric(horizontal: 15, vertical: 10),
-          child: Text(
-            'PAUSED DOWNLOADS',
-            style: TextStyle(
-              fontFamily: FontFamily.battlefrontUI,
-              fontSize: 20,
-              color: kWhiteColor,
+    return Flexible(
+      child: Column(
+        mainAxisSize: .min,
+        crossAxisAlignment: .start,
+        children: [
+          const Padding(
+            padding: .symmetric(horizontal: 15, vertical: 10),
+            child: Text(
+              'PAUSED DOWNLOADS',
+              style: TextStyle(
+                fontFamily: FontFamily.battlefrontUI,
+                fontSize: 20,
+                color: kWhiteColor,
+              ),
+              textAlign: .left,
             ),
-            textAlign: .left,
           ),
-        ),
-        const CardSection(),
-        Flexible(
-          child: ListView.separated(
-            separatorBuilder: (context, index) => const CardSection(),
-            itemCount: tasks.length + 1,
-            itemBuilder: (context, index) {
-              if (index >= tasks.length) {
-                return const SizedBox.shrink();
-              }
-              final task = tasks[index];
-              return _DownloadTaskItem(task: task, isPaused: true);
-            },
+          const CardSection(),
+          Flexible(
+            child: ListView.separated(
+              separatorBuilder: (context, index) => const CardSection(),
+              itemCount: tasks.length + 1,
+              itemBuilder: (context, index) {
+                if (index >= tasks.length) {
+                  return const SizedBox.shrink();
+                }
+                final task = tasks[index];
+                return _DownloadTaskItem(task: task, isPaused: true);
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -376,12 +383,12 @@ class _CurrentDownloadFooter extends StatelessWidget {
   bool get _shouldShowPremiumBanner {
     if (currentDownload == null) return false;
 
-    final isNexusDownload = currentDownload!.task.url.contains('nexusmods') ||
+    final isNexusDownload =
+        currentDownload!.task.url.contains('nexusmods') ||
         currentDownload!.task.url.contains('nexus-cdn');
     if (!isNexusDownload) return false;
 
-    final isPremium =
-        sl.get<NexusModsService>().nexusUser?.isPremium ?? true;
+    final isPremium = sl.get<NexusModsService>().nexusUser?.isPremium ?? true;
 
     return isNexusDownload && !isPremium;
   }
@@ -452,8 +459,8 @@ class _NexusPremiumBanner extends StatelessWidget {
                 ),
                 recognizer: TapGestureRecognizer()
                   ..onTap = () => launchUrlString(
-                        'https://users.nexusmods.com/account/billing/premium',
-                      ),
+                    'https://users.nexusmods.com/account/billing/premium',
+                  ),
               ),
             ],
           ),
@@ -547,12 +554,14 @@ class _DownloadProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final download = currentDownload ??
+    final download =
+        currentDownload ??
         tasks.firstWhere(
-          (e) => e.status == TaskStatus.paused || e.status == TaskStatus.enqueued,
+          (e) =>
+              e.status == TaskStatus.paused || e.status == TaskStatus.enqueued,
         );
     final size = progressUpdate?.expectedFileSize ?? download.expectedFileSize;
-    final progress = progressUpdate?.progress ?? (download.progress) * 100;
+    final progress = progressUpdate?.progress ?? download.progress;
     final downloadType = DownloadTypeHelper.getDownloadType(download.task.url);
 
     return Stack(
@@ -579,9 +588,9 @@ class _DownloadProgressIndicator extends StatelessWidget {
           .kyber => Assets.logos.kyberLight.svg(),
           .nexus => Assets.logos.nexusMods.svg(),
           .online => const Icon(
-              FluentIcons.globe,
-              color: kWhiteColor,
-            ),
+            FluentIcons.globe,
+            color: kWhiteColor,
+          ),
         },
       ),
     );
@@ -594,7 +603,7 @@ class _DownloadProgressIndicator extends StatelessWidget {
       right: 229,
       bottom: 20,
       child: AnimatedFractionallySizedBox(
-        widthFactor: progress >= 0.0 ? progress : 0.01,
+        widthFactor: progress >= 0.0 ? progress.clamp(0.0, 1.0) : 0.01,
         alignment: Alignment.centerLeft,
         duration: const Duration(milliseconds: 200),
         child: Container(color: kActiveColor),
@@ -602,7 +611,8 @@ class _DownloadProgressIndicator extends StatelessWidget {
     );
   }
 
-  Widget _buildProgressText(int size, double progress) {
+  Widget _buildProgressText(int size, double rawProgress) {
+    final progress = rawProgress.clamp(0.0, 1.0);
     final downloadedBytes = formatBytes((size * progress).toInt(), 1);
     final totalBytes = formatBytes(size, 1);
     final speed = formatBytes(
