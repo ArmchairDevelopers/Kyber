@@ -14,16 +14,20 @@ class FrostyCollectionReader extends FileByteReader {
   FrostyCollectionReader(super.file, this.filename);
 
   List<Uint8List> readScreenshots(FrostyMod mod) {
-    file.setPositionSync(mod.screenshotOffset);
-    final count = readUint32();
-    final screenshots = <Uint8List>[];
-    for (var i = 0; i < count; i++) {
-      final size = readUint32();
-      final screenshot = file.readSync(size);
-      screenshots.add(screenshot);
-    }
+    try {
+      file.setPositionSync(mod.screenshotOffset);
+      final count = readUint32();
+      final screenshots = <Uint8List>[];
+      for (var i = 0; i < count; i++) {
+        final size = readUint32();
+        final screenshot = file.readSync(size);
+        screenshots.add(screenshot);
+      }
 
-    return screenshots;
+      return screenshots;
+    } finally {
+      file.closeSync();
+    }
   }
 
   FrostyMod? readMod() {

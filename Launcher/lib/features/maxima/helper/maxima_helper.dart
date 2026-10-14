@@ -177,6 +177,18 @@ class MaximaHelper {
       ProcessEnv.delete('KYBER_LOG_LEVEL');
     }
 
+    if (Preferences.general.disableForceDX11) {
+      ProcessEnv.set('KYBER_EXPERIMENTAL_DISABLE_FORCE_DX11', '1');
+    } else {
+      ProcessEnv.delete('KYBER_EXPERIMENTAL_DISABLE_FORCE_DX11');
+    }
+
+    if (Preferences.general.disableForceNoHDR) {
+      ProcessEnv.set('KYBER_EXPERIMENTAL_DISABLE_FORCE_NOHDR', '1');
+    } else {
+      ProcessEnv.delete('KYBER_EXPERIMENTAL_DISABLE_FORCE_NOHDR');
+    }
+
     final gameClient = ClientGRPCService('127.0.0.1', interfacePort);
     final gamePID = await maxima.startGame(
       gameSlug: gameSlug ?? 'star-wars-battlefront-2',

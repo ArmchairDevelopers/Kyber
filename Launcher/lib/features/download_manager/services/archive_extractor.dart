@@ -23,7 +23,7 @@ class ArchiveExtractor {
 
   bool isArchive(String filename) {
     const archiveExtensions = ['.zip', '.rar', '.7z'];
-    return archiveExtensions.contains(extension(filename));
+    return archiveExtensions.contains(extension(filename).toLowerCase());
   }
 
   Future<ExtractionResult> extract(
@@ -85,7 +85,7 @@ class ArchiveExtractor {
 
     final filePath = join(basePath, filename);
 
-    if (filename.endsWith('.zip')) {
+    if (extension(filename).toLowerCase() == '.zip') {
       final completer = Completer<void>();
       final stream =
           rust_archive

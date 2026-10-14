@@ -168,6 +168,16 @@ class General {
 
   set groupServersByRegion(bool value) =>
       box.put('groupServersByRegion', value);
+
+  bool get disableForceNoHDR =>
+      box.get('disableForceNoHDR', defaultValue: false) as bool;
+
+  set disableForceNoHDR(bool value) => box.put('disableForceNoHDR', value);
+
+  bool get disableForceDX11 =>
+      box.get('disableForceDX11', defaultValue: false) as bool;
+
+  set disableForceDX11(bool value) => box.put('disableForceDX11', value);
 }
 
 class Patreon {

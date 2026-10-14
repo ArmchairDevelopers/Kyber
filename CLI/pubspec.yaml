@@ -12,7 +12,7 @@ dependencies:
   cli_completion: ^0.5.0
   dio: ^5.4.0
   ffi: ^2.1.0
-  flutter_rust_bridge: ^2.11.1
+  flutter_rust_bridge: 2.11.1
   mason_logger: ^0.3.0
   kyber:
     path: ../Packages/kyber
@@ -27,7 +27,6 @@ dependencies:
   fixnum: ^1.1.0
   grpc: ^5.0.0
   get_it: ^9.1.1
-  native_toolchain_rs: ^1.0.0+1
   html: ^0.15.6
 
 dependency_overrides:

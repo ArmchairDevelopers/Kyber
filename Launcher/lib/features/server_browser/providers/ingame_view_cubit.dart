@@ -20,6 +20,8 @@ class IngameViewCubit extends Cubit<IngameViewState> {
 
   WebSocketChannel? _channel;
 
+  int _loadId = 0;
+
   @override
   Future<void> close() {
     unloadServer();
@@ -29,7 +31,9 @@ class IngameViewCubit extends Cubit<IngameViewState> {
   void unloadServer() {
     _logger.info('Unloading server');
 
+    _loadId++;
     _channel?.sink.close();
+    _channel = null;
     _keepAliveTimer?.cancel();
 
     emit(const IngameViewState());
@@ -49,7 +53,9 @@ class IngameViewCubit extends Cubit<IngameViewState> {
       return;
     }
 
-    await _channel?.sink.close();
+    final loadId = ++_loadId;
+    unawaited(_channel?.sink.close());
+    _channel = null;
     _keepAliveTimer?.cancel();
 
     try {
@@ -60,11 +66,14 @@ class IngameViewCubit extends Cubit<IngameViewState> {
       final server = await service.serverBrowserClient.getServer(
         ServerRequest(id: id),
       );
+      if (loadId != _loadId || isClosed) {
+        return;
+      }
       emit(state.copyWith(id: id, server: server));
 
       _logger.info('Subscribing to server events');
 
-      _channel = IOWebSocketChannel.connect(
+      final channel = IOWebSocketChannel.connect(
         'wss://api.${Preferences.admin.apiEnv}.kyber.gg/ws/client/${server.id}',
         headers: {
           'Authorization': service.token,
@@ -72,9 +81,15 @@ class IngameViewCubit extends Cubit<IngameViewState> {
         connectTimeout: const Duration(seconds: 10),
       );
 
-      await _channel?.ready;
+      _channel = channel;
 
-      _channel?.stream.listen(
+      await channel.ready;
+      if (loadId != _loadId || isClosed) {
+        unawaited(channel.sink.close());
+        return;
+      }
+
+      channel.stream.listen(
         (event) {
           try {
             final data = ServerManagementAPIEvent.fromBuffer(
@@ -95,7 +110,9 @@ class IngameViewCubit extends Cubit<IngameViewState> {
         },
         onDone: () {
           _logger.info('Stream done');
-          unloadServer();
+          if (loadId == _loadId) {
+            unloadServer();
+          }
         },
         onError: (dynamic e, StackTrace s) {
           NotificationService.showNotification(
@@ -103,17 +120,28 @@ class IngameViewCubit extends Cubit<IngameViewState> {
             message: 'An error occurred while communicating with the server',
           );
           _logger.severe('Stream error', e, s);
-          unloadServer();
+          if (loadId == _loadId) {
+            unloadServer();
+          }
         },
       );
 
       _keepAliveTimer = Timer.periodic(
         const Duration(seconds: 10),
-        (_) async => _channel?.sink.add(''),
+        (timer) {
+          if (loadId != _loadId || channel.closeCode != null) {
+            timer.cancel();
+            return;
+          }
+          channel.sink.add('');
+        },
       );
 
       await Future<void>.delayed(const Duration(seconds: 3));
     } on WebSocketException catch (e, s) {
+      if (loadId != _loadId) {
+        return;
+      }
       var error = 'Failed to connect to websocket';
       switch (e.httpStatusCode ?? 0) {
         case 401:
@@ -126,6 +154,9 @@ class IngameViewCubit extends Cubit<IngameViewState> {
       NotificationService.error(message: error);
       unloadServer();
     } on GrpcError catch (e, s) {
+      if (loadId != _loadId) {
+        return;
+      }
       _logger.severe('Error loading server:', e, s);
       NotificationService.showNotification(
         title: 'Server error',
@@ -136,6 +167,9 @@ class IngameViewCubit extends Cubit<IngameViewState> {
       );
       unloadServer();
     } on SocketException catch (e, s) {
+      if (loadId != _loadId) {
+        return;
+      }
       _logger.severe('Socket error:', e, s);
       NotificationService.showNotification(
         title: 'Server error',
@@ -144,6 +178,9 @@ class IngameViewCubit extends Cubit<IngameViewState> {
       );
       unloadServer();
     } catch (e, s) {
+      if (loadId != _loadId) {
+        return;
+      }
       _logger.severe('Error loading server:', e, s);
       NotificationService.showNotification(
         title: 'Server error',

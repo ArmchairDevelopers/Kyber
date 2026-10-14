@@ -122,19 +122,15 @@ class _KyberTableSelectorState<T> extends State<KyberTableSelector<T>> {
                                     borderRadius: BorderRadius.circular(5),
                                     color:
                                         i ==
-                                            widget.items.indexOf(
-                                              widget.items.firstWhere(
-                                                (x) => x.value == value,
-                                              ),
+                                            widget.items.indexWhere(
+                                              (x) => x.value == value,
                                             )
                                         ? kActiveColor
                                         : kInactiveColor,
                                     boxShadow:
                                         i ==
-                                            widget.items.indexOf(
-                                              widget.items.firstWhere(
-                                                (x) => x.value == value,
-                                              ),
+                                            widget.items.indexWhere(
+                                              (x) => x.value == value,
                                             )
                                         ? [
                                             BoxShadow(

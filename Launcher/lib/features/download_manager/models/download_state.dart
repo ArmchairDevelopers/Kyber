@@ -22,8 +22,8 @@ class DownloadLoaded extends DownloadState {
   final TaskProgressUpdate? progressUpdate;
 
   TaskRecord? get currentDownload => tasks.firstWhereOrNull(
-        (e) => e.status == TaskStatus.running,
-      );
+    (e) => e.status == TaskStatus.running,
+  );
 
   List<TaskRecord> get activeTasks => tasks
       .where(
@@ -40,10 +40,13 @@ class DownloadLoaded extends DownloadState {
   DownloadLoaded copyWith({
     List<TaskRecord>? tasks,
     TaskProgressUpdate? progressUpdate,
+    ProgressUpdate? extractionProgressUpdate,
   }) {
     return DownloadLoaded(
       tasks: tasks ?? this.tasks,
       progressUpdate: progressUpdate ?? this.progressUpdate,
+      extractionProgressUpdate:
+          extractionProgressUpdate ?? this.extractionProgressUpdate,
     );
   }
 }

@@ -151,6 +151,41 @@ class ProximityChat extends StatelessWidget {
             return child;
           },
         ),
+        const SettingsHeader(title: 'EXPERIMENTAL SETTINGS'),
+        HiveListener(
+          box: box,
+          keys: const ['disableForceNoHDR', 'disableForceDX11'],
+          builder: (context) {
+            return KyberTable(
+              items: [
+                KyberTableItem.switchButton(
+                  title: 'Disable Force No HDR',
+                  value: Preferences.general.disableForceNoHDR,
+                  onChange: (value) async {
+                    Preferences.general.disableForceNoHDR = value;
+                    if (sl.isRegistered<MaximaGameInstance>()) {
+                      NotificationService.showNotification(
+                        message: 'To apply changes, restart the game',
+                      );
+                    }
+                  },
+                ),
+                KyberTableItem.switchButton(
+                  title: 'Disable Force DX11',
+                  value: Preferences.general.disableForceDX11,
+                  onChange: (value) async {
+                    Preferences.general.disableForceDX11 = value;
+                    if (sl.isRegistered<MaximaGameInstance>()) {
+                      NotificationService.showNotification(
+                        message: 'To apply changes, restart the game',
+                      );
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        ),
       ],
     );
   }

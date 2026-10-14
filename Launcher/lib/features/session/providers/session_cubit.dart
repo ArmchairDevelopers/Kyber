@@ -85,10 +85,23 @@ class SessionCubit extends Cubit<SessionState> {
     return _service.partyServiceClient.transferLeader(.new(userId: userId));
   }
 
+  void _send(Object data) {
+    final channel = _channel;
+    if (channel == null || channel.closeCode != null) {
+      return;
+    }
+
+    try {
+      channel.sink.add(data);
+    } on StateError catch (e) {
+      _logger.warning('Failed to send session event', e);
+    }
+  }
+
   void leaveGame() {
     gameJoined = false;
     _leftGame = true;
-    _channel?.sink.add(
+    _send(
       SessionClientEvent(
         gameLeft: .new(),
       ).writeToBuffer(),
@@ -176,7 +189,7 @@ class SessionCubit extends Cubit<SessionState> {
   Future<void> onJoined({required String serverId}) async {
     gameJoined = true;
     _clearQueueInfo();
-    _channel?.sink.add(
+    _send(
       SessionClientEvent(
         gameJoined: .new(serverId: serverId),
       ).writeToBuffer(),
@@ -411,7 +424,7 @@ class SessionCubit extends Cubit<SessionState> {
   }
 
   Future<void> joinAllReadyPlayers() async {
-    _channel?.sink.add(
+    _send(
       SessionClientEvent(joinGameReady: .new()).writeToBuffer(),
     );
   }
@@ -623,7 +636,7 @@ class SessionCubit extends Cubit<SessionState> {
 
     _keepAliveTimer = Timer.periodic(
       const .new(seconds: 10),
-      (_) async => _channel?.sink.add(''),
+      (_) => _send(''),
     );
     _reconnectAttempts = 0;
 
@@ -1092,7 +1105,7 @@ class SessionCubit extends Cubit<SessionState> {
   }
 
   void _sendModStatus({required bool hasMods, int? modDownloadPercentage}) {
-    _channel?.sink.add(
+    _send(
       SessionClientEvent(
         updateJoinGameStatus: UpdateJoinGameStatusEvent(
           hasMods: hasMods,

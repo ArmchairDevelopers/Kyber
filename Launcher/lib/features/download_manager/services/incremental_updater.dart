@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
+import 'dart:typed_data';
 
+import 'package:archive/archive.dart' show getCrc32;
 import 'package:background_downloader/background_downloader.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
@@ -79,14 +82,16 @@ class IncrementalUpdater {
           return false;
         }
 
-        final installedMods = sl.get<ModService>().mods;
-        for (final mod in collection.mods!) {
-          final index = collection.mods!.indexOf(mod);
-          final modVersion = collection.modVersions![index];
-          final installedMod = installedMods
-              .where((m) => basename(m.filename) == mod)
-              .where((m) => m.details.version == modVersion)
-              .firstOrNull;
+        for (var i = 0; i < collection.mods!.length; i++) {
+          final mod = collection.mods![i];
+          final modVersion = collection.modVersions![i];
+
+          final installedMod = await _findReusableMod(
+            entries,
+            mod,
+            modVersion,
+            verifyChecksum: false,
+          );
 
           if (installedMod == null) {
             missing.add((mod, modVersion));
@@ -199,14 +204,18 @@ class IncrementalUpdater {
         controller?.throwIfCancelled();
         onPhaseChanged?.call(.comparingMods);
 
-        final installedMods = sl.get<ModService>().mods;
-        for (final mod in collection.mods!) {
-          final index = collection.mods!.indexOf(mod);
-          final modVersion = collection.modVersions![index];
-          final installedMod = installedMods
-              .where((m) => basename(m.filename) == mod)
-              .where((m) => m.details.version == modVersion)
-              .firstOrNull;
+        for (var i = 0; i < collection.mods!.length; i++) {
+          controller?.throwIfCancelled();
+          onProgress?.call(i + 1, collection.mods!.length);
+
+          final mod = collection.mods![i];
+          final modVersion = collection.modVersions![i];
+          final installedMod = await _findReusableMod(
+            entries,
+            mod,
+            modVersion,
+            verifyChecksum: true,
+          );
 
           if (installedMod == null) {
             missing.add((mod, modVersion));
@@ -377,6 +386,69 @@ class IncrementalUpdater {
         tmpDir.delete(recursive: true);
       } catch (_) {}
     }
+  }
+
+  Future<FrostyMod?> _findReusableMod(
+    List<ZipEntryInfo> entries,
+    String mod,
+    String modVersion, {
+    required bool verifyChecksum,
+  }) async {
+    final entry = entries.firstWhereOrNull((e) => e.name == mod);
+    if (entry == null) {
+      return null;
+    }
+
+    final candidates = sl
+        .get<ModService>()
+        .mods
+        .where((m) => basename(m.filename) == mod)
+        .where((m) => m.details.version == modVersion);
+
+    for (final candidate in candidates) {
+      final path = join(ModService.getBasePath(), candidate.filename);
+      try {
+        final file = File(path);
+        if (!file.existsSync() || file.lengthSync() != entry.uncompressedSize) {
+          continue;
+        }
+
+        if (verifyChecksum && await _crc32OfFile(path) != entry.crc32) {
+          _logger.info(
+            'Installed $mod ($modVersion) differs from the archive, downloading it again',
+          );
+          continue;
+        }
+
+        return candidate;
+      } on FileSystemException catch (e) {
+        _logger.warning('Failed to verify $path', e);
+      }
+    }
+
+    return null;
+  }
+
+  static Future<int> _crc32OfFile(String path) {
+    return Isolate.run(() {
+      final file = File(path).openSync();
+      try {
+        final buffer = Uint8List(4 * 1024 * 1024);
+        var crc = 0;
+        while (true) {
+          final read = file.readIntoSync(buffer);
+          if (read <= 0) {
+            break;
+          }
+
+          crc = getCrc32(Uint8List.sublistView(buffer, 0, read), crc);
+        }
+
+        return crc;
+      } finally {
+        file.closeSync();
+      }
+    });
   }
 
   static String _formatBytes(int bytes) {
