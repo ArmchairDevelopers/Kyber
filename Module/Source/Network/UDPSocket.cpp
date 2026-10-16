@@ -82,7 +82,7 @@ bool UDPSocket::Send(uint8_t* buffer, int bufferSize, unsigned int flags)
     const char* ip = nullptr;
     if (m_info.isProxied || (
         m_direction == ProtocolDirection::Clientbound && 
-            (ip = inet_ntoa(((sockaddr_in*)addr)->sin_addr)) && strstr(ip, "0.1.1.") != nullptr
+            (ip = inet_ntoa(((sockaddr_in*)addr)->sin_addr)) && strncmp(ip, "0.1.1.", 6) == 0
                             )
                         )
     {
