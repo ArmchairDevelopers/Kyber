@@ -218,8 +218,9 @@ bool UDPSocket::Listen(const SocketAddr& address, bool blocking)
 
     if (bind(m_socketHandle, (sockaddr*)addr, sizeof(sockaddr_in)) != 0)
     {
+        int error = WSAGetLastError();
         Close();
-        KYBER_LOG(Error, "Failed to bind socket (" << WSAGetLastError() << ")");
+        KYBER_LOG(Error, "Failed to bind socket (" << error << ")");
         return false;
     }
 

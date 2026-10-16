@@ -171,6 +171,15 @@ bool Server::IsRunning()
 void Server::Initialize()
 {
     InitializeGameHooks();
+
+    // Spaghetti code alert. m_hooksRemoved changes if the sockmanager
+    // gets pushed in the ctor of the server so we will keep this here so
+    // it properly sets the custom sockmanager
+    if (!g_program->m_isDedicatedServer)
+    {
+        m_hooksRemoved = true;
+    }
+
     InitializeGamePatches();
 
     m_persistenceManager->Initialize();
@@ -667,7 +676,8 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
             if (player != nullptr)
             {
                 player->m_onlineId.m_nativeData = userId;
-                strncpy(player->m_onlineId.m_id, player->m_name, sizeof(OnlineId::m_id));
+                memset(player->m_onlineId.m_id, 0, sizeof(OnlineId::m_id));
+                strncpy(player->m_onlineId.m_id, player->m_name, sizeof(OnlineId::m_id) - 1);
 
                 g_program->m_server->InitializePlayer(player);
 

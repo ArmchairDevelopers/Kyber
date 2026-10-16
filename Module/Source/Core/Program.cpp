@@ -691,7 +691,7 @@ __int64 PersistenceAssetCheck()
 void FileSuperBundleManagerUpdateConfigHk(FileSuperBundleManager* inst)
 {
     static const auto trampoline = HookManager::Call(FileSuperBundleManagerUpdateConfigHk);
-    KYBER_LOG(Debug, "Updating SuperBundle config");
+    KYBER_LOG(Info, "[ModLoader] Updating SuperBundle config");
 
     if (std::getenv("KYBER_DISABLE_MODLOADER") == nullptr)
     {
@@ -702,9 +702,9 @@ void FileSuperBundleManagerUpdateConfigHk(FileSuperBundleManager* inst)
     KYBER_LOG(Debug, "SuperBundle config loaded");
 }
 
-__int64 TeamInfo__isFriendlyHk(int teamA, int teamB)
+__int64 TeamInfoIsFriendlyHk(int teamA, int teamB)
 {
-    static const auto trampoline = HookManager::Call(TeamInfo__isFriendlyHk);
+    static const auto trampoline = HookManager::Call(TeamInfoIsFriendlyHk);
     __int64 result = trampoline(teamA, teamB);
 
     KyberSettings* kyberSettings = Settings<KyberSettings>("Kyber");
@@ -753,7 +753,7 @@ void Program::InitializeGameHooks()
         { OFFSET_GETLOCALIZEDSTRING, GetLocalizedStringInternalHk },
         { OFFSET_FILESUPERBUNDLEMANAGER_UPDATECONFIG, FileSuperBundleManagerUpdateConfigHk },
         { OFFSET_MEMORYARENA_LOG, MemoryArenaLog },
-        { HOOK_OFFSET(0x146A4BA30), TeamInfo__isFriendlyHk },
+        { HOOK_OFFSET(0x146A4BA30), TeamInfoIsFriendlyHk },
         //{ HOOK_OFFSET(0x1483EB2B0), PersistenceAssetCheck },
 
         // Dummy out unsafe built-in lua functions

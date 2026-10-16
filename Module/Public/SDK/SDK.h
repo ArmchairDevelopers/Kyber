@@ -662,8 +662,8 @@ class OnlineId
 {
 public:
     uint64_t m_nativeData; // 0x0000
-    char m_id[16];         // 0x0008
-}; // Size: 0x0018
+    char m_id[17];         // 0x0008
+}; // Size: 0x0020
 
 class EngineConnection
 {
@@ -939,7 +939,7 @@ public:
     int32_t m_teamId;                                   // 0x0058
     char pad[4];                                        // 0x005C
     OnlineId m_onlineId;                                // 0x0060
-    char pad_005C[392];                                 // 0x005C
+    char pad_005C[384];                                 // 0x005C
     class AttachedControllable* attachedControllable;   // 0x0200
     char pad_0208[8];                                   // 0x0208
 
@@ -1424,7 +1424,7 @@ public:
     int32_t m_teamId;                    // 0x0058
     char pad_005C[4];                    // 0x005C
     OnlineId m_onlineId;                 // 0x0060
-    char pad_0078[72];                   // 0x0078
+    char pad_0078[64];                   // 0x0078
     bool m_isSpectator;                  // 0x00C0
     char pad_00C1[7];                    // 0x00C1
     char pad_00C8[0x200];                // 0x00C8
