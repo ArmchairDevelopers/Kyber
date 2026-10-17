@@ -72,7 +72,7 @@ class _ExportRotationDialogState extends State<ExportRotationDialog> {
               final data = generateData(
                 _ExportType.values[selectedExportTypeIndex],
               );
-              await File(filePath.path).writeAsString(data);
+              await File(filePath.toFilePath()).writeAsString(data);
               NotificationService.info(message: 'File saved');
               Navigator.of(context).pop();
             }
