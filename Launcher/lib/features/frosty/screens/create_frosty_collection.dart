@@ -155,7 +155,7 @@ class _CreateFrostyCollectionState extends State<CreateFrostyCollection> {
                             context: context,
                             builder: (_) => _ExportCollectionDialog(
                               filePaths: paths,
-                              targetFile: targetFileZip!.path,
+                              targetFile: targetFileZip.toFilePath(),
                               collectionData: data,
                               title: nameController.text,
                             ),
