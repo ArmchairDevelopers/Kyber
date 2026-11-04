@@ -624,6 +624,20 @@ __int64 ServerLevelUpdateLoadHk(void* inst, __int64 loadInfo)
     return result;
 }
 
+bool CheckServerConnectionAlive(ServerConnection* connection)
+{
+    for (ServerConnection* liveConnection : g_program->m_server->GetServerGameContext()->m_serverPeer->m_connections)
+    {
+        if (liveConnection == connection)
+        {
+            return true;
+        }
+    }
+
+    // if it isn't in peers, then it has been removed elsewhere
+    return false;
+}
+
 bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCreatePlayerMessage* message)
 {
     static const auto trampoline = HookManager::Call(ServerConnectionOnCreatePlayerMessageHk);
@@ -656,6 +670,13 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
 
     g_program->GetAPI()->GetClientServer()->ConsumeJoinToken(g_program->m_server->m_serverId, authToken,
         [inst, playerName, copiedMessage](std::optional<const ConsumeJoinTokenResponse*> response) {
+            if (!CheckServerConnectionAlive(inst))
+            {
+                KYBER_LOG(Warning, "[Server] A player disconnected while their token was getting validated.");
+                FB_SERVER_ARENA->free(copiedMessage);
+                return;
+            }
+
             if (!response)
             {
                 KYBER_LOG(Info, "[Server] Kicking " << playerName.c_str() << " as their join token was invalid");

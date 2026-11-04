@@ -72,7 +72,7 @@ Program::Program(HMODULE module)
     , m_console(nullptr)
     , m_entityManager(nullptr)
     , m_scriptManager(nullptr)
-    , m_settingsManager(nullptr) 
+    , m_settingsManager(nullptr)
     , m_startupInitialized(false)
     , m_allowInteraction(true)
     , m_isDedicatedServer(false)
@@ -722,6 +722,61 @@ __int64 TeamInfoIsFriendlyHk(int teamA, int teamB)
     return result;
 }
 
+// Temporary code to fix BF+ crash that can't be determined
+
+// 0x14861BF20
+// check stuff dereferenced and just safety exit if anything is wrong
+// this will probably cause issues with networking or sync or whatever but
+// until bf+ can fix the bug we kinda have to live with it
+static bool IsAbilityKitValid(void* component, int kind)
+{
+    void** componentSomething = *reinterpret_cast<void***>(reinterpret_cast<uintptr_t>(component) + 0xB8);
+    // 14064C9D0 weird vtable idk
+    uintptr_t gottenComponentSomething = (**reinterpret_cast<uintptr_t (***)(void*)>(componentSomething))(componentSomething);
+    if (gottenComponentSomething == 0)
+    {
+        return false;
+    }
+
+    uintptr_t customization = kind == 1 ? gottenComponentSomething - 0x190 + 0xD70 : gottenComponentSomething - 0x180 + 0xB60;
+    uint8_t* kit = *reinterpret_cast<uint8_t**>(customization + 0x10);
+    if (kit == nullptr)
+    {
+        return false;
+    }
+
+    uint8_t** modifiers = *reinterpret_cast<uint8_t***>(kit + 0x70);
+    if (modifiers == nullptr)
+    {
+        return false;
+    }
+
+    uint32_t count = *reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t>(modifiers) - 4);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        void* modifier = modifiers[i];
+        if (modifier == nullptr)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+__int64 TempAbilityGetWeaponCustomizationHk(void* inst, Asset* asset, void* component, int kind)
+{
+    static const auto trampoline = HookManager::Call(TempAbilityGetWeaponCustomizationHk);
+
+    if ((kind == 0 || kind == 1) && !IsAbilityKitValid(component, kind))
+    {
+        KYBER_LOG(Error, "Asset had invalid data (PLEASE REPORT TY): " << asset->Name);
+        return trampoline(inst, asset, component, -1);
+    }
+
+    return trampoline(inst, asset, component, kind);
+}
+
 void FixInvalidCrash(void** table)
 {
     void* patchValue = reinterpret_cast<void*>(0x1401840C0);
@@ -755,6 +810,7 @@ void Program::InitializeGameHooks()
         { OFFSET_MEMORYARENA_LOG, MemoryArenaLog },
         { HOOK_OFFSET(0x146A4BA30), TeamInfoIsFriendlyHk },
         //{ HOOK_OFFSET(0x1483EB2B0), PersistenceAssetCheck },
+        { HOOK_OFFSET(0x14861BF20), TempAbilityGetWeaponCustomizationHk },
 
         // Dummy out unsafe built-in lua functions
         { HOOK_OFFSET(0x1477C4B00), LuaDummy }, // package.loadlib()
