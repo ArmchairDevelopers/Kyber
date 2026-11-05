@@ -155,7 +155,7 @@ class _CollectionExportDialogState extends State<CollectionExportDialog> {
                   ..add(tempCollectionFile);
                 compressTar(
                   filePaths: paths,
-                  targetFile: file.path,
+                  targetFile: file.toFilePath(),
                 ).listen(
                   (event) {
                     setState(() {
