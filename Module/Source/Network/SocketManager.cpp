@@ -42,10 +42,17 @@ void SocketManager::Destroy()
 void SocketManager::Close(UDPSocket* socket)
 {
     KYBER_LOG(Debug, "Closing socket");
+    if (socket == nullptr)
+    {
+        return;
+    }
+    
     if (!m_sockets.empty())
     {
         m_sockets.remove(socket);
     }
+
+    socket->Close();
 }
 
 UDPSocket* SocketManager::Listen(const char* name, bool blocking)

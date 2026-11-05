@@ -171,6 +171,15 @@ bool Server::IsRunning()
 void Server::Initialize()
 {
     InitializeGameHooks();
+
+    // Spaghetti code alert. m_hooksRemoved changes if the sockmanager
+    // gets pushed in the ctor of the server so we will keep this here so
+    // it properly sets the custom sockmanager
+    if (!g_program->m_isDedicatedServer)
+    {
+        m_hooksRemoved = true;
+    }
+
     InitializeGamePatches();
 
     m_persistenceManager->Initialize();
@@ -615,6 +624,20 @@ __int64 ServerLevelUpdateLoadHk(void* inst, __int64 loadInfo)
     return result;
 }
 
+bool CheckServerConnectionAlive(ServerConnection* connection)
+{
+    for (ServerConnection* liveConnection : g_program->m_server->GetServerGameContext()->m_serverPeer->m_connections)
+    {
+        if (liveConnection == connection)
+        {
+            return true;
+        }
+    }
+
+    // if it isn't in peers, then it has been removed elsewhere
+    return false;
+}
+
 bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCreatePlayerMessage* message)
 {
     static const auto trampoline = HookManager::Call(ServerConnectionOnCreatePlayerMessageHk);
@@ -647,6 +670,13 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
 
     g_program->GetAPI()->GetClientServer()->ConsumeJoinToken(g_program->m_server->m_serverId, authToken,
         [inst, playerName, copiedMessage](std::optional<const ConsumeJoinTokenResponse*> response) {
+            if (!CheckServerConnectionAlive(inst))
+            {
+                KYBER_LOG(Warning, "[Server] A player disconnected while their token was getting validated.");
+                FB_SERVER_ARENA->free(copiedMessage);
+                return;
+            }
+
             if (!response)
             {
                 KYBER_LOG(Info, "[Server] Kicking " << playerName.c_str() << " as their join token was invalid");
@@ -667,7 +697,8 @@ bool ServerConnectionOnCreatePlayerMessageHk(ServerConnection* inst, NetworkCrea
             if (player != nullptr)
             {
                 player->m_onlineId.m_nativeData = userId;
-                strncpy(player->m_onlineId.m_id, player->m_name, sizeof(OnlineId::m_id));
+                memset(player->m_onlineId.m_id, 0, sizeof(OnlineId::m_id));
+                strncpy(player->m_onlineId.m_id, player->m_name, sizeof(OnlineId::m_id) - 1);
 
                 g_program->m_server->InitializePlayer(player);
 

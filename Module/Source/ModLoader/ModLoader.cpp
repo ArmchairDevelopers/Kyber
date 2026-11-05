@@ -419,6 +419,8 @@ bool ResourceManagerCompartmentOnBeginBundleHk(ResourceManager_Compartment* inst
     return trampoline(inst, bundleName, isReload);
 }
 
+static int g_deferredHandlerDepth = 0;
+
 void RunHandler(ContainerCreationInfo& info, CustomAssetHandlerLoadStage loadStage)
 {
     KYBER_LOG(Debug, "[ModLoader] Running deferred handler for " << info.name.c_str());
@@ -512,9 +514,9 @@ void RuntimeDatabaseDomainFetchNewlyLoadedPartitionsHk(void* inst, eastl::vector
     KYBER_LOG(Debug, "Resolving references for compartment");
 
     auto& queue = g_modLoader->m_deferredContainerCreationQueue;
-    for (auto it = queue.begin(); it != queue.end();)
+    for (size_t i = 0; i < queue.size(); i++)
     {
-        ContainerCreationInfo& info = *it;
+        ContainerCreationInfo& info = queue[i];
         bool found = false;
         for (const auto& partition : partitions)
         {
@@ -529,22 +531,21 @@ void RuntimeDatabaseDomainFetchNewlyLoadedPartitionsHk(void* inst, eastl::vector
 
         if (!found)
         {
-            ++it;
             continue;
         }
 
         void* deferredDomain = info.runtimeDatabaseDomain;
         if (info.referencesResolved || inst != deferredDomain)
         {
-            ++it;
             continue;
         }
 
-        KYBER_LOG(Debug, "Running stage [ReferencesResolved] handlers");
-        RunHandler(info, CustomAssetHandlerLoadStage_ReferencesResolved);
-
         info.referencesResolved = true;
-        KYBER_LOG(Debug, "Setting references as resolved");
+        ContainerCreationInfo infoCopy = info;
+        KYBER_LOG(Debug, "Running stage [ReferencesResolved] handlers");
+        g_deferredHandlerDepth++;
+        RunHandler(infoCopy, CustomAssetHandlerLoadStage_ReferencesResolved);
+        g_deferredHandlerDepth--;
     }
 }
 
@@ -569,6 +570,16 @@ void ResourceManagerCompartmentEndClearHk(ResourceManager_Compartment* inst)
 
     debugCompartments.erase(inst);
     g_modLoader->m_domainLoadedPartitions.erase(inst->m_domain);
+
+    auto& queue = g_modLoader->m_deferredContainerCreationQueue;
+    size_t before = queue.size();
+    queue.erase(eastl::remove_if(queue.begin(), queue.end(),
+                    [inst](const ContainerCreationInfo& info) { return info.runtimeDatabaseDomain == inst->m_domain; }),
+        queue.end());
+    if (queue.size() != before)
+    {
+        KYBER_LOG(Info, "[ModLoader] Dropped " << (before - queue.size()) << " stale deferred handler(s) for cleared compartment");
+    }
 
     KYBER_LOG(Debug, "Cleared resource compartment " << std::hex << inst);
 }
@@ -657,30 +668,28 @@ void ResourceManagerUpdateResourcesHk(void* inst, bool newTick, bool forced)
     static auto trampoline = HookManager::Call(ResourceManagerUpdateResourcesHk);
     trampoline(inst, newTick, forced);
 
-    static bool isRunningDeferredHandlers = false;
-    if (isRunningDeferredHandlers)
+    if (g_deferredHandlerDepth > 0)
     {
         return;
     }
 
-    isRunningDeferredHandlers = true;
-
     auto& queue = g_modLoader->m_deferredContainerCreationQueue;
-    for (auto it = queue.begin(); it != queue.end();)
+    for (size_t i = 0; i < queue.size();)
     {
-        ContainerCreationInfo& info = *it;
-        if (!info.referencesResolved)
+        if (!queue[i].referencesResolved)
         {
-            ++it;
+            ++i;
             continue;
         }
 
         KYBER_LOG(Debug, "Running stage [PostLoad] handlers");
+        // make copy just in case the queue is modified
+        ContainerCreationInfo info = std::move(queue[i]);
+        queue.erase(queue.begin() + i);
+        g_deferredHandlerDepth++;
         RunHandler(info, CustomAssetHandlerLoadStage_PostLoad);
-        queue.erase(it);
+        g_deferredHandlerDepth--;
     }
-
-    isRunningDeferredHandlers = false;
 }
 
 struct BundleLoadInfo

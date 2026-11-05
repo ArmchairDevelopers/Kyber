@@ -127,7 +127,7 @@ public:
     eastl::unordered_map<uint32_t, CustomAssetHandler*> m_handlers;
     eastl::unordered_map<uint32_t, eastl::string> m_dupedHandlerSources;
 
-    std::vector<ContainerCreationInfo> m_deferredContainerCreationQueue;
+    eastl::vector<ContainerCreationInfo> m_deferredContainerCreationQueue;
 
     std::set<uint32_t> m_addedBundles;
     std::set<int32_t> m_requiredFiles;
