@@ -95,7 +95,7 @@ BEGIN
             VALUE "InternalName", "KYBERLauncher" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 Armchair Developers. All rights reserved." "\0"
             VALUE "OriginalFilename", "KYBER Launcher.exe" "\0"
-            VALUE "ProductName", "KYBERLauncher" "\0"
+            VALUE "ProductName", "KYBER" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
