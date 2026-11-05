@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ${{ (github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing') && 'windows-2022' || 'windows-latest-l' }}
+    runs-on: ${{ (github.ref == 'refs/heads/stable') && 'windows-2022' || 'windows-latest-l' }}
 
     env:
       working-directory: ./Launcher
@@ -164,7 +164,7 @@ jobs:
           cp "_work/vivoxsdk.dll" "build/windows/x64/runner/Release/vivoxsdk.dll"
 
       - name: Stage binaries for signing
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
+        if: github.ref == 'refs/heads/stable'
         working-directory: ${{ env.working-directory }}
         run: |
           $release = "build/windows/x64/runner/Release"
@@ -174,7 +174,7 @@ jobs:
         shell: powershell
 
       - name: Upload unsigned launcher artifact
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
+        if: github.ref == 'refs/heads/stable'
         id: upload-unsigned-launcher
         uses: actions/upload-artifact@v4
         with:
@@ -182,21 +182,21 @@ jobs:
           path: ${{ env.working-directory }}/_signing/*
 
       - name: Upload release directory
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
+        if: github.ref == 'refs/heads/stable'
         uses: actions/upload-artifact@v4
         with:
           name: launcher-release-unsigned
           path: ${{ env.working-directory }}/build/windows/x64/runner/Release
 
       - name: Generate Installer
-        if: github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/ci/signing'
+        if: github.ref != 'refs/heads/stable'
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
         with:
           path: Launcher/installer/installer.iss
           options: /O+
 
       - name: Generate Version File
-        if: github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/ci/signing'
+        if: github.ref != 'refs/heads/stable'
         run: |
           Install-Module -Name powershell-yaml -Force -RequiredVersion 0.4.2
           Import-Module powershell-yaml
@@ -207,13 +207,13 @@ jobs:
         shell: powershell
 
       - name: Zip files
-        if: github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/ci/signing'
+        if: github.ref != 'refs/heads/stable'
         run: |
           Compress-Archive -Path "Launcher/build/windows/x64/runner/Release/*" -DestinationPath kyber-launcher.zip
         shell: powershell
 
       - name: Zip installer
-        if: github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/ci/signing'
+        if: github.ref != 'refs/heads/stable'
         run: |
           rm Launcher/installer/installer.iss
           rm Launcher/installer/7za.exe
@@ -222,7 +222,7 @@ jobs:
         shell: powershell
 
       - name: Upload artifacts
-        if: github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/ci/signing'
+        if: github.ref != 'refs/heads/stable'
         run: |
           Invoke-WebRequest https://cdn.kyber.gg/artifacts/mc.exe -OutFile C:\mc.exe
           C:\mc.exe alias set kyber https://s3.kyber.gg ${{ secrets.AWS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -234,7 +234,7 @@ jobs:
   sign-binaries:
     name: Sign launcher binaries
     needs: build
-    if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
+    if: github.ref == 'refs/heads/stable'
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
@@ -261,7 +261,7 @@ jobs:
   package:
     name: Build installer
     needs: sign-binaries
-    if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
+    if: github.ref == 'refs/heads/stable'
     runs-on: windows-2022
 
     env:
@@ -336,7 +336,7 @@ jobs:
   sign-installer:
     name: Sign installer
     needs: package
-    if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
+    if: github.ref == 'refs/heads/stable'
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
@@ -363,7 +363,7 @@ jobs:
   publish:
     name: Publish signed release
     needs: sign-installer
-    if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
+    if: github.ref == 'refs/heads/stable'
     runs-on: windows-2022
 
     steps:
