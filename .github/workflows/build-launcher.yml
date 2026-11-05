@@ -16,8 +16,7 @@ concurrency:
 
 jobs:
   build:
-    # TODO: code signing is disabled for now, restore: runs-on: ${{ (github.ref == 'refs/heads/stable') && 'windows-2022' || 'windows-latest-l' }}
-    runs-on: windows-latest-l
+    runs-on: ${{ (github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing') && 'windows-2022' || 'windows-latest-l' }}
 
     env:
       working-directory: ./Launcher
@@ -165,8 +164,7 @@ jobs:
           cp "_work/vivoxsdk.dll" "build/windows/x64/runner/Release/vivoxsdk.dll"
 
       - name: Stage binaries for signing
-        # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
-        if: false
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
         working-directory: ${{ env.working-directory }}
         run: |
           $release = "build/windows/x64/runner/Release"
@@ -176,8 +174,7 @@ jobs:
         shell: powershell
 
       - name: Upload unsigned launcher artifact
-        # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
-        if: false
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
         id: upload-unsigned-launcher
         uses: actions/upload-artifact@v4
         with:
@@ -185,22 +182,21 @@ jobs:
           path: ${{ env.working-directory }}/_signing/*
 
       - name: Upload release directory
-        # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
-        if: false
+        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
         uses: actions/upload-artifact@v4
         with:
           name: launcher-release-unsigned
           path: ${{ env.working-directory }}/build/windows/x64/runner/Release
 
       - name: Generate Installer
-        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable'
+        if: github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/ci/signing'
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
         with:
           path: Launcher/installer/installer.iss
           options: /O+
 
       - name: Generate Version File
-        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable'
+        if: github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/ci/signing'
         run: |
           Install-Module -Name powershell-yaml -Force -RequiredVersion 0.4.2
           Import-Module powershell-yaml
@@ -211,13 +207,13 @@ jobs:
         shell: powershell
 
       - name: Zip files
-        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable'
+        if: github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/ci/signing'
         run: |
           Compress-Archive -Path "Launcher/build/windows/x64/runner/Release/*" -DestinationPath kyber-launcher.zip
         shell: powershell
 
       - name: Zip installer
-        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable'
+        if: github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/ci/signing'
         run: |
           rm Launcher/installer/installer.iss
           rm Launcher/installer/7za.exe
@@ -226,7 +222,7 @@ jobs:
         shell: powershell
 
       - name: Upload artifacts
-        # TODO: code signing is disabled for now, restore: if: github.ref != 'refs/heads/stable'
+        if: github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/ci/signing'
         run: |
           Invoke-WebRequest https://cdn.kyber.gg/artifacts/mc.exe -OutFile C:\mc.exe
           C:\mc.exe alias set kyber https://s3.kyber.gg ${{ secrets.AWS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -238,8 +234,7 @@ jobs:
   sign-binaries:
     name: Sign launcher binaries
     needs: build
-    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
-    if: false
+    if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
@@ -266,8 +261,7 @@ jobs:
   package:
     name: Build installer
     needs: sign-binaries
-    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
-    if: false
+    if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
     runs-on: windows-2022
 
     env:
@@ -342,8 +336,7 @@ jobs:
   sign-installer:
     name: Sign installer
     needs: package
-    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
-    if: false
+    if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
@@ -370,8 +363,7 @@ jobs:
   publish:
     name: Publish signed release
     needs: sign-installer
-    # TODO: code signing is disabled for now, restore: if: github.ref == 'refs/heads/stable'
-    if: false
+    if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/ci/signing'
     runs-on: windows-2022
 
     steps:
