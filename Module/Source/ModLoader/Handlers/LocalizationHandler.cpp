@@ -6,7 +6,9 @@
 #include <Core/Program.h>
 #include <Utilities/StringUtils.h>
 
+#include <algorithm>
 #include <map>
+#include <set>
 
 namespace Kyber
 {
@@ -41,15 +43,38 @@ bool LocalizationHandler::Modify(CustomAssetHandlerContext& ctx, DataContainer* 
     UITextDatabase* db = static_cast<UITextDatabase*>(container);
 
     uint8_t* histogramData = new (FB_GLOBAL_ARENA) uint8_t[db->HistogramChunkSize];
-    uint8_t* histogramDataOrigin = histogramData;
     ModLoader::ReadChunkSync(db->HistogramChunk, histogramData, db->HistogramChunkSize);
 
-    std::vector<wchar_t> values = ModifyHistogram(&histogramData);
+    bool histogramModified = false;
+    std::vector<wchar_t> values = ModifyHistogram(histogramData, db->HistogramChunkSize, data, histogramModified);
+
+    if (values.empty())
+    {
+        KYBER_LOG(Error, "Failed to merge localization: Invalid Histogram Chunk");
+        FB_GLOBAL_ARENA->free(histogramData);
+        return false;
+    }
+
+    if (histogramModified)
+    {
+        // The game reads the overridden chunk from this buffer, so it must stay alive
+        ModLoader::ModifyChunk(db->HistogramChunk, histogramData, db->HistogramChunkSize);
+    }
+    else
+    {
+        FB_GLOBAL_ARENA->free(histogramData);
+    }
 
     uint8_t* chunkData = new (FB_GLOBAL_ARENA) uint8_t[db->BinaryChunkSize];
     ModLoader::ReadChunkSync(db->BinaryChunk, chunkData, db->BinaryChunkSize);
 
     std::vector<uint8_t> chunk = ModifyChunk(chunkData, db->BinaryChunkSize, data, values);
+    FB_GLOBAL_ARENA->free(chunkData);
+
+    if (chunk.empty())
+    {
+        return false;
+    }
 
     KYBER_LOG(Info, "[ModLoader] Wrote Localization chunk (Sz: " << chunk.size() << ", " << db->BinaryChunkSize << ")");
     db->BinaryChunkSize = chunk.size();
@@ -59,26 +84,79 @@ bool LocalizationHandler::Modify(CustomAssetHandlerContext& ctx, DataContainer* 
 
     ModLoader::ModifyChunk(db->BinaryChunk, newData, chunk.size());
 
-    FB_GLOBAL_ARENA->free(histogramDataOrigin);
-    FB_GLOBAL_ARENA->free(chunkData);
-
     return true;
 }
 
-std::vector<wchar_t> LocalizationHandler::ModifyHistogram(uint8_t** histogramData)
+std::vector<wchar_t> LocalizationHandler::ModifyHistogram(
+    uint8_t* histogramData, uint32_t histogramSize, LocalizationMergeData* data, bool& outModified)
 {
-    std::vector<wchar_t> values;
-    uint32_t unk = RT_READ_BUF(uint32_t, histogramData);
-    uint32_t size = RT_READ_BUF(uint32_t, histogramData);
-    uint32_t unk2 = RT_READ_BUF(uint32_t, histogramData);
+    // Chunk layout: magic (u32), size of the data after this field (u32), character count (u32),
+    // then the character table (u16 per entry). Data after the character table is not part of it.
+    constexpr uint32_t c_headerSize = 12;
 
-    for (int i = 0; i < (size / 2); i++)
+    // Bytes 0x80-0xFF in the string chunk index the table directly, empty slots hold 0
+    constexpr uint32_t c_singleByteBegin = 0x80;
+    constexpr uint32_t c_singleByteEnd = 0x100;
+
+    outModified = false;
+
+    if (histogramSize < c_headerSize)
     {
-        wchar_t data = RT_READ_BUF(wchar_t, histogramData);
-        values.push_back(data);
+        return std::vector<wchar_t>();
     }
 
-    return values;
+    uint32_t count = *reinterpret_cast<uint32_t*>(histogramData + 8);
+    count = std::min(count, (histogramSize - c_headerSize) / static_cast<uint32_t>(sizeof(uint16_t)));
+
+    wchar_t* table = reinterpret_cast<wchar_t*>(histogramData + c_headerSize);
+    wchar_t* tableEnd = table + count;
+
+    // Characters used by mods that the current game language has no table entry for
+    std::set<wchar_t> missing;
+    for (const auto& entry : data->strings)
+    {
+        for (wchar_t c : entry.second)
+        {
+            if (c < 0x80)
+            {
+                continue;
+            }
+
+            if (std::find(table, tableEnd, c) == tableEnd)
+            {
+                missing.insert(c);
+            }
+        }
+    }
+
+    // Put them into free single-byte slots, the same way localized game clients store their characters
+    uint32_t slot = c_singleByteBegin;
+    uint32_t slotEnd = std::min(c_singleByteEnd, count);
+    uint32_t added = 0;
+    for (wchar_t c : missing)
+    {
+        while (slot < slotEnd && table[slot] != 0)
+        {
+            slot++;
+        }
+
+        if (slot >= slotEnd)
+        {
+            KYBER_LOG(Warning, "[ModLoader] Localization histogram is full, character not added: " << static_cast<uint16_t>(c));
+            continue;
+        }
+
+        table[slot] = c;
+        added++;
+    }
+
+    if (added > 0)
+    {
+        outModified = true;
+        KYBER_LOG(Info, "[ModLoader] Added " << added << " characters to localization histogram");
+    }
+
+    return std::vector<wchar_t>(table, tableEnd);
 }
 
 std::vector<uint8_t> LocalizationHandler::ModifyChunk(
@@ -121,7 +199,8 @@ std::vector<uint8_t> LocalizationHandler::ModifyChunk(
     }
 
     std::vector<uint8_t> histogramShifts;
-    for (int i = 0x1FE; i >= 0x80; i--)
+    int32_t lastShift = std::min(0x1FE, static_cast<int32_t>(values.size()) - 1);
+    for (int32_t i = lastShift; i >= 0x80; i--)
     {
         if (values[i] < 0x80)
         {

@@ -20,7 +20,7 @@ public:
     bool Modify(CustomAssetHandlerContext& ctx, DataContainer* container, LocalizationMergeData* data) override;
 
 private:
-    std::vector<wchar_t> ModifyHistogram(uint8_t** histogramData);
+    std::vector<wchar_t> ModifyHistogram(uint8_t* histogramData, uint32_t histogramSize, LocalizationMergeData* data, bool& outModified);
     std::vector<uint8_t> ModifyChunk(
         uint8_t* chunkData, uint32_t chunkSize, LocalizationMergeData* data, const std::vector<wchar_t>& values);
 };
